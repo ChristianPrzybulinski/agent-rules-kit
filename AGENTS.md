@@ -34,32 +34,47 @@ Ordenado por meia-vida: disciplina durável no topo, ferramentas no fim. Cada li
 - Valide na borda, confie no interior, nunca engula erro.
 - Arquivos por feature: 200-400 linhas, 800 máx.
 - Antes de escrever utilitário: procure no ecossistema (Maven Central, Godot Asset Lib, `gh search code`). Adotar vence escrever.
-- Dependência nova → verifique se já existe no projeto, se a versão é compatível e se tem ≥7 dias de publicada.
+- Dependência nova → já existe no projeto? versão compatível? ≥7 dias publicada? 0 CVE crítica/alta? Só então adicione.
 - Não duplique config de lint/format nas regras: `pom.xml`, `.editorconfig`, `project.godot` são a fonte.
 - Um PR, uma preocupação. Tangentes viram nota de follow-up.
+- Padrão de projeto só para problema presente; DDD tático (aggregate, VO, evento) sim; Event Sourcing/CQRS/microserviços só com necessidade medida.
 
-## Especialidades (carregar skill/regra quando o contexto pedir)
+## Testes
 
-| Contexto | Regra / Skill |
+- Domínio (regras de negócio): 100% linha/branch + mutation ≥80%. Fora do domínio: teste o que tem lógica, sem gate numérico.
+- Integração sempre em par: caminho feliz + caminho triste. Dinheiro/inventário/recompensa → teste de idempotência e concorrência.
+- Nunca `@Disabled` para ficar verde. Não teste getters, framework ou "que chamou X".
+
+## Especialidades (carregar regra/skill/processo quando o contexto pedir)
+
+| Contexto | Carregar |
 |---|---|
-| `*.java`, `pom.xml`, `build.gradle` | `java` |
-| `*.gd`, `*.tscn`, `project.godot` | `godot-2d` |
-| PR, branch, release, `gh` | `github-cli` |
-| README, CHANGELOG, ADR, versão | `docs` |
-| Verificar afirmação duvidosa | `skeptic` |
+| `*.java`, `pom.xml` | `rules/java/*`, skills `java/*` — Maven obrigatório, Java LTS fixo |
+| `*.gd`, `*.tscn`, `project.godot` | `rules/godot/*`, skills `godot/*` |
+| branch, commit, PR, release, LFS | `rules/git/*`, skills `git/*` |
+| auth, endpoint, dependência, CVE, segredo | `rules/security/*`, skill `core/vuln-scan` |
+| modelar domínio, escolher padrão | `rules/architecture/*` |
+| README, Javadoc, CHANGELOG, ADR | `rules/documentation/*`, skills `docs/*` |
+| nova funcionalidade do início ao fim | processo `sdd` (specify → clarify → plan → tasks → implement → validate) |
+| "está pronto?" | skill `core/validate-implementation` |
+| afirmação duvidosa | skill `core/skeptic` |
+| Postgres, Redis, Docker, DBeaver, Krita | skills/kits do mesmo nome |
 
-## Documentação e versão
+## Git, docs e versão
 
-- Mudança visível ao usuário → entrada em `CHANGELOG.md` (Keep a Changelog) no mesmo PR.
-- Decisão com trade-off ou alternativa rejeitada → `docs/adr/NNNN-titulo.md` antes de moldar o código.
-- SemVer; tag `vX.Y.Z`; Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
+- `main` única branch longa, sempre verde. Trabalho em `feature/FEAT-xxx-nome`; PR com squash; incompleto entra desligado por feature flag (flag >30 dias ligada → `DEBT`).
+- Conventional Commits; SemVer com tag `vX.Y.Z`; versão do protocolo cliente↔servidor é um inteiro separado.
+- Mudança visível → `CHANGELOG.md` (`Unreleased`) no mesmo PR. API pública → Javadoc/docstring. Comando mudou → README.
+- Decisão com trade-off → `docs/spec/decisions/DEC-xxx.md` (estado `proposta` até aprovação). Dívida consciente → `DEBT-xxx`. Feature → `FEAT-xxx` com status no frontmatter.
+- Binário → LFS via `.gitattributes` **antes** do primeiro arquivo; gerado por script → não versiona, versiona o script + manifesto.
 - Descoberta surpreendente em um repo (constante crítica, convenção frágil) → proponha para o `AGENTS.md` daquele repo na hora.
 
 ## Segurança
 
 - Segredo encontrado → pare, avise antes de qualquer outro trabalho; rotacione nesta sessão; varra por irmãos.
-- Todo commit: sem segredo hardcoded, queries parametrizadas, input validado, authz em endpoints sensíveis, erro não vaza interno.
-- Tokens vêm de keychain/env; nunca digitados ou ecoados no chat/terminal.
+- Todo commit: sem segredo hardcoded, queries parametrizadas, input validado, authz por ação **e** entidade, erro não vaza interno.
+- 0 CVEs críticas/altas (CVSS ≥7) em dependências — gate de CI. Senha → Argon2id/bcrypt≥12. Config por env (twelve-factor); `.env` nunca no repo.
+- Tokens vêm de keychain/env; nunca digitados ou ecoados no chat/terminal. Cliente é não confiável: servidor valida tudo que importa.
 
 ## Limites
 

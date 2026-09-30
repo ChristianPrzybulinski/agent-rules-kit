@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/requirement.schema.json",
+  "title": "Frontmatter de REQ-F-nnn / REQ-NF-nnn",
+  "type": "object",
+  "required": ["id", "title", "type", "priority", "features", "created"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^REQ-(F|NF)-[0-9]{3,}$" },
+    "title": { "type": "string", "minLength": 5, "maxLength": 120 },
+    "type": { "type": "string", "enum": ["functional", "non-functional"] },
+    "category": {
+      "type": "string",
+      "enum": ["performance", "security", "reliability", "compatibility", "usability", "maintainability", "observability", "scalability"]
+    },
+    "priority": { "type": "string", "enum": ["must", "should", "could", "wont"] },
+    "metric": { "type": "string" },
+    "target": { "type": "string" },
+    "measurement": { "type": "string" },
+    "features": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
+    "source": { "type": "string" },
+    "created": { "type": "string", "format": "date" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "non-functional" } } },
+      "then": { "required": ["category", "metric", "target", "measurement"] }
+    },
+    {
+      "if": { "properties": { "id": { "pattern": "^REQ-F-" } } },
+      "then": { "properties": { "type": { "const": "functional" } } }
+    },
+    {
+      "if": { "properties": { "id": { "pattern": "^REQ-NF-" } } },
+      "then": { "properties": { "type": { "const": "non-functional" } } }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/decision.schema.json",
+  "title": "Frontmatter de DEC-nnn",
+  "type": "object",
+  "required": ["id", "title", "status", "date"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^DEC-[0-9]{3,}$" },
+    "title": { "type": "string", "minLength": 5, "maxLength": 120 },
+    "status": { "type": "string", "enum": ["proposta", "aprovada", "rejeitada", "substituída"] },
+    "date": { "type": "string", "format": "date" },
+    "deciders": { "type": "string" },
+    "features": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
+    "supersedes": { "type": ["string", "null"], "pattern": "^DEC-[0-9]{3,}$" },
+    "superseded_by": { "type": ["string", "null"], "pattern": "^DEC-[0-9]{3,}$" }
+  },
+  "if": { "properties": { "status": { "const": "substituída" } } },
+  "then": { "required": ["superseded_by"] }
+}

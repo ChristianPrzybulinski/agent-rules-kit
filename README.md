@@ -1,92 +1,99 @@
-# Kit-IA — Regras, Skills e Prompts para Agentes de IA
+# agent-rules-kit
 
-Conjunto único de instruções lido por Devin, Windsurf, Cursor, Claude Code e adaptável a ChatGPT.
+Regras, conhecimento, skills, processos e kits de configuração para agentes de IA (Devin, Windsurf, Cursor, Codex, ChatGPT) trabalhando em Java/Spring, Godot 2D, PostgreSQL, Redis, Docker e GitHub.
 
-## Princípios de design (baseados em evidência)
+## Princípios de design
 
-- **Um always-on curto** (`AGENTS.md`, 60-150 linhas): stack, limites, disciplina. Estudos (GitHub 2.500 repos, ETH AGENTbench, Augment golden-PR) mostram queda de qualidade acima de ~300 linhas e ganho com listas numeradas, exemplos de 3-10 linhas e limites explícitos.
-- **Condição → ação**, não valores vagos. "Antes de editar migration, verifique se já rodou" fira; "seja cuidadoso" não.
-- **Conhecimento profundo em skills/regras sob demanda** (`model_decision`), não always-on.
-- **Referenciar, não duplicar**: estilo vive em `pom.xml`/`.editorconfig`/`project.godot`, não nas regras.
-- **Ordenado por meia-vida**: disciplina durável no topo; ferramentas (que mudam) no fim.
+- **Um always-on curto** (`AGENTS.md`, ≤150 linhas). Evidência (GitHub 2.500 repos, ETH AGENTbench, Augment): qualidade cai acima de ~300 linhas; ganha com condição→ação, exemplos curtos e limites explícitos.
+- **Regra ≠ conhecimento ≠ skill ≠ kit**: regra é normativa e curta; conhecimento é factual com fonte e data; skill é procedimento executável; kit é arquivo de configuração pronto.
+- **Carregar sob demanda**: tudo fora do `AGENTS.md` entra no contexto só quando o domínio pede (`trigger: model_decision` / `description`).
+- **Referenciar, não duplicar**: estilo vive em `pom.xml`/`.editorconfig`/`project.godot`; specs vivem no repo do projeto, não aqui.
+- **Toda afirmação classificada**: `[FATO]` `[DECISÃO]` `[PROPOSTA]` `[HIPÓTESE]` `[BLOQUEIO]`.
 
 ## Estrutura
 
 ```text
-~/.ai-kit/
-├── AGENTS.md                 # always-on global (Devin/Windsurf/Cursor/Codex/Copilot leem nativamente)
-├── PROMPT.md                 # system prompt completo (GPTs, Projects, API)
-├── PROMPT-compact.md         # ≤1.500 chars para Custom Instructions do ChatGPT
-├── CHANGELOG.md
-├── rules/                    # detalhe por domínio, carregado sob demanda (frontmatter trigger/description)
-│   ├── 00-core.md            # evidência e ceticismo
-│   ├── 10-clean-code.md
-│   ├── 20-clean-architecture.md
-│   ├── 30-java.md
-│   ├── 40-godot-2d.md
-│   ├── 50-github-cli.md
-│   ├── 60-documentation.md
-│   └── 70-token-efficiency.md
-├── skills/                   # SKILL.md invocáveis por /nome ou pelo agente
-│   ├── skeptic/              # verificação adversarial de afirmações (>98%)
-│   ├── java/
-│   ├── godot-2d/
-│   ├── github-cli/
-│   └── docs/
-├── templates/                # AGENTS.md de projeto, por stack (copiar para a raiz do repo)
-│   ├── java-spring/AGENTS.md
-│   └── godot-2d/AGENTS.md
+├── AGENTS.md                 # always-on global
+├── README.md · CHANGELOG.md
+├── rules/                    # normativo, por domínio, sob demanda
+│   ├── core/          evidence · tokens
+│   ├── development/   clean-code · testing (100% domain + PITest ≥80, feliz+triste) · twelve-factor
+│   ├── architecture/  clean-architecture · ddd-and-patterns (quando sim / quando não)
+│   ├── java/          java · build-and-dependencies (Maven obrigatório, LTS fixo, gates)
+│   ├── godot/         godot-2d
+│   ├── git/           branching-and-versioning (trunk-based, flags, SemVer, protocol_version) · git-lfs-and-binaries · github-cli
+│   ├── security/      secure-development (0 CVE crítica/alta, segredos, authz, LGPD)
+│   └── documentation/ documentation · living-docs (DoD documental)
+├── knowledge/                # factual, com fonte e data de verificação
+│   └── java/ godot/ postgresql/ redis/ docker/ git/
+├── skills/                   # executáveis (/nome), agrupadas por domínio
+│   ├── core/          skeptic · validate-implementation · vuln-scan
+│   ├── java/ godot/   java-standards · godot-standards
+│   ├── git/           github-cli · git-lfs
+│   ├── docs/          update-docs
+│   └── postgresql/ redis/ docker/ dbeaver/ krita/
+├── processes/sdd/            # Spec-Driven Development (9 skills sdd-* + README) — adaptado do github/spec-kit
+├── kits/                     # configuração pronta para copiar no projeto
+│   ├── github/        workflows (ci-java, ci-godot, spec-lint, gitleaks) · PR template · CODEOWNERS · labels
+│   ├── java-maven/    pom-parent.xml (Spotless, JaCoCo 100% domain, PITest 80, Dependency-Check CVSS≥7, Enforcer) · toolchains
+│   ├── docker/        compose.yml (Postgres 17 + Redis 7, healthchecks) · Dockerfile.java · .env.example
+│   ├── git-lfs/       .gitattributes
+│   ├── godot/         .gitignore · make_spritesheet.py · dicas de editor
+│   └── sdd/           init-spec.sh (cria docs/spec/ no projeto)
+├── templates/
+│   ├── projects/      java-spring/AGENTS.md · godot-2d/AGENTS.md
+│   └── docs/spec/     spec · feature · requirement-functional · requirement-non-functional · decision · debt
+├── schemas/                  # JSON Schema dos frontmatters de spec (validados em CI)
+├── prompts/                  # chatgpt-compact (≤1.500 chars) · chatgpt-full
 └── scripts/
-    ├── install.sh            # instala em Devin, Windsurf, Cursor, Claude Code
-    └── to-mdc.sh             # converte rules/*.md → .cursor/rules/*.mdc
+    ├── install/       devin.sh · cursor.sh · windsurf.sh · codex.sh · all.sh
+    ├── check.sh       valida o kit; `--spec <dir>` valida um docs/spec
+    └── check_spec.py
 ```
 
 ## Instalação
 
 ```bash
-~/.ai-kit/scripts/install.sh          # tudo (global)
-~/.ai-kit/scripts/install.sh --check  # só valida frontmatter e tamanhos
+gh repo clone ChristianPrzybulinski/agent-rules-kit ~/.ai-kit
+~/.ai-kit/scripts/install/all.sh      # Devin + Cursor + Windsurf + Codex, depois check.sh
 ```
 
-O script faz:
+| Destino | Conteúdo |
+|---|---|
+| `~/.config/devin/AGENTS.md` | always-on |
+| `~/.devin/rules/<domínio>/*.md` | regras sob demanda |
+| `~/.config/devin/skills/<nome>/` | skills + processos (achatados; nomes únicos) |
+| `~/.cursor/rules/<domínio>-<nome>.mdc` | regras convertidas |
+| `~/.codeium/windsurf/memories/global_rules.md` | always-on |
+| `~/.codex/AGENTS.md` | always-on (Codex CLI) |
 
-| Destino | O que | Lido por |
-|---|---|---|
-| `~/.config/devin/AGENTS.md` | always-on | Devin |
-| `~/.devin/rules/*.md` | regras sob demanda | Devin |
-| `~/.config/devin/skills/*/SKILL.md` | skills | Devin |
-| `~/.codeium/windsurf/memories/global_rules.md` | always-on | Windsurf |
-| `~/.cursor/rules/*.mdc` | regras (convertidas) | Cursor |
-| `~/.claude/CLAUDE.md` (só com `--claude`) | always-on | Claude Code |
+Não instala em `~/.devin/global_rules.md` nem `~/.claude/CLAUDE.md`: Devin lê ambos como regra global e duplicaria o texto no contexto.
 
-Não instala em `~/.devin/global_rules.md` nem (por padrão) em `~/.claude/CLAUDE.md`: Devin lê ambos como regra global e carregaria o mesmo texto duas vezes. Use `--claude` apenas se usa Claude Code — e, nesse caso, desative a importação no Devin com `"read_config_from": {"claude": false}` em `~/.config/devin/config.json`.
+**ChatGPT**: Custom Instructions ← `prompts/chatgpt-compact.md`; GPT/Project ← `prompts/chatgpt-full.md`.
 
-### Por projeto
+## Uso num projeto
 
 ```bash
-cp ~/.ai-kit/templates/java-spring/AGENTS.md ./AGENTS.md   # ou godot-2d
-# edite os [colchetes]; opcional:
-mkdir -p .devin && cp -r ~/.ai-kit/skills .devin/
+cp ~/.ai-kit/templates/projects/java-spring/AGENTS.md ./AGENTS.md   # ou godot-2d; preencher [colchetes]
+~/.ai-kit/kits/sdd/init-spec.sh .                                    # cria docs/spec/
+cp ~/.ai-kit/kits/git-lfs/.gitattributes .                           # ANTES do primeiro binário
+mkdir -p .github/workflows && cp ~/.ai-kit/kits/github/workflows/*.yml .github/workflows/
 ```
 
-### ChatGPT
+Depois, no agente: `/sdd-constitution` → `/sdd-specify <funcionalidade>` → `/sdd-clarify FEAT-001` → `/sdd-audit` → `/sdd-plan` → `/sdd-tasks` → `/sdd-implement` → `/validate-implementation FEAT-001` → `/sdd-to-card`. Detalhes em `processes/sdd/README.md`.
 
-- Custom Instructions → conteúdo de `PROMPT-compact.md`.
-- GPT personalizado / Project → conteúdo de `PROMPT.md`.
+Outras skills: `/skeptic <afirmação>` · `/vuln-scan` · `/git-lfs audit` · `/postgresql migration ...` · `/redis justify ...` · `/docker up`.
 
-## Uso
+## Pré-requisitos verificados nesta máquina (2026-09-29)
 
-- `/skeptic <afirmação>` — verificação adversarial com veredicto e confiança.
-- `/java`, `/godot-2d`, `/github-cli`, `/docs` — carregam o conhecimento do domínio.
-- O agente também invoca essas skills sozinho quando o contexto casa (tabela em `AGENTS.md`).
+Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — usar via `toolchains.xml`) e JDK 27 no PATH · Maven 3.9.16 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita. Python do sistema 3.9 sem `pyyaml`/`jsonschema` (check de spec roda em modo estrutural; `pip3 install --user pyyaml jsonschema` para validação completa).
 
 ## Manutenção
 
-- Nova linha em `AGENTS.md` só se passar no teste: "remover isto mudaria um resultado amanhã?"
-- `AGENTS.md` ≤ 150 linhas. Detalhe vai para `rules/` ou `skills/`.
-- Lint opcional em repos: `npx agents-md-lint AGENTS.md` (Taiizor/agents-md-cookbook).
-- Toda mudança relevante → `CHANGELOG.md` + rodar `install.sh`.
+- Linha nova no `AGENTS.md` só se "removê-la mudaria um resultado amanhã".
+- Mudança → `CHANGELOG.md` → `scripts/check.sh` → commit Conventional → `scripts/install/all.sh`.
+- Versões em `kits/` e `knowledge/` têm data de verificação; revisar a cada release.
 
 ## Referências
 
-- agents.md (padrão) · Taiizor/agents-md-cookbook · NasserAlbusaidi/claude.md (5 mecânicas) · GoranErhartic/cursor-development-rules · voxmedia/open-agent-toolkit (skeptic) · AKDworks/Godot-Clarity · Common-ka/godot-cursor-rules
+agents.md · github/spec-kit · Taiizor/agents-md-cookbook · NasserAlbusaidi/claude.md · GoranErhartic/cursor-development-rules · voxmedia/open-agent-toolkit (skeptic) · AKDworks/Godot-Clarity · Common-ka/godot-cursor-rules

@@ -1,5 +1,5 @@
 ---
-name: java
+name: java-standards
 version: "1.0"
 description: Aplica padrões Java moderno, Clean Code, Clean Architecture e testes.
 triggers:

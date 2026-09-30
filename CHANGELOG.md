@@ -2,6 +2,28 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento: [SemVer](https://semver.org/lang/pt-BR/).
 
+## [3.0.0] - 2026-09-29
+
+### Changed
+- Estrutura reorganizada por domínio: `rules/<domínio>/`, `skills/<domínio>/<nome>/`, `templates/{projects,docs}`, `prompts/`, `scripts/install/`. Skills renomeadas para nomes únicos (`java-standards`, `godot-standards`, `update-docs`) porque o Devin instala skills em pasta plana.
+- `AGENTS.md`: seções Testes e Git/docs/versão; roteamento para regras/skills/processo por contexto; gates de segurança (0 CVE crítica/alta, Argon2id, twelve-factor).
+- Installers reescritos (`devin.sh`, `cursor.sh`, `windsurf.sh`, `codex.sh`, `all.sh`); `check.sh` valida regras/skills/processos, tamanhos, schemas e, com `--spec`, um `docs/spec` de projeto.
+
+### Added
+- Regras: `testing` (100% linha/branch + PITest ≥80% no domínio; integração feliz+triste), `twelve-factor`, `secure-development`, `ddd-and-patterns` (catálogo quando sim/quando não), `branching-and-versioning` (trunk-based, feature flags com expiração, SemVer, `protocol_version`), `git-lfs-and-binaries`, `java/build-and-dependencies` (Maven obrigatório, LTS fixo), `living-docs`.
+- Skills: `validate-implementation`, `vuln-scan`, `git-lfs`, `postgresql`, `redis`, `docker`, `dbeaver`, `krita`.
+- Processo `sdd` (Spec-Driven Development) adaptado do github/spec-kit: `sdd-constitution`, `sdd-specify`, `sdd-clarify`, `sdd-analyze`, `sdd-audit`, `sdd-plan`, `sdd-tasks`, `sdd-implement`, `sdd-to-card` (GitHub Issues + Projects). Siglas `FEAT/REQ-F/REQ-NF/DEC/DEBT`, status por feature, classificação `[FATO]/[DECISÃO]/[PROPOSTA]/[HIPÓTESE]/[BLOQUEIO]`.
+- Templates de spec (`spec`, `feature`, `requirement-functional`, `requirement-non-functional`, `decision`, `debt`) e JSON Schemas correspondentes.
+- Kits: `github` (workflows ci-java, ci-godot, spec-lint, gitleaks; PR template; labels), `java-maven` (pom-parent com gates), `docker` (Postgres 17.11 + Redis 7.4), `git-lfs`, `godot`, `sdd/init-spec.sh`.
+- `knowledge/` com notas factuais datadas (Java 25 LTS, Godot 4.7, Postgres 17, Redis 7 e licença, Compose v5, quotas LFS).
+- Instalação para Codex CLI (`~/.codex/AGENTS.md`).
+
+### Fixed
+- Quota do GitHub LFS corrigida para 10 GiB (Free/Pro), conforme docs atuais.
+
+### Removed
+- `scripts/install.sh` e `scripts/to-mdc.sh` (substituídos por `scripts/install/*`); instalação em `~/.claude/CLAUDE.md`.
+
 ## [2.0.0] - 2026-09-29
 
 ### Changed

@@ -1,0 +1,13 @@
+# Godot 4
+.godot/
+build/
+
+# *.import NÃO é ignorado — é versionado (descreve como o engine importa cada asset).
+# export_presets.cfg contém caminhos/certificados locais de export — decisão do projeto:
+# descomente a linha abaixo se não quiser versioná-lo.
+# export_presets.cfg
+
+# SO/editor
+.DS_Store
+*.translation
+.mono/

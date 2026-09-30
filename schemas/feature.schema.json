@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/feature.schema.json",
+  "title": "Frontmatter de FEAT-nnn",
+  "type": "object",
+  "required": ["id", "title", "status", "requirements", "created"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
+    "title": { "type": "string", "minLength": 5, "maxLength": 100 },
+    "status": {
+      "type": "string",
+      "enum": ["proposta", "clarificada", "planejada", "em-implementação", "validada", "entregue", "cancelada"]
+    },
+    "requirements": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^REQ-(F|NF)-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
+    "depends_on": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
+    "flag": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9-]*$" },
+    "card": { "type": ["integer", "null"], "minimum": 1 },
+    "owner": { "type": "string" },
+    "created": { "type": "string", "format": "date" },
+    "updated": { "type": "string", "format": "date" }
+  }
+}

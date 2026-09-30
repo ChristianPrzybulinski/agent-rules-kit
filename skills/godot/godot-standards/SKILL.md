@@ -1,5 +1,5 @@
 ---
-name: godot-2d
+name: godot-standards
 version: "1.0"
 description: Aplica padrões de projeto Godot 2D com GDScript, nodes, sinais e autoloads.
 triggers:

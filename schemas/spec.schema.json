@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/spec.schema.json",
+  "title": "Frontmatter de docs/spec/spec.md",
+  "type": "object",
+  "required": ["project", "version", "updated"],
+  "additionalProperties": false,
+  "properties": {
+    "project": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$" },
+    "protocol_version": { "type": "integer", "minimum": 1 },
+    "card_project": { "type": ["integer", "null"], "minimum": 1 },
+    "updated": { "type": "string", "format": "date" }
+  }
+}

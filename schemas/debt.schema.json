@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/debt.schema.json",
+  "title": "Frontmatter de DEBT-nnn",
+  "type": "object",
+  "required": ["id", "title", "status", "severity", "trigger", "created"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^DEBT-[0-9]{3,}$" },
+    "title": { "type": "string", "minLength": 5, "maxLength": 120 },
+    "status": { "type": "string", "enum": ["aberta", "paga", "aceita"] },
+    "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+    "trigger": { "type": "string", "minLength": 5 },
+    "features": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
+    "created": { "type": "string", "format": "date" },
+    "card": { "type": ["integer", "null"], "minimum": 1 }
+  }
+}

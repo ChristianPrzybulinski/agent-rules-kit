@@ -1,5 +1,5 @@
 ---
-name: docs
+name: update-docs
 version: "1.0"
 description: Atualiza README, CHANGELOG, ADRs e versionamento semântico.
 triggers:
