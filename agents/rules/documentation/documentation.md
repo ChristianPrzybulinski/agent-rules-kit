@@ -5,6 +5,11 @@ trigger: model_decision
 
 # Documentação
 
+## Idioma
+
+- Todo artefato escrito (README, CHANGELOG, spec, ADR/DEC, comentário, commit, nome de arquivo e pasta) é em **inglês**. Termos do domínio ganham o nome em inglês no glossário e é esse que vale no código.
+- A conversa com o usuário (respostas, perguntas, opções de decisão) é em pt-BR. Trecho que vai virar arquivo sai em inglês já na resposta.
+
 ## README.md
 
 - Propósito do projeto.

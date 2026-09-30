@@ -8,6 +8,19 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versioname
 - `refresh.sh` e `bootstrap.sh` sem bit de execução após o `git mv`; `check_kit.py` passa a exigir `+x` em todo `platforms/**/*.sh`.
 - `README.md`: bootstrap via `gh repo clone` (repo privado; `curl raw` não autentica).
 
+## [4.1.0] - 2026-09-30
+
+### Added
+- `platforms/tools/sync-project.sh`: copia `check_spec.py` + schemas de spec + `spec-lint.yml` para `.github/spec-lint/` do projeto (com `KIT_VERSION` e README gerado); `--check` detecta divergência.
+- Regra de idioma: artefatos escritos em inglês; conversa com o usuário em pt-BR — em `AGENTS.md`, `clean-code.md` e `documentation.md`; nomes curtos e objetivos.
+
+### Changed
+- `platforms/kits/github/workflows/spec-lint.yml`: sem checkout/token do kit — roda a cópia local em `.github/spec-lint/` (`CI=1` exige pyyaml/jsonschema no `check_spec.py`).
+- `platforms/kits/sdd/init-spec.sh`: chama `sync-project.sh` — o projeto já nasce com CI de spec.
+
+### Removed
+- Dependência do projeto no repo do kit em CI de specs (checkout + token removidos). Workflows reutilizáveis entre repos do mesmo produto continuam permitidos.
+
 ## [4.0.0] - 2026-09-30
 
 ### Changed

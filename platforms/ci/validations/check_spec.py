@@ -4,6 +4,7 @@
 Com pyyaml+jsonschema: validacao completa. Sem eles: parser YAML minimo
 (frontmatter plano) + checagem estrutural (required, enums, id pattern).
 """
+import os
 import re
 import sys
 from pathlib import Path
@@ -104,6 +105,8 @@ def main():
     if not spec_dir.is_dir():
         sys.exit(f"spec dir inexistente: {spec_dir}")
     if not FULL:
+        if os.environ.get("CI") == "1":
+            sys.exit("FALHA: pyyaml/jsonschema ausentes (CI=1 exige deps; pip install pyyaml jsonschema)")
         print("AVISO: pyyaml/jsonschema ausentes; validacao de spec sera estrutural.", file=sys.stderr)
 
     schemas = {}

@@ -35,12 +35,12 @@ Ordenado por meia-vida: disciplina durável no topo, ferramentas no fim. Cada li
 
 ## Craft
 
-- Clean Code: nome carrega o "o quê"; comentário só para o "porquê" não óbvio. Funções fazem uma coisa; ≤3-4 parâmetros; early return em vez de aninhamento.
+- **Tudo escrito é em inglês** — código, identificadores, Javadoc/docstring, comentários, commits, README, specs, docs, nomes de pasta. Só a conversa com o usuário (respostas, perguntas, opções) é em pt-BR.
+- Clean Code: nome curto, objetivo e literal — diz o que é, sem abreviação nem sufixo decorativo (`Manager`, `Helper`, `Data`); comentário só para o "porquê" não óbvio. Funções fazem uma coisa; ≤3-4 parâmetros; early return em vez de aninhamento.
 - Clean Architecture **pragmática**: dependência aponta para dentro (domain ← application ← adapters ← infra). Domínio sem framework. Port (interface) só onde há I/O externo, troca real de implementação ou fronteira do domínio; serviço interno com uma implementação é classe concreta. DTOs cruzam camadas, entidades não.
 - Escada da simplicidade, antes de escrever: precisa existir? já existe no repo? stdlib? recurso nativo da plataforma? dependência já instalada? cabe em uma linha? Só então o mínimo que funciona. Detalhe em `rules/development/simplicity.md`.
 - Nunca simplifique: validação na borda de confiança, erro que evita perda de dado, segurança, o que foi pedido explicitamente. Simplificação deliberada com teto conhecido → comentário `// simplificado: <teto>, <quando evoluir>`.
-- Valide na borda, confie no interior, nunca engula erro.
-- Arquivos por feature: 200-400 linhas, 800 máx. Menos arquivos vence; deletar vence adicionar.
+- Valide na borda, confie no interior, nunca engula erro. Arquivos por feature: 200-400 linhas, 800 máx; menos arquivos vence; deletar vence adicionar.
 - Antes de escrever utilitário: procure no ecossistema (Maven Central, Godot Asset Lib, `gh search code`). Adotar vence escrever.
 - Dependência nova → já existe no projeto? versão compatível? ≥7 dias publicada? 0 CVE crítica/alta? Só então adicione.
 - Não duplique config de lint/format nas regras: `pom.xml`, `.editorconfig`, `project.godot` são a fonte.

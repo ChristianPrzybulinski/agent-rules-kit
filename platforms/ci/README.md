@@ -14,7 +14,7 @@
 | `decision.schema.json` | `docs/spec/decisions/*.md` | `DEC-nnn-slug.md` |
 | `debt.schema.json` | `docs/spec/debts/*.md` | `DEBT-nnn-slug.md` |
 
-Os 5 de spec (`spec`, `feature`, `requirement`, `decision`, `debt`) vão para os projetos: o workflow `platforms/kits/github/workflows/spec-lint.yml` faz checkout deste kit e roda `check.sh --spec docs/spec`.
+Os 5 de spec (`spec`, `feature`, `requirement`, `decision`, `debt`) vão para os projetos **como cópia**: `platforms/tools/sync-project.sh` instala `check_spec.py` + schemas em `.github/spec-lint/` do projeto, e o workflow `platforms/kits/github/workflows/spec-lint.yml` os roda localmente — sem checkout nem token do kit.
 
 | Validação | Escopo |
 |---|---|

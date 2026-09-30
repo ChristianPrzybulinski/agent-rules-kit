@@ -5,5 +5,6 @@
 | `bootstrap.sh` | clona `~/.ai-kit` (gh, fallback https) e instala | primeira vez na máquina |
 | `refresh.sh` | `git pull --ff-only` + reinstala se VERSION/LAYOUT_VERSION mudaram (layout → `--clean`) | início de sessão (`--quiet` sai em silêncio) |
 | `check.sh` | valida o kit (`check_kit.py`); `--spec <dir>` valida `docs/spec` de um projeto | após qualquer mudança no kit; no CI |
+| `sync-project.sh` | copia `check_spec.py` + schemas de spec + `spec-lint.yml` para `.github/` de um projeto; `--check` compara | projeto novo (via `init-spec.sh`) ou após mudar o validador |
 
 Estado instalado: `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}`.

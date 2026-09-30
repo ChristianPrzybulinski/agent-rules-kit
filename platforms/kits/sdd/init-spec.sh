@@ -2,7 +2,7 @@
 # Inicializa docs/spec/ num repo. Uso: init-spec.sh <repo-dir>
 set -euo pipefail
 
-KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 REPO="${1:?uso: init-spec.sh <repo-dir>}"
 
 mkdir -p "$REPO/docs/spec/features" \
@@ -21,5 +21,7 @@ if [[ ! -f "$REPO/docs/spec/spec.md" ]]; then
 else
   echo "docs/spec/spec.md ja existe; nao sobrescrito"
 fi
+
+"$KIT_DIR/platforms/tools/sync-project.sh" "$REPO"
 
 echo "Proximo passo: /sdd-constitution no repo alvo"

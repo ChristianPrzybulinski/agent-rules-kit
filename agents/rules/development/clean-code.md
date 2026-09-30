@@ -7,8 +7,11 @@ trigger: model_decision
 
 ## Nomes
 
-- Nomes de variáveis, funções, classes e métodos devem revelar intenção.
-- Evite abreviações obscuras, prefixos desnecessários e números mágicos sem constante.
+- **Inglês, sempre** — identificadores, pacotes, arquivos, pastas, Javadoc, comentários, mensagens de log e de erro. Mistura de idioma no código é bug de revisão.
+- Curto, objetivo, literal: `balance`, `findByPlayer`, `BattleTurn`. O nome diz o que é, não como foi feito nem quem o usa.
+- Proibido: abreviação não universal (`usr`, `qtd`, `mgr`), sufixo decorativo (`Manager`, `Helper`, `Util`, `Data`, `Info`, `Impl` sem segunda implementação), prefixo de tipo (`strName`, `IRepository`), número mágico sem constante.
+- Booleano lê como pergunta (`isActive`, `hasStock`); coleção no plural (`items`); método com verbo (`apply`, `find`, `reserve`); classe com substantivo.
+- Um conceito, um nome: não alterne `player`/`user`/`character` para a mesma coisa. Glossário do projeto (`docs/spec/spec.md`) é a fonte.
 
 ## Funções e métodos
 
