@@ -25,10 +25,10 @@ Regras, conhecimento, skills, processos e kits de configuração para agentes de
 │   ├── security/      secure-development (0 CVE crítica/alta, segredos, authz, LGPD)
 │   └── documentation/ documentation · living-docs (DoD documental)
 ├── knowledge/                # factual, com fonte e data de verificação
-│   └── java/ godot/ postgresql/ redis/ docker/ git/
+│   └── java/ godot/ (incl. networking-transports) postgresql/ redis/ docker/ git/ legacy/ (director-lingo-glossary)
 ├── skills/                   # executáveis (/nome), agrupadas por domínio
-│   ├── core/          skeptic · validate-implementation · vuln-scan
-│   ├── java/ godot/   java-standards · godot-standards
+│   ├── core/          skeptic · validate-implementation · vuln-scan · session-handoff · protocol-contract · investigate
+│   ├── java/ godot/   java-standards · characterization-tests · godot-standards · asset-import
 │   ├── git/           github-cli · git-lfs
 │   ├── docs/          update-docs
 │   └── postgresql/ redis/ docker/ dbeaver/ krita/
@@ -42,7 +42,8 @@ Regras, conhecimento, skills, processos e kits de configuração para agentes de
 │   └── sdd/           init-spec.sh (cria docs/spec/ no projeto)
 ├── templates/
 │   ├── projects/      java-spring/AGENTS.md · godot-2d/AGENTS.md
-│   └── docs/spec/     spec · feature · requirement-functional · requirement-non-functional · decision · debt
+│   └── docs/          spec/* (spec · feature · requirement-functional · requirement-non-functional · decision · debt)
+│                      + session-handoff · contract-message · recovery-report · bug-report · review-checklist · load-test
 ├── schemas/                  # JSON Schema dos frontmatters de spec (validados em CI)
 ├── prompts/                  # chatgpt-compact (≤1.500 chars) · chatgpt-full
 └── scripts/

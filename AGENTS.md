@@ -58,6 +58,11 @@ Ordenado por meia-vida: disciplina durável no topo, ferramentas no fim. Cada li
 | nova funcionalidade do início ao fim | processo `sdd` (specify → clarify → plan → tasks → implement → validate) |
 | "está pronto?" | skill `core/validate-implementation` |
 | afirmação duvidosa | skill `core/skeptic` |
+| bug, lentidão, incidente sem causa nomeada | skill `core/investigate` |
+| mensagem/campo do contrato cliente↔servidor | skill `core/protocol-contract` |
+| código legado/portado antes de refatorar ou rebalancear | skill `java/characterization-tests` |
+| trazer sprites/mapas/tilesets para o Godot | skill `godot/asset-import` |
+| fim de sessão longa, troca de agente | skill `core/session-handoff` |
 | Postgres, Redis, Docker, DBeaver, Krita | skills/kits do mesmo nome |
 
 ## Git, docs e versão

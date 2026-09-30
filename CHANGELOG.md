@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento: [SemVer](https://semver.org/lang/pt-BR/).
 
+## [3.1.0] - 2026-09-30
+
+### Added
+- Skills: `session-handoff`, `protocol-contract`, `investigate` (core), `characterization-tests` (java), `asset-import` (godot).
+- Templates de docs: `session-handoff`, `contract-message`, `recovery-report`, `bug-report`, `review-checklist`, `load-test` em `templates/docs/`.
+- Knowledge: `godot/networking-transports.md` (transportes cliente↔servidor em Godot 4 com servidor não-Godot), `legacy/director-lingo-glossary.md` (glossário Director/Lingo para leitura do acervo legado).
+- Schema FEAT: campos opcionais `milestone` e `evidence`.
+
+### Changed
+- `AGENTS.md`: novas linhas na tabela de Especialidades para as 5 skills novas.
+- `templates/docs/spec/feature.md` atualizado junto ao schema.
+
 ## [3.0.0] - 2026-09-29
 
 ### Changed

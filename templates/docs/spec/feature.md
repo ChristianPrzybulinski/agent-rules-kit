@@ -4,6 +4,8 @@ title: "[Título curto no infinitivo: Autenticar jogador]"
 status: proposta
 requirements: []
 depends_on: []
+milestone: null
+evidence: []
 flag: null
 card: null
 owner: "[produto]"
@@ -42,6 +44,7 @@ updated: "YYYY-MM-DD"
 - Depende de: [FEAT-xxx ou —]
 - Conflita/sobrepõe: [—]
 - Legado relacionado: [caminho no acervo, se houver — `[FATO]` só se verificado]
+- Evidências: [IDs do frontmatter `evidence` → `docs/legacy/evidencias.md#e01`]
 
 ## Perguntas abertas
 
