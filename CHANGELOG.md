@@ -2,6 +2,28 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento: [SemVer](https://semver.org/lang/pt-BR/).
 
+## [3.2.0] - 2026-09-30
+
+### Added
+- Regra `rules/development/simplicity.md` (escada YAGNI → já existe → stdlib → plataforma → mínimo que funciona; simplificação deliberada com comentário de teto).
+- Vendor de 5 skills de terceiros pinadas por commit em `kits/third-party/skills.lock` + `scripts/install/third-party.sh` (clone sparse `--filter=blob:none`, copia diretório inteiro, `VENDOR.md`, `--check`): `grill-me`, `grilling` (mattpocock/skills, MIT); `skill-creator`, `frontend-design` (anthropics/skills, Apache-2.0); `find-skills` (vercel-labs/skills, MIT).
+- `codex.sh` instala skills em `~/.codex/skills/<nome>/` com marcador `.agent-rules-kit` (conteúdo do usuário e `.system` preservados).
+- Knowledge: `git/worktrees.md` (`git worktree`, quando usar, armadilhas).
+
+### Changed
+- `AGENTS.md`: Clean Architecture pragmática (port só em fronteira real), escada da simplicidade no Craft, seção Tokens dividida em duas lentes (técnico vs. texto para pessoas), linhas novas nas Especialidades (`/grill-me`, `skill-creator`, `find-skills`).
+- `rules/development/testing.md`: YAGNI fora do domínio — um check executável para lógica não trivial em vez de suíte por função.
+- `rules/architecture/clean-architecture.md`: pragmatismo — serviço interno com uma implementação é classe concreta.
+- `rules/core/tokens.md`: reescrito para as duas lentes de comunicação.
+- `processes/sdd/sdd-implement`: revisão em dois estágios.
+- `processes/sdd/sdd-tasks`: tarefas menores.
+- `templates/docs/review-checklist.md`: seção "ao receber revisão".
+- `devin.sh` copia o diretório inteiro de cada skill (era só `SKILL.md`); inclui `skills/vendor/` no achatamento.
+- `all.sh` roda `third-party.sh --check` antes dos demais instaladores.
+
+### Credits
+- Ideias absorvidas de JuliusBrussee/caveman, blader/humanizer, DietrichGebert/ponytail, obra/superpowers (todas MIT) — não instaladas; política do kit é absorver, não empilhar personas.
+
 ## [3.1.1] - 2026-09-30
 
 ### Fixed

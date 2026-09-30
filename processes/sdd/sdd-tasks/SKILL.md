@@ -16,7 +16,7 @@ Pré-requisito: `status: planejada`.
 
 ## Regras de quebra
 
-- Tarefa cabe em uma sessão curta (≈ ≤ 2h de trabalho humano; ≤ 10 arquivos).
+- Tarefa é **pequena**: ≈ 5-30 min de execução, ≤ 5 arquivos, um único comando/teste que prova a conclusão. Se a descrição precisa de "e também", são duas tarefas. Cada tarefa nomeia os caminhos exatos (não "os arquivos do módulo").
 - Ordem: contrato/tipos → domínio + testes unitários → persistência + migração → adapters + integração → cliente → flag/docs. Testes andam **com** a tarefa, não em tarefa separada no fim.
 - Cada tarefa: `T-nn` · título imperativo · arquivos previstos · critério de conclusão (comando ou teste que prova) · critérios de aceite cobertos (`CA-n`) · dependências (`T-mm`).
 - Tarefas independentes marcadas `[P]` (paralelizáveis).

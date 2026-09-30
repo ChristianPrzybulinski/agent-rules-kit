@@ -17,7 +17,7 @@ Regras, conhecimento, skills, processos e kits de configuração para agentes de
 ├── README.md · CHANGELOG.md
 ├── rules/                    # normativo, por domínio, sob demanda
 │   ├── core/          evidence · tokens
-│   ├── development/   clean-code · testing (100% domain + PITest ≥80, feliz+triste) · twelve-factor
+│   ├── development/   clean-code · simplicity (escada YAGNI→abstrair) · testing · twelve-factor
 │   ├── architecture/  clean-architecture · ddd-and-patterns (quando sim / quando não)
 │   ├── java/          java · build-and-dependencies (Maven obrigatório, LTS fixo, gates)
 │   ├── godot/         godot-2d
@@ -25,12 +25,13 @@ Regras, conhecimento, skills, processos e kits de configuração para agentes de
 │   ├── security/      secure-development (0 CVE crítica/alta, segredos, authz, LGPD)
 │   └── documentation/ documentation · living-docs (DoD documental)
 ├── knowledge/                # factual, com fonte e data de verificação
-│   └── java/ godot/ (incl. networking-transports) postgresql/ redis/ docker/ git/ legacy/ (director-lingo-glossary)
+│   └── java/ godot/ (incl. networking-transports) postgresql/ redis/ docker/ git/ (incl. worktrees) legacy/ (director-lingo-glossary)
 ├── skills/                   # executáveis (/nome), agrupadas por domínio
 │   ├── core/          skeptic · validate-implementation · vuln-scan · session-handoff · protocol-contract · investigate
 │   ├── java/ godot/   java-standards · characterization-tests · godot-standards · asset-import
 │   ├── git/           github-cli · git-lfs
 │   ├── docs/          update-docs
+│   ├── vendor/        grill-me · grilling · skill-creator · find-skills · frontend-design (ver "Skills de terceiros")
 │   └── postgresql/ redis/ docker/ dbeaver/ krita/
 ├── processes/sdd/            # Spec-Driven Development (9 skills sdd-* + README) — adaptado do github/spec-kit
 ├── kits/                     # configuração pronta para copiar no projeto
@@ -39,7 +40,8 @@ Regras, conhecimento, skills, processos e kits de configuração para agentes de
 │   ├── docker/        compose.yml (Postgres 17 + Redis 7, healthchecks) · Dockerfile.java · .env.example
 │   ├── git-lfs/       .gitattributes
 │   ├── godot/         .gitignore · make_spritesheet.py · dicas de editor
-│   └── sdd/           init-spec.sh (cria docs/spec/ no projeto)
+│   ├── sdd/           init-spec.sh (cria docs/spec/ no projeto)
+│   └── third-party/   skills.lock (skills externas pinadas por commit)
 ├── templates/
 │   ├── projects/      java-spring/AGENTS.md · godot-2d/AGENTS.md
 │   └── docs/          spec/* (spec · feature · requirement-functional · requirement-non-functional · decision · debt)
@@ -47,7 +49,7 @@ Regras, conhecimento, skills, processos e kits de configuração para agentes de
 ├── schemas/                  # JSON Schema dos frontmatters de spec (validados em CI)
 ├── prompts/                  # chatgpt-compact (≤1.500 chars) · chatgpt-full
 └── scripts/
-    ├── install/       devin.sh · cursor.sh · windsurf.sh · codex.sh · all.sh
+    ├── install/       devin.sh · cursor.sh · windsurf.sh · codex.sh · third-party.sh · all.sh
     ├── check.sh       valida o kit; `--spec <dir>` valida um docs/spec
     └── check_spec.py
 ```
@@ -67,8 +69,13 @@ gh repo clone ChristianPrzybulinski/agent-rules-kit ~/.ai-kit
 | `~/.cursor/rules/<domínio>-<nome>.mdc` | regras convertidas |
 | `~/.codeium/windsurf/memories/global_rules.md` | always-on |
 | `~/.codex/AGENTS.md` | always-on (Codex CLI) |
+| `~/.codex/skills/<nome>/` | skills + processos (marcador `.agent-rules-kit`; `.system` e conteúdo do usuário intactos) |
 
 Não instala em `~/.devin/global_rules.md` nem `~/.claude/CLAUDE.md`: Devin lê ambos como regra global e duplicaria o texto no contexto.
+
+## Skills de terceiros
+
+Política: **nunca `npx skills add` direto nos agentes.** Skills externas são pinadas em `kits/third-party/skills.lock` (repo + commit SHA + licença + data verificada) e vendorizadas em `skills/vendor/` por `scripts/install/third-party.sh`, que copia o diretório inteiro e gera `VENDOR.md`. Atualizar: `git ls-remote` no repo de origem → novo SHA no lock → `third-party.sh` → `check.sh` → commit. `all.sh` roda `third-party.sh --check` antes dos instaladores e falha se o vendor estiver desatualizado.
 
 **ChatGPT**: Custom Instructions ← `prompts/chatgpt-compact.md`; GPT/Project ← `prompts/chatgpt-full.md`.
 

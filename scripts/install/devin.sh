@@ -14,12 +14,12 @@ cp "$KIT_DIR/AGENTS.md" "$HOME/.config/devin/AGENTS.md"
 rsync -a --delete "$KIT_DIR/rules/" "$HOME/.devin/rules/"
 
 # achata skills: cada pasta que contem SKILL.md vira ~/.config/devin/skills/<basename>
+# (copia o diretorio inteiro: SKILL.md + scripts/ references/ assets/ etc.)
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 find "$KIT_DIR/skills" "$KIT_DIR/processes" -name SKILL.md | while read -r f; do
   name="$(basename "$(dirname "$f")")"
-  mkdir -p "$tmp/$name"
-  cp "$f" "$tmp/$name/SKILL.md"
+  cp -R "$(dirname "$f")" "$tmp/$name"
 done
 rsync -a --delete "$tmp/" "$HOME/.config/devin/skills/"
 

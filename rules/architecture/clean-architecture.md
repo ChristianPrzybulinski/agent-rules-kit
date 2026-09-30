@@ -16,7 +16,21 @@ trigger: model_decision
 
 - Dependências apontam **sempre para dentro**.
 - Camadas internas não conhecem camadas externas.
-- Use interfaces (ports) para inverter dependências.
+- Use interfaces (ports) para inverter dependências **onde há algo a inverter** (abaixo).
+
+## Pragmatismo — quando um port se justifica
+
+| Situação | Port? |
+|---|---|
+| Domínio precisa de banco, rede, relógio, RNG, arquivo, fila | **Sim** — I/O externo; é o que se substitui por fake no teste |
+| Implementações alternativas reais previstas (Postgres hoje, outra amanhã; Redis opcional) | Sim |
+| Fronteira do domínio consumida por outro módulo | Sim, na fronteira; não em cada classe interna |
+| Serviço/política interna com uma implementação (`DamageFormula`, `EvolutionPolicy`) | **Não** — classe concreta, testada diretamente |
+| "Pode ser útil um dia" | Não — YAGNI (`rules/development/simplicity.md`) |
+
+Um port sem segunda implementação **e** sem I/O é cerimônia: remova. Camadas vazias (pacote `application` que só repassa) também.
+
+Menos arquivos vence: agrupe por caso de uso/agregado, não por tipo técnico (`services/`, `impl/`, `interfaces/`).
 
 ## Frameworks são detalhes
 

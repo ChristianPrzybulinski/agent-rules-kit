@@ -1,0 +1,6 @@
+# name | repo | path-no-repo | commit-sha | license | verified
+grill-me | mattpocock/skills | skills/productivity/grill-me | d81f3a183412e71a5b1e84ca21bc1a35eea03a60 | MIT | 2026-09-30
+grilling | mattpocock/skills | skills/productivity/grilling | d81f3a183412e71a5b1e84ca21bc1a35eea03a60 | MIT | 2026-09-30
+skill-creator | anthropics/skills | skills/skill-creator | 8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4 | Apache-2.0 | 2026-09-30
+find-skills | vercel-labs/skills | skills/find-skills | 3694740352eeef5cdd689af694c485f1ff62eec3 | MIT | 2026-09-30
+frontend-design | anthropics/skills | skills/frontend-design | 8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4 | Apache-2.0 (LICENSE.txt no dir) | 2026-09-30

@@ -30,9 +30,11 @@ Ordenado por meia-vida: disciplina durável no topo, ferramentas no fim. Cada li
 ## Craft
 
 - Clean Code: nome carrega o "o quê"; comentário só para o "porquê" não óbvio. Funções fazem uma coisa; ≤3-4 parâmetros; early return em vez de aninhamento.
-- Clean Architecture: dependência aponta para dentro (domain ← application ← adapters ← infra). Domínio sem framework. Ports/adapters na borda; DTOs cruzam camadas, entidades não.
+- Clean Architecture **pragmática**: dependência aponta para dentro (domain ← application ← adapters ← infra). Domínio sem framework. Port (interface) só onde há I/O externo, troca real de implementação ou fronteira do domínio; serviço interno com uma implementação é classe concreta. DTOs cruzam camadas, entidades não.
+- Escada da simplicidade, antes de escrever: precisa existir? já existe no repo? stdlib? recurso nativo da plataforma? dependência já instalada? cabe em uma linha? Só então o mínimo que funciona. Detalhe em `rules/development/simplicity.md`.
+- Nunca simplifique: validação na borda de confiança, erro que evita perda de dado, segurança, o que foi pedido explicitamente. Simplificação deliberada com teto conhecido → comentário `// simplificado: <teto>, <quando evoluir>`.
 - Valide na borda, confie no interior, nunca engula erro.
-- Arquivos por feature: 200-400 linhas, 800 máx.
+- Arquivos por feature: 200-400 linhas, 800 máx. Menos arquivos vence; deletar vence adicionar.
 - Antes de escrever utilitário: procure no ecossistema (Maven Central, Godot Asset Lib, `gh search code`). Adotar vence escrever.
 - Dependência nova → já existe no projeto? versão compatível? ≥7 dias publicada? 0 CVE crítica/alta? Só então adicione.
 - Não duplique config de lint/format nas regras: `pom.xml`, `.editorconfig`, `project.godot` são a fonte.
@@ -41,9 +43,10 @@ Ordenado por meia-vida: disciplina durável no topo, ferramentas no fim. Cada li
 
 ## Testes
 
-- Domínio (regras de negócio): 100% linha/branch + mutation ≥80%. Fora do domínio: teste o que tem lógica, sem gate numérico.
+- Domínio (regras de negócio, dinheiro, inventário, recompensa, batalha): 100% linha/branch + mutation ≥80%. É o "money/security path" — nunca reduzir.
+- Fora do domínio: YAGNI vale para testes. Lógica não trivial (branch, loop, parser, adapter) deixa **um** check executável que falha se quebrar; sem suíte por função, sem fixture "para depois". Trivial não se testa.
 - Integração sempre em par: caminho feliz + caminho triste. Dinheiro/inventário/recompensa → teste de idempotência e concorrência.
-- Nunca `@Disabled` para ficar verde. Não teste getters, framework ou "que chamou X".
+- Nunca `@Disabled` para ficar verde. Não teste getters, framework ou "que chamou X". Nunca `sleep` em teste: espere a condição.
 
 ## Especialidades (carregar regra/skill/processo quando o contexto pedir)
 
@@ -63,6 +66,9 @@ Ordenado por meia-vida: disciplina durável no topo, ferramentas no fim. Cada li
 | código legado/portado antes de refatorar ou rebalancear | skill `java/characterization-tests` |
 | trazer sprites/mapas/tilesets para o Godot | skill `godot/asset-import` |
 | fim de sessão longa, troca de agente | skill `core/session-handoff` |
+| ideia vaga antes de virar FEAT/DEC | `/grill-me` (vendor; só por comando) → depois `sdd-specify` |
+| criar/avaliar uma skill do kit | skill `skill-creator` (vendor) |
+| "existe skill para X?" | skill `find-skills` (vendor) — descoberta; instalar só vendorizando em `kits/third-party/` |
 | Postgres, Redis, Docker, DBeaver, Krita | skills/kits do mesmo nome |
 
 ## Git, docs e versão
@@ -87,10 +93,13 @@ Ordenado por meia-vida: disciplina durável no topo, ferramentas no fim. Cada li
 - **Perguntar antes**: adicionar/remover dependência; alterar migration já aplicada; force-push; deletar arquivos que não criei; operação com efeito externo (deploy, e-mail, pagamento).
 - **Nunca**: commitar `.env`/segredo; desabilitar teste falhando para ficar verde; reescrever histórico público sem autorização; inventar saída de comando ou API.
 
-## Tokens e comunicação
+## Tokens e comunicação — duas lentes
 
-- Sem preâmbulo ("Claro!", "Vamos lá"). Resultado primeiro; detalhe sob demanda.
-- Snippet/diff mínimo; não reescreva arquivo inteiro para mudança local.
-- Leia só os arquivos relevantes; não faça busca ampla sem hipótese.
+Antes de responder, classifique em silêncio: **técnico** ou **texto para pessoas**. Nunca misture o registro dentro de um mesmo artefato.
+
+- **Técnico** (código, debug, log, refactor, script, CLI): código/diff primeiro; depois ≤3 linhas — o que foi pulado, quando adicionar. Frases curtas, sem artigos supérfluos, sem saudação, sem "feature tour". Código, caminhos, comandos e mensagens de erro **byte a byte exatos**. Volte à prosa completa para: aviso de segurança, confirmação de ação irreversível, sequência multi-passo, pergunta repetida pelo usuário.
+- **Texto para pessoas** (e-mail, relatório, mensagem para o time, seção narrativa de README, explicação de alto nível pedida): prosa fluida, ritmo variado, sem clichês de IA ("é importante notar", "em resumo", tríades decorativas, negrito em tudo, listas quando um parágrafo basta). Não inventar fatos para soar natural. Detalhe em `rules/core/tokens.md`.
+- **Documentos governados** (`docs/spec/**`, DEC/REQ/FEAT, CHANGELOG, commit, comentário de código): nenhuma das lentes — segue template, schema e classificação `[FATO]`/`[PROPOSTA]`. Estrutura repetida ali é proposital.
+- Snippet/diff mínimo; não reescreva arquivo inteiro para mudança local. Leia só os arquivos relevantes; não faça busca ampla sem hipótese.
 - Termine com: o que foi feito, o que ficou não verificado, próximo passo concreto.
 - Ambiguidade → uma pergunta focada com 2-4 opções, não um questionário.

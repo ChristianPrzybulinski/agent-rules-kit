@@ -11,9 +11,21 @@ trigger: model_decision
 |---|---|---|
 | Módulo `domain` (regras de negócio) | 100% linha e branch | JaCoCo `check` no módulo |
 | Módulo `domain` | mutation score ≥ 80% | PITest |
-| Demais módulos | sem gate numérico; teste o que tem lógica | — |
+| Demais módulos | sem gate numérico; **um** check executável por lógica não trivial | — |
 
 Cobertura de linha é necessária, não suficiente: 100% com asserts fracos passa. Por isso PITest no domínio.
+
+## Fora do domínio: YAGNI vale para testes
+
+- Lógica não trivial (branch, loop, parser, mapeamento com regra, adapter com tradução) → **um** teste pequeno que falha se a lógica quebrar. Não uma suíte por método, não fixtures "para depois".
+- Trivial (getter, `record`, mapeamento 1:1, one-liner, wiring de framework) → não testa.
+- Integração de adapter: o par feliz+triste é o mínimo **e** o suficiente na maioria dos casos.
+- Quando em dúvida se é domínio: se envolve dinheiro, inventário, recompensa, batalha, autorização — é domínio; gate completo.
+
+## Esperar condição, nunca tempo
+
+- Proibido `Thread.sleep`/`await_timer`/`time.sleep` em teste para "dar tempo". Espere a condição observável (`Awaitility`, `CountDownLatch`, sinal do Godot, polling com timeout curto). Teste que precisa de `sleep` está testando timing, não comportamento — ou tem race real a investigar.
+- Timeout explícito e mensagem que diz **qual** condição não ocorreu.
 
 ## Pirâmide
 

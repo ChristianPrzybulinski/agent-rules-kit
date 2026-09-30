@@ -26,8 +26,9 @@ Pré-requisito: seção *Tarefas* existe. Regras do kit e `AGENTS.md` do repo va
    2. Teste primeiro quando há comportamento: escrever/rodar → deve falhar pelo motivo certo. Não falhou? a tarefa não foi entendida — pare e reveja.
    3. Implementar o mínimo para verde. Refatorar com testes verdes.
    4. Rodar a *prova de conclusão* da tarefa literalmente; colar saída resumida no *Histórico*.
-   5. Commit atômico: `feat(escopo): <tarefa>` + `Refs: FEAT-nnn`.
-   6. Marcar `done`.
+   5. **Revisão em dois estágios**, nesta ordem e sem misturar: (a) *conformidade* — o diff faz exatamente o que a tarefa/CA pede, nada a mais, nada a menos? (b) só se (a) passou: *qualidade* — simplicidade (`rules/development/simplicity.md`), nomes, testes, segurança. Achado em (a) volta ao passo 3 antes de qualquer polimento.
+   6. Commit atômico: `feat(escopo): <tarefa>` + `Refs: FEAT-nnn`.
+   7. Marcar `done`.
 3. Bloqueio (dependência ausente, decisão de produto, regra violada) → `blocked` + motivo na FEAT; **não** contorne. Siga para tarefa independente `[P]` se houver; senão reporte.
 4. Ao terminar todas: checklist de `rules/documentation/living-docs.md` (CHANGELOG `Unreleased`, README, Javadoc/docstring, flag registrada). Rodar gates completos (`./mvnw spotless:check verify`, `godot --headless --quit`, etc.).
 5. Chamar `core/validate-implementation FEAT-nnn`. PARCIAL/NÃO PRONTO → voltar ao passo 2 com as tarefas que faltam.

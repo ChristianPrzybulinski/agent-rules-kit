@@ -25,5 +25,10 @@ Marque só o que foi **observado**. Item não aplicável: `n/a`. Item não verif
 - [ ] CHANGELOG `Unreleased`; README se comando mudou; Javadoc/docstring em API pública nova.
 - [ ] Status da FEAT e `updated` atualizados; DEBT/flag registrados se incompleto.
 
+## Ao receber comentários de revisão (autor)
+- [ ] Cada comentário verificado no código antes de aplicar — revisor também erra; discordância vai com evidência, não com "ok".
+- [ ] Comentário que revela lacuna na FEAT/REQ → corrigir a spec, não só o código.
+- [ ] Nenhuma mudança fora do comentário "aproveitando"; segue para follow-up.
+
 ## Não verificado
 - [...]
