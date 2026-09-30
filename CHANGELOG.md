@@ -2,6 +2,12 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento: [SemVer](https://semver.org/lang/pt-BR/).
 
+## [4.0.1] - 2026-09-30
+
+### Fixed
+- `refresh.sh` e `bootstrap.sh` sem bit de execução após o `git mv`; `check_kit.py` passa a exigir `+x` em todo `platforms/**/*.sh`.
+- `README.md`: bootstrap via `gh repo clone` (repo privado; `curl raw` não autentica).
+
 ## [4.0.0] - 2026-09-30
 
 ### Changed

@@ -151,6 +151,9 @@ if ver and not re.match(r"^\d+\.\d+\.\d+$", ver):
 lv = (KIT / "LAYOUT_VERSION").read_text().strip() if (KIT / "LAYOUT_VERSION").exists() else ""
 if lv and not lv.isdigit():
     fail("LAYOUT_VERSION", f"'{lv}' nao e inteiro")
+for sh in sorted((KIT / "platforms").rglob("*.sh")):
+    if not os.access(sh, os.X_OK):
+        fail(rel(sh), "script sem bit de execucao (chmod +x)")
 
 # --- 2. AGENTS.md ---
 agents_md = KIT / "agents/AGENTS.md"
