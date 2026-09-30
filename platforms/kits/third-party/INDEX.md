@@ -1,7 +1,7 @@
-# third-party/ — skills externas pinadas
+# third-party/ — pinned external skills
 
-| Arquivo | Escopo |
+| File | Scope |
 |---|---|
-| `skills.lock` | uma linha por skill: `name \| repo \| path \| commit-sha \| licença \| verificado` |
+| `skills.lock` | one line per skill: `name \| repo \| path \| commit-sha \| license \| verified` |
 
-`platforms/install/third-party.sh` lê o lock e vendoriza em `agents/skills/vendor/<name>/` (com `VENDOR.md`). Atualizar: `git ls-remote` no repo → novo SHA no lock → `third-party.sh` → `check.sh`. Nunca `npx skills add` nos agentes.
+`platforms/install/third-party.sh` reads the lock and vendors into `agents/skills/vendor/<name>/` (with `VENDOR.md`). Update: `git ls-remote` on the repo → new SHA in the lock → `third-party.sh` → `check.sh`. Never `npx skills add` into the agents.

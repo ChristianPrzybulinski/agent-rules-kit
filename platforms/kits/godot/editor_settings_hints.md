@@ -1,11 +1,11 @@
-# Godot 4 — ajustes de editor para pixel-art 2D
+# Godot 4 — editor settings for 2D pixel-art
 
-Factual; cada item é Editor/Project Setting → caminho.
+Factual; each item is an Editor/Project Setting → path.
 
-- **Filtro Nearest**: Project Settings → `rendering/textures/canvas_textures/default_texture_filter` = `Nearest`. Sem isso, sprites pixelados ficam borrados ao escalar.
-- **Snap de grid**: toolbar do editor 2D → snap ON; grid 1px (ou o tamanho do tile) em `interface/inspector` / toolbar Snap Options.
-- **Transformação de pixels**: Project Settings → `rendering/2d/snap/snap_2d_transforms_to_pixel` = ON; `snap_2d_vertices_to_pixel` = ON para vértices.
-- **Viewport/stretch**: `display/window/stretch/mode` = `canvas_items`, `aspect` = `keep` para resolução base fixa.
-- **Movimento**: usar `_physics_process(delta)` e `move_and_slide()`; não mover em `_process` para corpos físicos.
-- **Sinais**: conectar via código (`button.pressed.connect(...)`) ou editor; manter nomes de handler `_on_<nó>_<sinal>`.
-- **Export**: `export_presets.cfg` define os presets (`Windows Desktop`, `macOS`) usados pelo CI (`platforms/kits/github/workflows/ci-godot.yml`).
+- **Nearest filter**: Project Settings → `rendering/textures/canvas_textures/default_texture_filter` = `Nearest`. Without it, pixelated sprites blur when scaled.
+- **Grid snap**: 2D editor toolbar → snap ON; 1px grid (or the tile size) in `interface/inspector` / toolbar Snap Options.
+- **Pixel snapping**: Project Settings → `rendering/2d/snap/snap_2d_transforms_to_pixel` = ON; `snap_2d_vertices_to_pixel` = ON for vertices.
+- **Viewport/stretch**: `display/window/stretch/mode` = `canvas_items`, `aspect` = `keep` for a fixed base resolution.
+- **Movement**: use `_physics_process(delta)` and `move_and_slide()`; do not move physical bodies in `_process`.
+- **Signals**: connect via code (`button.pressed.connect(...)`) or the editor; keep `_on_<node>_<signal>` handler names.
+- **Export**: `export_presets.cfg` defines the presets (`Windows Desktop`, `macOS`) used by CI (`platforms/kits/github/workflows/ci-godot.yml`).

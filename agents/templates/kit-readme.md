@@ -1,20 +1,20 @@
-# [pasta ou artefato]
+# [folder or artifact]
 
-[Um parágrafo: o que é, para quem, problema que resolve.]
+[One paragraph: what it is, for whom, the problem it solves.]
 
-## Como usar
+## How to use
 
-1. [passo com comando]
-2. [passo]
+1. [step with a command]
+2. [step]
 
-## Conteúdo
+## Contents
 
-| Arquivo | Escopo |
+| File | Scope |
 |---|---|
-| `[nome]` | [1 frase] |
+| `[name]` | [1 sentence] |
 
-## Não verificado / limites
+## Unverified / limits
 
-- [o que este conteúdo assume e não prova]
+- [what this content assumes and does not prove]
 
-<!-- README quando é preciso explicar. Só listar? use kit-index.md. -->
+<!-- README when explanation is needed. Just listing? use kit-index.md. -->

@@ -1,10 +1,10 @@
-# tools/ — ciclo de vida do kit na máquina
+# tools/ — kit lifecycle on the machine
 
-| Arquivo | Escopo | Quando usar |
+| File | Scope | When to use |
 |---|---|---|
-| `bootstrap.sh` | clona `~/.ai-kit` (gh, fallback https) e instala | primeira vez na máquina |
-| `refresh.sh` | `git pull --ff-only` + reinstala se VERSION/LAYOUT_VERSION mudaram (layout → `--clean`) | início de sessão (`--quiet` sai em silêncio) |
-| `check.sh` | valida o kit (`check_kit.py`); `--spec <dir>` valida `docs/spec` de um projeto | após qualquer mudança no kit; no CI |
-| `sync-project.sh` | copia `check_spec.py` + schemas de spec + `spec-lint.yml` para `.github/` de um projeto; `--check` compara | projeto novo (via `init-spec.sh`) ou após mudar o validador |
+| `bootstrap.sh` | clones `~/.ai-kit` (gh, https fallback) and installs | first time on the machine |
+| `refresh.sh` | `git pull --ff-only` + reinstalls if VERSION/LAYOUT_VERSION changed (layout → `--clean`) | session start (`--quiet` exits silently) |
+| `check.sh` | validates the kit (`check_kit.py`); `--spec <dir>` validates a project's `docs/spec` | after any kit change; in CI |
+| `sync-project.sh` | copies `check_spec.py` + spec schemas + `spec-lint.yml` into a project's `.github/`; `--check` compares | new project (via `init-spec.sh`) or after changing the validator |
 
-Estado instalado: `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}`.
+Installed state: `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}`.

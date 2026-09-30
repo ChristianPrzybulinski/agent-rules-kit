@@ -1,8 +1,8 @@
 ---
 name: redis
 version: "1.0"
-description: Redis como cache/efêmero — quando usar (e quando não), chaves com TTL, pub/sub para presença, rate limit, locks curtos; nunca fonte de verdade de inventário, progressão ou economia. Usar ao propor cache, sessão, fila leve ou coordenação.
-argument-hint: "[justify | cache | ratelimit | pubsub | lock] <contexto>"
+description: Redis as cache/ephemeral — when to use it (and when not), keys with TTL, pub/sub for presence, rate limiting, short locks; never the source of truth for inventory, progression or economy. Use when proposing cache, session, a light queue or coordination.
+argument-hint: "[justify | cache | ratelimit | pubsub | lock] <context>"
 triggers:
   - user
   - model
@@ -14,33 +14,33 @@ allowed-tools:
 
 # Redis
 
-Decisão do produto (`[DECISÃO]`): Redis disponível **para necessidades justificadas**; **nunca** fonte de verdade de inventário, progressão ou economia (isso é PostgreSQL). Compose em `platforms/kits/docker/`.
+Product decision (`[DECISION]`): Redis available **for justified needs**; **never** the source of truth for inventory, progression or economy (that is PostgreSQL). Compose in `platforms/kits/docker/`.
 
-## justify (antes de usar)
+## justify (before using)
 
-Responda por escrito na FEAT/DEC:
-1. Que problema medido o Postgres não resolve? (latência p95, contenção, volume) — sem medição → `[HIPÓTESE]`, comece **sem** Redis.
-2. O dado pode ser perdido a qualquer momento sem inconsistência? Se não → não é Redis.
-3. Como o sistema se comporta com Redis fora? Deve degradar, não quebrar.
+Answer in writing in the FEAT/DEC:
+1. What measured problem does Postgres not solve? (p95 latency, contention, volume) — no measurement → `[HYPOTHESIS]`, start **without** Redis.
+2. Can the data be lost at any moment without inconsistency? If not → it's not Redis.
+3. How does the system behave with Redis down? It must degrade, not break.
 
-## Usos aceitos
+## Accepted uses
 
-| Uso | Estrutura | TTL | Observação |
+| Use | Structure | TTL | Note |
 |---|---|---|---|
-| Cache de leitura (conteúdo estático, perfil) | `STRING`/`HASH` `cache:<tipo>:<id>` | sim, sempre | invalidar na escrita; cache-aside |
-| Presença/online | `SET` por mapa + `EXPIRE` renovado por heartbeat | 30-60 s | fonte é a conexão, Redis é reflexo |
-| Rate limit | `INCR` + `EXPIRE` por `<ator>:<ação>:<janela>` | janela | sliding window se precisar precisão |
-| Pub/sub entre instâncias do servidor | canal por mapa/região | — | só se >1 processo; senão in-memory |
-| Lock curto | `SET key val NX PX <ms>` + release por script Lua comparando `val` | ≤ 5 s | nunca para invariante de economia (isso é `FOR UPDATE` no PG) |
-| Fila leve | `XADD`/Streams | — | reavaliar se precisar de garantia forte |
+| Read cache (static content, profile) | `STRING`/`HASH` `cache:<type>:<id>` | yes, always | invalidate on write; cache-aside |
+| Presence/online | `SET` per map + `EXPIRE` renewed by heartbeat | 30-60 s | source is the connection, Redis is a reflection |
+| Rate limit | `INCR` + `EXPIRE` per `<actor>:<action>:<window>` | window | sliding window if precision is needed |
+| Pub/sub between server instances | channel per map/region | — | only if >1 process; otherwise in-memory |
+| Short lock | `SET key val NX PX <ms>` + release by Lua script comparing `val` | ≤ 5 s | never for an economy invariant (that is `FOR UPDATE` in PG) |
+| Light queue | `XADD`/Streams | — | reevaluate if a strong guarantee is needed |
 
-## Regras
+## Rules
 
-- Toda chave tem prefixo `<app>:<tipo>:` e TTL (exceto pub/sub). Sem TTL = vazamento.
-- Serialização: JSON pequeno ou `HASH`; nunca objeto Java serializado.
-- Config `maxmemory-policy allkeys-lru` (cache) ou `noeviction` + alerta (se algo não puder evaporar — então questione se é Redis).
-- Cliente: Lettuce (Spring Data Redis padrão); timeout curto; circuit breaker (Resilience4j) → fallback ao PG.
+- Every key has a `<app>:<type>:` prefix and a TTL (except pub/sub). No TTL = leak.
+- Serialization: small JSON or `HASH`; never a Java serialized object.
+- Config `maxmemory-policy allkeys-lru` (cache) or `noeviction` + alert (if something cannot evaporate — then question whether it's Redis).
+- Client: Lettuce (Spring Data Redis default); short timeout; circuit breaker (Resilience4j) → fallback to PG.
 
-## Veredicto
+## Verdict
 
-Uso proposto · justificativa (medida ou `[HIPÓTESE]`) · comportamento sem Redis · chaves/TTL · não verificado · próximo passo.
+Proposed use · justification (measured or `[HYPOTHESIS]`) · behavior without Redis · keys/TTL · unverified · next step.

@@ -17,10 +17,10 @@ jobs:
           tag="${GITHUB_REF_NAME#v}"
           ver="$(cat VERSION)"
           [ "$tag" = "$ver" ] || { echo "::error::tag $tag != VERSION $ver"; exit 1; }
-      - name: Extrai seção do CHANGELOG
+      - name: Extract CHANGELOG section
         run: |
           awk -v t="${GITHUB_REF_NAME#v}" 'index($0, "## [" t "]") == 1 {f=1} f && NR>1 && /^## \[/ && index($0, "## [" t "]") != 1 {exit} f' CHANGELOG.md > notes.md
-          [ -s notes.md ] || { echo "::error::secao ## [${GITHUB_REF_NAME#v}] nao encontrada no CHANGELOG"; exit 1; }
+          [ -s notes.md ] || { echo "::error::section ## [${GITHUB_REF_NAME#v}] not found in CHANGELOG"; exit 1; }
           cat notes.md
       - name: gh release create
         run: gh release create "$GITHUB_REF_NAME" --notes-file notes.md --title "$GITHUB_REF_NAME"

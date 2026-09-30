@@ -1,8 +1,8 @@
 ---
 name: sdd-specify
 version: "1.0"
-description: Etapa 1 do SDD — transforma uma descrição de funcionalidade em FEAT-nnn (o quê e porquê, sem como) e nos REQ-F/REQ-NF ligados, com critérios de aceite testáveis. Usar ao iniciar qualquer funcionalidade nova.
-argument-hint: "<descrição da funcionalidade em linguagem natural>"
+description: SDD step 1 — turns a feature description into FEAT-nnn (the what and why, not the how) and its linked REQ-F/REQ-NF, with testable acceptance criteria. Use when starting any new feature.
+argument-hint: "<feature description in natural language>"
 triggers:
   - user
 allowed-tools:
@@ -17,23 +17,23 @@ allowed-tools:
 
 Templates: `agents/templates/spec-feature.md`, `requirement-functional.md`, `requirement-non-functional.md`.
 
-## Etapas
+## Steps
 
-1. Próximo número: `ls docs/spec/features | sort | tail -1`. Nunca reutilize.
-2. Ler `docs/spec/spec.md` (escopo, glossário) e features existentes: a funcionalidade já existe, colide ou depende de outra? Registre em *Relações*.
-3. Escrever `FEAT-nnn-slug.md`:
-   - **Problema/valor** para o jogador/usuário (porquê). 
-   - **Escopo** e **Fora de escopo** explícitos.
-   - **Critérios de aceite** no formato Given/When/Then, cada um verificável por teste automatizado ou passo reproduzível. Mínimo: 1 caminho feliz, 1 triste.
-   - **Requisitos ligados**: criar `REQ-F-*` (comportamento) e `REQ-NF-*` (desempenho, segurança, compatibilidade) novos ou referenciar existentes. Cada requisito = 1 arquivo, 1 frase testável.
-   - **Perguntas abertas** marcadas `[NEEDS CLARIFICATION: ...]` — máximo 5; se passar disso, o pedido está grande demais: proponha dividir.
-   - **Sem** decisões técnicas (framework, tabela, mensagem). Isso é `sdd-plan`.
+1. Next number: `ls docs/spec/features | sort | tail -1`. Never reuse.
+2. Read `docs/spec/spec.md` (scope, glossary) and existing features: does the feature already exist, collide with, or depend on another? Record under *Relations*.
+3. Write `FEAT-nnn-slug.md`:
+   - **Problem/value** for the player/user (the why).
+   - Explicit **Scope** and **Out of scope**.
+   - **Acceptance criteria** in Given/When/Then format, each verifiable by an automated test or a reproducible step. Minimum: 1 happy path, 1 sad path.
+   - **Linked requirements**: create new `REQ-F-*` (behavior) and `REQ-NF-*` (performance, security, compatibility) or reference existing ones. Each requirement = 1 file, 1 testable sentence.
+   - **Open questions** marked `[NEEDS CLARIFICATION: ...]` — maximum 5; beyond that the request is too big: propose splitting it.
+   - **No** technical decisions (framework, table, message). That is `sdd-plan`.
 4. Frontmatter: `id`, `title`, `status: proposta`, `requirements: [...]`, `flag: null`, `card: null`, `created`.
-5. Atualizar índice em `spec.md`.
-6. Validar: `platforms/tools/check.sh --spec docs/spec` (schemas).
+5. Update the index in `spec.md`.
+6. Validate: `platforms/tools/check.sh --spec docs/spec` (schemas).
 
-## Critérios de conclusão
+## Completion criteria
 
-- Todo critério de aceite responde "que teste prova isso?".
-- Nenhum requisito órfão (sem FEAT) nem FEAT sem requisito.
-- Afirmações classificadas (`[FATO]`/`[HIPÓTESE]`/...).
+- Every acceptance criterion answers "which test proves this?".
+- No orphan requirement (no FEAT) and no FEAT without a requirement.
+- Claims classified (`[FACT]`/`[HYPOTHESIS]`/...).

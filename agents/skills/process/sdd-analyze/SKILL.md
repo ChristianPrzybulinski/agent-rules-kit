@@ -1,7 +1,7 @@
 ---
 name: sdd-analyze
 version: "1.0"
-description: Etapa 3 do SDD — análise de consistência entre FEAT, REQs, DECs, plano e tarefas - contradições, lacunas, requisitos órfãos, critérios sem tarefa, tarefas sem critério. Somente leitura; produz relatório. Usar após clarify e após plan/tasks.
+description: SDD step 3 — consistency analysis across FEAT, REQs, DECs, plan and tasks - contradictions, gaps, orphan requirements, criteria without a task, tasks without a criterion. Read-only; produces a report. Use after clarify and after plan/tasks.
 argument-hint: "FEAT-nnn | all"
 triggers:
   - user
@@ -14,30 +14,30 @@ allowed-tools:
 
 # SDD 3 — Analyze
 
-Somente leitura. Não edita specs; o relatório vai para o chat (e opcionalmente `docs/spec/reports/analyze-YYYYMMDD.md` se o usuário pedir).
+Read-only. Does not edit specs; the report goes to the chat (and optionally `docs/spec/reports/analyze-YYYYMMDD.md` if the user asks).
 
-## Verificações
+## Checks
 
-| # | Checagem | Severidade |
+| # | Check | Severity |
 |---|---|---|
-| A1 | REQ referenciado na FEAT existe como arquivo; arquivo REQ é referenciado por ≥1 FEAT | alta |
-| A2 | Critério de aceite contradiz outro critério ou um REQ (ex.: "sem login" vs REQ auth) | crítica |
-| A3 | FEAT depende de FEAT com status inferior (planejar sobre o que não foi clarificado) | alta |
-| A4 | Termo usado não está no glossário de `spec.md` | baixa |
-| A5 | Quantificador vago sem número nem `[HIPÓTESE]` | média |
-| A6 | Afirmação sem classificação `[FATO]/[DECISÃO]/[PROPOSTA]/[HIPÓTESE]/[BLOQUEIO]` | média |
-| A7 | (se há plano) decisão técnica no plano sem `DEC` quando há alternativa rejeitada | média |
-| A8 | (se há tarefas) critério de aceite sem tarefa que o cubra; tarefa sem critério | alta |
-| A9 | Plano viola regra do kit/repo (ex.: Redis como fonte de verdade; Gradle; framework no domínio) | crítica |
-| A10 | Frontmatter inválido contra `platforms/ci/schemas/` | alta |
+| A1 | REQ referenced in the FEAT exists as a file; every REQ file is referenced by ≥1 FEAT | high |
+| A2 | Acceptance criterion contradicts another criterion or a REQ (e.g.: "no login" vs auth REQ) | critical |
+| A3 | FEAT depends on a FEAT with a lower status (planning on what was not clarified) | high |
+| A4 | Term used is not in the `spec.md` glossary | low |
+| A5 | Vague quantifier with no number and no `[HYPOTHESIS]` | medium |
+| A6 | Claim without `[FACT]/[DECISION]/[PROPOSAL]/[HYPOTHESIS]/[BLOCKER]` classification | medium |
+| A7 | (if there is a plan) technical decision in the plan without a `DEC` when an alternative was rejected | medium |
+| A8 | (if there are tasks) acceptance criterion with no covering task; task with no criterion | high |
+| A9 | Plan violates a kit/repo rule (e.g.: Redis as source of truth; Gradle; framework in the domain) | critical |
+| A10 | Invalid frontmatter against `platforms/ci/schemas/` | high |
 
-## Relatório
+## Report
 
 ```
-Escopo: FEAT-nnn | all
-| # | Severidade | Onde (arquivo:linha) | Problema | Sugestão |
-Resumo: N críticas, M altas, ...
-Bloqueia avançar para <próxima etapa>? SIM (críticas/altas) | NÃO
+Scope: FEAT-nnn | all
+| # | Severity | Where (file:line) | Problem | Suggestion |
+Summary: N critical, M high, ...
+Blocks moving to <next step>? YES (critical/high) | NO
 ```
 
-Crítica ou alta → não avance para `plan`/`implement` até resolver (via `clarify` ou edição da spec).
+Critical or high → do not proceed to `plan`/`implement` until resolved (via `clarify` or spec edit).

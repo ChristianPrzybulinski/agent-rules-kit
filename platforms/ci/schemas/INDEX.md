@@ -1,15 +1,15 @@
-# schemas/ — JSON Schema de frontmatters e specs
+# schemas/ — JSON Schema for frontmatters and specs
 
-| Arquivo | Valida |
+| File | Validates |
 |---|---|
 | `rule.schema.json` | `agents/rules/**/*.md` |
 | `knowledge.schema.json` | `agents/knowledge/**/*.md` |
-| `skill.schema.json` | `agents/skills/` não-vendor |
+| `skill.schema.json` | non-vendor `agents/skills/` |
 | `skills-lock.schema.json` | `platforms/kits/third-party/skills.lock` |
-| `spec.schema.json` | `docs/spec/spec.md` de projeto |
+| `spec.schema.json` | a project's `docs/spec/spec.md` |
 | `feature.schema.json` | `docs/spec/features/*.md` |
 | `requirement.schema.json` | `docs/spec/requirements/**` |
 | `decision.schema.json` | `docs/spec/decisions/*.md` |
 | `debt.schema.json` | `docs/spec/debts/*.md` |
 
-Consumidos por `../validations/check_kit.py` e `check_spec.py`. Detalhes: `../README.md`.
+Consumed by `../validations/check_kit.py` and `check_spec.py`. Details: `../README.md`.

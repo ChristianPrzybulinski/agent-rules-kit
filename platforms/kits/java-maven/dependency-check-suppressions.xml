@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Supressões do OWASP dependency-check.
-     Formato de cada supressão (documente o porquê e data de revisão):
+<!-- OWASP dependency-check suppressions.
+     Format of each suppression (document the why and a review date):
      <suppress>
-       <notes>Falso positivo: CVE-YYYY-NNNN não se aplica a X (rev: YYYY-MM-DD)</notes>
+       <notes>False positive: CVE-YYYY-NNNN does not apply to X (rev: YYYY-MM-DD)</notes>
        <cve>CVE-YYYY-NNNN</cve>
      </suppress> -->
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">

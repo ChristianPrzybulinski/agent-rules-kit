@@ -1,7 +1,7 @@
 ---
 name: github-cli
 version: "1.0"
-description: Usa gh e git para branches, commits, PRs, releases e reviews seguindo boas práticas. Usar em branches, commits, PRs e releases.
+description: Uses gh and git for branches, commits, PRs, releases and reviews following best practices. Use on branches, commits, PRs and releases.
 triggers:
   - user
   - model
@@ -12,28 +12,28 @@ allowed-tools:
 
 # GitHub CLI Expert
 
-## Antes de qualquer operação
+## Before any operation
 
-1. Verifique `git status`, branch atual e remote.
-2. Confirme que `gh` está autenticado (`gh auth status`). Se não, peça login.
-3. Nunca exponha tokens no chat.
+1. Check `git status`, current branch and remote.
+2. Confirm `gh` is authenticated (`gh auth status`). If not, ask for login.
+3. Never expose tokens in chat.
 
-## Fluxo de trabalho
+## Workflow
 
-1. Branch por tarefa: `git switch -c feature/descricao`.
-2. Commits atômicos com Conventional Commits.
-3. Rode verificações locais (testes, lint, build).
-4. Crie PR: `gh pr create --title "type(scope): ..." --body "..."`.
-5. Acompanhe: `gh pr checks`, `gh pr view`.
-6. Merge só após aprovação/testes: `gh pr merge`.
+1. Branch per task: `git switch -c feature/description`.
+2. Atomic commits with Conventional Commits.
+3. Run local checks (tests, lint, build).
+4. Create the PR: `gh pr create --title "type(scope): ..." --body "..."`.
+5. Track: `gh pr checks`, `gh pr view`.
+6. Merge only after approval/tests: `gh pr merge`.
 
 ## Releases
 
 - Use SemVer: `gh release create v1.2.3 --generate-notes`.
-- Atualize `CHANGELOG.md` antes.
+- Update `CHANGELOG.md` first.
 
-## Segurança
+## Security
 
-- Não force-push em branches compartilhadas sem autorização explícita.
-- Não comite segredos, `.env` ou tokens.
-- Não reescreva histórico público sem confirmação.
+- Do not force-push shared branches without explicit authorization.
+- Do not commit secrets, `.env` or tokens.
+- Do not rewrite public history without confirmation.

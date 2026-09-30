@@ -1,47 +1,47 @@
 ---
-description: Java — Maven obrigatório, versão LTS fixa, estrutura multi-módulo, plugins de qualidade (Spotless, JaCoCo, PITest, Dependency-Check, Enforcer). Carregar ao criar projeto Java, mexer em pom.xml ou configurar CI.
+description: Java — Maven required, fixed LTS version, multi-module structure, quality plugins (Spotless, JaCoCo, PITest, Dependency-Check, Enforcer). Load when creating a Java project, touching pom.xml or configuring CI.
 trigger: model_decision
 ---
 
-# Java — build e dependências
+# Java — build and dependencies
 
-## Obrigatório
+## Required
 
-- **Maven** com wrapper (`./mvnw`). Gradle não é opção neste kit.
-- Java **LTS** fixo no `pom.xml` (`<maven.compiler.release>25</maven.compiler.release>`) e em `.java-version`/`toolchains.xml`. Nunca "o que estiver instalado".
-- Versões de dependências centralizadas no `<dependencyManagement>` do POM pai; módulos não declaram versão.
-- BOM do framework (`spring-boot-dependencies`) em vez de versões soltas.
+- **Maven** with wrapper (`./mvnw`). Gradle is not an option in this kit.
+- Fixed Java **LTS** in `pom.xml` (`<maven.compiler.release>25</maven.compiler.release>`) and in `.java-version`/`toolchains.xml`. Never "whatever is installed".
+- Dependency versions centralized in the parent POM's `<dependencyManagement>`; modules do not declare versions.
+- Framework BOM (`spring-boot-dependencies`) instead of loose versions.
 
-## Estrutura multi-módulo (por contexto)
+## Multi-module structure (by context)
 
 ```text
 server/
-├── pom.xml                 # pai: pluginManagement, dependencyManagement, gates
-├── domain/                 # zero dependência de framework; JaCoCo 100% + PITest aqui
-├── application/            # use cases, ports; depende só de domain
+├── pom.xml                 # parent: pluginManagement, dependencyManagement, gates
+├── domain/                 # zero framework dependency; JaCoCo 100% + PITest here
+├── application/            # use cases, ports; depends only on domain
 ├── adapter-in-http/        # controllers, DTOs
-├── adapter-in-ws/          # sessão de jogo (se houver)
-├── adapter-out-jpa/        # repositórios, entidades JPA, Flyway
-└── bootstrap/              # main, config Spring, wiring
+├── adapter-in-ws/          # game session (if any)
+├── adapter-out-jpa/        # repositories, JPA entities, Flyway
+└── bootstrap/              # main, Spring config, wiring
 ```
 
-Regra de dependência entre módulos verificada no build (`maven-enforcer` `bannedDependencies` ou ArchUnit em `domain`).
+Inter-module dependency rule verified at build time (`maven-enforcer` `bannedDependencies` or ArchUnit in `domain`).
 
-## Plugins padrão (POM pai — ver `kits/java-maven/`)
+## Standard plugins (parent POM — see `kits/java-maven/`)
 
-| Plugin | Papel | Gate |
+| Plugin | Role | Gate |
 |---|---|---|
-| `spotless-maven-plugin` | formatação (google-java-format) | `check` falha se desformatado |
-| `jacoco-maven-plugin` | cobertura | 100% linha/branch em `domain` |
-| `pitest-maven` | mutation testing | ≥80% em `domain` |
-| `dependency-check-maven` | CVEs | falha CVSS ≥ 7 |
-| `maven-enforcer-plugin` | Java/Maven mínimos, sem duplicatas, sem SNAPSHOT em release | falha |
-| `versions-maven-plugin` | relatório de atualizações | informativo |
-| `flyway-maven-plugin` | migrações | — |
+| `spotless-maven-plugin` | formatting (google-java-format) | `check` fails if unformatted |
+| `jacoco-maven-plugin` | coverage | 100% line/branch in `domain` |
+| `pitest-maven` | mutation testing | ≥80% in `domain` |
+| `dependency-check-maven` | CVEs | fails on CVSS ≥ 7 |
+| `maven-enforcer-plugin` | minimum Java/Maven, no duplicates, no SNAPSHOT in release | fails |
+| `versions-maven-plugin` | update report | informational |
+| `flyway-maven-plugin` | migrations | — |
 
-## Condição → ação
+## Condition → action
 
-- Adicionar dependência → (1) já existe transitiva? (`mvn dependency:tree`), (2) versão ≥7 dias publicada, (3) `dependency-check` local, (4) entrada no `dependencyManagement`.
-- Atualizar dependência → `mvn versions:display-dependency-updates`; uma família por PR (ex.: só Spring), com testes verdes.
-- Build lento → `mvn -T 1C` e perfis: `-Pfast` pula PITest/Dependency-Check localmente; CI roda tudo.
-- Release → `mvn -B release:prepare release:perform` ou versão pelo CI a partir dos commits; nunca editar versão à mão no dia.
+- Add a dependency → (1) already there transitively? (`mvn dependency:tree`), (2) version published ≥7 days, (3) local `dependency-check`, (4) entry in `dependencyManagement`.
+- Update a dependency → `mvn versions:display-dependency-updates`; one family per PR (e.g.: only Spring), with green tests.
+- Slow build → `mvn -T 1C` and profiles: `-Pfast` skips PITest/Dependency-Check locally; CI runs everything.
+- Release → `mvn -B release:prepare release:perform` or version via CI from the commits; never hand-edit the version on release day.

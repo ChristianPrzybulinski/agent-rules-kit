@@ -1,59 +1,59 @@
 ---
-description: Regras para desenvolvimento de jogos 2D com Godot e GDScript. Carregar em `*.gd`, `*.tscn` ou `project.godot`.
+description: Rules for 2D game development with Godot and GDScript. Load for `*.gd`, `*.tscn` or `project.godot`.
 trigger: model_decision
 ---
 
 # Godot 2D
 
-## Organização do projeto
+## Project organization
 
 ```text
 project/
 ├── project.godot
-├── autoload/           # Singletons globais (GameManager, Audio, Save)
-├── common/             # Componentes reutilizáveis
-├── entities/           # Cenas de personagens, inimigos, itens
-├── levels/             # Mapas/fases
-├── ui/                 # Menus, HUD, telas
-├── resources/          # Sprites, sons, fontes, tilesets
-└── tests/              # Testes de integração/cena quando aplicável
+├── autoload/           # Global singletons (GameManager, Audio, Save)
+├── common/             # Reusable components
+├── entities/           # Character, enemy, item scenes
+├── levels/             # Maps/stages
+├── ui/                 # Menus, HUD, screens
+├── resources/          # Sprites, sounds, fonts, tilesets
+└── tests/              # Integration/scene tests when applicable
 ```
 
 ## GDScript
 
-- Estilo oficial GDScript: `snake_case` para variáveis/funções/arquivos, `PascalCase` para classes/nós.
-- Use tipagem estática (`: Type`) sempre que possível.
-- Evite código em `_ready` longo; delegue para funções bem nomeadas.
-- Sinais são preferidos a chamadas diretas entre nós para desacoplamento.
-- Use `@export` para parâmetros ajustáveis no editor.
-- Documente propriedades `@export` com comentários acima.
+- Official GDScript style: `snake_case` for variables/functions/files, `PascalCase` for classes/nodes.
+- Use static typing (`: Type`) whenever possible.
+- Avoid long `_ready` code; delegate to well-named functions.
+- Signals are preferred over direct calls between nodes for decoupling.
+- Use `@export` for editor-tunable parameters.
+- Document `@export` properties with comments above them.
 
-## Nodes e cenas
+## Nodes and scenes
 
-- Cenas pequenas e reutilizáveis. Prefira composição a herança profunda.
-- Respeite a hierarquia do SceneTree; evite `get_parent()` para lógica de jogo.
-- Use Groups para identificar múltiplos nós sem acoplamento.
-- Separe visual, física e lógica quando possível.
+- Small, reusable scenes. Prefer composition over deep inheritance.
+- Respect the SceneTree hierarchy; avoid `get_parent()` for game logic.
+- Use Groups to identify multiple nodes without coupling.
+- Separate visuals, physics and logic when possible.
 
-## Física e processamento
+## Physics and processing
 
-- Use `_physics_process(delta)` para movimento/física; `_process(delta)` para animações/efeitos visuais.
-- Evite operações pesadas por frame. Cache referências em `_ready`.
-- Use `call_deferred` quando necessário para evitar estados intermediários de física.
+- Use `_physics_process(delta)` for movement/physics; `_process(delta)` for animations/visual effects.
+- Avoid heavy per-frame operations. Cache references in `_ready`.
+- Use `call_deferred` when needed to avoid intermediate physics states.
 
-## Recursos
+## Resources
 
-- Prefira `Resource` pré-carregados (`preload`) para cenas e scripts reutilizáveis.
-- Mantenha texturas e sprites organizados em `res://resources/`.
-- Use TileMap/TileSet para mapas 2D; evite posicionar tiles manualmente.
+- Prefer preloaded `Resource`s (`preload`) for reusable scenes and scripts.
+- Keep textures and sprites organized under `res://resources/`.
+- Use TileMap/TileSet for 2D maps; avoid placing tiles manually.
 
-## Save e estado
+## Save and state
 
-- Centralize estado global em autoloads.
-- Salve em JSON ou Resource personalizado; versione o formato de save.
-- Não armazene referências a nós no save.
+- Centralize global state in autoloads.
+- Save as JSON or a custom Resource; version the save format.
+- Do not store node references in the save.
 
-## Clean Architecture no Godot
+## Clean Architecture in Godot
 
-- Domínio do jogo (regras, estado, eventos) pode viver em autoloads/classes puras.
-- Cenas/nós são adapters/interface; regras de jogo devem ser testáveis isoladamente.
+- The game domain (rules, state, events) can live in autoloads/pure classes.
+- Scenes/nodes are adapters/interface; game rules must be testable in isolation.

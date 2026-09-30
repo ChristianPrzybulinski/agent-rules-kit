@@ -1,8 +1,8 @@
 ---
 name: skeptic
 version: "1.0"
-description: Verificação adversarial de uma afirmação (minha, do usuário ou de doc). Busca evidência contrária primeiro, depois favorável, e emite veredicto com confiança. Usar quando algo "parece certo" mas não foi provado, ou quando o usuário sugere uma solução.
-argument-hint: "[afirmação a verificar — padrão: última afirmação relevante]"
+description: Adversarial verification of a claim (mine, the user's or a doc's). Seeks contrary evidence first, then favorable, and issues a verdict with confidence. Use when something "seems right" but was not proven, or when the user suggests a solution.
+argument-hint: "[claim to verify — default: last relevant claim]"
 triggers:
   - user
   - model
@@ -15,51 +15,51 @@ allowed-tools:
   - webfetch
 ---
 
-# Skeptic — verificação adversarial
+# Skeptic — adversarial verification
 
-Objetivo: substituir "parece certo" por evidência. Nunca concluir "verdadeiro" sem fonte verificável; nunca concluir "falso" sem tentar sustentar a afirmação.
+Goal: replace "seems right" with evidence. Never conclude "true" without a verifiable source; never conclude "false" without trying to sustain the claim.
 
-## 1. Fixar a afirmação
+## 1. Pin down the claim
 
-- Use `$ARGUMENTS` se fornecido; senão, a última afirmação factual ou proposta de solução na conversa.
-- Reescreva-a em uma frase falsificável ("X faz Y em Z"). Se não for falsificável, diga isso e pare.
+- Use `$ARGUMENTS` if provided; otherwise, the last factual claim or proposed solution in the conversation.
+- Rewrite it as one falsifiable sentence ("X does Y in Z"). If it is not falsifiable, say so and stop.
 
-## 2. Classificar e escolher fontes
+## 2. Classify and choose sources
 
-| Tipo de afirmação | Fonte primária | Fonte secundária |
+| Claim type | Primary source | Secondary source |
 |---|---|---|
-| Comportamento do código do repo | ler o arquivo + rodar teste/comando | git log/blame |
-| API, flag, versão de lib/framework | doc oficial da versão instalada (`pom.xml`, `project.godot`, lockfile) | changelog/release notes |
-| Melhor abordagem / arquitetura | 2+ alternativas concretas com trade-offs medidos no contexto do repo | referência reconhecida (livro, doc oficial) |
-| Fato externo | fonte primária (site oficial, RFC, spec) | 2 fontes independentes |
+| Repo code behavior | read the file + run test/command | git log/blame |
+| API, flag, lib/framework version | official doc of the installed version (`pom.xml`, `project.godot`, lockfile) | changelog/release notes |
+| Best approach / architecture | 2+ concrete alternatives with trade-offs measured in the repo's context | recognized reference (book, official doc) |
+| External fact | primary source (official site, RFC, spec) | 2 independent sources |
 
-## 3. Buscar evidência CONTRÁRIA primeiro
+## 3. Seek CONTRARY evidence first
 
-- Procure ativamente o que refutaria a afirmação: teste que falha, doc que diz o oposto, caso de borda, versão diferente.
-- Se a afirmação é uma solução proposta, liste 1-2 alternativas e o que elas fazem melhor.
-- Registre cada achado com fonte (caminho:linha, URL, saída de comando).
+- Actively look for what would refute the claim: a failing test, a doc saying the opposite, an edge case, a different version.
+- If the claim is a proposed solution, list 1-2 alternatives and what they do better.
+- Record each finding with a source (path:line, URL, command output).
 
-## 4. Buscar evidência FAVORÁVEL
+## 4. Seek FAVORABLE evidence
 
-- Só depois do passo 3. Mesma exigência de fonte.
+- Only after step 3. Same source requirement.
 
-## 5. Veredicto
+## 5. Verdict
 
-Formato obrigatório (curto):
+Mandatory format (short):
 
 ```
-Afirmação: <frase falsificável>
-Veredicto: CONFIRMADA | REFUTADA | PARCIAL | INDETERMINADA
-Confiança: NN%  (≥98% exigido para prosseguir sem ressalva)
-Contra: - <evidência + fonte>
-A favor: - <evidência + fonte>
-Alternativas (se solução): - <opção> — <trade-off>
-Recomendação: <o que fazer agora; se <98%, o que falta para chegar lá>
+Claim: <falsifiable sentence>
+Verdict: CONFIRMED | REFUTED | PARTIAL | UNDETERMINED
+Confidence: NN%  (≥98% required to proceed without caveats)
+Against: - <evidence + source>
+For: - <evidence + source>
+Alternatives (if a solution): - <option> — <trade-off>
+Recommendation: <what to do now; if <98%, what is missing to get there>
 ```
 
-## Regras
+## Rules
 
-- Não conte "a doc diz" sem citar a versão e o trecho.
-- Não conte lembrança de treinamento como evidência.
-- Se a verificação exige rodar algo destrutivo, pare e peça autorização.
-- Se após esforço razoável nada decide, INDETERMINADA com o próximo teste concreto que decidiria.
+- Do not count "the doc says" without citing the version and the passage.
+- Do not count training memory as evidence.
+- If verification requires running something destructive, stop and ask for authorization.
+- If after reasonable effort nothing decides it, UNDETERMINED with the next concrete test that would.

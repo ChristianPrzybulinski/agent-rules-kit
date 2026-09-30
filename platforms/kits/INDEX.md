@@ -1,13 +1,13 @@
-# kits/ — arquivos prontos para copiar em projetos
+# kits/ — ready-to-copy files for projects
 
-Escopo: configuração e templates de infra que um projeto copia (não são lidos pelo agente como instrução — instrução é `agents/`).
+Scope: configuration and infra templates a project copies (not read by the agent as instructions — instructions are `agents/`).
 
-| Kit | Conteúdo | Quando usar |
+| Kit | Contents | When to use |
 |---|---|---|
-| `docker/` | compose PostgreSQL+Redis, Dockerfile.java multi-stage, init SQL, .env.example | infra local do projeto |
-| `git-lfs/` | `.gitattributes` pronto | antes do primeiro binário no repo |
-| `github/` | workflows (spec-lint, gitleaks, ci-java/godot reutilizáveis), PR template, CODEOWNERS, labels + sync | todo repo novo |
-| `godot/` | `.gitignore` Godot, hints de editor, `make_spritesheet.py` | projeto Godot |
-| `java-maven/` | pom parent com gates, toolchains, suppressions, `.java-version` | projeto Java/Maven |
-| `sdd/` | `init-spec.sh` — cria `docs/spec/` a partir de `agents/templates/spec-*` | bootstrap de spec no projeto |
-| `third-party/` | `skills.lock` — skills externas pinadas por commit | regenerar `agents/skills/vendor/` |
+| `docker/` | PostgreSQL+Redis compose, multi-stage Dockerfile.java, init SQL, .env.example | project local infra |
+| `git-lfs/` | ready `.gitattributes` | before the first binary in the repo |
+| `github/` | workflows (spec-lint, gitleaks, reusable ci-java/godot), PR template, CODEOWNERS, labels + sync | every new repo |
+| `godot/` | Godot `.gitignore`, editor hints, `make_spritesheet.py` | Godot project |
+| `java-maven/` | parent pom with gates, toolchains, suppressions, `.java-version` | Java/Maven project |
+| `sdd/` | `init-spec.sh` — creates `docs/spec/` from `agents/templates/spec-*` | spec bootstrap in the project |
+| `third-party/` | `skills.lock` — external skills pinned by commit | regenerate `agents/skills/vendor/` |

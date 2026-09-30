@@ -1,42 +1,42 @@
 ---
-description: Escada da simplicidade (YAGNI pragmático) — quando não escrever código, quando um port/interface se justifica, como marcar simplificações deliberadas e como reportar o que foi pulado. Carregar ao desenhar solução, revisar PR "grande demais", escolher dependência ou decidir se um teste é necessário; o resumo já está no AGENTS.md.
+description: Simplicity ladder (pragmatic YAGNI) — when not to write code, when a port/interface is justified, how to mark deliberate simplifications and how to report what was skipped. Load when designing a solution, reviewing an "oversized" PR, choosing a dependency or deciding whether a test is needed; the summary is already in AGENTS.md.
 trigger: model_decision
 ---
 
-# Simplicidade
+# Simplicity
 
-O melhor código é o que não foi escrito. Lazy = eficiente, não descuidado. A escada encurta a **solução**, nunca a **leitura**: entenda o fluxo inteiro (todos os arquivos que a mudança toca) antes de escolher o degrau.
+The best code is the code not written. Lazy = efficient, not careless. The ladder shortens the **solution**, never the **reading**: understand the whole flow (every file the change touches) before choosing a rung.
 
-## A escada — pare no primeiro degrau que segura
+## The ladder — stop at the first rung that holds
 
-1. **Precisa existir?** Necessidade especulativa → não faça; diga em uma linha.
-2. **Já existe no repositório?** Helper, tipo, padrão a três arquivos de distância → reuse. Reimplementar o vizinho é o erro mais comum.
-3. **Stdlib resolve?** Use.
-4. **Recurso nativo da plataforma?** Constraint no banco em vez de código; sinal nativo do Godot em vez de bus próprio; `record` em vez de builder.
-5. **Dependência já instalada resolve?** Use. Nunca adicione uma nova para o que cabe em poucas linhas.
-6. **Cabe em uma linha?** Uma linha.
-7. **Só então:** o mínimo que funciona.
+1. **Does it need to exist?** Speculative need → don't do it; say so in one line.
+2. **Already in the repository?** Helper, type, pattern three files away → reuse. Reimplementing the neighbor is the most common error.
+3. **Does stdlib solve it?** Use it.
+4. **Native platform feature?** Database constraint instead of code; native Godot signal instead of a custom bus; `record` instead of a builder.
+5. **Does an already-installed dependency solve it?** Use it. Never add a new one for what fits in a few lines.
+6. **Does it fit in one line?** One line.
+7. **Only then:** the minimum that works.
 
-Dois degraus funcionam → o mais alto. Duas opções do mesmo tamanho → a correta nos casos de borda (menos código, não algoritmo mais frágil).
+Two rungs work → the higher one. Two options of the same size → the correct one in edge cases (less code, not the more fragile algorithm).
 
-## Regras
+## Rules
 
-- Sem abstração não pedida: interface com uma implementação, factory de um produto, config para valor que nunca muda, scaffolding "para depois".
-- **Exceção que justifica interface (port)**: I/O externo (banco, rede, relógio, RNG, arquivo), troca real prevista entre implementações, ou fronteira do domínio que precisa ser testada sem infraestrutura. Fora disso, classe concreta.
-- Menos arquivos vence. Deletar vence adicionar. Chato vence esperto — esperto é o que alguém decifra às 3h da manhã.
-- Bug = causa raiz. Antes de editar, `grep` todos os chamadores; a correção no ponto comum é o menor diff **e** o correto.
-- Pedido complexo → entregue a versão simples e questione no mesmo turno: "Fiz X; Y cobre. Precisa do X completo? Diga."
-- Simplificação deliberada com teto conhecido (lock global, varredura O(n²), heurística) → comentário `// simplificado: <teto>; <quando/como evoluir>`. Vira `DEBT-xxx` se o teto estiver no caminho do roadmap.
+- No unrequested abstraction: interface with one implementation, factory of a single product, config for a value that never changes, "for later" scaffolding.
+- **Exception that justifies an interface (port)**: external I/O (database, network, clock, RNG, file), a real planned swap between implementations, or a domain boundary that must be tested without infrastructure. Outside that, concrete class.
+- Fewer files wins. Deleting beats adding. Boring beats clever — clever is what someone deciphers at 3 a.m.
+- Bug = root cause. Before editing, `grep` all callers; the fix at the common point is the smallest diff **and** the correct one.
+- Complex request → deliver the simple version and question in the same turn: "I did X; Y covers it. Do you need the full X? Say so."
+- Deliberate simplification with a known ceiling (global lock, O(n²) scan, heuristic) → comment `// simplified: <ceiling>; <when/how to evolve>`. Becomes a `DEBT-xxx` if the ceiling is on the roadmap's path.
 
-## Nunca simplifique
+## Never simplify
 
-Validação na borda de confiança · tratamento de erro que evita perda de dado · segurança e autorização · acessibilidade básica · o que o usuário pediu explicitamente (insistiu → construa, sem rediscutir) · o **domínio** (dinheiro, inventário, recompensa, batalha): lá valem os gates de `rules/development/testing.md` integralmente.
+Validation at the trust boundary · error handling that prevents data loss · security and authorization · basic accessibility · what the user explicitly requested (insisted → build it, without re-litigating) · the **domain** (money, inventory, reward, battle): there the gates of `rules/development/testing.md` apply in full.
 
-## Testes sob a escada
+## Tests under the ladder
 
-- Fora do domínio: lógica não trivial deixa **um** check executável que falha se quebrar (um `test_*`/`@Test` pequeno). Sem suíte por função, sem fixture antecipada. Trivial (getter, mapeamento 1:1, one-liner) não se testa.
-- Dentro do domínio: a escada não se aplica aos testes.
+- Outside the domain: non-trivial logic leaves **one** executable check that fails if it breaks (one small `test_*`/`@Test`). No per-function suite, no ahead-of-time fixture. Trivial (getter, 1:1 mapping, one-liner) is not tested.
+- Inside the domain: the ladder does not apply to tests.
 
-## Saída
+## Output
 
-Padrão: `[código] → pulado: X; adicionar quando Y.` Se a explicação ficou maior que o código, apague a explicação. Explicação pedida explicitamente (relatório, walkthrough) não é dívida — entregue inteira.
+Pattern: `[code] → skipped: X; add when Y.` If the explanation grew bigger than the code, delete the explanation. An explicitly requested explanation (report, walkthrough) is not debt — deliver it whole.

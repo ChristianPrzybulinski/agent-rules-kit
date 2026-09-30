@@ -1,44 +1,44 @@
-# [NomeDaMensagem] — [comando | evento | resposta | erro]
+# [MessageName] — [command | event | response | error]
 
-Direção: [C→S | S→C | ambos]  ·  Desde `protocol_version`: [x.y]  ·  FEAT: `FEAT-xxx`
+Direction: [C→S | S→C | both]  ·  Since `protocol_version`: [x.y]  ·  FEAT: `FEAT-xxx`
 
-## Propósito
+## Purpose
 
-[Uma frase: o que o emissor quer que aconteça / o que o receptor precisa saber.]
+[One sentence: what the sender wants to happen / what the receiver needs to know.]
 
-## Campos
+## Fields
 
-| Campo | Tipo | Obrig. | Limites | Validado por | Notas |
+| Field | Type | Req. | Limits | Validated by | Notes |
 |---|---|---|---|---|---|
-| `[campo]` | [string/int/uuid/enum] | sim/não | [tamanho, faixa, regex] | servidor / cliente (UX) | |
+| `[field]` | [string/int/uuid/enum] | yes/no | [size, range, regex] | server / client (UX) | |
 
-Envelope comum (id, correlação, sequência, timestamp): ver `protocol/README.md`.
+Common envelope (id, correlation, sequence, timestamp): see `protocol/README.md`.
 
-## Semântica
+## Semantics
 
-- Idempotência: [chave de dedupe | não se aplica (só leitura)]
-- Ordem: [por sessão | por entidade `[x]`]; fora de ordem → [descartar | reordenar até N | erro `[CODIGO]`]
-- Frequência máxima: [N/s por sessão]; excedente → [erro `RATE_LIMITED` | descarte silencioso]
-- Tamanho máximo: [bytes]
+- Idempotency: [dedupe key | not applicable (read-only)]
+- Ordering: [per session | per entity `[x]`]; out of order → [discard | reorder up to N | error `[CODE]`]
+- Maximum frequency: [N/s per session]; excess → [`RATE_LIMITED` error | silent discard]
+- Maximum size: [bytes]
 
-## Respostas e erros
+## Responses and errors
 
-| Código | Quando | Cliente deve |
+| Code | When | Client must |
 |---|---|---|
 | `[OK_xxx]` | | |
 | `[ERR_xxx]` | | |
 
-## Exemplos (fixtures em `protocol/examples/[nome]/`)
+## Examples (fixtures in `protocol/examples/[name]/`)
 
-- `valid-01.json` — [caso feliz]
-- `invalid-01.json` — [campo ausente] → `[ERR_xxx]`
-- `invalid-02.json` — [limite excedido] → `[ERR_xxx]`
+- `valid-01.json` — [happy case]
+- `invalid-01.json` — [missing field] → `[ERR_xxx]`
+- `invalid-02.json` — [limit exceeded] → `[ERR_xxx]`
 
-## Legado relacionado
+## Related legacy
 
-- [FATO | HIPÓTESE] [assunto/handler legado, arquivo:linha] — divergências: [PROPOSTA] [...]
+- [FACT | HYPOTHESIS] [legacy subject/handler, file:line] — divergences: [PROPOSAL] [...]
 
-## Compatibilidade
+## Compatibility
 
-- Mudança: [minor | major] — motivo: [...]
-- Janela de coexistência: [versões suportadas simultaneamente | corte em `vX`]
+- Change: [minor | major] — reason: [...]
+- Coexistence window: [simultaneously supported versions | cutover at `vX`]

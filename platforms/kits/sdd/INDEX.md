@@ -1,7 +1,7 @@
-# sdd/ — bootstrap de docs/spec
+# sdd/ — docs/spec bootstrap
 
-| Arquivo | Escopo |
+| File | Scope |
 |---|---|
-| `init-spec.sh` | cria `docs/spec/` vazio num repo (features, requirements, decisions, debts), copia `agents/templates/spec-index.md` como `spec.md` inicial e roda `platforms/tools/sync-project.sh` (CI de spec já nasce no projeto) |
+| `init-spec.sh` | creates an empty `docs/spec/` in a repo (features, requirements, decisions, debts), copies `agents/templates/spec-index.md` as the initial `spec.md` and runs `platforms/tools/sync-project.sh` (spec CI is born in the project) |
 
-Uso: `platforms/kits/sdd/init-spec.sh <repo-dir>`. Processo completo: `agents/skills/process/README.md`.
+Usage: `platforms/kits/sdd/init-spec.sh <repo-dir>`. Full process: `agents/skills/process/README.md`.

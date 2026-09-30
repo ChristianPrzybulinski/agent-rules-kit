@@ -1,6 +1,6 @@
-# validations/ — scripts de validação
+# validations/ — validation scripts
 
-| Arquivo | Escopo | Chamado por |
+| File | Scope | Called by |
 |---|---|---|
-| `check_kit.py` | invariantes do kit (layout, frontmatter, índices, links, lock, duplicação, prompt compact) | `platforms/tools/check.sh`, CI do kit |
-| `check_spec.py` | `docs/spec/` de um projeto contra `../schemas/` | `check.sh --spec`, workflow spec-lint dos projetos |
+| `check_kit.py` | kit invariants (layout, frontmatter, indexes, links, lock, duplication, compact prompt) | `platforms/tools/check.sh`, the kit's CI |
+| `check_spec.py` | a project's `docs/spec/` against `../schemas/` | `check.sh --spec`, the projects' spec-lint workflow |

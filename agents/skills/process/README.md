@@ -1,57 +1,57 @@
 # SDD — Spec-Driven Development
 
-Processo adaptado do [github/spec-kit](https://github.com/github/spec-kit) (skills `speckit-*`), sem o CLI `specify` (exige Python 3.11+/uv). Aqui as etapas são skills do kit, e os artefatos vivem **no repositório do projeto**, em `docs/spec/` — nunca no kit.
+Process adapted from [github/spec-kit](https://github.com/github/spec-kit) (`speckit-*` skills), without the `specify` CLI (requires Python 3.11+/uv). Here the steps are kit skills, and the artifacts live **in the project's repository**, under `docs/spec/` — never in the kit.
 
-## Fluxo
+## Flow
 
 ```text
-constitution (1x por projeto)  →  AGENTS.md do repo + docs/spec/spec.md
+constitution (1x per project)  →  repo AGENTS.md + docs/spec/spec.md
         │
    specify  →  clarify  →  analyze  →  audit  →  plan  →  tasks  →  implement  →  validate  →  to-card
-   FEAT-xxx    perguntas    coerência   checklist  plano    lista     código        veredicto    issue GH
-   REQ-*       resolvidas   spec↔req    de gaps    técnico  ordenada  + testes      PRONTO?      + status
+   FEAT-xxx    questions  spec↔req   gap       technical ordered   code         verdict     GH issue
+   REQ-*       resolved   coherence checklist plan      list      + tests      READY?      + status
 ```
 
-Repita `implement → validate` até PRONTO. `to-card` pode rodar logo após `specify` (abre o card) e de novo após `validate` (fecha).
+Repeat `implement → validate` until READY. `to-card` can run right after `specify` (opens the card) and again after `validate` (closes it).
 
-| Etapa | Skill | Entrada | Saída | Origem no spec-kit |
+| Step | Skill | Input | Output | spec-kit origin |
 |---|---|---|---|---|
-| 0 | `sdd-constitution` | pedido do produto, stack | `AGENTS.md`, `docs/spec/spec.md` | `constitution` |
-| 1 | `sdd-specify` | descrição da funcionalidade | `features/FEAT-xxx.md` (status `proposta`), `requirements/**/REQ-*.md` | `specify` |
-| 2 | `sdd-clarify` | FEAT | perguntas → respostas incorporadas; status `clarificada` | `clarify` |
-| 3 | `sdd-analyze` | FEAT + REQs + DECs | relatório de contradições/lacunas/órfãos | `analyze` |
-| 4 | `sdd-audit` | FEAT | checklist de qualidade da spec (testável? completa? segura?) | `checklist` |
-| 5 | `sdd-plan` | FEAT clarificada | seção *Plano* na FEAT (módulos, contrato, migração, flag, testes); `DEC-xxx` se decisão; status `planejada` | `plan` |
-| 6 | `sdd-tasks` | plano | seção *Tarefas* ordenadas, cada uma com critério verificável | `tasks` |
-| 7 | `sdd-implement` | tarefas | código + testes + docs, uma tarefa por vez; status `em-implementação` | `implement` |
-| 8 | `core/validate-implementation` | FEAT | veredicto PRONTO/PARCIAL/NÃO PRONTO; status `validada` | `converge` |
-| 9 | `sdd-to-card` | FEAT | issue no GitHub (Projects) sincronizada com status | — (adição) |
+| 0 | `sdd-constitution` | product request, stack | `AGENTS.md`, `docs/spec/spec.md` | `constitution` |
+| 1 | `sdd-specify` | feature description | `features/FEAT-xxx.md` (status `proposta`), `requirements/**/REQ-*.md` | `specify` |
+| 2 | `sdd-clarify` | FEAT | questions → answers incorporated; status `clarificada` | `clarify` |
+| 3 | `sdd-analyze` | FEAT + REQs + DECs | report of contradictions/gaps/orphans | `analyze` |
+| 4 | `sdd-audit` | FEAT | spec quality checklist (testable? complete? safe?) | `checklist` |
+| 5 | `sdd-plan` | clarified FEAT | *Plan* section in the FEAT (modules, contract, migration, flag, tests); `DEC-xxx` if a decision; status `planejada` | `plan` |
+| 6 | `sdd-tasks` | plan | ordered *Tasks* section, each with a verifiable criterion | `tasks` |
+| 7 | `sdd-implement` | tasks | code + tests + docs, one task at a time; status `em-implementação` | `implement` |
+| 8 | `core/validate-implementation` | FEAT | verdict READY/PARTIAL/NOT READY; status `validada` | `converge` |
+| 9 | `sdd-to-card` | FEAT | GitHub issue (Projects) synced with status | — (addition) |
 
-## Identificadores
+## Identifiers
 
-| Sigla | Onde | Exemplo |
+| Prefix | Where | Example |
 |---|---|---|
 | `FEAT-nnn` | `docs/spec/features/` | `FEAT-003-login.md` |
-| `REQ-F-nnn` | `docs/spec/requirements/functional/` | `REQ-F-012-senha-argon2.md` |
-| `REQ-NF-nnn` | `docs/spec/requirements/non-functional/` | `REQ-NF-004-latencia-batalha.md` |
+| `REQ-F-nnn` | `docs/spec/requirements/functional/` | `REQ-F-012-argon2-password.md` |
+| `REQ-NF-nnn` | `docs/spec/requirements/non-functional/` | `REQ-NF-004-battle-latency.md` |
 | `DEC-nnn` | `docs/spec/decisions/` | `DEC-002-websocket-vs-tcp.md` |
-| `DEBT-nnn` | `docs/spec/debts/` | `DEBT-001-flag-login-antiga.md` |
+| `DEBT-nnn` | `docs/spec/debts/` | `DEBT-001-old-login-flag.md` |
 
-Numeração sequencial por tipo, nunca reutilizada. Nome do arquivo: `SIGLA-nnn-slug.md`. Frontmatter validado por `platforms/ci/schemas/*.schema.json` (CI via `platforms/kits/github/workflows/spec-lint.yml`).
+Sequential numbering per type, never reused. File name: `PREFIX-nnn-slug.md`. Frontmatter validated by `platforms/ci/schemas/*.schema.json` (CI via `platforms/kits/github/workflows/spec-lint.yml`).
 
-## Status de feature
+## Feature status
 
-`proposta → clarificada → planejada → em-implementação → validada → entregue` (+ `cancelada`). Só avança; regressão exige nota em *Histórico*. `entregue` = merged na `main` com flag ligada (ou sem flag).
+`proposta → clarificada → planejada → em-implementação → validada → entregue` (+ `cancelada`). Forward only; regression requires a note in *History*. `entregue` = merged to `main` with the flag on (or no flag).
 
-## Classificação obrigatória de afirmações (em toda spec/decisão)
+## Mandatory claim classification (in every spec/decision)
 
-`[FATO]` verificado com fonte · `[DECISÃO]` aprovada pelo produto · `[PROPOSTA]` técnica aguardando aprovação · `[HIPÓTESE]` a validar, com como validar · `[BLOQUEIO]` dependência externa.
+`[FACT]` verified with source · `[DECISION]` approved by the product · `[PROPOSAL]` technical, awaiting approval · `[HYPOTHESIS]` to validate, with how to validate · `[BLOCKER]` external dependency.
 
-## Layout no projeto
+## Layout in the project
 
 ```text
 docs/spec/
-├── spec.md                      # capa: visão, escopo, glossário, índice de FEAT/REQ/DEC/DEBT
+├── spec.md                      # cover: vision, scope, glossary, FEAT/REQ/DEC/DEBT index
 ├── features/FEAT-nnn-slug.md
 ├── requirements/
 │   ├── functional/REQ-F-nnn-slug.md
@@ -60,4 +60,4 @@ docs/spec/
 └── debts/DEBT-nnn-slug.md
 ```
 
-Templates em `agents/templates/`. Bootstrap: `platforms/kits/sdd/init-spec.sh <repo>` copia a estrutura vazia.
+Templates in `agents/templates/`. Bootstrap: `platforms/kits/sdd/init-spec.sh <repo>` copies the empty structure.

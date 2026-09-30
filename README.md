@@ -1,13 +1,13 @@
 # agent-rules-kit
 
-Regras, conhecimento, skills e ferramentas compartilhadas por agentes de IA (Devin, Cursor, Windsurf, Codex, ChatGPT). Layout v4: `agents/` (o que entra no contexto), `platforms/` (o que roda na máquina/CI), `docs/` (documentação sobre o kit).
+Rules, knowledge, skills and tools shared by AI agents (Devin, Cursor, Windsurf, Codex, ChatGPT). Layout v4: `agents/` (what enters the context), `platforms/` (what runs on the machine/CI), `docs/` (documentation about the kit).
 
-**Índice completo: [`INDEX.md`](INDEX.md).** Manter o kit: [`docs/maintenance.md`](docs/maintenance.md).
+**Full index: [`INDEX.md`](INDEX.md).** Maintaining the kit: [`docs/maintenance.md`](docs/maintenance.md).
 
-## Bootstrap (repo privado — precisa de `gh auth login`)
+## Bootstrap (private repo — requires `gh auth login`)
 
 ```bash
 gh repo clone ChristianPrzybulinski/agent-rules-kit ~/.ai-kit && ~/.ai-kit/platforms/tools/bootstrap.sh
 ```
 
-Depois, toda sessão: `~/.ai-kit/platforms/tools/refresh.sh --quiet` (o `AGENTS.md` instrui o agente a fazer isso).
+Then, every session: `~/.ai-kit/platforms/tools/refresh.sh --quiet` (the `AGENTS.md` instructs the agent to do this).

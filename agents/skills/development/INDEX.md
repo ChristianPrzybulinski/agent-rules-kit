@@ -1,9 +1,9 @@
-# skills/development/ — desenvolvimento por stack
+# skills/development/ — development by stack
 
-| Skill | Escopo | Quando usar |
+| Skill | Scope | When to use |
 |---|---|---|
-| `java-standards` | Java moderno, Clean Code/Architecture, testes | `*.java`, `pom.xml` |
-| `godot-standards` | Godot 2D, GDScript, nodes, sinais, autoloads | `*.gd`, `*.tscn` |
-| `asset-import` | sprites/tilesets/mapas → Godot, não destrutivo, com manifesto | importar arte do acervo ou externa |
-| `protocol-contract` | mensagens do contrato cliente↔servidor com versionamento | novo campo/mensagem; cliente e servidor divergem |
-| `investigate` | causa raiz de bug/regressão/lentidão, com reprodução antes da correção | "não funciona", incidente |
+| `java-standards` | modern Java, Clean Code/Architecture, tests | `*.java`, `pom.xml` |
+| `godot-standards` | Godot 2D, GDScript, nodes, signals, autoloads | `*.gd`, `*.tscn` |
+| `asset-import` | sprites/tilesets/maps → Godot, non-destructive, with manifest | import art from the archive or external sources |
+| `protocol-contract` | client↔server contract messages with versioning | new field/message; client and server disagree |
+| `investigate` | root cause of a bug/regression/slowness, with reproduction before the fix | "doesn't work", incident |

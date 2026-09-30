@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/feature.schema.json",
-  "title": "Frontmatter de FEAT-nnn",
+  "title": "Frontmatter of FEAT-nnn",
   "type": "object",
   "required": ["id", "title", "status", "requirements", "created"],
   "additionalProperties": false,

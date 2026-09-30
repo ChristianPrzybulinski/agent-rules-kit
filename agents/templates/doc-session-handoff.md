@@ -1,34 +1,34 @@
-# Passagem de sessão — YYYY-MM-DD — [tema]
+# Session handoff — YYYY-MM-DD — [topic]
 
-Repos tocados: [`repo` @ `commit-curto`, ...]  ·  Agente/ferramenta: [Devin | Codex | ...]
+Touched repos: [`repo` @ `short-commit`, ...]  ·  Agent/tool: [Devin | Codex | ...]
 
-## Feito (com evidência)
+## Done (with evidence)
 
-| O quê | Onde | Evidência |
+| What | Where | Evidence |
 |---|---|---|
-| [FATO] [mudança] | [`caminho` / commit] | [comando → OK, ou link] |
+| [FACT] [change] | [`path` / commit] | [command → OK, or link] |
 
-## Verificações rodadas
+## Verifications run
 
-| Comando | Resultado |
+| Command | Result |
 |---|---|
-| `[cmd]` | OK / FALHOU: `[trecho literal]` |
+| `[cmd]` | OK / FAILED: `[literal excerpt]` |
 
-## Decisões
+## Decisions
 
-- [DECISÃO] `DEC-xxx` — [uma linha]
-- [PROPOSTA] `DEC-xxx` (aguarda aprovação) — [uma linha]
+- [DECISION] `DEC-xxx` — [one line]
+- [PROPOSAL] `DEC-xxx` (awaiting approval) — [one line]
 
-## Pendente / bloqueios
+## Pending / blockers
 
-- [BLOQUEIO] [o que trava, quem resolve, como]
-- [HIPÓTESE] [o que se assume e como confirmar]
-- Working tree: limpo | sujo: [`arquivos`]
+- [BLOCKER] [what blocks, who resolves it, how]
+- [HYPOTHESIS] [what is assumed and how to confirm]
+- Working tree: clean | dirty: [`files`]
 
-## Não verificado
+## Unverified
 
-- [afirmação que ficou sem prova nesta sessão]
+- [claim left without proof this session]
 
-## Primeira tarefa da próxima sessão
+## Next session's first task
 
-**[uma frase imperativa]** — pronto quando: [critério observável]. Comando/arquivo de partida: `[...]`.
+**[one imperative sentence]** — done when: [observable criterion]. Starting command/file: `[...]`.

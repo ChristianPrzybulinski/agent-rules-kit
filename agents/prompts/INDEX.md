@@ -1,8 +1,8 @@
-# prompts/ — derivados do AGENTS.md para ferramentas sem AGENTS.md
+# prompts/ — AGENTS.md derivatives for tools without AGENTS.md
 
-Escopo: texto compilado, fonte de verdade é `../AGENTS.md` — mudança no AGENTS pede re-geração dos prompts.
+Scope: compiled text; the source of truth is `../AGENTS.md` — a change to AGENTS requires regenerating the prompts.
 
-| Arquivo | Destino |
+| File | Destination |
 |---|---|
-| `chatgpt-compact.md` | Custom Instructions do ChatGPT (≤1500 chars após o delimitador — validado) |
-| `chatgpt-full.md` | GPT/Project instructions completas |
+| `chatgpt-compact.md` | ChatGPT Custom Instructions (≤1500 chars after the delimiter — validated) |
+| `chatgpt-full.md` | full GPT/Project instructions |

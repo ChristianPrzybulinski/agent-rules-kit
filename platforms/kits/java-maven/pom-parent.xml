@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <!-- POM pai do kit. Num projeto real: mude groupId/artifactId e use como <parent> dos módulos. -->
+  <!-- The kit's parent POM. In a real project: change groupId/artifactId and use as the modules' <parent>. -->
   <groupId>kit.java.maven</groupId>
   <artifactId>parent</artifactId>
   <version>0.1.0</version>
@@ -15,7 +15,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <!-- Versões verificadas no Maven Central em 2026-09-29 -->
+    <!-- Versions verified on Maven Central on 2026-09-29 -->
     <spring-boot.version>3.5.16</spring-boot.version>
     <spotless.version>3.10.3</spotless.version>
     <google-java-format.version>1.36.1</google-java-format.version>
@@ -29,7 +29,7 @@
     <surefire.version>3.6.0</surefire.version>
     <failsafe.version>3.6.0</failsafe.version>
 
-    <!-- skips controlados pelo perfil `fast` -->
+    <!-- skips controlled by the `fast` profile -->
     <pitest.skip>false</pitest.skip>
     <dependency-check.skip>false</dependency-check.skip>
   </properties>
@@ -162,9 +162,9 @@
   </build>
 
   <profiles>
-    <!-- Gate de cobertura 100% + PITest 80%: ativado automaticamente em módulos
-         que contêm o arquivo marcador src/main/java/.domain (crie vazio no
-         módulo domain). Alternativa: declarar os dois plugins no pom do módulo. -->
+    <!-- 100% coverage + 80% PITest gate: auto-activated in modules
+         containing the src/main/java/.domain marker file (create it empty in
+         the domain module). Alternative: declare both plugins in the module's pom. -->
     <profile>
       <id>domain-gate</id>
       <activation>
@@ -209,7 +209,7 @@
       </build>
     </profile>
 
-    <!-- Build rápido: pula só PITest e dependency-check; testes continuam. -->
+    <!-- Fast build: skips only PITest and dependency-check; tests still run. -->
     <profile>
       <id>fast</id>
       <properties>
@@ -218,7 +218,7 @@
       </properties>
     </profile>
 
-    <!-- Release: proíbe dependências SNAPSHOT. -->
+    <!-- Release: forbids SNAPSHOT dependencies. -->
     <profile>
       <id>release</id>
       <build>
@@ -233,7 +233,7 @@
                 <goals><goal>enforce</goal></goals>
                 <configuration>
                   <rules>
-                    <requireReleaseDeps><message>Sem SNAPSHOT em release</message></requireReleaseDeps>
+                    <requireReleaseDeps><message>No SNAPSHOTs in a release</message></requireReleaseDeps>
                   </rules>
                 </configuration>
               </execution>

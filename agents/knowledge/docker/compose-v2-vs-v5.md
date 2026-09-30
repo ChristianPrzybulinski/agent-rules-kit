@@ -1,5 +1,5 @@
 ---
-description: Compose v2+ virou plugin da CLI (`docker compose`), campo `version:` obsoleto, v5.5.1 instalada. Carregar ao criar/alterar compose ou Dockerfile.
+description: Compose v2+ became a CLI plugin (`docker compose`), the `version:` field is obsolete, v5.5.1 installed. Load when creating/changing a compose file or Dockerfile.
 trigger: model_decision
 verified: "2026-09-29"
 sources:
@@ -9,8 +9,8 @@ sources:
 
 # Docker Compose — v2 vs v5
 
-- Compose virou **plugin da CLI** (`docker compose`, com espaço) desde a v2.0; o binário antigo `docker-compose` (Python, v1) está descontinuado/EOL.
-- Versão instalada nesta máquina: **Docker Compose v5.5.1** (`docker compose version`).
-- O campo `version:` no topo do compose file é **obsoleto** desde Compose spec — omitir (o `compose.yml` do kit não usa).
-- Comandos idênticos (`up -d`, `config`, `logs`); apenas a invocação muda.
-- Referências: https://docs.docker.com/compose/ e release notes em https://github.com/docker/compose/releases.
+- Compose became a **CLI plugin** (`docker compose`, with a space) since v2.0; the old `docker-compose` binary (Python, v1) is discontinued/EOL.
+- Version installed on this machine: **Docker Compose v5.5.1** (`docker compose version`).
+- The `version:` field at the top of the compose file is **obsolete** since the Compose spec — omit it (the kit's `compose.yml` doesn't use it).
+- Identical commands (`up -d`, `config`, `logs`); only the invocation changes.
+- References: https://docs.docker.com/compose/ and release notes at https://github.com/docker/compose/releases.

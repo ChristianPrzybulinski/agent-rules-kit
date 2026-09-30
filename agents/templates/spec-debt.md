@@ -1,31 +1,31 @@
 ---
 id: DEBT-000
-title: "[Dívida em 1 frase: Remover flag login-v1 e código antigo]"
+title: "[Debt in 1 sentence: Remove login-v1 flag and old code]"
 status: aberta
 severity: medium
-trigger: "[condição que obriga pagar: flag ligada >30 dias | antes da fatia vertical | ao tocar módulo X]"
+trigger: "[condition that forces payment: flag on >30 days | before the vertical slice | when touching module X]"
 features: []
 created: "YYYY-MM-DD"
 card: null
 ---
 
-# DEBT-000 — [Título]
+# DEBT-000 — [Title]
 
-Estados: `aberta` → `paga` | `aceita` (decidimos conviver; exige DEC).
+States: `aberta` → `paga` | `aceita` (we decide to live with it; requires a DEC).
 
-## O que foi feito e por quê
+## What was done and why
 
-[Atalho tomado, contexto que justificou. Sem culpa; com fato.]
+[Shortcut taken, context that justified it. No blame; with facts.]
 
-## Custo de manter
+## Cost of keeping
 
-[Risco, lentidão, confusão que gera. Concreto.]
+[Risk, slowness, confusion it generates. Concrete.]
 
-## Como pagar
+## How to pay
 
-- [passo]
-- Prova de pagamento: [comando/teste]
+- [step]
+- Proof of payment: [command/test]
 
-## Gatilho
+## Trigger
 
-[Quando vira obrigatório. Ver frontmatter.]
+[When it becomes mandatory. See frontmatter.]

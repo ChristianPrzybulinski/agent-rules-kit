@@ -1,8 +1,8 @@
 ---
 name: session-handoff
 version: "1.0"
-description: Registra a passagem entre sessões de trabalho — o que foi feito com evidência, o que ficou pendente, decisões tomadas/abertas e a primeira tarefa concreta da próxima sessão. Usar ao encerrar uma sessão longa, antes de trocar de agente/ferramenta, ou quando o contexto vai ser perdido.
-argument-hint: "[FEAT-xxx | tema da sessão]"
+description: Records the handoff between work sessions — what was done with evidence, what is pending, decisions made/open and the next session's first concrete task. Use when closing a long session, before switching agent/tool, or when context will be lost.
+argument-hint: "[FEAT-xxx | session topic]"
 triggers:
   - user
   - model
@@ -15,28 +15,28 @@ allowed-tools:
 
 # Session Handoff
 
-Uma nova sessão deve conseguir continuar sem esta conversa. O registro é curto, factual e aponta para artefatos — não repete conteúdo que já está em spec/DEC/commit.
+A new session must be able to continue without this conversation. The record is short, factual and points to artifacts — it does not repeat content already in spec/DEC/commit.
 
-## 1. Coletar (não de memória)
+## 1. Collect (not from memory)
 
-- `git status --short` e `git log --oneline <base>..HEAD` em cada repo tocado: o que foi commitado, o que ficou sujo.
-- Specs com `status`/`updated` alterados nesta sessão (`grep -l "updated: <hoje>" docs/spec -r`).
-- Comandos de verificação rodados e a saída literal resumida (OK / FALHOU + trecho).
-- Perguntas feitas ao usuário e respostas obtidas.
+- `git status --short` and `git log --oneline <base>..HEAD` in each touched repo: what was committed, what was left dirty.
+- Specs with `status`/`updated` changed this session (`grep -l "updated: <today>" docs/spec -r`).
+- Verification commands run and a summary of the literal output (OK / FAILED + excerpt).
+- Questions asked to the user and the answers obtained.
 
-## 2. Escrever
+## 2. Write
 
-Template: `agents/templates/doc-session-handoff.md`. Destino no projeto: `docs/sessions/YYYY-MM-DD-<tema>.md` (criar pasta se não existir; se o projeto definir outro local no `AGENTS.md`, use-o).
+Template: `agents/templates/doc-session-handoff.md`. Destination in the project: `docs/sessions/YYYY-MM-DD-<topic>.md` (create the folder if missing; if the project defines another location in `AGENTS.md`, use it).
 
-Cada item classificado: `[FATO]` (observado), `[DECISÃO]` (aprovada, com DEC), `[PROPOSTA]`, `[HIPÓTESE]`, `[BLOQUEIO]`.
+Each item classified: `[FACT]` (observed), `[DECISION]` (approved, with DEC), `[PROPOSAL]`, `[HYPOTHESIS]`, `[BLOCKER]`.
 
-## 3. Primeira tarefa da próxima sessão
+## 3. Next session's first task
 
-Exatamente uma, executável sem perguntas: comando ou arquivo + critério de pronto. Se depende de decisão do usuário, a tarefa é "obter decisão X" com as opções listadas.
+Exactly one, executable without questions: a command or file + done criterion. If it depends on a user decision, the task is "obtain decision X" with the options listed.
 
-## Regras
+## Rules
 
-- Não afirmar "testado"/"funciona" sem comando + saída no registro.
-- Não copiar trechos longos de spec; linkar.
-- Working tree sujo é `[BLOQUEIO]` explícito, com os arquivos listados.
-- Registro entra no mesmo commit/PR que fecha a sessão; se nada foi commitado, o registro é o único commit.
+- Do not claim "tested"/"works" without command + output in the record.
+- Do not copy long spec excerpts; link them.
+- A dirty working tree is an explicit `[BLOCKER]`, with the files listed.
+- The record goes in the same commit/PR that closes the session; if nothing was committed, the record is the only commit.

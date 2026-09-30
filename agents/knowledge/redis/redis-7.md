@@ -1,5 +1,5 @@
 ---
-description: Redis 7.4 para dev local e licenciamento por versão (≤7.2 BSD, 7.4–7.8 RSALv2/SSPLv1, ≥8.0 +AGPLv3). Carregar ao propor cache/sessão ou pinar imagem.
+description: Redis 7.4 for local dev and per-version licensing (≤7.2 BSD, 7.4–7.8 RSALv2/SSPLv1, ≥8.0 +AGPLv3). Load when proposing cache/session or pinning an image.
 trigger: model_decision
 verified: "2026-09-29"
 sources:
@@ -7,18 +7,18 @@ sources:
   - https://redis.io/blog/agplv3/
 ---
 
-# Redis 7 — versão e licença
+# Redis 7 — version and license
 
-- Versão escolhida para dev local: **7.4** (última minor 7.x no Docker Hub — tag `redis:7.4`). A linha 7.x não recebe novos features; considerar 8.x em projetos novos.
+- Version chosen for local dev: **7.4** (latest 7.x minor on Docker Hub — tag `redis:7.4`). The 7.x line receives no new features; consider 8.x for new projects.
 
-## Licença (importante)
+## License (important)
 
-Fonte: https://redis.io/legal/licenses/ e https://redis.io/blog/agplv3/
+Source: https://redis.io/legal/licenses/ and https://redis.io/blog/agplv3/
 
-| Versão | Licença |
+| Version | License |
 |---|---|
 | ≤ 7.2 | BSD-3-Clause |
-| 7.4 – 7.8 ("Community Edition") | dual: RSALv2 **ou** SSPLv1 (nenhuma OSI-approved) |
-| ≥ 8.0 ("Redis Open Source", GA 2025-05-02) | tripla: RSALv2 **ou** SSPLv1 **ou** AGPLv3 (OSI-approved) |
+| 7.4 – 7.8 ("Community Edition") | dual: RSALv2 **or** SSPLv1 (neither OSI-approved) |
+| ≥ 8.0 ("Redis Open Source", GA 2025-05-02) | triple: RSALv2 **or** SSPLv1 **or** AGPLv3 (OSI-approved) |
 
-Ou seja: Redis 7.4+ mudou para RSALv2/SSPLv1 (mar/2024); a partir do 8.0 a AGPLv3 voltou como opção. Para uso local/dev isso não restringe nada; relevante ao distribuir ou oferecer Redis como serviço.
+In short: Redis 7.4+ moved to RSALv2/SSPLv1 (Mar/2024); from 8.0 on, AGPLv3 returned as an option. For local/dev use this restricts nothing; relevant when distributing or offering Redis as a service.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Primeira instalacao do kit. Uso: bootstrap.sh
-# Idempotente: se ~/.ai-kit ja existe, apenas instala.
+# First kit installation. Usage: bootstrap.sh
+# Idempotent: if ~/.ai-kit already exists, it only installs.
 set -euo pipefail
 
 KIT="$HOME/.ai-kit"

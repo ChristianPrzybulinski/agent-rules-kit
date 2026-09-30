@@ -1,8 +1,8 @@
 ---
 name: protocol-contract
 version: "1.0"
-description: Cria ou evolui uma mensagem do contrato cliente↔servidor (comando, evento, resposta, erro) com versionamento, exemplos testáveis e regras de compatibilidade. Usar ao adicionar/alterar campo, criar mensagem nova, ou ao encontrar cliente e servidor discordando sobre um payload. Não usar para decidir transporte/serialização (isso é DEC).
-argument-hint: "[nome-da-mensagem | FEAT-xxx que precisa de mensagem nova]"
+description: Creates or evolves a client↔server contract message (command, event, response, error) with versioning, testable examples and compatibility rules. Use when adding/changing a field, creating a new message, or when client and server disagree about a payload. Do not use to decide transport/serialization (that is a DEC).
+argument-hint: "[message-name | FEAT-xxx that needs a new message]"
 triggers:
   - user
   - model
@@ -15,47 +15,47 @@ allowed-tools:
 
 # Protocol Contract
 
-O contrato vive num único lugar (no projeto, tipicamente `protocol/`); cliente e servidor consomem por versão. Esta skill muda o contrato, nunca os consumidores diretamente.
+The contract lives in a single place (in the project, typically `protocol/`); client and server consume it by version. This skill changes the contract, never the consumers directly.
 
-## 1. Localizar a fonte de verdade
+## 1. Locate the source of truth
 
-- Ler `protocol/README.md` (ou o que `AGENTS.md` indicar): transporte, serialização, `protocol_version` atual, convenção de nomes, envelope comum (id, correlação, sequência, timestamp).
-- Se não existir DEC aprovada para transporte/serialização → parar; abrir `DEC-xxx` como `proposta` e reportar. Não escolher por conta própria.
+- Read `protocol/README.md` (or whatever `AGENTS.md` indicates): transport, serialization, current `protocol_version`, naming convention, common envelope (id, correlation, sequence, timestamp).
+- If there is no approved DEC for transport/serialization → stop; open a `DEC-xxx` as `proposta` and report. Do not choose on your own.
 
-## 2. Classificar a mudança
+## 2. Classify the change
 
-| Mudança | `protocol_version` | Compatibilidade |
+| Change | `protocol_version` | Compatibility |
 |---|---|---|
-| Campo opcional novo; mensagem nova | minor | cliente antigo ignora |
-| Campo obrigatório novo; tipo/semântica alterada; remoção | major | quebra — exige janela de coexistência ou corte planejado |
-| Correção de doc/exemplo sem mudar bytes | nenhuma | — |
+| New optional field; new message | minor | old client ignores it |
+| New required field; changed type/semantics; removal | major | breaking — requires a coexistence window or a planned cutover |
+| Doc/example fix without changing bytes | none | — |
 
-Major → precisa de DEC (mesmo curta) antes de seguir.
+Major → needs a DEC (even a short one) before proceeding.
 
-## 3. Especificar a mensagem
+## 3. Specify the message
 
-Template: `agents/templates/doc-contract-message.md`. Obrigatório por mensagem:
+Template: `agents/templates/doc-contract-message.md`. Required per message:
 
-- direção (C→S, S→C, ambos), tipo (comando / evento / resposta / erro);
-- campos com tipo, obrigatoriedade, limites (tamanho, faixa, frequência);
-- quem valida o quê (servidor valida tudo que altera estado; cliente só pré-valida UX);
-- idempotência: chave de deduplicação para comandos com efeito (inventário, economia, recompensa);
-- ordem: sequência por sessão ou por entidade; o que acontece fora de ordem;
-- erros possíveis com código estável (não texto);
-- **exemplo válido e ≥1 inválido**, em arquivos separados sob `protocol/examples/`, para virarem fixtures de teste de contrato nos dois lados.
+- direction (C→S, S→C, both), type (command / event / response / error);
+- fields with type, requiredness, limits (size, range, frequency);
+- who validates what (server validates everything that changes state; client only pre-validates UX);
+- idempotency: deduplication key for commands with an effect (inventory, economy, reward);
+- ordering: per-session or per-entity sequence; what happens out of order;
+- possible errors with a stable code (not text);
+- **one valid and ≥1 invalid example**, in separate files under `protocol/examples/`, to become contract-test fixtures on both sides.
 
-## 4. Legado como referência, não como molde
+## 4. Legacy as reference, not as mold
 
-Se existe protocolo antigo: registrar em "Legado relacionado" o assunto/handler equivalente com `[FATO]` só se lido no código. Não copiar delimitadores, nomes obscuros ou campos sem função conhecida. Divergência de comportamento em relação ao legado → `[PROPOSTA]` explícita, nunca silenciosa.
+If an old protocol exists: record in "Related legacy" the equivalent subject/handler with `[FACT]` only if read in the code. Do not copy delimiters, obscure names or fields of unknown purpose. Behavior divergence from legacy → explicit `[PROPOSAL]`, never silent.
 
-## 5. Fechar
+## 5. Close
 
-- `protocol/CHANGELOG.md` (ou seção) com a versão e a mudança.
-- FEAT que motivou a mensagem: linkar a mensagem em "Relações".
-- Exemplos passam num validador de schema se o projeto tiver (rodar; saída no relatório).
+- `protocol/CHANGELOG.md` (or section) with the version and the change.
+- FEAT that motivated the message: link the message under "Relations".
+- Examples pass through a schema validator if the project has one (run it; output in the report).
 
-## Regras
+## Rules
 
-- Nenhum campo "reservado para o futuro".
-- Toda mensagem com efeito em estado tem resposta ou erro definido — sem fire-and-forget para comandos.
-- Tamanho máximo e frequência máxima são parte do contrato, não detalhe do servidor.
+- No "reserved for the future" fields.
+- Every message with a state effect has a defined response or error — no fire-and-forget for commands.
+- Maximum size and maximum frequency are part of the contract, not a server detail.

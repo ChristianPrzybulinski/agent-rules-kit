@@ -14,7 +14,7 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - name: Spotless + verify (testes, JaCoCo, PITest no módulo domain)
+      - name: Spotless + verify (tests, JaCoCo, PITest in the domain module)
         run: ./mvnw -B -ntp spotless:check verify
       - name: Upload JaCoCo report
         if: always()
@@ -40,11 +40,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - name: Cache NVD data do dependency-check
+      - name: dependency-check NVD data cache
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: ${{ runner.os }}-dc-nvd-${{ github.run_id }}
           restore-keys: ${{ runner.os }}-dc-nvd-
-      - name: OWASP dependency-check (falha em CVSS >= 7)
+      - name: OWASP dependency-check (fails on CVSS >= 7)
         run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7

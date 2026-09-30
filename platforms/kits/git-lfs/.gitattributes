@@ -1,4 +1,4 @@
-# Binários -> LFS (definir ANTES do primeiro binário entrar no histórico)
+# Binaries -> LFS (define BEFORE the first binary enters the history)
 *.png      filter=lfs diff=lfs merge=lfs -text
 *.jpg      filter=lfs diff=lfs merge=lfs -text
 *.webp     filter=lfs diff=lfs merge=lfs -text
@@ -12,7 +12,7 @@
 *.aseprite filter=lfs diff=lfs merge=lfs -text
 *.zip      filter=lfs diff=lfs merge=lfs -text
 
-# Texto com EOL fixo (Godot serializa em texto; *.import é versionado)
+# Text with fixed EOL (Godot serializes as text; *.import is versioned)
 *.import text eol=lf
 *.tscn   text eol=lf
 *.tres   text eol=lf

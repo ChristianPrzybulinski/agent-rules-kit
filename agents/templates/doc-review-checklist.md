@@ -1,34 +1,34 @@
-# Checklist de revisão — PR #[n] — `FEAT-xxx`
+# Review checklist — PR #[n] — `FEAT-xxx`
 
-Marque só o que foi **observado**. Item não aplicável: `n/a`. Item não verificado: deixe vazio e diga por quê no final.
+Mark only what was **observed**. Non-applicable item: `n/a`. Unverified item: leave it empty and say why at the end.
 
-## Escopo
-- [ ] PR faz uma coisa; título Conventional Commit; corpo linka FEAT/REQ/DEC.
-- [ ] Nada fora do escopo da FEAT (tangentes viraram issue/DEBT).
+## Scope
+- [ ] PR does one thing; Conventional Commit title; body links FEAT/REQ/DEC.
+- [ ] Nothing outside the FEAT's scope (tangents became an issue/DEBT).
 
-## Correção
-- [ ] Cada CA da FEAT tem teste nomeado; caminho triste coberto.
-- [ ] Domínio: JaCoCo 100% + PITest ≥80% verdes (saída no PR).
-- [ ] Efeito em inventário/economia/recompensa: teste de idempotência e concorrência.
-- [ ] Contrato alterado → `protocol_version` e fixtures atualizados nos dois lados.
+## Correctness
+- [ ] Each CA of the FEAT has a named test; sad path covered.
+- [ ] Domain: JaCoCo 100% + PITest ≥80% green (output in the PR).
+- [ ] Effect on inventory/economy/reward: idempotency and concurrency test.
+- [ ] Contract changed → `protocol_version` and fixtures updated on both sides.
 
-## Arquitetura
-- [ ] Dependências apontam para dentro; domínio sem framework.
-- [ ] Servidor valida tudo que altera estado; cliente só pré-valida UX.
-- [ ] Sem padrão novo sem problema presente; DEC se houve trade-off.
+## Architecture
+- [ ] Dependencies point inward; domain without framework.
+- [ ] Server validates everything that changes state; client only pre-validates UX.
+- [ ] No new pattern without a present problem; DEC if there was a trade-off.
 
-## Segurança
-- [ ] Sem segredo/dado pessoal; `vuln-scan` OK; input validado na borda; erro não vaza interno.
-- [ ] Log sem senha/token; autorização por ação/entidade nos endpoints tocados.
+## Security
+- [ ] No secret/personal data; `vuln-scan` OK; input validated at the boundary; error doesn't leak internals.
+- [ ] Log without password/token; per-action/entity authorization on touched endpoints.
 
 ## Docs
-- [ ] CHANGELOG `Unreleased`; README se comando mudou; Javadoc/docstring em API pública nova.
-- [ ] Status da FEAT e `updated` atualizados; DEBT/flag registrados se incompleto.
+- [ ] CHANGELOG `Unreleased`; README if a command changed; Javadoc/docstring on new public API.
+- [ ] FEAT status and `updated` updated; DEBT/flag recorded if incomplete.
 
-## Ao receber comentários de revisão (autor)
-- [ ] Cada comentário verificado no código antes de aplicar — revisor também erra; discordância vai com evidência, não com "ok".
-- [ ] Comentário que revela lacuna na FEAT/REQ → corrigir a spec, não só o código.
-- [ ] Nenhuma mudança fora do comentário "aproveitando"; segue para follow-up.
+## When receiving review comments (author)
+- [ ] Each comment verified in the code before applying — reviewers err too; disagreement comes with evidence, not with "ok".
+- [ ] A comment that reveals a gap in the FEAT/REQ → fix the spec, not just the code.
+- [ ] No change outside the comment "while at it"; it goes to follow-up.
 
-## Não verificado
+## Unverified
 - [...]

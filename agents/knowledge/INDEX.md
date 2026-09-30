@@ -1,15 +1,15 @@
-# knowledge/ — fatos verificados, com fonte e data
+# knowledge/ — verified facts, with source and date
 
-Escopo: fatos datados (versões, quotas, APIs, glossários) com URL de fonte. Não é regra (normativo → `../rules/`) nem procedimento (→ `../skills/`). ≤40 linhas, frontmatter com `verified` + `sources`.
+Scope: dated facts (versions, quotas, APIs, glossaries) with a source URL. Not a rule (normative → `../rules/`) nor a procedure (→ `../skills/`). ≤40 lines, frontmatter with `verified` + `sources`.
 
-| Domínio | Nota | Quando carregar |
+| Domain | Note | When to load |
 |---|---|---|
-| `docker/` | `compose-v2-vs-v5.md` | criar/alterar compose ou Dockerfile |
-| `git/` | `lfs-quotas-github.md` | quotas LFS por plano GitHub |
-| `git/` | `worktrees.md` | trabalho paralelo em 2 branches, comandos e armadilhas |
-| `godot/` | `godot-4-versions.md` | versão instalada, imagem CI, política de releases |
-| `godot/` | `networking-transports.md` | transporte cliente↔servidor com servidor não-Godot |
-| `java/` | `java-25-lts.md` | Java 25 LTS, suporte, instalação keg-only |
-| `legacy/` | `director-lingo-glossary.md` | ler código Lingo/inventário Director do acervo |
-| `postgresql/` | `postgres-17.md` | versão, EOL, imagem do compose |
-| `redis/` | `redis-7.md` | versão para dev e licenciamento por linha |
+| `docker/` | `compose-v2-vs-v5.md` | create/change a compose file or Dockerfile |
+| `git/` | `lfs-quotas-github.md` | LFS quotas per GitHub plan |
+| `git/` | `worktrees.md` | parallel work on 2 branches, commands and pitfalls |
+| `godot/` | `godot-4-versions.md` | installed version, CI image, release policy |
+| `godot/` | `networking-transports.md` | client↔server transport with a non-Godot server |
+| `java/` | `java-25-lts.md` | Java 25 LTS, support, keg-only install |
+| `legacy/` | `director-lingo-glossary.md` | read Lingo code/Director inventory from the archive |
+| `postgresql/` | `postgres-17.md` | version, EOL, compose image |
+| `redis/` | `redis-7.md` | dev version and per-release licensing |

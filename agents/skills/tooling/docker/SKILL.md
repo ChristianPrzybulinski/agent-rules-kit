@@ -1,7 +1,7 @@
 ---
 name: docker
 version: "1.0"
-description: Docker e Compose para ambiente local reproduzível — compose de Postgres/Redis com healthcheck, Dockerfile multi-stage para Java, volumes, redes, .env, diagnóstico. Usar ao criar/alterar infra local, Dockerfile ou quando um serviço não sobe.
+description: Docker and Compose for a reproducible local environment — Postgres/Redis compose with healthchecks, multi-stage Dockerfile for Java, volumes, networks, .env, diagnostics. Use when creating/changing local infra, a Dockerfile, or when a service won't start.
 argument-hint: "[compose | dockerfile | up | diagnose]"
 triggers:
   - user
@@ -14,41 +14,41 @@ allowed-tools:
 
 # Docker / Compose
 
-Base: `platforms/kits/docker/compose.yml` (Postgres + Redis + pgAdmin opcional). Regras: `agents/rules/development/twelve-factor.md`. Verificado nesta máquina: Docker 29.x, Compose v5.x (`docker compose`, não `docker-compose`).
+Base: `platforms/kits/docker/compose.yml` (Postgres + Redis + optional pgAdmin). Rules: `agents/rules/development/twelve-factor.md`. Verified on this machine: Docker 29.x, Compose v5.x (`docker compose`, not `docker-compose`).
 
 ## compose
 
-- Imagens com tag de versão **major.minor** (`postgres:17.x`, `redis:7.x`); nunca `latest`. Mesma major que a produção pretendida.
-- `healthcheck` em todo serviço; app depende com `condition: service_healthy`.
-- Segredos via `.env` (gitignored) + `.env.example`; nunca inline no yml.
-- Volumes nomeados para dados; bind mount só para init scripts (`./infra/postgres/init:/docker-entrypoint-initdb.d:ro`).
-- Portas expostas só em `127.0.0.1:` (não `0.0.0.0`).
-- `pg_stat_statements` habilitado via `command: postgres -c shared_preload_libraries=pg_stat_statements`.
+- Images tagged **major.minor** (`postgres:17.x`, `redis:7.x`); never `latest`. Same major as the intended production.
+- `healthcheck` on every service; the app depends with `condition: service_healthy`.
+- Secrets via `.env` (gitignored) + `.env.example`; never inline in the yml.
+- Named volumes for data; bind mount only for init scripts (`./infra/postgres/init:/docker-entrypoint-initdb.d:ro`).
+- Ports exposed only on `127.0.0.1:` (not `0.0.0.0`).
+- `pg_stat_statements` enabled via `command: postgres -c shared_preload_libraries=pg_stat_statements`.
 
 ## dockerfile (Java)
 
-Multi-stage: `maven:3.9-eclipse-temurin-25` build → `eclipse-temurin:25-jre` runtime; usuário não-root; `COPY --from=build target/*.jar app.jar`; `ENTRYPOINT ["java","-XX:+UseContainerSupport","-jar","app.jar"]`. `.dockerignore` com `target/ .git/ .godot/`. Verificar tags existentes no Docker Hub antes de fixar.
+Multi-stage: `maven:3.9-eclipse-temurin-25` build → `eclipse-temurin:25-jre` runtime; non-root user; `COPY --from=build target/*.jar app.jar`; `ENTRYPOINT ["java","-XX:+UseContainerSupport","-jar","app.jar"]`. `.dockerignore` with `target/ .git/ .godot/`. Check existing tags on Docker Hub before pinning.
 
 ## up
 
 ```bash
-docker compose up -d --wait          # espera healthchecks
-docker compose ps                    # estado
+docker compose up -d --wait          # waits for healthchecks
+docker compose ps                    # state
 docker compose logs -f postgres      # logs
-docker compose down                  # mantém volumes
-docker compose down -v               # APAGA dados — perguntar antes
+docker compose down                  # keeps volumes
+docker compose down -v               # DELETES data — ask first
 ```
 
 ## diagnose
 
-| Sintoma | Checar |
+| Symptom | Check |
 |---|---|
-| serviço `unhealthy` | `docker compose logs <svc>`; healthcheck manual `docker compose exec postgres pg_isready` |
-| porta em uso | `lsof -i :5432` |
-| sem espaço | `docker system df`; `docker system prune` (perguntar; remove imagens não usadas) |
-| app não conecta | host é o **nome do serviço** na rede compose, `localhost` só de fora |
-| lento no macOS | volume nomeado em vez de bind mount para dados |
+| `unhealthy` service | `docker compose logs <svc>`; manual healthcheck `docker compose exec postgres pg_isready` |
+| port in use | `lsof -i :5432` |
+| out of space | `docker system df`; `docker system prune` (ask; removes unused images) |
+| app can't connect | host is the **service name** on the compose network, `localhost` only from outside |
+| slow on macOS | named volume instead of bind mount for data |
 
-## Veredicto
+## Verdict
 
-Serviços · versões fixadas · `docker compose up -d --wait` → saída · não verificado · próximo passo.
+Services · pinned versions · `docker compose up -d --wait` → output · unverified · next step.

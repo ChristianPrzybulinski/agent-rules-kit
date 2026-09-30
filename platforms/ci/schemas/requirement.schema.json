@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/requirement.schema.json",
-  "title": "Frontmatter de REQ-F-nnn / REQ-NF-nnn",
+  "title": "Frontmatter of REQ-F-nnn / REQ-NF-nnn",
   "type": "object",
   "required": ["id", "title", "type", "priority", "features", "created"],
   "additionalProperties": false,

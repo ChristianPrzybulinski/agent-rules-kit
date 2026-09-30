@@ -1,42 +1,42 @@
 ---
 id: DEC-000
-title: "[Decisão em 1 frase: Usar WebSocket para sessão de jogo]"
+title: "[Decision in 1 sentence: Use WebSocket for the game session]"
 status: proposta
 date: "YYYY-MM-DD"
-deciders: "[produto | tech]"
+deciders: "[product | tech]"
 features: []
 supersedes: null
 ---
 
-# DEC-000 — [Título]
+# DEC-000 — [Title]
 
-Estados: `proposta` → `aprovada` | `rejeitada` | `substituída por DEC-nnn`.
+States: `proposta` → `aprovada` | `rejeitada` | `substituída` (superseded by `DEC-nnn`).
 
-## Contexto
+## Context
 
-[Problema, restrições, o que força a decisão. Fatos com fonte; hipóteses marcadas.]
+[Problem, constraints, what forces the decision. Facts with a source; hypotheses marked.]
 
-## Decisão
+## Decision
 
-[Uma frase afirmativa. `[PROPOSTA]` até aprovação.]
+[One affirmative sentence. `[PROPOSAL]` until approved.]
 
-## Alternativas consideradas
+## Alternatives considered
 
-| Opção | Prós | Contras | Por que não |
+| Option | Pros | Cons | Why not |
 |---|---|---|---|
-| [A — escolhida] | | | — |
-| [B] | | | [motivo] |
+| [A — chosen] | | | — |
+| [B] | | | [reason] |
 
-## Consequências
+## Consequences
 
-- Positivas: [...]
-- Negativas / custos: [...]
-- O que passa a ser proibido ou obrigatório: [...]
+- Positive: [...]
+- Negative / costs: [...]
+- What becomes forbidden or mandatory: [...]
 
-## Como validar
+## How to validate
 
-[Que evidência confirmaria ou derrubaria a decisão; quando revisar.]
+[What evidence would confirm or topple the decision; when to revisit.]
 
-## Referências
+## References
 
-- [doc oficial + versão, benchmark, legado]
+- [official doc + version, benchmark, legacy]

@@ -1,11 +1,11 @@
 # kit git-lfs
 
-`.gitattributes` pronto para projetos com arte/binário (Godot 2D em particular).
+Ready-made `.gitattributes` for projects with art/binaries (Godot 2D in particular).
 
-## Uso
+## Usage
 
-1. Copie `.gitattributes` para a raiz do repo **antes** do primeiro binário entrar — adicionar depois exige `git lfs migrate` (reescreve histórico).
-2. `git lfs install` (uma vez por máquina). Clone novo: `git lfs install && git lfs pull`.
-3. Novo tipo binário → adicione o padrão **no mesmo commit** do primeiro arquivo.
+1. Copy `.gitattributes` to the repo root **before** the first binary enters — adding it later requires `git lfs migrate` (rewrites history).
+2. `git lfs install` (once per machine). Fresh clone: `git lfs install && git lfs pull`.
+3. New binary type → add the pattern **in the same commit** as the first file.
 
-Regras completas: `agents/rules/git/git-lfs-and-binaries.md`. Quotas do GitHub: `agents/knowledge/git/lfs-quotas-github.md`.
+Full rules: `agents/rules/git/git-lfs-and-binaries.md`. GitHub quotas: `agents/knowledge/git/lfs-quotas-github.md`.

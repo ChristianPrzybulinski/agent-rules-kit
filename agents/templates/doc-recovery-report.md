@@ -1,40 +1,40 @@
-# Relatório de recuperação — lote [nome] — YYYY-MM-DD
+# Recovery report — batch [name] — YYYY-MM-DD
 
-FEAT: `FEAT-xxx`  ·  Script: `[tools/...]` @ `[commit]`  ·  Manifesto: `[caminho.csv]`
+FEAT: `FEAT-xxx`  ·  Script: `[tools/...]` @ `[commit]`  ·  Manifest: `[path.csv]`
 
-## Origem
+## Origin
 
-- Acervo: `[caminho fora do repo]` — manifesto de hashes: `[caminho]` — conferido: [FATO] sim / [BLOQUEIO] divergência em N arquivos
-- Seleção do lote: [critério — ex.: cast X, membros 100-250]
+- Archive: `[path outside the repo]` — hash manifest: `[path]` — checked: [FACT] yes / [BLOCKER] divergence in N files
+- Batch selection: [criterion — e.g.: cast X, members 100-250]
 
-## Contagens
+## Counts
 
-| Etapa | Entrada | ok | revisar | rejeitado |
+| Stage | Input | ok | review | rejected |
 |---|---|---|---|---|
-| normalização | | | | |
-| derivação | | | | |
-| importação Godot | | | | |
+| normalization | | | | |
+| derivation | | | | |
+| Godot import | | | | |
 
-## Transformações aplicadas
+## Applied transformations
 
-| Transformação | Parâmetros | Escopo | Decisão |
+| Transformation | Parameters | Scope | Decision |
 |---|---|---|---|
-| [ex.: cor-chave → alpha] | [cor, tolerância] | [N arquivos] | `DEC-xxx` / nota no manifesto |
+| [e.g.: color-key → alpha] | [color, tolerance] | [N files] | `DEC-xxx` / note in the manifest |
 
-## Rejeitados e "revisar" (para humano)
+## Rejected and "review" (for a human)
 
-| Origem | Motivo | Preview | Ação sugerida |
+| Origin | Reason | Preview | Suggested action |
 |---|---|---|---|
-| | [par PNG≠BMP / pivô ausente / membro faltante] | `[caminho]` | |
+| | [PNG≠BMP pair / missing pivot / missing member] | `[path]` | |
 
-## Determinismo
+## Determinism
 
-- Execução 1 vs 2: hashes idênticos [FATO] sim / não — diferenças: [...]
+- Run 1 vs 2: identical hashes [FACT] yes / no — differences: [...]
 
-## Procedência e uso
+## Provenance and use
 
-- Licença/condições: [FATO | HIPÓTESE | BLOQUEIO] [...]
+- License/conditions: [FACT | HYPOTHESIS | BLOCKER] [...]
 
-## Não verificado
+## Unverified
 
-- [ex.: duração de animação inferida, não confirmada no Score]
+- [e.g.: animation duration inferred, not confirmed in the Score]

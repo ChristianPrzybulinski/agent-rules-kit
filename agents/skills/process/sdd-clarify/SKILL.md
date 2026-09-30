@@ -1,7 +1,7 @@
 ---
 name: sdd-clarify
 version: "1.0"
-description: Etapa 2 do SDD — resolve os [NEEDS CLARIFICATION] de uma FEAT com perguntas objetivas (2-4 opções cada) ao produto, incorpora as respostas na spec e muda status para clarificada. Usar quando a FEAT tem perguntas abertas ou critérios ambíguos.
+description: SDD step 2 — resolves a FEAT's [NEEDS CLARIFICATION] markers with objective questions (2-4 options each) to the product, incorporates the answers into the spec and moves status to clarificada. Use when the FEAT has open questions or ambiguous criteria.
 argument-hint: "FEAT-nnn"
 triggers:
   - user
@@ -13,20 +13,20 @@ allowed-tools:
 
 # SDD 2 — Clarify
 
-## Etapas
+## Steps
 
-1. Ler a FEAT e os REQs ligados. Coletar: marcadores `[NEEDS CLARIFICATION]`, critérios sem caminho triste, termos fora do glossário, quantificadores vagos ("rápido", "muitos", "seguro").
-2. Priorizar: perguntas que mudam escopo ou arquitetura primeiro. Máximo **5 por rodada**; se sobrar, segunda rodada.
-3. Cada pergunta: contexto em 1 linha + 2-4 opções com consequência de cada + recomendação marcada. Uma única chamada de `ask_user_question` por rodada.
-4. Incorporar resposta **no lugar certo** (critério, escopo, requisito), não em seção "respostas". Registrar em *Histórico*: `YYYY-MM-DD clarify: <pergunta> → <resposta>`.
-5. Resposta que é decisão técnica → não incorporar aqui; anotar para `sdd-plan`/`DEC`.
-6. Zero marcadores restantes → `status: clarificada`.
+1. Read the FEAT and its linked REQs. Collect: `[NEEDS CLARIFICATION]` markers, criteria without a sad path, terms missing from the glossary, vague quantifiers ("fast", "many", "safe").
+2. Prioritize: questions that change scope or architecture first. Maximum **5 per round**; if any remain, a second round.
+3. Each question: context in 1 line + 2-4 options with each one's consequence + a marked recommendation. A single `ask_user_question` call per round.
+4. Incorporate the answer **in the right place** (criterion, scope, requirement), not in an "answers" section. Record in *History*: `YYYY-MM-DD clarify: <question> → <answer>`.
+5. An answer that is a technical decision → do not incorporate here; note it for `sdd-plan`/`DEC`.
+6. Zero markers remaining → `status: clarificada`.
 
-## Critérios de conclusão
+## Completion criteria
 
-- Nenhum `[NEEDS CLARIFICATION]`; nenhum quantificador vago sem número ou sem `[HIPÓTESE]` com método de medição.
-- Glossário de `spec.md` atualizado com termos novos.
+- No `[NEEDS CLARIFICATION]`; no vague quantifier without a number or a `[HYPOTHESIS]` with a measurement method.
+- `spec.md` glossary updated with new terms.
 
-## Não faça
+## Do not
 
-- Responder você mesmo a pergunta de produto "para não incomodar". Decisão reversível e técnica → decida e registre `[PROPOSTA]`; decisão de produto/custo/risco → pergunte.
+- Answer a product question yourself "to avoid bothering". A reversible technical decision → decide and record `[PROPOSAL]`; a product/cost/risk decision → ask.

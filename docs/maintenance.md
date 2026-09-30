@@ -1,34 +1,34 @@
-# Manutenção do kit
+# Kit maintenance
 
-## Versionar
+## Versioning
 
-`VERSION` (semver) + entrada no `CHANGELOG.md` + tag `vX.Y.Z`. Push da tag dispara `.github/workflows/release.yml`, que valida tag == `VERSION` e cria a release com a seção do changelog — **releases são automáticas**, não crie release manual.
+`VERSION` (semver) + an entry in `CHANGELOG.md` + a `vX.Y.Z` tag. Pushing the tag triggers `.github/workflows/release.yml`, which validates tag == `VERSION` and creates the release with the changelog section — **releases are automatic**, do not create a release manually.
 
-`LAYOUT_VERSION` (inteiro) bumpa quando muda a estrutura de pastas ou um destino de instalação — `refresh.sh` detecta e roda `install/all.sh --clean` (reinstalação completa). Mudança de conteúdo sem mudar layout → só `VERSION`.
+`LAYOUT_VERSION` (integer) bumps when the folder structure or an install destination changes — `refresh.sh` detects it and runs `install/all.sh --clean` (full reinstall). A content change without a layout change → `VERSION` only.
 
-## Adicionar conteúdo
+## Adding content
 
-| Tipo | Passos |
+| Type | Steps |
 |---|---|
-| regra | copiar `agents/templates/kit-rule.md` → `agents/rules/<domínio>/`, listar em `agents/rules/INDEX.md`, `check.sh` |
-| knowledge | copiar `kit-knowledge.md` → `agents/knowledge/<domínio>/` (frontmatter com `verified` + `sources`), listar em `agents/knowledge/INDEX.md` |
-| skill | copiar `kit-skill.md` → `agents/skills/<tipo>/<nome>/`, `name` = pasta, listar no INDEX do tipo e em `agents/skills/INDEX.md` |
-| template | `agents/templates/<prefixo>-<nome>.md` (regex `^(spec|doc|project|kit)-`), listar em `agents/templates/INDEX.md` |
-| índice | `kit-index.md` (só lista) ou `kit-readme.md` (explica) — nunca os dois na mesma pasta |
+| rule | copy `agents/templates/kit-rule.md` → `agents/rules/<domain>/`, list in `agents/rules/INDEX.md`, `check.sh` |
+| knowledge | copy `kit-knowledge.md` → `agents/knowledge/<domain>/` (frontmatter with `verified` + `sources`), list in `agents/knowledge/INDEX.md` |
+| skill | copy `kit-skill.md` → `agents/skills/<type>/<name>/`, `name` = folder, list in the type's INDEX and in `agents/skills/INDEX.md` |
+| template | `agents/templates/<prefix>-<name>.md` (regex `^(spec|doc|project|kit)-`), list in `agents/templates/INDEX.md` |
+| index | `kit-index.md` (list only) or `kit-readme.md` (explains) — never both in the same folder |
 
-## Skills de terceiros (vendor)
+## Third-party skills (vendor)
 
-Política: **nunca `npx skills add` direto nos agentes**. Atualizar uma skill vendorizada:
+Policy: **never `npx skills add` directly into the agents**. Updating a vendored skill:
 
-1. `git ls-remote https://github.com/<repo> HEAD` → novo SHA.
-2. Atualizar a linha em `platforms/kits/third-party/skills.lock` (name | repo | path | sha | licença | data).
-3. `platforms/install/third-party.sh` regenera `agents/skills/vendor/<name>/` + `VENDOR.md`.
+1. `git ls-remote https://github.com/<repo> HEAD` → new SHA.
+2. Update the line in `platforms/kits/third-party/skills.lock` (name | repo | path | sha | license | date).
+3. `platforms/install/third-party.sh` regenerates `agents/skills/vendor/<name>/` + `VENDOR.md`.
 4. `platforms/tools/check.sh` (lock × VENDOR.md × schema) → commit.
 
-Remover: apagar a linha do lock + `git rm -r agents/skills/vendor/<nome>`.
+Removing: delete the lock line + `git rm -r agents/skills/vendor/<name>`.
 
-## O que o CI exige
+## What CI requires
 
-`.github/workflows/ci.yml`: `check.sh` com `CI=1` (pyyaml/jsonschema obrigatórios — local sem eles roda em modo estrutural com aviso), `shellcheck` nos `platforms/**/*.sh`, `check_kit.py --links`. `gitleaks.yml` em todo push. Dependabot semanal para actions.
+`.github/workflows/ci.yml`: `check.sh` with `CI=1` (pyyaml/jsonschema mandatory — a local run without them runs in structural mode with a warning), `shellcheck` on `platforms/**/*.sh`, `check_kit.py --links`. `gitleaks.yml` on every push. Weekly Dependabot for actions.
 
-Pré-requisitos desta máquina (2026-09-30): Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — via `toolchains.xml`) e JDK 27 no PATH · Maven 3.9.16 · Node 26.10.0/npm 11.19.1 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita. Python do sistema sem `pyyaml`/`jsonschema` (check roda em modo estrutural; CI instala).
+This machine's prerequisites (2026-09-30): Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — via `toolchains.xml`) and JDK 27 on PATH · Maven 3.9.16 · Node 26.10.0/npm 11.19.1 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita. System Python without `pyyaml`/`jsonschema` (check runs in structural mode; CI installs them).

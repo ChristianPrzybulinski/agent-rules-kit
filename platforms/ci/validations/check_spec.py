@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Valida docs/spec contra os schemas do kit. Uso: check_spec.py <spec-dir> <schemas-dir>
+"""Validates docs/spec against the kit schemas. Usage: check_spec.py <spec-dir> <schemas-dir>
 
-Com pyyaml+jsonschema: validacao completa. Sem eles: parser YAML minimo
-(frontmatter plano) + checagem estrutural (required, enums, id pattern).
+With pyyaml+jsonschema: full validation. Without them: minimal YAML parser
+(flat frontmatter) + structural checks (required, enums, id pattern).
 """
 import os
 import re
@@ -21,11 +21,11 @@ failures = []
 
 def fail(msg):
     failures.append(msg)
-    print(f"FALHA: {msg}", file=sys.stderr)
+    print(f"FAIL: {msg}", file=sys.stderr)
 
 
 def mini_yaml(text):
-    """Parser minimo: 'k: v', 'k: [a,b]', 'k:' + linhas '- item', ints, null, strings com aspas."""
+    """Minimal parser: 'k: v', 'k: [a,b]', 'k:' + '- item' lines, ints, null, quoted strings."""
     data, key = {}, None
     for raw in text.splitlines():
         line = raw.rstrip()
@@ -37,10 +37,10 @@ def mini_yaml(text):
             continue
         m = re.match(r"^([A-Za-z_]+):\s*(.*)$", line)
         if not m:
-            raise ValueError(f"linha fora do formato: {line!r}")
+            raise ValueError(f"line outside the format: {line!r}")
         key, val = m.group(1), m.group(2).strip()
         if val == "":
-            data[key] = []  # pode virar lista ou ficar vazio
+            data[key] = []  # may become a list or stay empty
         elif val in ("null", "~"):
             data[key] = None
         elif val.startswith("[") and val.endswith("]"):
@@ -56,28 +56,28 @@ def mini_yaml(text):
 def frontmatter(path):
     lines = path.read_text(encoding="utf-8").splitlines()
     if not lines or lines[0] != "---":
-        fail(f"{path}: frontmatter nao comeca com --- na linha 1")
+        fail(f"{path}: frontmatter does not start with --- on line 1")
         return None
     try:
         end = lines.index("---", 1)
     except ValueError:
-        fail(f"{path}: frontmatter sem fechamento ---")
+        fail(f"{path}: frontmatter without closing ---")
         return None
     text = "\n".join(lines[1:end])
     if FULL:
         try:
             return yaml.safe_load(text) or {}
         except yaml.YAMLError as e:
-            fail(f"{path}: YAML invalido: {e}")
+            fail(f"{path}: invalid YAML: {e}")
             return None
     try:
         return mini_yaml(text)
     except ValueError as e:
-        fail(f"{path}: frontmatter invalido ({e})")
+        fail(f"{path}: invalid frontmatter ({e})")
         return None
 
 
-# Checagem estrutural (fallback sem jsonschema): required, enums, pattern de id.
+# Structural check (fallback without jsonschema): required, enums, id pattern.
 STRUCT = {
     "spec": {"req": ["project", "version", "updated"], "enums": {}, "id": None},
     "feature": {"req": ["id", "title", "status", "requirements", "created"],
@@ -103,11 +103,11 @@ ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|FEAT|DEC|DEBT)-(\d+)")
 def main():
     spec_dir, schemas_dir = Path(sys.argv[1]), Path(sys.argv[2])
     if not spec_dir.is_dir():
-        sys.exit(f"spec dir inexistente: {spec_dir}")
+        sys.exit(f"spec dir does not exist: {spec_dir}")
     if not FULL:
         if os.environ.get("CI") == "1":
-            sys.exit("FALHA: pyyaml/jsonschema ausentes (CI=1 exige deps; pip install pyyaml jsonschema)")
-        print("AVISO: pyyaml/jsonschema ausentes; validacao de spec sera estrutural.", file=sys.stderr)
+            sys.exit("FAIL: pyyaml/jsonschema missing (CI=1 requires deps; pip install pyyaml jsonschema)")
+        print("WARN: pyyaml/jsonschema missing; spec validation will be structural.", file=sys.stderr)
 
     schemas = {}
     for name in STRUCT:
@@ -141,46 +141,46 @@ def main():
             rule = STRUCT[kind]
             for k in rule["req"]:
                 if k not in data:
-                    fail(f"{path}: campo obrigatorio ausente: {k}")
+                    fail(f"{path}: required field missing: {k}")
             for k, allowed in rule["enums"].items():
                 if k in data and data[k] not in allowed:
-                    fail(f"{path}: {k}={data[k]!r} fora de {allowed}")
+                    fail(f"{path}: {k}={data[k]!r} not in {allowed}")
             if rule["id"] and "id" in data and not re.match(rule["id"], str(data["id"])):
-                fail(f"{path}: id {data['id']!r} fora do padrao {rule['id']}")
+                fail(f"{path}: id {data['id']!r} does not match {rule['id']}")
 
         fid = data.get("id")
         if fid:
             m = ID_PREFIX.match(path.stem)
             if not m or f"{m.group(1)}-{m.group(2)}" != str(fid):
-                fail(f"{path}: id={fid} != prefixo do nome do arquivo")
+                fail(f"{path}: id={fid} != file name prefix")
             if fid in ids:
-                fail(f"{path}: id {fid} duplicado (tambem em {ids[fid]})")
+                fail(f"{path}: duplicate id {fid} (also in {ids[fid]})")
             ids[fid] = path
         if kind == "feature" and fid:
             feats[fid] = data.get("requirements") or []
         if kind == "requirement" and fid:
             reqs[fid] = data.get("features") or []
 
-    # referencias cruzadas FEAT <-> REQ
+    # cross-references FEAT <-> REQ
     for fid, rlist in feats.items():
         for r in rlist:
             if r not in reqs:
-                fail(f"{ids[fid]}: requirements lista {r} que nao existe")
+                fail(f"{ids[fid]}: requirements lists {r} which does not exist")
     for rid, flist in reqs.items():
         if not flist:
-            fail(f"{ids[rid]}: {rid} sem nenhuma FEAT que o implemente")
+            fail(f"{ids[rid]}: {rid} has no FEAT implementing it")
         for f in flist:
             if f not in feats:
-                fail(f"{ids[rid]}: features lista {f} que nao existe")
-    # toda REQ listada por alguma FEAT (vice-versa ja coberto por features[])
+                fail(f"{ids[rid]}: features lists {f} which does not exist")
+    # every REQ listed by some FEAT (the reverse is already covered by features[])
     listed = {r for rl in feats.values() for r in rl}
     for rid in reqs:
         if rid not in listed:
-            fail(f"{ids[rid]}: {rid} nao e listada em requirements de nenhuma FEAT")
+            fail(f"{ids[rid]}: {rid} is not listed in any FEAT's requirements")
 
     if failures:
         sys.exit(1)
-    print(f"spec: OK ({len(ids)} artefatos)")
+    print(f"spec: OK ({len(ids)} artifacts)")
 
 
 if __name__ == "__main__":

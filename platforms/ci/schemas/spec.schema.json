@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/spec.schema.json",
-  "title": "Frontmatter de docs/spec/spec.md",
+  "title": "Frontmatter of docs/spec/spec.md",
   "type": "object",
   "required": ["project", "version", "updated"],
   "additionalProperties": false,

@@ -1,22 +1,22 @@
-# platforms/ — o que roda na máquina e no CI
+# platforms/ — what runs on the machine and in CI
 
-Escopo: executáveis e configuração de ferramenta. Nada aqui é instrução para o agente; o agente só **executa** o que está aqui (instalar, validar, atualizar).
+Scope: executables and tool configuration. Nothing here is an instruction for the agent; the agent only **runs** what is here (install, validate, update).
 
-| Pasta | Escopo | Entrada principal |
+| Folder | Scope | Main entry |
 |---|---|---|
-| [`install/`](install/README.md) | instala `agents/` nas ferramentas; vendoriza skills externas pinadas | `all.sh` |
-| [`tools/`](tools/INDEX.md) | ciclo de vida do kit na máquina | `bootstrap.sh` (1ª vez) · `refresh.sh` (toda sessão) · `check.sh` (validar) |
-| [`ci/`](ci/README.md) | schemas de todo frontmatter e das specs de projeto; scripts de validação usados por `check.sh` e pelos workflows | `validations/check_kit.py` · `validations/check_spec.py` |
-| [`kits/`](kits/INDEX.md) | arquivos prontos para copiar em projetos (Maven parent, Compose, workflows, LFS, labels, lock de skills externas) | por kit |
+| [`install/`](install/README.md) | installs `agents/` into the tools; vendors pinned external skills | `all.sh` |
+| [`tools/`](tools/INDEX.md) | kit lifecycle on the machine | `bootstrap.sh` (1st time) · `refresh.sh` (every session) · `check.sh` (validate) |
+| [`ci/`](ci/README.md) | schemas for every frontmatter and for project specs; validation scripts used by `check.sh` and by the workflows | `validations/check_kit.py` · `validations/check_spec.py` |
+| [`kits/`](kits/INDEX.md) | ready-to-copy files for projects (Maven parent, Compose, workflows, LFS, labels, external skills lock) | per kit |
 
-## Onde cada coisa é instalada
+## Where each thing is installed
 
-| Destino | Conteúdo | Gerenciado por |
+| Destination | Content | Managed by |
 |---|---|---|
-| `~/.config/devin/AGENTS.md` · `~/.config/devin/skills/<nome>/` · `~/.devin/rules/` | Devin | `install/devin.sh` |
-| `~/.cursor/rules/*.mdc` | Cursor (regras convertidas) | `install/cursor.sh` |
+| `~/.config/devin/AGENTS.md` · `~/.config/devin/skills/<name>/` · `~/.devin/rules/` | Devin | `install/devin.sh` |
+| `~/.cursor/rules/*.mdc` | Cursor (converted rules) | `install/cursor.sh` |
 | `~/.codeium/windsurf/memories/global_rules.md` | Windsurf | `install/windsurf.sh` |
-| `~/.codex/AGENTS.md` · `~/.codex/skills/<nome>/` | Codex | `install/codex.sh` |
-| `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}` | estado instalado, lido por `refresh.sh` | `install/all.sh` |
+| `~/.codex/AGENTS.md` · `~/.agents/skills/<name>/` | Codex | `install/codex.sh` |
+| `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}` | installed state, read by `refresh.sh` | `install/all.sh` |
 
-`LAYOUT_VERSION` diferente do instalado → `refresh.sh` apaga os destinos gerenciados e reinstala tudo. `VERSION` diferente → só reinstala. Igual → sai em silêncio.
+A `LAYOUT_VERSION` different from the installed one → `refresh.sh` deletes the managed destinations and reinstalls everything. A different `VERSION` → reinstall only. Equal → exits silently.

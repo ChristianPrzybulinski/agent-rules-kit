@@ -1,8 +1,8 @@
-# skills/quality/ — verificação e qualidade
+# skills/quality/ — verification and quality
 
-| Skill | Escopo | Quando usar |
+| Skill | Scope | When to use |
 |---|---|---|
-| `skeptic` | verificação adversarial de afirmação (contra → a favor → veredicto) | algo "parece certo" mas não foi provado |
-| `validate-implementation` | confronta entrega com spec/pedido, roda gates, veredicto PRONTO/PARCIAL/NÃO PRONTO | antes de PR ou de dizer "feito" |
-| `vuln-scan` | CVEs em deps, segredos no repo, checklist OWASP | PR que toca dep/auth/rede, release |
-| `characterization-tests` | testes que fixam comportamento ATUAL de legado | antes de refatorar/migrar/rebalancear |
+| `skeptic` | adversarial verification of a claim (against → for → verdict) | something "seems right" but was not proven |
+| `validate-implementation` | confronts the delivery with the spec/request, runs gates, verdict READY/PARTIAL/NOT READY | before a PR or saying "done" |
+| `vuln-scan` | CVEs in deps, secrets in the repo, OWASP checklist | PR touching dep/auth/network, release |
+| `characterization-tests` | tests that pin the CURRENT behavior of legacy code | before refactoring/migrating/rebalancing |

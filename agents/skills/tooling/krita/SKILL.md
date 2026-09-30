@@ -1,7 +1,7 @@
 ---
 name: krita
 version: "1.0"
-description: Krita para pixel art e retoque de sprites — configuração de documento (tamanho, sem antialias, paleta indexada), exportar PNG para Godot preservando transparência, spritesheets, e o que automatizar por script em vez de GUI. Usar ao preparar/corrigir arte 2D ou definir fluxo de exportação.
+description: Krita for pixel art and sprite retouching — document setup (size, no antialiasing, indexed palette), exporting PNG for Godot preserving transparency, spritesheets, and what to automate by script instead of the GUI. Use when preparing/fixing 2D art or defining an export workflow.
 argument-hint: "[setup | export | spritesheet | automate]"
 triggers:
   - user
@@ -12,33 +12,33 @@ allowed-tools:
 
 # Krita
 
-Ferramenta **humana**; o agente orienta configuração e prepara scripts de lote fora do Krita quando possível (Python/Pillow ou ImageMagick — verificar instalação antes; não instalar sem autorização). Aseprite não está instalado (`[FATO]` nesta máquina); Krita cobre o essencial.
+A **human** tool; the agent guides configuration and prepares batch scripts outside Krita when possible (Python/Pillow or ImageMagick — check installation first; do not install without authorization). Aseprite is not installed (`[FACT]` on this machine); Krita covers the essentials.
 
-## setup (documento pixel art)
+## setup (pixel art document)
 
-- Novo documento: dimensões exatas do sprite (ex.: 32×32, 64×64); 8 bits RGBA; 72 dpi (irrelevante para jogo).
-- Pincel: `Pixel Art` preset (Krita ≥5) — sem antialias, opacidade 100%, tamanho 1 px.
-- Ver → Grade: 1 px; Encaixar na grade ligado. Zoom em múltiplos inteiros.
-- Paleta: importar `.gpl`/`.kpl` do projeto (`content/palettes/`); trabalhar só com cores da paleta (Docker "Paleta").
-- Camadas: uma por parte animável (corpo, sombra, efeito); sombras em camada separada facilitam variantes.
+- New document: exact sprite dimensions (e.g.: 32×32, 64×64); 8-bit RGBA; 72 dpi (irrelevant for games).
+- Brush: `Pixel Art` preset (Krita ≥5) — no antialiasing, 100% opacity, 1 px size.
+- View → Grid: 1 px; Snap to Grid on. Zoom at integer multiples.
+- Palette: import the project's `.gpl`/`.kpl` (`content/palettes/`); work only with palette colors ("Palette" docker).
+- Layers: one per animatable part (body, shadow, effect); shadows on a separate layer ease variants.
 
-## export (para Godot)
+## export (for Godot)
 
-- Arquivo → Exportar → PNG: **desmarcar** "Achatar imagem" só se camadas forem exportadas separadas; **marcar** "Salvar canal alfa"; compressão indiferente (Godot reimporta).
-- Não redimensionar no Krita para "aumentar pixel"; Godot faz o scale inteiro no viewport.
-- Nome: `<entidade>_<animação>_<direção>_<frame>.png` (`player_walk_down_00.png`). Snake_case, sem espaço/acentos.
-- Destino: `assets/` (fonte) → importado para `res://resources/sprites/`; Godot: filtro `Nearest` (ver `agents/templates/project-agents-godot-2d.md`).
+- File → Export → PNG: **uncheck** "Flatten image" only if layers are exported separately; **check** "Save alpha channel"; compression is indifferent (Godot reimports).
+- Do not resize in Krita to "enlarge pixels"; Godot does integer scaling in the viewport.
+- Name: `<entity>_<animation>_<direction>_<frame>.png` (`player_walk_down_00.png`). Snake_case, no spaces/accents.
+- Destination: `assets/` (source) → imported into `res://resources/sprites/`; Godot: `Nearest` filter (see `agents/templates/project-agents-godot-2d.md`).
 
 ## spritesheet
 
-- Krita não gera spritesheet nativamente bem; exportar frames e montar com script (`platforms/kits/godot/scripts/make_spritesheet.py` — Pillow) para determinismo e manifesto (`frames`, `size`, `pivot`).
-- Godot lê frames via `SpriteFrames` ou `AtlasTexture`; documentar `hframes/vframes`.
+- Krita does not generate spritesheets well natively; export frames and assemble with a script (`platforms/kits/godot/scripts/make_spritesheet.py` — Pillow) for determinism and a manifest (`frames`, `size`, `pivot`).
+- Godot reads frames via `SpriteFrames` or `AtlasTexture`; document `hframes/vframes`.
 
 ## automate
 
-- Tarefas repetitivas (recolorir paleta, recortar, redimensionar lote, remover cor de fundo **por arquivo verificado**) → script fora do Krita, com `manifest.json` de entrada/saída/hash (ver `agents/rules/git/git-lfs-and-binaries.md`).
-- Nunca remover "a cor X de todos os sprites" automaticamente — decisão por conjunto verificado em preview.
+- Repetitive tasks (recolor a palette, crop, batch-resize, remove background color **per verified file**) → a script outside Krita, with an input/output/hash `manifest.json` (see `agents/rules/git/git-lfs-and-binaries.md`).
+- Never remove "color X from all sprites" automatically — a decision per set verified in preview.
 
-## Formatos
+## Formats
 
-- Fonte editável: `.kra` (LFS). Entregável: `.png`. Não versionar `.kra~` (backup automático).
+- Editable source: `.kra` (LFS). Deliverable: `.png`. Do not version `.kra~` (automatic backup).

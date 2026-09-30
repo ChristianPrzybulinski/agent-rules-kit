@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Monta uma spritesheet a partir de PNGs nomeados <x>_<nn>.png.
+"""Builds a spritesheet from PNGs named <x>_<nn>.png.
 
-Uso: make_spritesheet.py <dir-de-frames> <saida.png>
-Gera <saida.png> e <saida>.manifest.json com frames, tamanho, ordem e sha256.
+Usage: make_spritesheet.py <frames-dir> <output.png>
+Generates <output.png> and <output>.manifest.json with frames, size, order and sha256.
 
-Requer Pillow: pip3 install --user pillow
+Requires Pillow: pip3 install --user pillow
 """
 import hashlib
 import json
@@ -15,14 +15,14 @@ from pathlib import Path
 try:
     from PIL import Image
 except ImportError:
-    sys.exit("Pillow nao instalado. Instale com: pip3 install --user pillow")
+    sys.exit("Pillow not installed. Install with: pip3 install --user pillow")
 
 FRAME_RE = re.compile(r"^(.+?)_(\d+)\.png$", re.IGNORECASE)
 
 
 def main() -> int:
     if len(sys.argv) != 3:
-        sys.exit(f"uso: {sys.argv[0]} <dir-de-frames> <saida.png>")
+        sys.exit(f"usage: {sys.argv[0]} <frames-dir> <output.png>")
     src, out = Path(sys.argv[1]), Path(sys.argv[2])
 
     frames = []
@@ -31,13 +31,13 @@ def main() -> int:
         if m:
             frames.append((int(m.group(2)), f))
     if not frames:
-        sys.exit(f"nenhum frame <nome>_<nn>.png em {src}")
+        sys.exit(f"no <name>_<nn>.png frame in {src}")
     frames.sort()
 
     images = [Image.open(f) for _, f in frames]
     w, h = images[0].size
     if any(im.size != (w, h) for im in images):
-        sys.exit("frames com tamanhos diferentes; spritesheet exige tamanho uniforme")
+        sys.exit("frames with different sizes; a spritesheet requires uniform size")
 
     sheet = Image.new("RGBA", (w * len(images), h))
     manifest_frames = []
@@ -64,7 +64,7 @@ def main() -> int:
     }
     out.with_suffix(out.suffix + ".manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
-    print(f"{out} ({len(images)} frames de {w}x{h})")
+    print(f"{out} ({len(images)} frames of {w}x{h})")
     return 0
 
 

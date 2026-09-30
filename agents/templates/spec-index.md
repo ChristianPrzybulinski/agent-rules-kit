@@ -1,63 +1,63 @@
 ---
-project: "[nome-do-projeto]"
+project: "[project-name]"
 version: "0.1.0"
 protocol_version: 1
 card_project: null
 updated: "YYYY-MM-DD"
 ---
 
-# [Nome do projeto] — Especificação
+# [Project name] — Specification
 
-Capa e índice. Fonte de verdade de cada assunto está nos arquivos ligados; aqui só visão, escopo e índices. Classifique afirmações: `[FATO]` `[DECISÃO]` `[PROPOSTA]` `[HIPÓTESE]` `[BLOQUEIO]`.
+Cover and index. The source of truth for each subject lives in the linked files; here only vision, scope and indexes. Classify claims: `[FACT]` `[DECISION]` `[PROPOSAL]` `[HYPOTHESIS]` `[BLOCKER]`.
 
-## Visão
+## Vision
 
-[3 linhas: o que é, para quem, o que o torna diferente.]
+[3 lines: what it is, for whom, what makes it different.]
 
-## Escopo da primeira entrega
+## First-delivery scope
 
 - [item]
 
-## Fora de escopo (explícito)
+## Out of scope (explicit)
 
-- [item — e por quê, se não óbvio]
+- [item — and why, if not obvious]
 
-## Glossário
+## Glossary
 
-| Termo | Definição | Fonte |
+| Term | Definition | Source |
 |---|---|---|
-| [Termo] | [1 frase] | [doc/legado/decisão] |
+| [Term] | [1 sentence] | [doc/legacy/decision] |
 
-## Ordem de leitura para uma sessão nova
+## Reading order for a new session
 
 1. `AGENTS.md`
-2. Este arquivo
-3. `decisions/` com estado `aprovada`
-4. A `FEAT` em andamento (status `em-implementação`)
+2. This file
+3. `decisions/` with state `aprovada`
+4. The `FEAT` in progress (status `em-implementação`)
 
-## Índices
+## Indexes
 
 ### Features
 
-| ID | Título | Status | Card | Flag |
+| ID | Title | Status | Card | Flag |
 |---|---|---|---|---|
 
-### Requisitos funcionais
+### Functional requirements
 
-| ID | Título | Features |
+| ID | Title | Features |
 |---|---|---|
 
-### Requisitos não funcionais
+### Non-functional requirements
 
-| ID | Título | Métrica | Features |
+| ID | Title | Metric | Features |
 |---|---|---|---|
 
-### Decisões
+### Decisions
 
-| ID | Título | Estado | Data |
+| ID | Title | State | Date |
 |---|---|---|---|
 
-### Dívidas
+### Debts
 
-| ID | Título | Gatilho de pagamento | Estado |
+| ID | Title | Payment trigger | State |
 |---|---|---|---|

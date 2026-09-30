@@ -1,7 +1,7 @@
 ---
 name: java-standards
 version: "1.0"
-description: Aplica padrões Java moderno, Clean Code, Clean Architecture e testes. Usar em `*.java` ou `pom.xml`.
+description: Applies modern Java standards, Clean Code, Clean Architecture and tests. Use on `*.java` or `pom.xml`.
 triggers:
   - user
   - model
@@ -14,20 +14,20 @@ allowed-tools:
 
 # Java Expert
 
-## Ao trabalhar com Java
+## When working with Java
 
-1. Verifique o baseline do projeto (`pom.xml`, `build.gradle`, `.java-version`).
-2. Respeite a estrutura de pacotes existente.
-3. Aplique Clean Code e Clean Architecture.
-4. Prefira imutabilidade, `Optional`, `Stream`, `record`.
-5. Adicione testes com JUnit 5 + AssertJ/Mockito.
-6. Não adicione dependências sem verificar compatibilidade.
-7. Documente APIs públicas com JavaDoc conciso.
+1. Check the project baseline (`pom.xml`, `build.gradle`, `.java-version`).
+2. Respect the existing package structure.
+3. Apply Clean Code and Clean Architecture.
+4. Prefer immutability, `Optional`, `Stream`, `record`.
+5. Add tests with JUnit 5 + AssertJ/Mockito.
+6. Do not add dependencies without checking compatibility.
+7. Document public APIs with concise JavaDoc.
 
-## Verificações padrão
+## Standard checks
 
-- Nomes em inglês, salvo convenção do projeto.
-- Não retorne `null`; use `Optional` ou exceções de domínio.
-- Separe entidades de domínio de entidades JPA quando o domínio for crítico.
-- Use constructor injection no Spring/Quarkus.
-- Evite lógica em controllers; delegue a use cases/services.
+- Names in English, per project convention.
+- Do not return `null`; use `Optional` or domain exceptions.
+- Separate domain entities from JPA entities when the domain is critical.
+- Use constructor injection in Spring/Quarkus.
+- Avoid logic in controllers; delegate to use cases/services.

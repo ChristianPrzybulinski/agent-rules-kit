@@ -1,6 +1,6 @@
 ---
 id: FEAT-000
-title: "[Título curto no infinitivo: Autenticar jogador]"
+title: "[Short infinitive title: Authenticate player]"
 status: proposta
 requirements: []
 depends_on: []
@@ -8,60 +8,60 @@ milestone: null
 evidence: []
 flag: null
 card: null
-owner: "[produto]"
+owner: "[product]"
 created: "YYYY-MM-DD"
 updated: "YYYY-MM-DD"
 ---
 
-# FEAT-000 — [Título]
+# FEAT-000 — [Title]
 
-## Problema / valor
+## Problem / value
 
-[Para quem, que problema resolve, por que agora. Sem solução técnica.]
+[For whom, what problem it solves, why now. No technical solution.]
 
-## Escopo
+## Scope
 
-- [comportamento incluído]
+- [included behavior]
 
-## Fora de escopo
+## Out of scope
 
-- [comportamento excluído — e onde vai (outra FEAT ou nunca)]
+- [excluded behavior — and where it goes (another FEAT or never)]
 
-## Critérios de aceite
+## Acceptance criteria
 
-| ID | Given | When | Then | Tipo de teste |
+| ID | Given | When | Then | Test type |
 |---|---|---|---|---|
-| CA-1 | [estado inicial] | [ação] | [resultado observável] | unit / integração / contrato / e2e |
-| CA-2 | [caminho triste: entrada inválida / sem permissão / timeout] | | | |
+| CA-1 | [initial state] | [action] | [observable result] | unit / integration / contract / e2e |
+| CA-2 | [sad path: invalid input / no permission / timeout] | | | |
 
-## Requisitos ligados
+## Linked requirements
 
-- `REQ-F-000` — [título]
-- `REQ-NF-000` — [título]
+- `REQ-F-000` — [title]
+- `REQ-NF-000` — [title]
 
-## Relações
+## Relations
 
-- Depende de: [FEAT-xxx ou —]
-- Conflita/sobrepõe: [—]
-- Legado relacionado: [caminho no acervo, se houver — `[FATO]` só se verificado]
-- Evidências: [IDs do frontmatter `evidence` → `docs/legacy/evidencias.md#e01`]
+- Depends on: [FEAT-xxx or —]
+- Conflicts/overlaps: [—]
+- Related legacy: [path in the archive, if any — `[FACT]` only if verified]
+- Evidence: [frontmatter `evidence` IDs → `docs/legacy/evidencias.md#e01`]
 
-## Perguntas abertas
+## Open questions
 
 - [NEEDS CLARIFICATION: ...]
 
-## Plano
-<!-- preenchido por sdd-plan -->
+## Plan
+<!-- filled by sdd-plan -->
 
-## Tarefas
-<!-- preenchido por sdd-tasks -->
+## Tasks
+<!-- filled by sdd-tasks -->
 
-| ID | Tarefa | Arquivos | Prova de conclusão | Cobre | Depende | Estado |
+| ID | Task | Files | Proof of completion | Covers | Depends on | State |
 |---|---|---|---|---|---|---|
 
-## Auditoria
-<!-- preenchido por sdd-audit (ou arquivo FEAT-000.checklist.md) -->
+## Audit
+<!-- filled by sdd-audit (or a FEAT-000.checklist.md file) -->
 
-## Histórico
+## History
 
-- YYYY-MM-DD specify: criada.
+- YYYY-MM-DD specify: created.

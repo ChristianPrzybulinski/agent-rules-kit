@@ -1,13 +1,13 @@
 # kit godot
 
-Base para projetos Godot 4 2D.
+Base for Godot 4 2D projects.
 
-| Arquivo | Uso |
+| File | Use |
 |---|---|
-| `.gitignore` | copiar para a raiz do projeto |
-| `editor_settings_hints.md` | ajustes factuais de editor/projeto (pixel-art) |
-| `scripts/make_spritesheet.py` | `python3 make_spritesheet.py <dir-frames> <saida.png>` — requer Pillow (`pip3 install --user pillow`); gera sheet + `<saida>.manifest.json` com sha256 de cada frame |
-| `../git-lfs/.gitattributes` | combinar com o `.gitignore` (binários em LFS) |
-| `../github/workflows/ci-godot.yml` | CI headless (import + GUT + export manual) |
+| `.gitignore` | copy to the project root |
+| `editor_settings_hints.md` | factual editor/project settings (pixel-art) |
+| `scripts/make_spritesheet.py` | `python3 make_spritesheet.py <frames-dir> <output.png>` — requires Pillow (`pip3 install --user pillow`); generates sheet + `<output>.manifest.json` with each frame's sha256 |
+| `../git-lfs/.gitattributes` | combine with the `.gitignore` (binaries in LFS) |
+| `../github/workflows/ci-godot.yml` | headless CI (import + GUT + manual export) |
 
-Regras de GDScript/arquitetura de cenas: `agents/rules/godot/godot-2d.md` e `skills/godot/godot-standards`.
+GDScript/scene-architecture rules: `agents/rules/godot/godot-2d.md` and `skills/godot/godot-standards`.

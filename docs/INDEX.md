@@ -1,9 +1,9 @@
-# docs/ — documentação sobre o kit
+# docs/ — documentation about the kit
 
-Escopo: explica o kit para quem o mantém. Não instrui o agente em tarefas de projeto (isso é `agents/`); não executa nada (isso é `platforms/`).
+Scope: explains the kit to whoever maintains it. Does not instruct the agent in project tasks (that is `agents/`); executes nothing (that is `platforms/`).
 
-| Arquivo | Leia quando |
+| File | Read when |
 |---|---|
-| [`design.md`](design.md) | quer entender por que o kit é assim (princípios, o que ficou de fora e por quê) |
-| [`projects.md`](projects.md) | vai criar ou auditar um projeto que usa o kit: o que vive no projeto (`docs/spec/`, `AGENTS.md` do repo, workflows, validações) e o que fica aqui |
-| [`maintenance.md`](maintenance.md) | vai alterar o kit: versionar, mudar layout, atualizar vendor, publicar release, o que o CI exige |
+| [`design.md`](design.md) | you want to understand why the kit is like this (principles, what was left out and why) |
+| [`projects.md`](projects.md) | you are creating or auditing a project that uses the kit: what lives in the project (`docs/spec/`, the repo's `AGENTS.md`, workflows, validations) and what stays here |
+| [`maintenance.md`](maintenance.md) | you are changing the kit: versioning, changing layout, updating vendor skills, publishing a release, what CI requires |

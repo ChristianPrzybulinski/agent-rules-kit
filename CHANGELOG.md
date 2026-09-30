@@ -1,124 +1,136 @@
 # Changelog
 
-Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento: [SemVer](https://semver.org/lang/pt-BR/).
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
-## [4.0.1] - 2026-09-30
+## [5.0.0] - 2026-09-30
 
-### Fixed
-- `refresh.sh` e `bootstrap.sh` sem bit de execução após o `git mv`; `check_kit.py` passa a exigir `+x` em todo `platforms/**/*.sh`.
-- `README.md`: bootstrap via `gh repo clone` (repo privado; `curl raw` não autentica).
+### Changed
+- **BREAKING (for readers)**: every artifact of the kit is now written in English — `AGENTS.md`, rules, knowledge, skills, templates, prompts, indexes, docs, scripts, schema descriptions and kits. The conversation with the user stays in pt-BR (rule unchanged).
+- Classification tags renamed: `[FATO] [DECISÃO] [PROPOSTA] [HIPÓTESE] [BLOQUEIO]` → `[FACT] [DECISION] [PROPOSAL] [HYPOTHESIS] [BLOCKER]`. Deliberate-simplification marker: `// simplified: <ceiling>, <when to evolve>`.
+- `check_kit.py`: language-dependent checks now expect English (`Load|Use` in rule descriptions, `Use`/`Do not use` in skill descriptions, `Must|Never|Always` normative warning in knowledge); output prefixes `FAIL:`/`WARN:`.
+- `AGENTS.md` token cost (tiktoken): pt-BR 3023 (cl100k_base) / 2675 (o200k_base) → en 2442 / 2447 (−19% / −9%); 110 lines both.
+
+### Unchanged (deliberate)
+- Spec schema enum values (`proposta`, `aprovada`, `aberta`, …) and template frontmatter values: they are a contract with project specs; they move to English together with the project spec translation.
+- File and folder names, skill names, frontmatter keys, IDs.
 
 ## [4.1.0] - 2026-09-30
 
 ### Added
-- `platforms/tools/sync-project.sh`: copia `check_spec.py` + schemas de spec + `spec-lint.yml` para `.github/spec-lint/` do projeto (com `KIT_VERSION` e README gerado); `--check` detecta divergência.
-- Regra de idioma: artefatos escritos em inglês; conversa com o usuário em pt-BR — em `AGENTS.md`, `clean-code.md` e `documentation.md`; nomes curtos e objetivos.
+- `platforms/tools/sync-project.sh`: copies `check_spec.py` + spec schemas + `spec-lint.yml` into the project's `.github/spec-lint/` (with `KIT_VERSION` and a generated README); `--check` detects divergence.
+- Language rule: written artifacts in English; conversation with the user in pt-BR — in `AGENTS.md`, `clean-code.md` and `documentation.md`; short, purposeful names.
 
 ### Changed
-- `platforms/kits/github/workflows/spec-lint.yml`: sem checkout/token do kit — roda a cópia local em `.github/spec-lint/` (`CI=1` exige pyyaml/jsonschema no `check_spec.py`).
-- `platforms/kits/sdd/init-spec.sh`: chama `sync-project.sh` — o projeto já nasce com CI de spec.
+- `platforms/kits/github/workflows/spec-lint.yml`: no kit checkout/token — runs the local copy in `.github/spec-lint/` (`CI=1` requires pyyaml/jsonschema in `check_spec.py`).
+- `platforms/kits/sdd/init-spec.sh`: calls `sync-project.sh` — the project is born with spec CI.
 
 ### Removed
-- Dependência do projeto no repo do kit em CI de specs (checkout + token removidos). Workflows reutilizáveis entre repos do mesmo produto continuam permitidos.
+- Project dependency on the kit repo in spec CI (checkout + token removed). Reusable workflows between repos of the same product remain allowed.
+
+## [4.0.1] - 2026-09-30
+
+### Fixed
+- `refresh.sh` and `bootstrap.sh` missing the executable bit after the `git mv`; `check_kit.py` now requires `+x` on every `platforms/**/*.sh`.
+- `README.md`: bootstrap via `gh repo clone` (private repo; `curl raw` does not authenticate).
 
 ## [4.0.0] - 2026-09-30
 
 ### Changed
-- **Layout v4**: `rules/`, `knowledge/`, `prompts/` → `agents/`; skills por tipo em `agents/skills/<tipo>/`; `processes/sdd/` → `agents/skills/process/`; templates flat em `agents/templates/` (`spec-*`, `doc-*`, `project-*`, `kit-*`); `schemas/`, `scripts/` → `platforms/ci/` e `platforms/tools/`/`platforms/install/`; `kits/` → `platforms/kits/`. Índice mestre: `INDEX.md`.
-- **BREAKING**: caminhos públicos mudaram — `scripts/check.sh` → `platforms/tools/check.sh`, `scripts/install/all.sh` → `platforms/install/all.sh`, `templates/docs/spec/*` → `agents/templates/spec-*`. Projetos devem atualizar referências (ex.: `spec-lint.yml`).
-- `check.sh` agora delega a `platforms/ci/validations/check_kit.py` (layout, frontmatters, índices, links, lock, duplicação); `--spec` continua em `check_spec.py`.
-- `devin.sh`/`codex.sh` instalam skills a partir de `agents/skills/`; `cursor.sh` ignora `INDEX.md`; `all.sh` grava `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}` e ganha `--clean`.
-- Releases passam a ser automáticas: tag `v*` → workflow valida `VERSION` e publica release com a seção do changelog.
+- **Layout v4**: `rules/`, `knowledge/`, `prompts/` → `agents/`; skills by type in `agents/skills/<type>/`; `processes/sdd/` → `agents/skills/process/`; flat templates in `agents/templates/` (`spec-*`, `doc-*`, `project-*`, `kit-*`); `schemas/`, `scripts/` → `platforms/ci/` and `platforms/tools/`/`platforms/install/`; `kits/` → `platforms/kits/`. Master index: `INDEX.md`.
+- **BREAKING**: public paths changed — `scripts/check.sh` → `platforms/tools/check.sh`, `scripts/install/all.sh` → `platforms/install/all.sh`, `templates/docs/spec/*` → `agents/templates/spec-*`. Projects must update references (e.g.: `spec-lint.yml`).
+- `check.sh` now delegates to `platforms/ci/validations/check_kit.py` (layout, frontmatters, indexes, links, lock, duplication); `--spec` remains in `check_spec.py`.
+- `devin.sh`/`codex.sh` install skills from `agents/skills/`; `cursor.sh` ignores `INDEX.md`; `all.sh` writes `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}` and gains `--clean`.
+- Releases are now automatic: tag `v*` → workflow validates `VERSION` and publishes a release with the changelog section.
 
 ### Added
-- `VERSION`, `LAYOUT_VERSION`; `INDEX.md` raiz + INDEX/README em toda pasta.
-- `platforms/tools/`: `bootstrap.sh` (1 comando) e `refresh.sh [--quiet]` (pull + reinstall por versão/layout).
-- `.github/`: workflows `ci`, `gitleaks`, `release`; `dependabot.yml`; PR template; CODEOWNERS.
-- `platforms/ci/schemas/`: `rule`, `knowledge`, `skill`, `skills-lock` (além dos 5 de spec).
-- `agents/rules/core/sessions.md` (higiene de sessão) e `agents/templates/kit-*.md` (templates do próprio kit).
-- `docs/`: `design.md` (princípios), `projects.md` (o que vive no projeto), `maintenance.md` (versionar, vendor, CI).
-- Frontmatter `knowledge.schema.json` nas 9 notas de `agents/knowledge/`.
+- `VERSION`, `LAYOUT_VERSION`; root `INDEX.md` + INDEX/README in every folder.
+- `platforms/tools/`: `bootstrap.sh` (1 command) and `refresh.sh [--quiet]` (pull + reinstall by version/layout).
+- `.github/`: `ci`, `gitleaks`, `release` workflows; `dependabot.yml`; PR template; CODEOWNERS.
+- `platforms/ci/schemas/`: `rule`, `knowledge`, `skill`, `skills-lock` (besides the 5 spec schemas).
+- `agents/rules/core/sessions.md` (session hygiene) and `agents/templates/kit-*.md` (templates for the kit itself).
+- `docs/`: `design.md` (principles), `projects.md` (what lives in the project), `maintenance.md` (versioning, vendor, CI).
+- `knowledge.schema.json` frontmatter on the 9 `agents/knowledge/` notes.
 
 ## [3.2.0] - 2026-09-30
 
 ### Added
-- Regra `rules/development/simplicity.md` (escada YAGNI → já existe → stdlib → plataforma → mínimo que funciona; simplificação deliberada com comentário de teto).
-- Vendor de 5 skills de terceiros pinadas por commit em `kits/third-party/skills.lock` + `scripts/install/third-party.sh` (clone sparse `--filter=blob:none`, copia diretório inteiro, `VENDOR.md`, `--check`): `grill-me`, `grilling` (mattpocock/skills, MIT); `skill-creator`, `frontend-design` (anthropics/skills, Apache-2.0); `find-skills` (vercel-labs/skills, MIT).
-- `codex.sh` instala skills em `~/.codex/skills/<nome>/` com marcador `.agent-rules-kit` (conteúdo do usuário e `.system` preservados).
-- Knowledge: `git/worktrees.md` (`git worktree`, quando usar, armadilhas).
+- Rule `rules/development/simplicity.md` (YAGNI ladder → already exists → stdlib → platform → minimum that works; deliberate simplification with a ceiling comment).
+- Vendor of 5 third-party skills pinned by commit in `kits/third-party/skills.lock` + `scripts/install/third-party.sh` (sparse clone `--filter=blob:none`, copies the whole directory, `VENDOR.md`, `--check`): `grill-me`, `grilling` (mattpocock/skills, MIT); `skill-creator`, `frontend-design` (anthropics/skills, Apache-2.0); `find-skills` (vercel-labs/skills, MIT).
+- `codex.sh` installs skills into `~/.codex/skills/<name>/` with an `.agent-rules-kit` marker (user content and `.system` preserved).
+- Knowledge: `git/worktrees.md` (`git worktree`, when to use, pitfalls).
 
 ### Changed
-- `AGENTS.md`: Clean Architecture pragmática (port só em fronteira real), escada da simplicidade no Craft, seção Tokens dividida em duas lentes (técnico vs. texto para pessoas), linhas novas nas Especialidades (`/grill-me`, `skill-creator`, `find-skills`).
-- `rules/development/testing.md`: YAGNI fora do domínio — um check executável para lógica não trivial em vez de suíte por função.
-- `rules/architecture/clean-architecture.md`: pragmatismo — serviço interno com uma implementação é classe concreta.
-- `rules/core/tokens.md`: reescrito para as duas lentes de comunicação.
-- `processes/sdd/sdd-implement`: revisão em dois estágios.
-- `processes/sdd/sdd-tasks`: tarefas menores.
-- `templates/docs/review-checklist.md`: seção "ao receber revisão".
-- `devin.sh` copia o diretório inteiro de cada skill (era só `SKILL.md`); inclui `skills/vendor/` no achatamento.
-- `all.sh` roda `third-party.sh --check` antes dos demais instaladores.
+- `AGENTS.md`: pragmatic Clean Architecture (port only at a real boundary), simplicity ladder in Craft, Tokens section split into two lenses (technical vs. text for people), new lines in Specialties (`/grill-me`, `skill-creator`, `find-skills`).
+- `rules/development/testing.md`: YAGNI outside the domain — one executable check for non-trivial logic instead of a per-function suite.
+- `rules/architecture/clean-architecture.md`: pragmatism — an internal service with one implementation is a concrete class.
+- `rules/core/tokens.md`: rewritten for the two communication lenses.
+- `processes/sdd/sdd-implement`: two-stage review.
+- `processes/sdd/sdd-tasks`: smaller tasks.
+- `templates/docs/review-checklist.md`: "when receiving review" section.
+- `devin.sh` copies each skill's whole directory (was only `SKILL.md`); includes `skills/vendor/` in the flattening.
+- `all.sh` runs `third-party.sh --check` before the other installers.
 
 ### Credits
-- Ideias absorvidas de JuliusBrussee/caveman, blader/humanizer, DietrichGebert/ponytail, obra/superpowers (todas MIT) — não instaladas; política do kit é absorver, não empilhar personas.
+- Ideas absorbed from JuliusBrussee/caveman, blader/humanizer, DietrichGebert/ponytail, obra/superpowers (all MIT) — not installed; the kit's policy is to absorb, not stack personas.
 
 ## [3.1.1] - 2026-09-30
 
 ### Fixed
-- `scripts/check_spec.py`: arquivos `REQ-NF-nnn.md` não eram reconhecidos pelo prefixo de ID (regex `REQ-[FN]`); agora `REQ-NF|REQ-F`.
+- `scripts/check_spec.py`: `REQ-NF-nnn.md` files were not recognized by the ID prefix (regex `REQ-[FN]`); now `REQ-NF|REQ-F`.
 
 ## [3.1.0] - 2026-09-30
 
 ### Added
 - Skills: `session-handoff`, `protocol-contract`, `investigate` (core), `characterization-tests` (java), `asset-import` (godot).
-- Templates de docs: `session-handoff`, `contract-message`, `recovery-report`, `bug-report`, `review-checklist`, `load-test` em `templates/docs/`.
-- Knowledge: `godot/networking-transports.md` (transportes cliente↔servidor em Godot 4 com servidor não-Godot), `legacy/director-lingo-glossary.md` (glossário Director/Lingo para leitura do acervo legado).
-- Schema FEAT: campos opcionais `milestone` e `evidence`.
+- Doc templates: `session-handoff`, `contract-message`, `recovery-report`, `bug-report`, `review-checklist`, `load-test` in `templates/docs/`.
+- Knowledge: `godot/networking-transports.md` (client↔server transports in Godot 4 with a non-Godot server), `legacy/director-lingo-glossary.md` (Director/Lingo glossary for reading the legacy archive).
+- FEAT schema: optional `milestone` and `evidence` fields.
 
 ### Changed
-- `AGENTS.md`: novas linhas na tabela de Especialidades para as 5 skills novas.
-- `templates/docs/spec/feature.md` atualizado junto ao schema.
+- `AGENTS.md`: new lines in the Specialties table for the 5 new skills.
+- `templates/docs/spec/feature.md` updated alongside the schema.
 
 ## [3.0.0] - 2026-09-29
 
 ### Changed
-- Estrutura reorganizada por domínio: `rules/<domínio>/`, `skills/<domínio>/<nome>/`, `templates/{projects,docs}`, `prompts/`, `scripts/install/`. Skills renomeadas para nomes únicos (`java-standards`, `godot-standards`, `update-docs`) porque o Devin instala skills em pasta plana.
-- `AGENTS.md`: seções Testes e Git/docs/versão; roteamento para regras/skills/processo por contexto; gates de segurança (0 CVE crítica/alta, Argon2id, twelve-factor).
-- Installers reescritos (`devin.sh`, `cursor.sh`, `windsurf.sh`, `codex.sh`, `all.sh`); `check.sh` valida regras/skills/processos, tamanhos, schemas e, com `--spec`, um `docs/spec` de projeto.
+- Structure reorganized by domain: `rules/<domain>/`, `skills/<domain>/<name>/`, `templates/{projects,docs}`, `prompts/`, `scripts/install/`. Skills renamed to unique names (`java-standards`, `godot-standards`, `update-docs`) because Devin installs skills into a flat folder.
+- `AGENTS.md`: Tests and Git/docs/versioning sections; routing to rules/skills/process by context; security gates (0 critical/high CVEs, Argon2id, twelve-factor).
+- Installers rewritten (`devin.sh`, `cursor.sh`, `windsurf.sh`, `codex.sh`, `all.sh`); `check.sh` validates rules/skills/processes, sizes, schemas and, with `--spec`, a project's `docs/spec`.
 
 ### Added
-- Regras: `testing` (100% linha/branch + PITest ≥80% no domínio; integração feliz+triste), `twelve-factor`, `secure-development`, `ddd-and-patterns` (catálogo quando sim/quando não), `branching-and-versioning` (trunk-based, feature flags com expiração, SemVer, `protocol_version`), `git-lfs-and-binaries`, `java/build-and-dependencies` (Maven obrigatório, LTS fixo), `living-docs`.
+- Rules: `testing` (100% line/branch + PITest ≥80% in the domain; happy+sad integration), `twelve-factor`, `secure-development`, `ddd-and-patterns` (when-yes/when-no catalog), `branching-and-versioning` (trunk-based, expiring feature flags, SemVer, `protocol_version`), `git-lfs-and-binaries`, `java/build-and-dependencies` (Maven required, fixed LTS), `living-docs`.
 - Skills: `validate-implementation`, `vuln-scan`, `git-lfs`, `postgresql`, `redis`, `docker`, `dbeaver`, `krita`.
-- Processo `sdd` (Spec-Driven Development) adaptado do github/spec-kit: `sdd-constitution`, `sdd-specify`, `sdd-clarify`, `sdd-analyze`, `sdd-audit`, `sdd-plan`, `sdd-tasks`, `sdd-implement`, `sdd-to-card` (GitHub Issues + Projects). Siglas `FEAT/REQ-F/REQ-NF/DEC/DEBT`, status por feature, classificação `[FATO]/[DECISÃO]/[PROPOSTA]/[HIPÓTESE]/[BLOQUEIO]`.
-- Templates de spec (`spec`, `feature`, `requirement-functional`, `requirement-non-functional`, `decision`, `debt`) e JSON Schemas correspondentes.
-- Kits: `github` (workflows ci-java, ci-godot, spec-lint, gitleaks; PR template; labels), `java-maven` (pom-parent com gates), `docker` (Postgres 17.11 + Redis 7.4), `git-lfs`, `godot`, `sdd/init-spec.sh`.
-- `knowledge/` com notas factuais datadas (Java 25 LTS, Godot 4.7, Postgres 17, Redis 7 e licença, Compose v5, quotas LFS).
-- Instalação para Codex CLI (`~/.codex/AGENTS.md`).
+- `sdd` process (Spec-Driven Development) adapted from github/spec-kit: `sdd-constitution`, `sdd-specify`, `sdd-clarify`, `sdd-analyze`, `sdd-audit`, `sdd-plan`, `sdd-tasks`, `sdd-implement`, `sdd-to-card` (GitHub Issues + Projects). Prefixes `FEAT/REQ-F/REQ-NF/DEC/DEBT`, per-feature status, `[FATO]/[DECISÃO]/[PROPOSTA]/[HIPÓTESE]/[BLOQUEIO]` classification.
+- Spec templates (`spec`, `feature`, `requirement-functional`, `requirement-non-functional`, `decision`, `debt`) and the corresponding JSON Schemas.
+- Kits: `github` (ci-java, ci-godot, spec-lint, gitleaks workflows; PR template; labels), `java-maven` (pom-parent with gates), `docker` (Postgres 17.11 + Redis 7.4), `git-lfs`, `godot`, `sdd/init-spec.sh`.
+- `knowledge/` with dated factual notes (Java 25 LTS, Godot 4.7, Postgres 17, Redis 7 and license, Compose v5, LFS quotas).
+- Installation for Codex CLI (`~/.codex/AGENTS.md`).
 
 ### Fixed
-- Quota do GitHub LFS corrigida para 10 GiB (Free/Pro), conforme docs atuais.
+- GitHub LFS quota corrected to 10 GiB (Free/Pro), per current docs.
 
 ### Removed
-- `scripts/install.sh` e `scripts/to-mdc.sh` (substituídos por `scripts/install/*`); instalação em `~/.claude/CLAUDE.md`.
+- `scripts/install.sh` and `scripts/to-mdc.sh` (replaced by `scripts/install/*`); installation into `~/.claude/CLAUDE.md`.
 
 ## [2.0.0] - 2026-09-29
 
 ### Changed
-- `AGENTS.md` reescrito no modelo condição→ação, ordenado por meia-vida, com seções Verdade, Ceticismo (>98%), Loop, Craft, Limites (Sempre/Perguntar/Nunca) e tabela de roteamento para skills.
-- Regras `00-core`, `10-clean-code`, `20-clean-architecture`, `70-token-efficiency` passam de `always_on` para `model_decision` — o resumo vive no `AGENTS.md`; o detalhe carrega sob demanda (menos tokens por sessão).
-- `PROMPT.md` reestruturado como system prompt completo.
-- README reescrito com princípios de design baseados em evidência e instalação via script.
+- `AGENTS.md` rewritten in the condition→action model, ordered by half-life, with Truth, Skepticism (>98%), Loop, Craft, Boundaries (Always/Ask/Never) sections and a skill routing table.
+- Rules `00-core`, `10-clean-code`, `20-clean-architecture`, `70-token-efficiency` move from `always_on` to `model_decision` — the summary lives in `AGENTS.md`; detail loads on demand (fewer tokens per session).
+- `PROMPT.md` restructured as a full system prompt.
+- README rewritten with evidence-based design principles and script-based installation.
 
 ### Added
-- Skill `skeptic`: verificação adversarial (contra → a favor → veredicto com confiança).
-- `templates/java-spring/AGENTS.md` e `templates/godot-2d/AGENTS.md` com stack, comandos, padrões condição→ação e limites.
-- `PROMPT-compact.md` (≤1.500 chars) para Custom Instructions do ChatGPT.
-- `scripts/install.sh` (instala e valida) e `scripts/to-mdc.sh` (gera `.cursor/rules/*.mdc`).
-- Instalação para Cursor (`~/.cursor/rules`) e, opcionalmente (`--claude`), Claude Code (`~/.claude/CLAUDE.md`).
+- `skeptic` skill: adversarial verification (against → for → verdict with confidence).
+- `templates/java-spring/AGENTS.md` and `templates/godot-2d/AGENTS.md` with stack, commands, condition→action patterns and boundaries.
+- `PROMPT-compact.md` (≤1,500 chars) for ChatGPT Custom Instructions.
+- `scripts/install.sh` (installs and validates) and `scripts/to-mdc.sh` (generates `.cursor/rules/*.mdc`).
+- Installation for Cursor (`~/.cursor/rules`) and, optionally (`--claude`), Claude Code (`~/.claude/CLAUDE.md`).
 
 ### Removed
-- Instalação em `~/.devin/global_rules.md` (duplicava o `~/.config/devin/AGENTS.md` no contexto).
+- Installation into `~/.devin/global_rules.md` (duplicated `~/.config/devin/AGENTS.md` in the context).
 
 ## [1.0.0] - 2026-09-29
 
 ### Added
-- Estrutura inicial: `AGENTS.md`, regras por domínio, skills `java`, `godot-2d`, `github-cli`, `docs`, `PROMPT.md`.
+- Initial structure: `AGENTS.md`, rules by domain, `java`, `godot-2d`, `github-cli`, `docs` skills, `PROMPT.md`.

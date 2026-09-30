@@ -1,31 +1,31 @@
-# [Título: sintoma em uma linha]
+# [Title: symptom in one line]
 
-Ambiente: [repo @ commit | versão | SO/plataforma]  ·  Frequência: [sempre | intermitente N/M]  ·  Severidade: [dados/dinheiro | funcional | cosmético]
+Environment: [repo @ commit | version | OS/platform]  ·  Frequency: [always | intermittent N/M]  ·  Severity: [data/money | functional | cosmetic]
 
-## Sintoma
+## Symptom
 
-- Observado: [FATO] [...]
-- Esperado: [...] — fonte: [`FEAT-xxx` CA-n | teste | doc | expectativa]
+- Observed: [FACT] [...]
+- Expected: [...] — source: [`FEAT-xxx` CA-n | test | doc | expectation]
 
-## Reprodução
+## Reproduction
 
-[teste: `[Classe#metodo]` | script: `[cmd]` | passos numerados]
+[test: `[Class#method]` | script: `[cmd]` | numbered steps]
 
 1. [...]
 
-Não reproduzido? tentativas: [...]; falta: [dado/ambiente/acesso]
+Not reproduced? attempts: [...]; missing: [data/environment/access]
 
-## Causa raiz
+## Root cause
 
-- [FATO] `[arquivo:linha]` — [o que acontece e por quê]
-- Hipóteses descartadas: [x — refutada por ...]
+- [FACT] `[file:line]` — [what happens and why]
+- Discarded hypotheses: [x — refuted by ...]
 
-## Impacto
+## Impact
 
-- [contagem verificada por consulta/log, não estimativa]
+- [count verified by query/log, not an estimate]
 
-## Correção proposta
+## Proposed fix
 
-- Teste que deve passar a existir: `[...]` (falha antes, passa depois)
-- Mudança: [uma frase]; risco: [...]
-- DEBT/DEC gerados: [—]
+- Test that must now exist: `[...]` (fails before, passes after)
+- Change: [one sentence]; risk: [...]
+- DEBT/DEC generated: [—]

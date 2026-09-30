@@ -1,12 +1,12 @@
 [
-  { "name": "feature",                  "color": "0e8a16", "description": "Nova funcionalidade" },
-  { "name": "bug",                      "color": "d73a4a", "description": "Comportamento incorreto" },
-  { "name": "debt",                     "color": "fbca04", "description": "Dívida técnica (DEBT-nnn)" },
-  { "name": "status:proposta",          "color": "ededed", "description": "FEAT proposta, ainda não clarificada" },
-  { "name": "status:clarificada",       "color": "c5def5", "description": "FEAT clarificada, sem plano" },
-  { "name": "status:planejada",         "color": "bfd4f2", "description": "FEAT com plano e tarefas" },
-  { "name": "status:em-implementação",  "color": "1d76db", "description": "FEAT em implementação" },
-  { "name": "status:validada",          "color": "0e8a16", "description": "FEAT validada (auditoria ok)" },
-  { "name": "status:entregue",          "color": "006b75", "description": "FEAT entregue/mergeada" },
-  { "name": "flag",                     "color": "5319e7", "description": "Existe feature flag ligada a esta mudança" }
+  { "name": "feature",                  "color": "0e8a16", "description": "New feature" },
+  { "name": "bug",                      "color": "d73a4a", "description": "Incorrect behavior" },
+  { "name": "debt",                     "color": "fbca04", "description": "Technical debt (DEBT-nnn)" },
+  { "name": "status:proposta",          "color": "ededed", "description": "FEAT proposed, not yet clarified" },
+  { "name": "status:clarificada",       "color": "c5def5", "description": "FEAT clarified, no plan" },
+  { "name": "status:planejada",         "color": "bfd4f2", "description": "FEAT with plan and tasks" },
+  { "name": "status:em-implementação",  "color": "1d76db", "description": "FEAT being implemented" },
+  { "name": "status:validada",          "color": "0e8a16", "description": "FEAT validated (audit ok)" },
+  { "name": "status:entregue",          "color": "006b75", "description": "FEAT delivered/merged" },
+  { "name": "flag",                     "color": "5319e7", "description": "A feature flag is tied to this change" }
 ]

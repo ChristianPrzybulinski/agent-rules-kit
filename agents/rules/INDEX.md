@@ -1,24 +1,24 @@
-# rules/ — normativo por domínio
+# rules/ — normative by domain
 
-Escopo: o que o agente DEVE/NÃO DEVE fazer, sob demanda (≤60 linhas cada). Resumo always-on: `../AGENTS.md`. Fatos datados não vão aqui — vão em `../knowledge/`.
+Scope: what the agent MUST/MUST NOT do, on demand (≤60 lines each). Always-on summary: `../AGENTS.md`. Dated facts do not go here — they go in `../knowledge/`.
 
-| Domínio | Regra | Quando carregar |
+| Domain | Rule | When to load |
 |---|---|---|
-| `architecture/` | `clean-architecture.md` | criar módulo/camada, decidir onde uma classe vive |
-| `architecture/` | `ddd-and-patterns.md` | modelar domínio, escolher padrão (quando usar / quando não) |
-| `core/` | `evidence.md` | avaliar proposta, confiança <98%, ceticismo |
-| `core/` | `sessions.md` | início de sessão, sessão longa, pedido fora de contexto |
-| `core/` | `tokens.md` | escolher registro de resposta (técnico vs. texto para pessoas) |
-| `development/` | `clean-code.md` | escrever/revisar código de produção |
-| `development/` | `simplicity.md` | desenhar solução, PR grande demais, decidir se teste é necessário |
-| `development/` | `testing.md` | criar testes, configurar gates de cobertura/mutation |
-| `development/` | `twelve-factor.md` | configurar app, Docker, env vars, deploy |
-| `documentation/` | `documentation.md` | README, changelog, ADR, versionamento |
-| `documentation/` | `living-docs.md` | fechar tarefa/PR — docs atualizados no mesmo commit |
-| `git/` | `branching-and-versioning.md` | branch, commit, PR, release, versão de protocolo |
-| `git/` | `git-lfs-and-binaries.md` | adicionar assets/binários/exports ao repo |
-| `git/` | `github-cli.md` | fluxos com `gh` e git |
+| `architecture/` | `clean-architecture.md` | create module/layer, decide where a class lives |
+| `architecture/` | `ddd-and-patterns.md` | model a domain, choose a pattern (when to use / when not) |
+| `core/` | `evidence.md` | evaluate a proposal, confidence <98%, skepticism |
+| `core/` | `sessions.md` | session start, long session, out-of-context request |
+| `core/` | `tokens.md` | choose response register (technical vs. text for people) |
+| `development/` | `clean-code.md` | write/review production code |
+| `development/` | `simplicity.md` | design a solution, oversized PR, decide if a test is needed |
+| `development/` | `testing.md` | create tests, configure coverage/mutation gates |
+| `development/` | `twelve-factor.md` | configure app, Docker, env vars, deploy |
+| `documentation/` | `documentation.md` | README, changelog, ADR, versioning |
+| `documentation/` | `living-docs.md` | close task/PR — docs updated in the same commit |
+| `git/` | `branching-and-versioning.md` | branch, commit, PR, release, protocol version |
+| `git/` | `git-lfs-and-binaries.md` | add assets/binaries/exports to the repo |
+| `git/` | `github-cli.md` | workflows with `gh` and git |
 | `godot/` | `godot-2d.md` | `*.gd`, `*.tscn`, `project.godot` |
-| `java/` | `build-and-dependencies.md` | `pom.xml`, projeto Maven, plugins de qualidade |
-| `java/` | `java.md` | código Java moderno, Clean Code |
-| `security/` | `secure-development.md` | dependências, auth, endpoints, dados sensíveis |
+| `java/` | `build-and-dependencies.md` | `pom.xml`, Maven project, quality plugins |
+| `java/` | `java.md` | modern Java code, Clean Code |
+| `security/` | `secure-development.md` | dependencies, auth, endpoints, sensitive data |

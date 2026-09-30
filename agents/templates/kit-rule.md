@@ -1,23 +1,23 @@
 ---
-description: "[O que a regra cobre em 1 frase]. Carregar ao [situação concreta: criar X, revisar Y]; o resumo já está no AGENTS.md."
+description: "[What the rule covers in 1 sentence]. Load when [concrete situation: creating X, reviewing Y]; the summary is already in AGENTS.md."
 trigger: model_decision
 ---
 
-# [Domínio — Tema]
+# [Domain — Topic]
 
-[Uma frase: por que esta regra existe — o erro que ela evita.]
+[One sentence: why this rule exists — the error it prevents.]
 
-## [Seção normativa 1 — use verbos modais: deve / nunca / só quando]
+## [Normative section 1 — use modal verbs: must / never / only when]
 
-- [regra verificável]
-- [regra verificável]
+- [verifiable rule]
+- [verifiable rule]
 
-## [Seção 2 — Condição → ação]
+## [Section 2 — Condition → action]
 
-- [situação] → [o que fazer]
+- [situation] → [what to do]
 
-## Não faça
+## Do not
 
-- [anti-padrão concreto]
+- [concrete anti-pattern]
 
-<!-- Limite: 60 linhas. Fato datado (versão, quota) → knowledge note, referenciada aqui. Procedimento com etapas → skill. -->
+<!-- Limit: 60 lines. Dated fact (version, quota) → knowledge note, referenced here. Procedure with steps → skill. -->

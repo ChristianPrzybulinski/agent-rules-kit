@@ -1,11 +1,11 @@
 ## Checklist
 
-- [ ] `platforms/tools/check.sh` passou (local, sem CI=1) e `CI=1` passa com pyyaml/jsonschema
-- [ ] INDEX/README de toda pasta tocada está atualizado (toda entrada de primeiro nível listada)
-- [ ] `CHANGELOG.md` atualizado (mudança visível)
-- [ ] `LAYOUT_VERSION` bumpado se mudou pasta ou destino de instalação
-- [ ] `VERSION` bumpado conforme SemVer se for release
+- [ ] `platforms/tools/check.sh` passed (local, without CI=1) and passes with `CI=1` + pyyaml/jsonschema
+- [ ] INDEX/README of every touched folder is updated (every first-level entry listed)
+- [ ] `CHANGELOG.md` updated (visible change)
+- [ ] `LAYOUT_VERSION` bumped if a folder or install destination changed
+- [ ] `VERSION` bumped per SemVer if this is a release
 
-## O que muda
+## What changes
 
-<!-- 1-3 linhas -->
+<!-- 1-3 lines -->

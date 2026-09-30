@@ -1,41 +1,41 @@
 ---
-description: Documentação viva — README, Javadoc/docstrings, CHANGELOG, specs e ADRs atualizados no mesmo PR da mudança; o que documentar e o que não. Carregar ao fechar uma tarefa ou revisar PR.
+description: Living documentation — README, Javadoc/docstrings, CHANGELOG, specs and ADRs updated in the same PR as the change; what to document and what not. Load when closing a task or reviewing a PR.
 trigger: model_decision
 ---
 
-# Documentação viva
+# Living documentation
 
-Documento desatualizado é pior que ausente: o agente confia nele. Toda mudança de comportamento atualiza a doc **no mesmo PR**.
+An outdated document is worse than a missing one: the agent trusts it. Every behavior change updates the doc **in the same PR**.
 
-## Checklist de fechamento (Definition of Done documental)
+## Closing checklist (documentation Definition of Done)
 
-| Mudou... | Atualize |
+| Changed... | Update |
 |---|---|
-| comando de build/run/test | `README.md` do módulo + `AGENTS.md` do repo |
-| API pública Java | Javadoc na classe/método público (o quê + invariantes; não repita a assinatura) |
-| script GDScript exportado/autoload | docstring `##` acima de `class_name`, `@export`, sinais |
-| comportamento visível ao usuário | `CHANGELOG.md` seção `Unreleased` |
-| mensagem do contrato cliente↔servidor | doc do protocolo + exemplo + `protocol_version` se incompatível |
-| decisão com trade-off | `docs/spec/decisions/DEC-xxx.md` (estado `proposta` até aprovação) |
-| status de uma feature | frontmatter de `docs/spec/features/FEAT-xxx.md` |
-| dívida assumida conscientemente | `docs/spec/debts/DEBT-xxx.md` com gatilho de pagamento |
+| build/run/test command | the module's `README.md` + the repo's `AGENTS.md` |
+| public Java API | Javadoc on the public class/method (the what + invariants; do not repeat the signature) |
+| exported GDScript/autoload script | `##` docstring above `class_name`, `@export`, signals |
+| user-visible behavior | `CHANGELOG.md` `Unreleased` section |
+| client↔server contract message | protocol doc + example + `protocol_version` if incompatible |
+| decision with trade-off | `docs/spec/decisions/DEC-xxx.md` (state `proposta` until approved) |
+| feature status | frontmatter of `docs/spec/features/FEAT-xxx.md` |
+| consciously assumed debt | `docs/spec/debts/DEBT-xxx.md` with a payment trigger |
 
 ## Javadoc / docstring
 
-- Só em API pública e em invariantes não óbvias. Getter, `record`, override trivial → sem Javadoc.
-- Conteúdo: propósito, pré/pós-condições, exceções lançadas, thread-safety quando relevante. Sem `@author`, sem data.
-- Exemplo curto vale mais que parágrafo.
+- Only on public API and non-obvious invariants. Getter, `record`, trivial override → no Javadoc.
+- Content: purpose, pre/post-conditions, thrown exceptions, thread-safety when relevant. No `@author`, no date.
+- A short example beats a paragraph.
 
-## README de módulo/projeto
+## Module/project README
 
-Propósito (2 linhas) → pré-requisitos com versões → comandos (build, run, test) → estrutura (5-10 linhas) → onde está o resto (`docs/`). Sem tutorial de framework.
+Purpose (2 lines) → prerequisites with versions → commands (build, run, test) → structure (5-10 lines) → where the rest lives (`docs/`). No framework tutorial.
 
 ## CHANGELOG
 
-Keep a Changelog. `## [Unreleased]` sempre presente; release move para `## [X.Y.Z] - data`. Escreva o impacto para quem usa, não o diff.
+Keep a Changelog. `## [Unreleased]` always present; a release moves it to `## [X.Y.Z] - date`. Write the impact for the user, not the diff.
 
-## Condição → ação
+## Condition → action
 
-- PR pronto → rodar o checklist acima; item aplicável sem atualização → PR não está pronto.
-- Doc contradiz código → código vence; corrija a doc no PR atual (ou abra `DEBT` se for grande).
-- Explicação longa no chat sobre como algo funciona → candidata a `knowledge/` ou `docs/`; não deixe só na conversa.
+- PR ready → run the checklist above; an applicable item without an update → PR is not ready.
+- Doc contradicts code → code wins; fix the doc in the current PR (or open a `DEBT` if it's large).
+- Long chat explanation of how something works → candidate for `knowledge/` or `docs/`; do not leave it only in the conversation.

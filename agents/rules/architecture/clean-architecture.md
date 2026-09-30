@@ -1,53 +1,53 @@
 ---
-description: Detalhes de Clean Architecture (camadas, regra da dependência, ports/adapters, DTOs, exceções). Carregar ao criar módulo, camada ou decidir onde uma classe vive; o resumo já está no AGENTS.md.
+description: Details of Clean Architecture (layers, dependency rule, ports/adapters, DTOs, exceptions). Load when creating a module, a layer or deciding where a class lives; the summary is already in AGENTS.md.
 trigger: model_decision
 ---
 
 # Clean Architecture
 
-## Camadas (de fora para dentro)
+## Layers (outside in)
 
-1. Frameworks & Drivers (UI, DB, APIs externas, bibliotecas).
+1. Frameworks & Drivers (UI, DB, external APIs, libraries).
 2. Interface Adapters (controllers, presenters, gateways, DTOs).
-3. Use Cases (regras de aplicação, orquestração).
-4. Entities (regras de negócio, domínio puro).
+3. Use Cases (application rules, orchestration).
+4. Entities (business rules, pure domain).
 
-## Regra da Dependência
+## Dependency Rule
 
-- Dependências apontam **sempre para dentro**.
-- Camadas internas não conhecem camadas externas.
-- Use interfaces (ports) para inverter dependências **onde há algo a inverter** (abaixo).
+- Dependencies **always point inward**.
+- Inner layers do not know outer layers.
+- Use interfaces (ports) to invert dependencies **where there is something to invert** (below).
 
-## Pragmatismo — quando um port se justifica
+## Pragmatism — when a port is justified
 
-| Situação | Port? |
+| Situation | Port? |
 |---|---|
-| Domínio precisa de banco, rede, relógio, RNG, arquivo, fila | **Sim** — I/O externo; é o que se substitui por fake no teste |
-| Implementações alternativas reais previstas (Postgres hoje, outra amanhã; Redis opcional) | Sim |
-| Fronteira do domínio consumida por outro módulo | Sim, na fronteira; não em cada classe interna |
-| Serviço/política interna com uma implementação (`DamageFormula`, `EvolutionPolicy`) | **Não** — classe concreta, testada diretamente |
-| "Pode ser útil um dia" | Não — YAGNI (`rules/development/simplicity.md`) |
+| Domain needs database, network, clock, RNG, file, queue | **Yes** — external I/O; it's what gets replaced by a fake in tests |
+| Real alternative implementations expected (Postgres today, another tomorrow; optional Redis) | Yes |
+| Domain boundary consumed by another module | Yes, at the boundary; not on every internal class |
+| Internal service/policy with one implementation (`DamageFormula`, `EvolutionPolicy`) | **No** — concrete class, tested directly |
+| "Might be useful someday" | No — YAGNI (`rules/development/simplicity.md`) |
 
-Um port sem segunda implementação **e** sem I/O é cerimônia: remova. Camadas vazias (pacote `application` que só repassa) também.
+A port with no second implementation **and** no I/O is ceremony: remove it. Empty layers (an `application` package that only forwards) too.
 
-Menos arquivos vence: agrupe por caso de uso/agregado, não por tipo técnico (`services/`, `impl/`, `interfaces/`).
+Fewer files wins: group by use case/aggregate, not by technical type (`services/`, `impl/`, `interfaces/`).
 
-## Frameworks são detalhes
+## Frameworks are details
 
-- O domínio e os use cases não devem depender de Spring, Hibernate, Godot nodes, GDScript específicos, etc.
-- Isole adaptadores para trocar frameworks sem tocar no núcleo.
+- The domain and use cases must not depend on Spring, Hibernate, Godot nodes, specific GDScript, etc.
+- Isolate adapters to swap frameworks without touching the core.
 
-## DTOs e boundaries
+## DTOs and boundaries
 
-- Use DTOs na borda entre camadas. Nunca passe entidades diretamente para a UI/DB sem adaptação.
-- Mantenha DTOs enxutos e imutáveis quando possível.
+- Use DTOs at the edge between layers. Never pass entities directly to the UI/DB without adaptation.
+- Keep DTOs lean and immutable when possible.
 
-## Testabilidade
+## Testability
 
-- Regras de negócio devem ser testáveis sem banco de dados, sem rede e sem UI.
-- Use mocks/fakes para ports, nunca para entidades.
+- Business rules must be testable without a database, network or UI.
+- Use mocks/fakes for ports, never for entities.
 
-## Exceções
+## Exceptions
 
-- Exceções de domínio (camada interna) são diferentes de erros de infraestrutura (camada externa).
-- Converta exceções externas em exceções de domínio próximas à borda.
+- Domain exceptions (inner layer) are different from infrastructure errors (outer layer).
+- Convert external exceptions into domain exceptions near the boundary.

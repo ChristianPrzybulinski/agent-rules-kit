@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/debt.schema.json",
-  "title": "Frontmatter de DEBT-nnn",
+  "title": "Frontmatter of DEBT-nnn",
   "type": "object",
   "required": ["id", "title", "status", "severity", "trigger", "created"],
   "additionalProperties": false,

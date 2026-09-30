@@ -1,47 +1,47 @@
 ---
-description: Desenvolvimento seguro — CVEs, segredos, OWASP Top 10, autenticação, autorização, dados pessoais, auditoria. Carregar ao mexer em dependências, auth, endpoints, persistência de dados sensíveis ou CI.
+description: Secure development — CVEs, secrets, OWASP Top 10, authentication, authorization, personal data, auditing. Load when touching dependencies, auth, endpoints, sensitive-data persistence or CI.
 trigger: model_decision
 ---
 
-# Desenvolvimento seguro
+# Secure development
 
-## Gates (falham o build/PR)
+## Gates (fail the build/PR)
 
-- **0 CVEs críticas ou altas** em dependências: OWASP Dependency-Check (Java) no CI, `failBuildOnCVSS=7`. Falso positivo → suppression com justificativa e data de revisão.
-- Segredo detectado no diff (gitleaks/`gh secret scanning`) → PR bloqueado.
-- Dependência nova só com versão publicada há ≥7 dias (supply chain).
+- **0 critical or high CVEs** in dependencies: OWASP Dependency-Check (Java) in CI, `failBuildOnCVSS=7`. False positive → suppression with justification and a review date.
+- Secret detected in the diff (gitleaks/`gh secret scanning`) → PR blocked.
+- New dependency only with a version published ≥7 days ago (supply chain).
 
-## Segredos e credenciais
+## Secrets and credentials
 
-- Fonte: variável de ambiente ou keychain. Nunca em código, yml, log, commit, chat.
-- `.env.example` versionado com placeholders; `.env` no `.gitignore`.
-- Segredo vazou → rotacionar **nesta sessão**, depois varrer histórico (`gitleaks detect`) e irmãos.
+- Source: environment variable or keychain. Never in code, yml, log, commit, chat.
+- `.env.example` versioned with placeholders; `.env` in `.gitignore`.
+- Secret leaked → rotate **this session**, then scan history (`gitleaks detect`) and siblings.
 
-## Autenticação e sessão
+## Authentication and session
 
-- Senha → Argon2id (preferido) ou bcrypt cost ≥ 12. Nunca MD5/SHA-1/SHA-256 puro.
-- Token de sessão: aleatório ≥128 bits, expira, revogável, nunca em URL/log.
-- Recuperação de acesso: token de uso único, curto, enviado fora de banda.
+- Password → Argon2id (preferred) or bcrypt cost ≥ 12. Never plain MD5/SHA-1/SHA-256.
+- Session token: random ≥128 bits, expires, revocable, never in URL/log.
+- Access recovery: single-use, short-lived token, sent out of band.
 
-## Autorização
+## Authorization
 
-- Por ação **e** por entidade: "pode mover *este* personagem", não "está logado".
-- Servidor é autoritativo: cliente envia intenção, servidor valida invariantes e decide resultado.
-- Ferramenta administrativa: papel explícito + auditoria de cada uso.
+- Per action **and** per entity: "may move *this* character", not "is logged in".
+- Server is authoritative: client sends intent, server validates invariants and decides the result.
+- Administrative tool: explicit role + audit of every use.
 
-## Entrada e saída
+## Input and output
 
-- Validar na borda (tamanho, tipo, faixa, enum). Rejeitar, não "sanitizar e seguir".
-- SQL só parametrizado. Sem concatenação, sem `nativeQuery` com string montada.
-- Erro para o cliente: código + mensagem genérica. Stack trace, SQL, caminho interno → só no log.
+- Validate at the boundary (size, type, range, enum). Reject, don't "sanitize and carry on".
+- Parameterized SQL only. No concatenation, no `nativeQuery` with a built-up string.
+- Error to the client: code + generic message. Stack trace, SQL, internal path → log only.
 
-## Dados pessoais (LGPD)
+## Personal data (LGPD)
 
-- Coletar o mínimo. E-mail e IP são pessoais. Não copiar dados reais do legado para fixtures.
-- Log de auditoria: quem, quando, o quê, resultado. Sem senha, token ou payload sensível.
+- Collect the minimum. E-mail and IP are personal. Do not copy real legacy data into fixtures.
+- Audit log: who, when, what, result. No password, token or sensitive payload.
 
-## Condição → ação
+## Condition → action
 
-- Novo endpoint → checklist: auth? authz por entidade? validação? rate limit? log de auditoria se muda estado?
-- Dependência nova → `mvn dependency-check:check` local antes do PR.
-- Mensagem de rede nova → limite de tamanho e frequência definidos no contrato.
+- New endpoint → checklist: auth? per-entity authz? validation? rate limit? audit log if it changes state?
+- New dependency → local `mvn dependency-check:check` before the PR.
+- New network message → size and rate limits defined in the contract.

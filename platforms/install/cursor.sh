@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Converte agents/rules/<dominio>/<nome>.md (frontmatter Devin/Windsurf) para
-# ~/.cursor/rules/<dominio>-<nome>.mdc (nome achatado; frontmatter Cursor).
+# Converts agents/rules/<domain>/<name>.md (Devin/Windsurf frontmatter) into
+# ~/.cursor/rules/<domain>-<name>.mdc (flattened name; Cursor frontmatter).
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -34,18 +34,18 @@ convert() {
 }
 
 find "$KIT_DIR/agents/rules" -name '*.md' ! -name 'INDEX.md' | while read -r f; do
-  rel="${f#"$KIT_DIR/agents/rules/"}"    # <dominio>/<nome>.md
-  flat="${rel//\//-}"                   # <dominio>-<nome>.md
+  rel="${f#"$KIT_DIR/agents/rules/"}"    # <domain>/<name>.md
+  flat="${rel//\//-}"                   # <domain>-<name>.md
   convert "$f" "$DEST/${flat%.md}.mdc"
 done
 
-# remove .mdc obsoletos (ex.: nomes antigos pre-reestruturacao)
+# removes obsolete .mdc files (e.g.: old names from before the restructure)
 find "$DEST" -name '*.mdc' | while read -r f; do
   base="$(basename "$f" .mdc)"
-  src_dom="${base%%-*}"                 # primeiro componente = dominio
-  src_name="${base#*-}.md"              # resto = nome (pode ter hifens)
-  [[ -f "$KIT_DIR/agents/rules/$src_dom/$src_name" ]] || { rm -f "$f"; echo "cursor: removido obsoleto $f"; }
+  src_dom="${base%%-*}"                 # first component = domain
+  src_name="${base#*-}.md"              # rest = name (may contain hyphens)
+  [[ -f "$KIT_DIR/agents/rules/$src_dom/$src_name" ]] || { rm -f "$f"; echo "cursor: removed obsolete $f"; }
 done
 
 count=$(find "$DEST" -name '*.mdc' | wc -l | tr -d ' ')
-echo "cursor: $count arquivos -> $DEST"
+echo "cursor: $count files -> $DEST"

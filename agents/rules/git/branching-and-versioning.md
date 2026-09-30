@@ -1,45 +1,45 @@
 ---
-description: Trunk-based com main + feature/*, feature flags com expiração, Conventional Commits, SemVer e versão de protocolo separada. Carregar ao criar branch, commitar, abrir PR, publicar release ou mudar contrato.
+description: Trunk-based with main + feature/*, feature flags with expiry, Conventional Commits, SemVer and a separate protocol version. Load when creating a branch, committing, opening a PR, publishing a release or changing the contract.
 trigger: model_decision
 ---
 
-# Branches, commits e versão
+# Branches, commits and versioning
 
 ## Branches (trunk-based)
 
-- `main` é a única branch longa; sempre verde e liberável.
-- Trabalho → `feature/FEAT-001-nome-curto` (ou `fix/`, `chore/`, `docs/`). Vida curta: dias, não semanas.
-- Merge via PR com squash (1 feature = 1 commit na `main`) após CI verde. Sem `develop`, sem `release/*`.
-- Rebase da feature sobre `main` antes do PR; nunca force-push na `main`.
+- `main` is the only long-lived branch; always green and releasable.
+- Work → `feature/FEAT-001-short-name` (or `fix/`, `chore/`, `docs/`). Short-lived: days, not weeks.
+- Merge via squash PR (1 feature = 1 commit on `main`) after green CI. No `develop`, no `release/*`.
+- Rebase the feature onto `main` before the PR; never force-push `main`.
 
 ## Feature flags
 
-- Funcionalidade incompleta entra na `main` **desligada** por flag (`app.features.<nome>=false`).
-- Flag registrada em `docs/spec/features/FEAT-xxx.md` (campo `flag`).
-- Flag 100% ligada há >30 dias → abrir `DEBT-xxx` para remover flag e código morto.
-- Flag nunca controla regra de segurança ou integridade (essas são sempre ativas).
+- Incomplete functionality enters `main` **off** behind a flag (`app.features.<name>=false`).
+- Flag recorded in `docs/spec/features/FEAT-xxx.md` (`flag` field).
+- Flag 100% on for >30 days → open a `DEBT-xxx` to remove the flag and dead code.
+- A flag never controls a security or integrity rule (those are always active).
 
 ## Conventional Commits
 
-`<tipo>(<escopo>): <descrição no imperativo>` — tipos: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `build`, `ci`.
+`<type>(<scope>): <imperative description>` — types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `build`, `ci`.
 Footer: `Refs: FEAT-001` / `Closes #12` / `BREAKING CHANGE: ...`.
-Sem atribuição a IA no título; co-author no footer se o projeto exigir.
+No AI attribution in the title; co-author in the footer if the project requires it.
 
 ## SemVer
 
-- `MAJOR.MINOR.PATCH`. MAJOR = quebra compatibilidade; MINOR = feature compatível; PATCH = correção.
-- Tag `vX.Y.Z` na `main`; `gh release create vX.Y.Z --notes-file <trecho do CHANGELOG>`.
-- Versão gerada a partir dos commits (`feat` → MINOR, `fix` → PATCH, `BREAKING CHANGE` → MAJOR). Sem "bump manual por sentimento".
-- Pré-release: `vX.Y.Z-alpha.N` até a fatia vertical estar jogável.
+- `MAJOR.MINOR.PATCH`. MAJOR = breaks compatibility; MINOR = compatible feature; PATCH = fix.
+- Tag `vX.Y.Z` on `main`; `gh release create vX.Y.Z --notes-file <CHANGELOG excerpt>`.
+- Version derived from commits (`feat` → MINOR, `fix` → PATCH, `BREAKING CHANGE` → MAJOR). No "manual bump by feel".
+- Pre-release: `vX.Y.Z-alpha.N` until the vertical slice is playable.
 
-## Versão de protocolo (cliente↔servidor)
+## Protocol version (client↔server)
 
-- Inteiro monotônico `protocol_version`, independente da versão dos apps.
-- Mudança compatível (campo opcional novo) → mesma versão. Incompatível → incrementa e servidor aceita N e N-1 por um ciclo.
-- Handshake declara versão; incompatível → erro explícito com versão mínima exigida.
+- Monotonic integer `protocol_version`, independent of app versions.
+- Compatible change (new optional field) → same version. Incompatible → increment and the server accepts N and N-1 for one cycle.
+- Handshake declares version; incompatible → explicit error with the required minimum version.
 
-## Condição → ação
+## Condition → action
 
-- Começar tarefa → `git switch -c feature/FEAT-xxx-nome` a partir de `main` atualizada.
-- Abrir PR → título Conventional Commit; corpo: o quê, porquê, como testou, `Refs: FEAT-xxx`.
-- Mudar mensagem do contrato → decidir compatível/incompatível **antes** de codar; atualizar `protocol_version` e CHANGELOG do protocolo.
+- Start a task → `git switch -c feature/FEAT-xxx-name` from an updated `main`.
+- Open a PR → Conventional Commit title; body: what, why, how tested, `Refs: FEAT-xxx`.
+- Change a contract message → decide compatible/incompatible **before** coding; update `protocol_version` and the protocol CHANGELOG.

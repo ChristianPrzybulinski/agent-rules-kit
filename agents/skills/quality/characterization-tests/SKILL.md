@@ -1,8 +1,8 @@
 ---
 name: characterization-tests
 version: "1.0"
-description: Cria testes de caracterização que fixam o comportamento ATUAL de código legado ou portado (fórmulas, tabelas, RNG, arredondamento) antes de refatorar, migrar ou rebalancear. Usar antes de tocar em regra cujo comportamento correto não está especificado. Não usar para validar regra nova (aí é teste normal com spec).
-argument-hint: "[classe/método legado | fluxo: dano, evolução, encontro...]"
+description: Creates characterization tests that pin the CURRENT behavior of legacy or ported code (formulas, tables, RNG, rounding) before refactoring, migrating or rebalancing. Use before touching a rule whose correct behavior is not specified. Do not use to validate a new rule (that is a normal test with a spec).
+argument-hint: "[legacy class/method | flow: damage, evolution, encounter...]"
 triggers:
   - user
   - model
@@ -15,40 +15,40 @@ allowed-tools:
 
 # Characterization Tests
 
-Objetivo: transformar "o código faz X" de `[HIPÓTESE]` em `[FATO]` reproduzível, para que qualquer mudança futura seja **deliberada** e visível num diff de teste.
+Goal: turn "the code does X" from `[HYPOTHESIS]` into a reproducible `[FACT]`, so that any future change is **deliberate** and visible in a test diff.
 
-## 1. Delimitar a unidade
+## 1. Delimit the unit
 
-- Uma regra por vez: entrada → saída pura (dano, chance de captura, XP, preço). Se a regra depende de I/O, isolar primeiro por seam mínimo (interface para RNG, relógio, repositório) — sem mudar comportamento.
-- Registrar a fonte: arquivo:linha do código atual **e**, se houver, o original de onde foi portado (ex.: script Lingo). Só `[FATO]` para o que foi lido.
+- One rule at a time: input → pure output (damage, capture chance, XP, price). If the rule depends on I/O, isolate first via a minimal seam (interface for RNG, clock, repository) — without changing behavior.
+- Record the source: file:line of the current code **and**, if any, the original it was ported from (e.g.: a Lingo script). `[FACT]` only for what was read.
 
-## 2. Gerar casos
+## 2. Generate cases
 
-- Limites: zero, negativo, máximo, overflow de tipo, vazio, nulo.
-- Arredondamento e divisão inteira: casos onde truncar vs arredondar divergem.
-- RNG: injetar semente/sequência fixa; caracterizar a distribuição por amostragem só se a fórmula não for legível.
-- Tabelas (níveis, tipos, preços): fixture pequena em arquivo (`src/test/resources/characterization/<regra>.csv`), não constantes inline.
-- Casos surpreendentes (bug aparente) entram **como estão**, com comentário `// CARACTERIZAÇÃO: comportamento atual, não validado como correto` e um `DEBT-xxx` se for relevante.
+- Boundaries: zero, negative, maximum, type overflow, empty, null.
+- Rounding and integer division: cases where truncate vs round diverge.
+- RNG: inject a fixed seed/sequence; characterize the distribution by sampling only if the formula is not readable.
+- Tables (levels, types, prices): small fixture in a file (`src/test/resources/characterization/<rule>.csv`), not inline constants.
+- Surprising cases (apparent bug) go in **as they are**, with the comment `// CHARACTERIZATION: current behavior, not validated as correct` and a `DEBT-xxx` if relevant.
 
-## 3. Escrever
+## 3. Write
 
-- Nome: `<Regra>CharacterizationTest`; método: `given<entrada>_returns<saidaAtual>`.
-- Parametrizado (JUnit `@ParameterizedTest` + `@CsvFileSource`) quando >5 casos.
-- Executar e confirmar verde na versão atual: `./mvnw -q -pl <módulo> test -Dtest=<Classe>`. Saída literal no relatório.
+- Name: `<Rule>CharacterizationTest`; method: `given<input>_returns<currentOutput>`.
+- Parameterized (JUnit `@ParameterizedTest` + `@CsvFileSource`) when >5 cases.
+- Run and confirm green on the current version: `./mvnw -q -pl <module> test -Dtest=<Class>`. Literal output in the report.
 
-## 4. Comparar com o original (quando existir)
+## 4. Compare with the original (when it exists)
 
-- Se o original é executável (raro): mesma fixture nos dois; divergência é achado, vai para tabela `esperado-legado / atual-Java / decisão`.
-- Se não é executável: leitura lado a lado, fórmula transcrita no teste como comentário, divergência marcada `[HIPÓTESE]` até decisão.
+- If the original is executable (rare): same fixture on both; a divergence is a finding, goes to the `legacy-expected / current-Java / decision` table.
+- If not executable: side-by-side reading, formula transcribed in the test as a comment, divergence marked `[HYPOTHESIS]` until decided.
 
-## 5. Fechar
+## 5. Close
 
-- FEAT/DEC que motivou: linkar a classe de teste em "Relações".
-- Divergência que precisa de decisão de produto → `DEC-xxx` `proposta` com as duas opções e impacto.
-- Só depois disso o refactor/rebalanceamento começa — e cada mudança intencional atualiza o caso com justificativa no commit.
+- Motivating FEAT/DEC: link the test class under "Relations".
+- Divergence needing a product decision → `DEC-xxx` `proposta` with both options and impact.
+- Only after that does the refactor/rebalancing begin — and each intentional change updates the case with justification in the commit.
 
-## Regras
+## Rules
 
-- Não "corrigir" o comportamento durante a caracterização.
-- Não caracterizar via mock do próprio código sob teste.
-- Percentuais de cobertura/portabilidade herdados de relatórios antigos não substituem esta etapa.
+- Do not "fix" behavior during characterization.
+- Do not characterize by mocking the very code under test.
+- Coverage/portability percentages inherited from old reports do not replace this step.

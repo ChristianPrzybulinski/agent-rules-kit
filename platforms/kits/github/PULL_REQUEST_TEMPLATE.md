@@ -1,14 +1,14 @@
-## O quê
+## What
 
-<!-- 1-3 frases: o que muda e para quem. -->
+<!-- 1-3 sentences: what changes and for whom. -->
 
-## Por quê
+## Why
 
-<!-- Problema/valor. Link da FEAT/issue se houver. -->
+<!-- Problem/value. Link to the FEAT/issue if any. -->
 
-## Como testei
+## How I tested
 
-<!-- Comandos rodados + saída relevante (colar, não descrever). -->
+<!-- Commands run + relevant output (paste, don't describe). -->
 
 ```text
 $ ./mvnw verify
@@ -17,10 +17,10 @@ $ ./mvnw verify
 
 ## Checklist
 
-- [ ] `CHANGELOG.md` atualizado (Keep a Changelog)
-- [ ] `README.md` atualizado se a mudança é visível ao usuário
-- [ ] Javadoc/docstrings em API pública nova
-- [ ] Status da FEAT atualizado em `docs/spec/features/` (se houver)
-- [ ] Feature flag registrada (se houver)
+- [ ] `CHANGELOG.md` updated (Keep a Changelog)
+- [ ] `README.md` updated if the change is user-visible
+- [ ] Javadoc/docstrings on new public API
+- [ ] FEAT status updated in `docs/spec/features/` (if any)
+- [ ] Feature flag registered (if any)
 
 Refs: FEAT-

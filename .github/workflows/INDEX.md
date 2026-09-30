@@ -1,7 +1,7 @@
-# workflows/ — CI do kit
+# workflows/ — kit CI
 
-| Workflow | Gatilho | O que faz |
+| Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | push + PR | `check.sh` (modo completo), `shellcheck`, `check_kit.py --links` |
-| `gitleaks.yml` | push + PR | varredura de segredos |
-| `release.yml` | tag `v*` | valida tag == `VERSION`, cria release com a seção do CHANGELOG |
+| `ci.yml` | push + PR | `check.sh` (full mode), `shellcheck`, `check_kit.py --links` |
+| `gitleaks.yml` | push + PR | secrets scan |
+| `release.yml` | tag `v*` | validates tag == `VERSION`, creates a release with the CHANGELOG section |

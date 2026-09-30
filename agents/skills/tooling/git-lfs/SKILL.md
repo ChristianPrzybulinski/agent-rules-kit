@@ -1,8 +1,8 @@
 ---
 name: git-lfs
 version: "1.0"
-description: Configura e audita Git LFS num repositório — .gitattributes por tipo/tamanho, migração de binários já commitados, verificação de quota e de arquivos que escaparam do LFS. Usar ao iniciar repo com assets, ao adicionar novo tipo binário, ou quando `git status` mostra binário grande.
-argument-hint: "[init | audit | migrate <padrão>]"
+description: Configures and audits Git LFS in a repository — .gitattributes by type/size, migrating already-committed binaries, quota verification and files that escaped LFS. Use when starting a repo with assets, adding a new binary type, or when `git status` shows a large binary.
+argument-hint: "[init | audit | migrate <pattern>]"
 triggers:
   - user
   - model
@@ -13,40 +13,40 @@ allowed-tools:
 
 # Git LFS
 
-Política em `agents/rules/git/git-lfs-and-binaries.md`. Template de `.gitattributes` em `platforms/kits/git-lfs/`.
+Policy in `agents/rules/git/git-lfs-and-binaries.md`. `.gitattributes` template in `platforms/kits/git-lfs/`.
 
-## init (repo novo ou sem LFS)
+## init (new repo or no LFS)
 
-1. `git lfs install --local` (não altera config global).
-2. Copiar `platforms/kits/git-lfs/.gitattributes` para a raiz; ajustar padrões ao projeto (Godot: manter `*.import` fora do LFS).
-3. Commitar `.gitattributes` **antes** de qualquer binário: `git add .gitattributes && git commit -m "chore: configura Git LFS"`.
-4. Verificar: `git lfs track` lista os padrões.
+1. `git lfs install --local` (does not change global config).
+2. Copy `platforms/kits/git-lfs/.gitattributes` to the root; adjust patterns to the project (Godot: keep `*.import` out of LFS).
+3. Commit `.gitattributes` **before** any binary: `git add .gitattributes && git commit -m "chore: configure Git LFS"`.
+4. Verify: `git lfs track` lists the patterns.
 
 ## audit
 
 ```bash
-git lfs ls-files -s | sort -k3 -h | tail        # maiores em LFS
-git lfs status                                   # pendentes
+git lfs ls-files -s | sort -k3 -h | tail        # largest in LFS
+git lfs status                                   # pending
 git ls-files -z | xargs -0 -I{} sh -c 'test $(stat -f%z "{}") -gt 1048576 && echo "{}"' \
-  | while read f; do git check-attr filter "$f" | grep -q lfs || echo "FORA DO LFS: $f"; done
+  | while read f; do git check-attr filter "$f" | grep -q lfs || echo "OUTSIDE LFS: $f"; done
 ```
-Arquivos >1 MB fora do LFS → listar com tamanho. Quota (GitHub Free/Pro: 10 GiB armazenamento + 10 GiB banda/mês; fonte em `agents/knowledge/git/lfs-quotas-github.md`): `git lfs ls-files -s` somado; >70% → alertar.
+Files >1 MB outside LFS → list with size. Quota (GitHub Free/Pro: 10 GiB storage + 10 GiB bandwidth/month; source in `agents/knowledge/git/lfs-quotas-github.md`): `git lfs ls-files -s` summed; >70% → warn.
 
-## migrate (binário já commitado sem LFS)
+## migrate (binary already committed without LFS)
 
-Reescreve histórico. **Perguntar antes** se o repo tem remote com outros clones.
+Rewrites history. **Ask first** if the repo has a remote with other clones.
 ```bash
-git lfs migrate info --everything --include="*.png,*.wav"     # prévia
-git lfs migrate import --everything --include="*.png,*.wav"   # executa
-git push --force-with-lease origin main                      # só com autorização explícita
+git lfs migrate info --everything --include="*.png,*.wav"     # preview
+git lfs migrate import --everything --include="*.png,*.wav"   # execute
+git push --force-with-lease origin main                      # only with explicit authorization
 ```
 
-## Veredicto
+## Verdict
 
 ```
-LFS: instalado | não instalado
-.gitattributes: OK | ausente | incompleto (faltam: ...)
-Fora do LFS (>1MB): <lista ou nenhum>
-Uso estimado: N MB (quota GitHub Free 10 GiB)
-Próximo passo: ...
+LFS: installed | not installed
+.gitattributes: OK | missing | incomplete (missing: ...)
+Outside LFS (>1MB): <list or none>
+Estimated usage: N MB (GitHub Free quota 10 GiB)
+Next step: ...
 ```

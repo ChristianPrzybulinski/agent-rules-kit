@@ -1,19 +1,19 @@
 ---
-description: "[Que fatos esta nota contém: versões, quotas, API, glossário de X]. Carregar ao [decidir/fixar/ler Y]."
+description: "[Which facts this note holds: versions, quotas, API, glossary of X]. Load when [deciding/pinning/reading Y]."
 trigger: model_decision
 verified: "YYYY-MM-DD"
 sources:
-  - "https://[fonte oficial 1]"
-  - "https://[fonte oficial 2]"
+  - "https://[official source 1]"
+  - "https://[official source 2]"
 ---
 
-# [Assunto] — fatos
+# [Subject] — facts
 
-| Fato | Valor | Fonte |
+| Fact | Value | Source |
 |---|---|---|
-| [ex.: versão LTS atual] | [valor] | [URL curta ou nº da lista acima] |
+| [e.g.: current LTS version] | [value] | [short URL or list number above] |
 
-- [FATO] [afirmação verificada na fonte, com data implícita em `verified`]
-- [HIPÓTESE] [o que não pôde ser confirmado e como confirmar]
+- [FACT] [claim verified at the source, with an implicit date in `verified`]
+- [HYPOTHESIS] [what could not be confirmed and how to confirm]
 
-<!-- Limite: 40 linhas. Sem "deve"/"nunca" (isso é rule). Sem opinião. Reconferir em `expires` se definido. -->
+<!-- Limit: 40 lines. No "must"/"never" (that is a rule). No opinion. Re-verify at `expires` if set. -->

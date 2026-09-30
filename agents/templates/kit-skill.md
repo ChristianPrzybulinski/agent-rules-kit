@@ -1,8 +1,8 @@
 ---
-name: [nome-da-pasta]
+name: [folder-name]
 version: "1.0"
-description: "[O que faz em 1 frase]. Usar quando [gatilho concreto]. Não usar para [caso vizinho que confunde]."
-argument-hint: "[argumento esperado | vazio]"
+description: "[What it does in 1 sentence]. Use when [concrete trigger]. Do not use for [neighbor case that confuses]."
+argument-hint: "[expected argument | empty]"
 triggers:
   - user
   - model
@@ -13,23 +13,23 @@ allowed-tools:
   - exec
 ---
 
-# [Nome]
+# [Name]
 
-[Uma frase: o resultado que esta skill produz e o que ela NÃO faz.]
+[One sentence: the result this skill produces and what it does NOT do.]
 
-## 1. [Etapa — verbo no infinitivo]
+## 1. [Step — imperative verb]
 
-- [ação observável; comando quando houver]
+- [observable action; command when there is one]
 
-## 2. [Etapa]
+## 2. [Step]
 
-## 3. Fechar
+## 3. Close
 
-- [artefato produzido: caminho/template]
-- [verificação: comando + saída esperada]
+- [artifact produced: path/template]
+- [verification: command + expected output]
 
-## Regras
+## Rules
 
-- [limite de atuação: o que a skill nunca faz]
+- [acting boundary: what the skill never does]
 
-<!-- Limite: 80 linhas. Regras de domínio ficam em rules/ e são referenciadas, não copiadas. -->
+<!-- Limit: 80 lines. Domain rules live in rules/ and are referenced, not copied. -->

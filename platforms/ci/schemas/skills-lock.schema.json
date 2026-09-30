@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/platforms/ci/schemas/skills-lock.schema.json",
-  "title": "Linha de platforms/kits/third-party/skills.lock (convertida para objeto pelo validador)",
+  "title": "Line of platforms/kits/third-party/skills.lock (converted to an object by the validator)",
   "type": "object",
   "required": ["name", "repo", "path", "sha", "license", "verified"],
   "additionalProperties": false,

@@ -1,8 +1,8 @@
-# .github/ — CI e metadados do kit
+# .github/ — kit CI and metadata
 
-| Item | Escopo |
+| Item | Scope |
 |---|---|
-| `workflows/` | `ci.yml` (check + shellcheck + links), `gitleaks.yml` (segredos), `release.yml` (tag `v*` → release automática) |
-| `dependabot.yml` | atualização semanal de actions |
-| `PULL_REQUEST_TEMPLATE.md` | checklist de PR do kit |
+| `workflows/` | `ci.yml` (check + shellcheck + links), `gitleaks.yml` (secrets), `release.yml` (tag `v*` → automatic release) |
+| `dependabot.yml` | weekly actions updates |
+| `PULL_REQUEST_TEMPLATE.md` | kit PR checklist |
 | `CODEOWNERS` | `* @ChristianPrzybulinski` |

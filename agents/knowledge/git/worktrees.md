@@ -1,5 +1,5 @@
 ---
-description: "`git worktree` add/list/remove/prune: trabalho paralelo em 2 branches sem stash, armadilhas (.git é arquivo, hooks compartilhados). Carregar ao sugerir checkout paralelo."
+description: "`git worktree` add/list/remove/prune: parallel work on 2 branches without stash, pitfalls (.git is a file, shared hooks). Load when suggesting a parallel checkout."
 trigger: model_decision
 verified: "2026-09-30"
 sources:
@@ -9,29 +9,29 @@ sources:
 # Git worktrees
 
 
-`git worktree` permite múltiplos diretórios de trabalho ligados ao mesmo repositório, cada um num branch diferente.
+`git worktree` allows multiple working directories linked to the same repository, each on a different branch.
 
-## Comandos
+## Commands
 
 ```bash
-git worktree add ../projeto-fix feature/fix-x   # cria worktree (branch nova ou existente)
-git worktree list                               # lista worktrees e seus HEADs
-git worktree remove ../projeto-fix              # remove (exige árvore limpa; --force apaga)
-git worktree prune                              # limpa metadados de worktrees já apagados do disco
+git worktree add ../project-fix feature/fix-x   # create worktree (new or existing branch)
+git worktree list                               # list worktrees and their HEADs
+git worktree remove ../project-fix              # remove (requires a clean tree; --force deletes)
+git worktree prune                              # clean metadata of worktrees already deleted from disk
 ```
 
-## Quando usar
+## When to use
 
-- Trabalho paralelo em 2 branches sem `stash`: hotfix em `main` enquanto uma feature continua aberta em outro diretório.
-- Rodar testes/builds lentos de uma branch enquanto se edita outra.
-- Revisar o checkout exato de uma tag/commit (`--detach`) sem tocar a árvore principal.
+- Parallel work on 2 branches without `stash`: hotfix on `main` while a feature stays open in another directory.
+- Run a branch's slow tests/builds while editing another.
+- Review the exact checkout of a tag/commit (`--detach`) without touching the main tree.
 
-## Armadilhas
+## Pitfalls
 
-- A **mesma branch não pode estar checkada em dois worktrees** (impedido; use `--detach` ou outra branch).
-- No worktree, `.git` é um **arquivo** apontando para `.git/worktrees/<nome>` do repo principal — ferramentas que assumem diretório `.git` podem falhar.
-- Hooks ficam em `.git/hooks` do repo principal — **compartilhados** por todos os worktrees.
-- Dois diretórios abertos: IDEs podem indexar os dois (uso de memória/CPU dobra); commits e staging são isolados, mas o histórico é o mesmo.
-- Submódulos precisam de `git submodule update` por worktree.
+- **The same branch cannot be checked out in two worktrees** (blocked; use `--detach` or another branch).
+- In a worktree, `.git` is a **file** pointing to `.git/worktrees/<name>` of the main repo — tools that assume a `.git` directory may fail.
+- Hooks live in the main repo's `.git/hooks` — **shared** by all worktrees.
+- Two directories open: IDEs may index both (memory/CPU usage doubles); commits and staging are isolated, but the history is the same.
+- Submodules need `git submodule update` per worktree.
 
-Nota: ideia absorvida de obra/superpowers `using-git-worktrees` (MIT).
+Note: idea absorbed from obra/superpowers `using-git-worktrees` (MIT).

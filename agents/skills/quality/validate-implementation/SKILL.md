@@ -1,8 +1,8 @@
 ---
 name: validate-implementation
 version: "1.0"
-description: Valida se uma implementação está realmente pronta — confronta o que foi entregue com a spec/feature (FEAT-xxx) ou com o pedido, roda os gates do projeto, verifica docs e emite veredicto PRONTO / PARCIAL / NÃO PRONTO com evidências. Usar antes de abrir PR, ao fechar tarefa, ou quando alguém afirma "está feito".
-argument-hint: "[FEAT-xxx | caminho da spec | descrição do que deveria estar pronto]"
+description: Validates whether an implementation is truly done — confronts what was delivered with the spec/feature (FEAT-xxx) or the request, runs the project gates, checks docs and issues a READY / PARTIAL / NOT READY verdict with evidence. Use before opening a PR, when closing a task, or when someone claims "it's done".
+argument-hint: "[FEAT-xxx | spec path | description of what should be done]"
 triggers:
   - user
   - model
@@ -15,51 +15,51 @@ allowed-tools:
 
 # Validate Implementation
 
-"Feito" exige observação. Esta skill produz a observação. Não corrige nada: só mede e reporta. Correções voltam ao fluxo normal (ou `sdd/implement`).
+"Done" requires observation. This skill produces the observation. It fixes nothing: it only measures and reports. Fixes go back to the normal flow (or `sdd/implement`).
 
-## 1. Fixar o alvo
+## 1. Pin down the target
 
-- Argumento é `FEAT-xxx` → ler `docs/spec/features/FEAT-xxx.md`; critérios de aceite e requisitos ligados (`REQ-*`) são o alvo.
-- Argumento é caminho/descrição → extrair critérios verificáveis; se não houver nenhum, parar e pedir 1-3 critérios.
-- Listar cada critério como linha da tabela final **antes** de verificar.
+- Argument is `FEAT-xxx` → read `docs/spec/features/FEAT-xxx.md`; acceptance criteria and linked requirements (`REQ-*`) are the target.
+- Argument is a path/description → extract verifiable criteria; if there are none, stop and ask for 1-3 criteria.
+- List each criterion as a row of the final table **before** verifying.
 
-## 2. Verificar o que existe (não o que foi dito)
+## 2. Verify what exists (not what was said)
 
-- `git diff <base>...HEAD --stat` e `git log`: o que realmente mudou. Arquivos citados no relatório mas ausentes no diff → marcar.
-- Para cada critério: localizar o código que o implementa (`grep`), o teste que o prova, e a doc que o registra.
-- Critério sem teste → não conta como atendido.
+- `git diff <base>...HEAD --stat` and `git log`: what actually changed. Files cited in the report but absent from the diff → flag.
+- For each criterion: locate the code that implements it (`grep`), the test that proves it, and the doc that records it.
+- A criterion without a test → does not count as met.
 
-## 3. Rodar os gates do projeto
+## 3. Run the project gates
 
-Leia `AGENTS.md`/README do repo para os comandos canônicos. Padrão do kit:
+Read the repo's `AGENTS.md`/README for the canonical commands. Kit default:
 
-| Stack | Comando |
+| Stack | Command |
 |---|---|
-| Java/Maven | `./mvnw -q spotless:check verify` (inclui JaCoCo, PITest, Dependency-Check conforme POM) |
-| Godot | `godot --path . --headless --quit` + runner de testes do projeto |
-| Docs/spec | `platforms/tools/check.sh` do kit ou lint de spec do projeto |
+| Java/Maven | `./mvnw -q spotless:check verify` (includes JaCoCo, PITest, Dependency-Check per the POM) |
+| Godot | `godot --path . --headless --quit` + the project's test runner |
+| Docs/spec | the kit's `platforms/tools/check.sh` or the project's spec lint |
 
-Saída literal do que falhou vai no relatório. Não resuma "alguns testes falharam".
+Literal output of what failed goes in the report. Do not summarize as "some tests failed".
 
-## 4. Checklist de fechamento (de `agents/rules/documentation/living-docs.md`)
+## 4. Closing checklist (from `agents/rules/documentation/living-docs.md`)
 
-CHANGELOG `Unreleased` · README se comando mudou · Javadoc/docstring em API pública nova · status da `FEAT` atualizado · `DEC`/`DEBT` criados se houve decisão/dívida · feature flag registrada se incompleto.
+CHANGELOG `Unreleased` · README if a command changed · Javadoc/docstring on new public API · `FEAT` status updated · `DEC`/`DEBT` created if a decision/debt happened · feature flag recorded if incomplete.
 
-## 5. Veredicto
+## 5. Verdict
 
 ```
-Alvo: FEAT-xxx — <título>
-Veredicto: PRONTO | PARCIAL | NÃO PRONTO
-Gates: <comando> → OK | FALHOU (<trecho literal>)
-| Critério | Código | Teste | Doc | Status |
+Target: FEAT-xxx — <title>
+Verdict: READY | PARTIAL | NOT READY
+Gates: <command> → OK | FAILED (<literal excerpt>)
+| Criterion | Code | Test | Doc | Status |
 |---|---|---|---|---|
-| ... | path:linha | path | path | ✓ / ✗ / parcial |
-Não verificado: <o que não foi possível medir e por quê>
-Próximo passo: <a menor ação que muda o veredicto>
+| ... | path:line | path | path | ✓ / ✗ / partial |
+Unverified: <what could not be measured and why>
+Next step: <the smallest action that changes the verdict>
 ```
 
-## Regras
+## Rules
 
-- PRONTO só com todos os critérios ✓ e gates OK. Um ✗ → PARCIAL. Gate falhando → NÃO PRONTO.
-- Não aceite "testado manualmente" sem passo reproduzível.
-- Se a spec estiver ambígua a ponto de impedir julgar um critério → reportar como lacuna da spec (não do código) e sugerir `sdd/clarify`.
+- READY only with all criteria ✓ and gates OK. One ✗ → PARTIAL. A failing gate → NOT READY.
+- Do not accept "tested manually" without a reproducible step.
+- If the spec is ambiguous enough to prevent judging a criterion → report it as a spec gap (not a code gap) and suggest `sdd/clarify`.

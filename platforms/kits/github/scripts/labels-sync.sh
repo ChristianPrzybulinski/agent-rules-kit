@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Aplica os labels de labels.json no repo atual (ou no repo passado como $1).
-# Idempotente: gh label create --force atualiza labels existentes.
+# Applies the labels.json labels to the current repo (or the repo passed as $1).
+# Idempotent: gh label create --force updates existing labels.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LABELS="${LABELS_JSON:-$HERE/labels.json}"
 REPO="${1:-}"
 
-command -v gh >/dev/null || { echo "gh nao encontrado" >&2; exit 1; }
-command -v python3 >/dev/null || { echo "python3 nao encontrado" >&2; exit 1; }
+command -v gh >/dev/null || { echo "gh not found" >&2; exit 1; }
+command -v python3 >/dev/null || { echo "python3 not found" >&2; exit 1; }
 
 args=()
 [[ -n "$REPO" ]] && args=(-R "$REPO")
@@ -20,4 +20,4 @@ for l in json.load(open(sys.argv[1])):
 PY
   gh label create "$name" --color "$color" --description "$desc" --force "${args[@]}"
 done
-echo "labels sincronizados"
+echo "labels synced"

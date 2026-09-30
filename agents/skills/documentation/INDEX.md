@@ -1,6 +1,6 @@
-# skills/documentation/ — documentação do projeto
+# skills/documentation/ — project documentation
 
-| Skill | Escopo | Quando usar |
+| Skill | Scope | When to use |
 |---|---|---|
-| `update-docs` | README, CHANGELOG, ADR, semver | fechar mudança visível ou release |
-| `session-handoff` | passagem entre sessões com evidência e pendências | fim de sessão longa, troca de agente |
+| `update-docs` | README, CHANGELOG, ADR, semver | close a visible change or a release |
+| `session-handoff` | handoff between sessions with evidence and pending items | end of a long session, agent switch |

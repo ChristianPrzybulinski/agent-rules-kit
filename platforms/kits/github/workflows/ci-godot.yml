@@ -14,14 +14,14 @@ jobs:
     container: barichello/godot-ci:4.7.2
     steps:
       - uses: actions/checkout@v4
-      - name: Import do projeto (gera .godot/, valida recursos)
+      - name: Project import (generates .godot/, validates resources)
         run: godot --headless --path . --quit
-      - name: Testes GUT (se addons/gut existir)
+      - name: GUT tests (if addons/gut exists)
         run: |
           if [ -d addons/gut ]; then
             godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
           else
-            echo "addons/gut ausente; pulando testes"
+            echo "addons/gut missing; skipping tests"
           fi
 
   export:

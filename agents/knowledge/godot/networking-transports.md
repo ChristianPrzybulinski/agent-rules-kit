@@ -1,5 +1,5 @@
 ---
-description: "Transportes cliente↔servidor em Godot 4 com servidor não-Godot (StreamPeerTCP, WebSocketPeer, ENetConnection, PacketPeerUDP, HTTPRequest): confiabilidade, TLS, exigência no lado Java. Carregar ao decidir/decodificar transporte."
+description: "Client↔server transports in Godot 4 with a non-Godot server (StreamPeerTCP, WebSocketPeer, ENetConnection, PacketPeerUDP, HTTPRequest): reliability, TLS, Java-side requirement. Load when deciding/decoding a transport."
 trigger: model_decision
 verified: "2026-09-30"
 sources:
@@ -10,17 +10,17 @@ sources:
   - https://docs.godotengine.org/en/stable/classes/class_httprequest.html
 ---
 
-# Godot 4 — transportes (cliente Godot ↔ servidor não-Godot)
+# Godot 4 — transports (Godot client ↔ non-Godot server)
 
-Nota factual, não recomendação — a escolha é DEC do projeto. Todas as classes existem nos exports Windows/macOS (a permissão `INTERNET` só vale para Android).
+Factual note, not a recommendation — the choice is a project DEC. All classes exist in Windows/macOS exports (the `INTERNET` permission only applies to Android).
 
-| Opção | Confiável/ordenado | TLS | Lado Java |
+| Option | Reliable/ordered | TLS | Java side |
 |---|---|---|---|
-| `StreamPeerTCP` (TCP raw) | sim (TCP) | via `StreamPeerTLS.connect_to_stream` | ServerSocket/NIO; framing e serialização 100% do projeto |
-| `WebSocketPeer` (RFC 6455) | sim (TCP) | sim, `wss://` + `TLSOptions` | padrão: Jakarta WebSocket (Tyrus), Spring WebSocket |
-| `ENetConnection` (ENet/UDP, sem MultiplayerAPI) | por pacote: flags reliable/unreliable, ordem por canal | DTLS (`dtls_client_setup`) | exige lib/binding ENet p/ Java — ecossistema pequeno `[HIPÓTESE: confirmar na Fase 2]` |
-| `PacketPeerUDP` (UDP raw) | não | não; DTLS via `PacketPeerDTLS` | `DatagramSocket`; confiabilidade/ordem/retry do projeto |
-| `HTTPRequest`/`HTTPClient` | sim (TCP), request/response sem canal persistente | sim (HTTPS) | qualquer HTTP (Spring Boot) — auth, REST, assets |
+| `StreamPeerTCP` (raw TCP) | yes (TCP) | via `StreamPeerTLS.connect_to_stream` | ServerSocket/NIO; framing and serialization 100% the project's |
+| `WebSocketPeer` (RFC 6455) | yes (TCP) | yes, `wss://` + `TLSOptions` | standard: Jakarta WebSocket (Tyrus), Spring WebSocket |
+| `ENetConnection` (ENet/UDP, without MultiplayerAPI) | per packet: reliable/unreliable flags, per-channel ordering | DTLS (`dtls_client_setup`) | requires an ENet lib/binding for Java — small ecosystem `[HYPOTHESIS: confirm in Phase 2]` |
+| `PacketPeerUDP` (raw UDP) | no | no; DTLS via `PacketPeerDTLS` | `DatagramSocket`; reliability/ordering/retry are the project's |
+| `HTTPRequest`/`HTTPClient` | yes (TCP), request/response without a persistent channel | yes (HTTPS) | any HTTP (Spring Boot) — auth, REST, assets |
 
-ENet: compressão por host (range coder, FastLZ, zlib, zstd), eventos CONNECT/DISCONNECT/RECEIVE, canais — doc `class_enetconnection`.
-`WebSocketPeer`: heartbeat embutido (`heartbeat_interval`); `send_text`/frames binários.
+ENet: per-host compression (range coder, FastLZ, zlib, zstd), CONNECT/DISCONNECT/RECEIVE events, channels — doc `class_enetconnection`.
+`WebSocketPeer`: built-in heartbeat (`heartbeat_interval`); `send_text`/binary frames.

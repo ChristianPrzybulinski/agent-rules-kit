@@ -1,26 +1,26 @@
-# templates/ — esqueletos de artefatos
+# templates/ — artifact skeletons
 
-Escopo: forma, não conteúdo. Todo arquivo criado pelo agente ou pelo kit nasce de um template daqui. Prefixo diz onde o artefato vive.
+Scope: shape, not content. Every file created by the agent or the kit is born from a template here. The prefix says where the artifact lives.
 
-| Prefixo | Onde o artefato vive | Templates |
+| Prefix | Where the artifact lives | Templates |
 |---|---|---|
-| `spec-` | `docs/spec/` do **projeto** (validados por `platforms/ci/schemas/{spec,feature,requirement,decision,debt}.schema.json`) | `spec-index.md` (→ `docs/spec/spec.md`) · `spec-feature.md` · `spec-requirement-functional.md` · `spec-requirement-non-functional.md` · `spec-decision.md` · `spec-debt.md` |
-| `doc-` | `docs/` do projeto (sessions, incidents, reports, protocol) | `doc-session-handoff.md` · `doc-bug-report.md` · `doc-recovery-report.md` · `doc-load-test.md` · `doc-contract-message.md` · `doc-review-checklist.md` |
-| `project-` | raiz do projeto | `project-agents-java-spring.md` · `project-agents-godot-2d.md` (→ `AGENTS.md` do repo) |
-| `kit-` | este kit | `kit-rule.md` · `kit-knowledge.md` · `kit-skill.md` · `kit-index.md` · `kit-readme.md` |
+| `spec-` | the **project**'s `docs/spec/` (validated by `platforms/ci/schemas/{spec,feature,requirement,decision,debt}.schema.json`) | `spec-index.md` (→ `docs/spec/spec.md`) · `spec-feature.md` · `spec-requirement-functional.md` · `spec-requirement-non-functional.md` · `spec-decision.md` · `spec-debt.md` |
+| `doc-` | the project's `docs/` (sessions, incidents, reports, protocol) | `doc-session-handoff.md` · `doc-bug-report.md` · `doc-recovery-report.md` · `doc-load-test.md` · `doc-contract-message.md` · `doc-review-checklist.md` |
+| `project-` | the project root | `project-agents-java-spring.md` · `project-agents-godot-2d.md` (→ the repo's `AGENTS.md`) |
+| `kit-` | this kit | `kit-rule.md` · `kit-knowledge.md` · `kit-skill.md` · `kit-index.md` · `kit-readme.md` |
 
-## Quando usar qual
+## Which to use when
 
-| Vai criar… | Template | Depois |
+| Creating… | Template | Then |
 |---|---|---|
-| feature, requisito, decisão, dívida | `spec-*` | `platforms/tools/check.sh --spec docs/spec` |
-| fim de sessão | `doc-session-handoff.md` | skill `session-handoff` |
-| bug/incidente investigado | `doc-bug-report.md` | skill `investigate` |
-| lote de arte importado | `doc-recovery-report.md` | skill `asset-import` |
-| teste de carga | `doc-load-test.md` | REQ-NF correspondente |
-| mensagem do contrato | `doc-contract-message.md` | skill `protocol-contract` |
-| revisão de PR | `doc-review-checklist.md` | — |
-| novo repo Java / Godot | `project-agents-*.md` | `sdd-constitution` |
-| regra, nota, skill, índice do kit | `kit-*` | `platforms/tools/check.sh` |
+| feature, requirement, decision, debt | `spec-*` | `platforms/tools/check.sh --spec docs/spec` |
+| session end | `doc-session-handoff.md` | `session-handoff` skill |
+| investigated bug/incident | `doc-bug-report.md` | `investigate` skill |
+| imported art batch | `doc-recovery-report.md` | `asset-import` skill |
+| load test | `doc-load-test.md` | corresponding REQ-NF |
+| contract message | `doc-contract-message.md` | `protocol-contract` skill |
+| PR review | `doc-review-checklist.md` | — |
+| new Java / Godot repo | `project-agents-*.md` | `sdd-constitution` |
+| kit rule, note, skill, index | `kit-*` | `platforms/tools/check.sh` |
 
-Regra de nome: `^(spec|doc|project|kit)-[a-z0-9-]+\.md$` — validada pelo CI. Template novo entra nesta tabela no mesmo commit.
+Naming rule: `^(spec|doc|project|kit)-[a-z0-9-]+\.md$` — validated by CI. A new template enters this table in the same commit.

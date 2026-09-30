@@ -1,46 +1,46 @@
 ---
-description: Regras para uso do GitHub CLI (gh) e fluxos Git/GitHub. Carregar ao criar branches, commits, PRs ou releases.
+description: Rules for using the GitHub CLI (gh) and Git/GitHub workflows. Load when creating branches, commits, PRs or releases.
 trigger: model_decision
 ---
 
 # GitHub CLI
 
-## Comandos preferidos
+## Preferred commands
 
-- Use `gh` para criar/listar PRs, issues, releases e verificar status.
-- Use `git` localmente para commits, branches, stash e rebase.
+- Use `gh` to create/list PRs, issues, releases and check status.
+- Use `git` locally for commits, branches, stash and rebase.
 
-## Fluxo de trabalho
+## Workflow
 
-1. Sempre verifique `git status` e a branch atual antes de alterar.
-2. Crie branch por tarefa: `feature/descricao`, `fix/descricao`, `docs/descricao`.
-3. Commits atômicos com Conventional Commits.
-4. Abra PR via `gh pr create` com título e descrição claros.
-5. Antes de merge, rode verificações localmente (testes, lint, build).
+1. Always check `git status` and the current branch before changing anything.
+2. Create a branch per task: `feature/description`, `fix/description`, `docs/description`.
+3. Atomic commits with Conventional Commits.
+4. Open a PR via `gh pr create` with a clear title and description.
+5. Before merging, run checks locally (tests, lint, build).
 
 ## PRs
 
 ```bash
-gh pr create --title "feat: adiciona autenticação JWT" --body "## Sumário..."
+gh pr create --title "feat: add JWT authentication" --body "## Summary..."
 ```
 
-- Descrição deve conter: o que mudou, por quê, como testar.
-- Relacione issues com `Closes #123`.
-- Use `gh pr view`, `gh pr checks`, `gh pr merge` após aprovação.
+- Description must contain: what changed, why, how to test.
+- Link issues with `Closes #123`.
+- Use `gh pr view`, `gh pr checks`, `gh pr merge` after approval.
 
-## Releases e versionamento
+## Releases and versioning
 
-- Use versionamento semântico (SemVer).
-- Crie releases via `gh release create v1.2.3 --generate-notes`.
-- Mantenha `CHANGELOG.md` atualizado.
+- Use semantic versioning (SemVer).
+- Create releases via `gh release create v1.2.3 --generate-notes`.
+- Keep `CHANGELOG.md` up to date.
 
-## Segurança
+## Security
 
-- Nunca comite segredos, tokens ou `.env`.
-- Não force-push em branches compartilhadas sem confirmação explícita do usuário.
-- Não reescreva histórico público sem autorização.
+- Never commit secrets, tokens or `.env`.
+- Do not force-push shared branches without explicit user confirmation.
+- Do not rewrite public history without authorization.
 
-## Autenticação
+## Authentication
 
-- Use `gh auth login` e configuração via `GH_TOKEN` / `GITHUB_TOKEN` (nunca exponha no chat).
-- Se `gh` não estiver autenticado, peça ao usuário para rodar `gh auth login`.
+- Use `gh auth login` and configure via `GH_TOKEN` / `GITHUB_TOKEN` (never expose in chat).
+- If `gh` is not authenticated, ask the user to run `gh auth login`.

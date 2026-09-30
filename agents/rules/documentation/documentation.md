@@ -1,60 +1,60 @@
 ---
-description: Regras para documentação, changelog, versionamento e ADRs. Carregar ao editar README, CHANGELOG, ADR ou versionar.
+description: Rules for documentation, changelog, versioning and ADRs. Load when editing README, CHANGELOG, ADR or versioning.
 trigger: model_decision
 ---
 
-# Documentação
+# Documentation
 
-## Idioma
+## Language
 
-- Todo artefato escrito (README, CHANGELOG, spec, ADR/DEC, comentário, commit, nome de arquivo e pasta) é em **inglês**. Termos do domínio ganham o nome em inglês no glossário e é esse que vale no código.
-- A conversa com o usuário (respostas, perguntas, opções de decisão) é em pt-BR. Trecho que vai virar arquivo sai em inglês já na resposta.
+- Every written artifact (README, CHANGELOG, spec, ADR/DEC, comment, commit, file and folder name) is in **English**. Domain terms get their English name in the glossary and that is the one that holds in code.
+- The conversation with the user (answers, questions, decision options) is in pt-BR. A passage that will become a file comes out in English already in the response.
 
 ## README.md
 
-- Propósito do projeto.
-- Como rodar (pré-requisitos, instalação, comandos).
-- Como testar.
-- Estrutura de diretórios resumida.
-- Licença e contribuição (se aberto).
+- Project purpose.
+- How to run (prerequisites, installation, commands).
+- How to test.
+- Summarized directory structure.
+- License and contribution (if open).
 
 ## CHANGELOG.md
 
-- Siga [Keep a Changelog](https://keepachangelog.com/).
-- Seções: Added, Changed, Deprecated, Removed, Fixed, Security.
-- Versões em ordem decrescente. A versão mais recente no topo.
-- Cada entrada deve ser compreensível sem acessar o código.
+- Follow [Keep a Changelog](https://keepachangelog.com/).
+- Sections: Added, Changed, Deprecated, Removed, Fixed, Security.
+- Versions in descending order. The newest version at the top.
+- Each entry must be understandable without reading the code.
 
 ```markdown
 ## [1.2.3] - 2026-09-29
 ### Added
-- Suporte a autenticação OAuth2.
+- OAuth2 authentication support.
 
 ### Fixed
-- Corrige vazamento de conexão no pool Hikari.
+- Fixes Hikari pool connection leak.
 ```
 
-## Versionamento
+## Versioning
 
 - Use SemVer: MAJOR.MINOR.PATCH.
-- MAJOR: mudanças incompatíveis.
-- MINOR: funcionalidades compatíveis.
-- PATCH: correções.
-- Tags Git: `v1.2.3`.
+- MAJOR: incompatible changes.
+- MINOR: compatible features.
+- PATCH: fixes.
+- Git tags: `v1.2.3`.
 
 ## ADRs
 
-- Decisões arquiteturais importantes vão em `docs/adr/0001-titulo-da-decisao.md`.
-- Estrutura: contexto, decisão, consequências.
+- Important architectural decisions go in `docs/adr/0001-decision-title.md`.
+- Structure: context, decision, consequences.
 
 ## Commits
 
-- Conventional Commits: `type(scope): descrição`.
-- Tipos: feat, fix, docs, style, refactor, test, chore.
-- Corpo opcional para detalhes; footer para breaking changes e issue references.
+- Conventional Commits: `type(scope): description`.
+- Types: feat, fix, docs, style, refactor, test, chore.
+- Optional body for details; footer for breaking changes and issue references.
 
-## Comentários no código
+## Code comments
 
-- Evite comentários explicativos desnecessários.
-- Documente APIs públicas (JavaDoc, docstrings GDScript).
-- Explique o "porquê", não o "o quê".
+- Avoid unnecessary explanatory comments.
+- Document public APIs (JavaDoc, GDScript docstrings).
+- Explain the "why", not the "what".

@@ -1,37 +1,37 @@
 ---
-description: Higiene de sessão — planejar antes de executar, uma sessão = um resultado, detectar mistura de contexto e sessão longa, sugerir nível de modelo menor para tarefa simples, atualizar o kit no início. Carregar no início de toda sessão e quando o pedido muda de assunto.
+description: Session hygiene — plan before executing, one session = one outcome, detect context mixing and long sessions, suggest a smaller model tier for simple tasks, update the kit at the start. Load at the start of every session and when the request changes topic.
 trigger: model_decision
 ---
 
-# Sessões
+# Sessions
 
-Sessão curta e focada custa menos tokens e erra menos. Estas regras existem para o agente **propor** a disciplina, não para travar o usuário: ele decide.
+A short, focused session costs fewer tokens and errs less. These rules exist so the agent **proposes** the discipline, not to lock the user in: they decide.
 
-## Início
+## Start
 
-- Se `~/.ai-kit` existe: `~/.ai-kit/platforms/tools/refresh.sh --quiet` (sai em silêncio se nada mudou; layout novo → reinstala).
-- Ler `AGENTS.md` do repo; identificar **o** resultado desta sessão em uma frase. Não conseguiu? pergunte antes de qualquer leitura ampla.
+- If `~/.ai-kit` exists: `~/.ai-kit/platforms/tools/refresh.sh --quiet` (exits silently if nothing changed; new layout → reinstalls).
+- Read the repo's `AGENTS.md`; identify **the** outcome of this session in one sentence. Couldn't? Ask before any broad reading.
 
-## Planejar antes de executar
+## Plan before executing
 
-- Tarefa com 3+ arquivos, cruza camada, ou pedido ambíguo → se a sessão **não** está em modo de planejamento, sugerir a troca em uma linha ("isto pede plano; troca para modo plan?") antes de tocar em arquivo. Tarefa de 1-2 arquivos e mecânica → executar direto.
-- Plano aprovado → executar sem re-planejar a cada passo.
+- Task with 3+ files, crosses a layer, or ambiguous request → if the session is **not** in planning mode, suggest the switch in one line ("this calls for a plan; switch to plan mode?") before touching a file. 1-2 file mechanical task → execute directly.
+- Approved plan → execute without re-planning at every step.
 
-## Uma sessão, um resultado
+## One session, one outcome
 
-- Um resultado = uma FEAT, um bug, uma decisão, um documento. Pedido de outro contexto no meio → **alertar e parar**: "isto é outro assunto; registro como follow-up e continuamos o atual, ou encerramos e abrimos nova sessão?" Nunca misturar em silêncio.
-- Follow-ups vão para o registro de passagem (`session-handoff`), não para a memória do agente.
+- One outcome = one FEAT, one bug, one decision, one document. A request from another context mid-session → **warn and stop**: "this is another topic; do I log it as a follow-up and we continue the current one, or do we close and open a new session?" Never mix silently.
+- Follow-ups go to the handoff record (`session-handoff`), not to the agent's memory.
 
-## Sessão longa
+## Long session
 
-Sinais: releitura de arquivos já lidos, contexto resumido/comprimido, resultado original já entregue e novos pedidos chegando, mais de ~2h de trabalho. Ao notar um sinal → sugerir: `session-handoff` + nova sessão. Continuar só se o usuário disser.
+Signals: rereading files already read, summarized/compressed context, original outcome already delivered with new requests arriving, more than ~2h of work. On noticing a signal → suggest: `session-handoff` + new session. Continue only if the user says so.
 
-## Nível do agente
+## Agent tier
 
-- Tarefa simples (mecânica, 1-2 arquivos, sem decisão, sem investigação) → dizer em uma linha que um modelo/nível menor resolve, e seguir com o atual se o usuário não trocar.
-- Tarefa com decisão de arquitetura, investigação ou risco → não sugerir rebaixar.
+- Simple task (mechanical, 1-2 files, no decision, no investigation) → say in one line that a smaller model/tier handles it, and proceed with the current one if the user doesn't switch.
+- Task with architecture decision, investigation or risk → do not suggest downgrading.
 
-## Fim
+## End
 
-- `session-handoff` se a sessão produziu algo ou deixou pendência.
-- Working tree limpo ou listado como `[BLOQUEIO]`.
+- `session-handoff` if the session produced something or left something pending.
+- Working tree clean or listed as `[BLOCKER]`.

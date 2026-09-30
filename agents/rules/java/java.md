@@ -1,50 +1,50 @@
 ---
-description: Regras específicas para desenvolvimento Java moderno, Clean Code e Clean Architecture. Carregar em código `*.java`.
+description: Specific rules for modern Java development, Clean Code and Clean Architecture. Load for `*.java` code.
 trigger: model_decision
 ---
 
 # Java
 
-## Estilo e linguagem
+## Style and language
 
-- Use Java 17+ como baseline. Prefira `var` quando o tipo é óbvio.
-- Use `Optional` para valores que podem ser ausentes; evite retornar `null`.
-- Prefira `Stream` e `Collectors` para transformações; evite loops imperativos quando funcional é mais claro.
-- Use `record` para DTOs/imutáveis quando aplicável.
-- Use `sealed` classes/interfaces e pattern matching quando ajudar a modelar o domínio.
+- Use Java 17+ as baseline. Prefer `var` when the type is obvious.
+- Use `Optional` for values that may be absent; avoid returning `null`.
+- Prefer `Stream` and `Collectors` for transformations; avoid imperative loops when functional is clearer.
+- Use `record` for DTOs/immutables when applicable.
+- Use `sealed` classes/interfaces and pattern matching when they help model the domain.
 
-## Estrutura de pacotes (Clean Architecture)
+## Package structure (Clean Architecture)
 
 ```text
-com.exemplo.projeto
+com.example.project
 ├── domain          # Entities, value objects, domain services, exceptions
-├── application     # Use cases, ports (interfaces de entrada/saída)
-├── infrastructure  # Implementações de ports: DB, HTTP, mensageria
+├── application     # Use cases, ports (input/output interfaces)
+├── infrastructure  # Port implementations: DB, HTTP, messaging
 └── adapter         # Controllers, presenters, CLI, web
 ```
 
-- Pacotes não devem depender de frameworks externos no domínio/application.
+- Packages must not depend on external frameworks in domain/application.
 
 ## Frameworks
 
-- **Spring Boot**: use constructor injection, evite `@Autowired` em campos, prefira `@ConfigurationProperties` para config.
-- **Quarkus**: priorize injeção de construtor e `@ApplicationScoped`.
-- **Jakarta EE / JPA**: mantenha entidades de persistência na infraestrutura; entidades de domínio são separadas quando necessário.
+- **Spring Boot**: use constructor injection, avoid field `@Autowired`, prefer `@ConfigurationProperties` for config.
+- **Quarkus**: prioritize constructor injection and `@ApplicationScoped`.
+- **Jakarta EE / JPA**: keep persistence entities in infrastructure; domain entities are separate when needed.
 
-## Testes
+## Tests
 
 - Use JUnit 5 + AssertJ/Mockito.
-- Nomeie testes em português ou inglês, mas consistentemente: `deveCalcularTotalQuandoAdicionarItem` / `shouldCalculateTotalWhenAddingItem`.
-- Teste unidades de domínio sem Spring Context. Testes de integração com `@SpringBootTest` só quando necessário.
+- Name tests consistently: `shouldCalculateTotalWhenAddingItem`.
+- Test domain units without the Spring Context. Integration tests with `@SpringBootTest` only when needed.
 
-## Dependências
+## Dependencies
 
-- Não adicione bibliotecas sem justificativa. Verifique `pom.xml` / `build.gradle` existentes.
-- Prefira bibliotecas do ecossistema padrão (SLF4J, Jackson, etc.).
-- Valide a compatibilidade de versão com o Java do projeto.
+- Do not add libraries without justification. Check existing `pom.xml` / `build.gradle`.
+- Prefer libraries from the standard ecosystem (SLF4J, Jackson, etc.).
+- Validate version compatibility with the project's Java.
 
-## Logging e exceções
+## Logging and exceptions
 
-- Use SLF4J. Não logue dados sensíveis.
-- Crie exceções de domínio específicas. Não use `RuntimeException` genérica.
-- Evite capturar exceções silenciosamente.
+- Use SLF4J. Do not log sensitive data.
+- Create specific domain exceptions. Do not use generic `RuntimeException`.
+- Avoid silently catching exceptions.

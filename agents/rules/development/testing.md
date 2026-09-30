@@ -1,53 +1,53 @@
 ---
-description: Política de testes — cobertura 100% no domínio, mutation testing, integração com caminho feliz e triste, o que não testar. Carregar ao criar/alterar testes ou configurar gates de build.
+description: Testing policy — 100% domain coverage, mutation testing, integration with happy and sad paths, what not to test. Load when creating/changing tests or configuring build gates.
 trigger: model_decision
 ---
 
-# Testes
+# Tests
 
-## Gates (falham o build)
+## Gates (fail the build)
 
-| Escopo | Gate | Ferramenta |
+| Scope | Gate | Tool |
 |---|---|---|
-| Módulo `domain` (regras de negócio) | 100% linha e branch | JaCoCo `check` no módulo |
-| Módulo `domain` | mutation score ≥ 80% | PITest |
-| Demais módulos | sem gate numérico; **um** check executável por lógica não trivial | — |
+| `domain` module (business rules) | 100% line and branch | JaCoCo `check` on the module |
+| `domain` module | mutation score ≥ 80% | PITest |
+| Other modules | no numeric gate; **one** executable check per non-trivial logic | — |
 
-Cobertura de linha é necessária, não suficiente: 100% com asserts fracos passa. Por isso PITest no domínio.
+Line coverage is necessary, not sufficient: 100% with weak asserts passes. Hence PITest on the domain.
 
-## Fora do domínio: YAGNI vale para testes
+## Outside the domain: YAGNI applies to tests
 
-- Lógica não trivial (branch, loop, parser, mapeamento com regra, adapter com tradução) → **um** teste pequeno que falha se a lógica quebrar. Não uma suíte por método, não fixtures "para depois".
-- Trivial (getter, `record`, mapeamento 1:1, one-liner, wiring de framework) → não testa.
-- Integração de adapter: o par feliz+triste é o mínimo **e** o suficiente na maioria dos casos.
-- Quando em dúvida se é domínio: se envolve dinheiro, inventário, recompensa, batalha, autorização — é domínio; gate completo.
+- Non-trivial logic (branch, loop, parser, mapping with a rule, adapter with translation) → **one** small test that fails if the logic breaks. Not a suite per method, not "for later" fixtures.
+- Trivial (getter, `record`, 1:1 mapping, one-liner, framework wiring) → not tested.
+- Adapter integration: the happy+sad pair is the minimum **and** sufficient in most cases.
+- When in doubt whether it's domain: if it involves money, inventory, reward, battle, authorization — it's domain; full gate.
 
-## Esperar condição, nunca tempo
+## Wait for a condition, never for time
 
-- Proibido `Thread.sleep`/`await_timer`/`time.sleep` em teste para "dar tempo". Espere a condição observável (`Awaitility`, `CountDownLatch`, sinal do Godot, polling com timeout curto). Teste que precisa de `sleep` está testando timing, não comportamento — ou tem race real a investigar.
-- Timeout explícito e mensagem que diz **qual** condição não ocorreu.
+- `Thread.sleep`/`await_timer`/`time.sleep` forbidden in tests to "give it time". Wait for the observable condition (`Awaitility`, `CountDownLatch`, Godot signal, polling with a short timeout). A test that needs `sleep` is testing timing, not behavior — or has a real race to investigate.
+- Explicit timeout and a message that says **which** condition did not occur.
 
-## Pirâmide
+## Pyramid
 
-1. **Unitário** (domínio): sem Spring, sem I/O, sem mocks de entidade. Mock só de ports.
-2. **Integração** (adapters): banco real via Testcontainers; HTTP real via `WebTestClient`/`MockMvc`. Sempre em pares: **caminho feliz + caminho triste** (entrada inválida, recurso ausente, conflito, timeout).
-3. **Contrato** (fronteira cliente↔servidor): exemplos de mensagem versionados, validados nos dois lados.
-4. **E2E/smoke**: poucos, na fatia vertical.
+1. **Unit** (domain): no Spring, no I/O, no entity mocks. Mock ports only.
+2. **Integration** (adapters): real database via Testcontainers; real HTTP via `WebTestClient`/`MockMvc`. Always in pairs: **happy path + sad path** (invalid input, missing resource, conflict, timeout).
+3. **Contract** (client↔server boundary): versioned message examples, validated on both sides.
+4. **E2E/smoke**: few, on the vertical slice.
 
-## Condição → ação
+## Condition → action
 
-- Corrigir bug → teste que reproduz, falhando pela razão certa, **antes** da correção.
-- Nova regra de negócio → tabela de casos (válido / limite / inválido) em `@ParameterizedTest`.
-- Dinheiro, inventário, recompensa → teste de idempotência (mesma operação 2x = mesmo estado) e de concorrência (2 threads, 1 vence).
-- Teste falhando → corrija código ou teste; nunca `@Disabled` para ficar verde.
-- Teste lento (>1s unitário, >10s integração) → investigue; provável I/O onde não devia.
+- Fixing a bug → test that reproduces it, failing for the right reason, **before** the fix.
+- New business rule → case table (valid / boundary / invalid) in `@ParameterizedTest`.
+- Money, inventory, reward → idempotency test (same operation 2x = same state) and concurrency test (2 threads, 1 wins).
+- Failing test → fix code or test; never `@Disabled` to go green.
+- Slow test (>1s unit, >10s integration) → investigate; likely I/O where it shouldn't be.
 
-## Nomenclatura
+## Naming
 
-`deve_<resultado>_quando_<condicao>()` ou `should_<result>_when_<condition>()` — consistente por projeto. Estrutura Given/When/Then explícita no corpo (comentários ou blocos). Gherkin/Cucumber só se não-devs lerem as specs.
+`should_<result>_when_<condition>()` — consistent per project. Explicit Given/When/Then structure in the body (comments or blocks). Gherkin/Cucumber only if non-devs read the specs.
 
-## Não teste
+## Do not test
 
-- Getters/setters, `record`, construtores triviais.
-- Framework (Spring já testa Spring).
-- Implementação ("verifica que chamou X") em vez de comportamento.
+- Getters/setters, `record`, trivial constructors.
+- Framework (Spring already tests Spring).
+- Implementation ("verify that X was called") instead of behavior.

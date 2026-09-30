@@ -1,28 +1,28 @@
 ---
 id: REQ-F-000
-title: "[O sistema deve ... — 1 frase testável]"
+title: "[The system must ... — 1 testable sentence]"
 type: functional
 priority: must
 features: []
-source: "[produto | legado:<caminho> | DEC-nnn]"
+source: "[product | legacy:<path> | DEC-nnn]"
 created: "YYYY-MM-DD"
 ---
 
-# REQ-F-000 — [Título]
+# REQ-F-000 — [Title]
 
-## Enunciado
+## Statement
 
-O sistema deve [comportamento observável], quando [condição], para [ator].
+The system must [observable behavior], when [condition], for [actor].
 
-## Racional
+## Rationale
 
-[Por quê. Se vem do legado, cite o arquivo e marque `[FATO]` ou `[HIPÓTESE]`.]
+[Why. If it comes from legacy, cite the file and mark `[FACT]` or `[HYPOTHESIS]`.]
 
-## Verificação
+## Verification
 
-- Teste que prova: [tipo + descrição em 1 linha]
-- Exemplo concreto: entrada `[...]` → saída `[...]`
+- Proving test: [type + description in 1 line]
+- Concrete example: input `[...]` → output `[...]`
 
-## Features que o implementam
+## Features that implement it
 
 - `FEAT-000`

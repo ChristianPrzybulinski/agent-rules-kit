@@ -1,8 +1,8 @@
 ---
 name: investigate
 version: "1.0"
-description: Investiga bug, regressão, problema de desempenho ou incidente até a causa raiz nomeada, com reprodução antes de qualquer correção. Usar quando algo "não funciona", está lento, ou falhou em produção/CI. Não usar para implementar a correção (volta ao fluxo normal com teste que falha primeiro).
-argument-hint: "[descrição do sintoma | link do log/issue]"
+description: Investigates a bug, regression, performance problem or incident to a named root cause, with reproduction before any fix. Use when something "doesn't work", is slow, or failed in production/CI. Do not use to implement the fix (that returns to the normal flow with a failing test first).
+argument-hint: "[symptom description | log/issue link]"
 triggers:
   - user
   - model
@@ -15,36 +15,36 @@ allowed-tools:
 
 # Investigate
 
-Sintoma não é causa. Esta skill termina quando existe reprodução determinística e uma causa nomeada no código — ou quando fica claro o que falta para chegar lá.
+A symptom is not a cause. This skill ends when there is a deterministic reproduction and a named cause in the code — or when it is clear what is missing to get there.
 
-## 1. Fixar o sintoma
+## 1. Pin down the symptom
 
-- O que foi observado, onde (ambiente, versão/commit, plataforma), quando, com que frequência.
-- O que era esperado, e por quê (spec, teste, doc, ou só expectativa do usuário — dizer qual).
-- Relato de terceiro (issue, chat, memória) é `[HIPÓTESE]` até reproduzir.
+- What was observed, where (environment, version/commit, platform), when, how often.
+- What was expected, and why (spec, test, doc, or just the user's expectation — say which).
+- A third-party report (issue, chat, memory) is `[HYPOTHESIS]` until reproduced.
 
-## 2. Reproduzir
+## 2. Reproduce
 
-- Menor caminho que dispara o sintoma: teste automatizado > script > passos manuais numerados.
-- Não conseguiu reproduzir → não "corrigir por intuição". Registrar tentativas e o que falta (dado, ambiente, acesso).
-- Desempenho: medir antes (número + ferramenta + comando), não "parece lento".
+- The shortest path that triggers the symptom: automated test > script > numbered manual steps.
+- Couldn't reproduce → do not "fix by intuition". Record the attempts and what is missing (data, environment, access).
+- Performance: measure first (number + tool + command), not "seems slow".
 
-## 3. Estreitar
+## 3. Narrow down
 
-- Bissecção quando houver commit bom conhecido (`git bisect`).
-- Ler o caminho de código de fato executado (logs, breakpoints, `print` temporário), não o que "deveria" executar.
-- Listar hipóteses concorrentes e procurar primeiro a evidência que **refuta** cada uma.
-- Uma hipótese só vira causa quando explica todo o sintoma e a evidência mostra aquele trecho executando no cenário.
+- Bisect when a known-good commit exists (`git bisect`).
+- Read the code path actually executed (logs, breakpoints, temporary `print`), not the one that "should" run.
+- List competing hypotheses and look first for the evidence that **refutes** each.
+- A hypothesis becomes the cause only when it explains the whole symptom and the evidence shows that code executing in the scenario.
 
-## 4. Relatar
+## 4. Report
 
-Template: `agents/templates/doc-bug-report.md` (sintoma, reprodução, causa, evidência, impacto, correção proposta, teste que deve passar a existir). Destino: issue do projeto ou `docs/incidents/` conforme `AGENTS.md`.
+Template: `agents/templates/doc-bug-report.md` (symptom, reproduction, cause, evidence, impact, proposed fix, the test that must now exist). Destination: project issue or `docs/incidents/` per `AGENTS.md`.
 
-Incidente com dados/dinheiro/inventário afetados → seção de impacto com contagem verificada por consulta, não estimativa.
+Incident with data/money/inventory affected → impact section with a count verified by query, not an estimate.
 
-## Regras
+## Rules
 
-- Corrigir só depois de um teste que falha pela razão certa (`agents/rules/development/testing.md`).
-- Remover instrumentação temporária antes de commitar; se ficar, é log estruturado deliberado.
-- Causa "condição de corrida" ou "cache" exige demonstração (teste concorrente ou trace), não plausibilidade.
-- Não fechar com "não reproduzido" sem listar o que foi tentado.
+- Fix only after a test that fails for the right reason (`agents/rules/development/testing.md`).
+- Remove temporary instrumentation before committing; if it stays, it is deliberate structured logging.
+- A "race condition" or "cache" cause requires a demonstration (concurrent test or trace), not plausibility.
+- Do not close with "not reproduced" without listing what was tried.

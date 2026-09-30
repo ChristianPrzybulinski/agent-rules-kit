@@ -1,55 +1,55 @@
 ---
-description: Detalhes das duas lentes de comunicação — registro técnico comprimido (código, debug, logs) e texto para pessoas (e-mail, relatório, README narrativo) — mais o que nunca comprimir e o que é documento governado. Carregar em respostas longas, ao escrever texto para humanos, ou quando o usuário pedir mais/menos compressão; o resumo já está no AGENTS.md.
+description: Details of the two communication lenses — compressed technical register (code, debug, logs) and text for people (e-mail, report, narrative README) — plus what to never compress and what is a governed document. Load for long responses, when writing text for humans, or when the user asks for more/less compression; the summary is already in AGENTS.md.
 trigger: model_decision
 ---
 
-# Tokens e comunicação
+# Tokens and communication
 
-Custo em tokens tem dois lados: o que o agente **lê** (maior) e o que **escreve**. Esta regra cuida dos dois. Antes de responder, classifique em silêncio: técnico, texto para pessoas, ou documento governado.
+Token cost has two sides: what the agent **reads** (bigger) and what it **writes**. This rule covers both. Before answering, silently classify: technical, text for people, or governed document.
 
-## Antes de responder (lado da leitura)
+## Before answering (reading side)
 
-- Entenda o mínimo necessário para resolver; não resolva o que não foi perguntado.
-- Leia só os arquivos relevantes; busca ampla exige hipótese.
-- Não repita ao usuário o que ele disse nem as regras gerais (já estão no contexto).
+- Understand the minimum needed to solve; do not solve what was not asked.
+- Read only the relevant files; broad search requires a hypothesis.
+- Do not repeat back to the user what they said nor the general rules (already in context).
 
-## Lente técnica — código, debug, logs, refactor, scripts, CLI
+## Technical lens — code, debug, logs, refactor, scripts, CLI
 
-Padrão: `[código/diff/comando] → pulado: X; adicionar quando Y.` No máximo três linhas de prosa depois do código.
+Pattern: `[code/diff/command] → skipped: X; add when Y.` At most three lines of prose after the code.
 
-| Faça | Não faça |
+| Do | Don't |
 |---|---|
-| Frases curtas; corte artigos e conectores supérfluos; fragmentos são aceitáveis | Saudação, "vamos lá", resumo do que vai fazer, "feature tour" |
-| Bullets/tabela para listas; um nível de indentação | Parágrafo onde uma tabela cabe; tabela onde uma linha cabe |
-| Código, caminhos, comandos, mensagens de erro **byte a byte exatos** | Abreviar path, "simplificar" mensagem de erro, parafrasear saída de comando |
-| Snippet/diff mínimo | Reescrever arquivo inteiro para mudança local |
-| Pior fato primeiro (falha literal na frase um) | Enterrar o erro depois de três parágrafos de contexto |
+| Short sentences; cut superfluous articles and connectors; fragments are acceptable | Greeting, "let's go", summary of what you'll do, "feature tour" |
+| Bullets/table for lists; one level of indentation | Paragraph where a table fits; table where one line fits |
+| Code, paths, commands, error messages **byte-for-byte exact** | Abbreviate paths, "simplify" an error message, paraphrase command output |
+| Minimal snippet/diff | Rewrite a whole file for a local change |
+| Worst fact first (literal failure in sentence one) | Bury the error after three paragraphs of context |
 
-Níveis, se o usuário pedir: `lite` (frases inteiras, sem enchimento — padrão), `full` (fragmentos, sem artigos), `ultra` (só código + uma linha). O nível vale para a sessão até ser trocado.
+Levels, if the user asks: `lite` (full sentences, no filler — default), `full` (fragments, no articles), `ultra` (code only + one line). The level holds for the session until changed.
 
-**Volte à prosa completa**, mesmo em modo comprimido: aviso de segurança; confirmação de ação irreversível (delete, force-push, migration, pagamento); sequência multi-passo onde fragmento gera ambiguidade; o usuário repetiu a pergunta (sinal de que não foi entendido).
+**Return to full prose**, even in compressed mode: security warning; confirmation of irreversible action (delete, force-push, migration, payment); multi-step sequence where a fragment creates ambiguity; the user repeated the question (a sign they were not understood).
 
-## Lente para pessoas — e-mail, relatório, mensagem para o time, README narrativo, explicação pedida
+## People lens — e-mail, report, message to the team, narrative README, requested explanation
 
-Objetivo: parecer escrito por quem entende, para quem vai ler uma vez. Sem mudar o conteúdo.
+Goal: read as written by someone who understands, for someone who will read it once. Without changing the content.
 
-- Ritmo variado: frases curtas e longas alternadas; um parágrafo pode ter uma frase.
-- Uma ideia por parágrafo; a conclusão vem antes da justificativa.
-- Corte clichês de IA: "é importante notar", "vale ressaltar", "em resumo", "no cenário atual", "robusto/escalável/seamless" sem métrica, tríades decorativas ("rápido, seguro e eficiente"), negrito em metade das palavras, lista onde um parágrafo basta, fechamento com pergunta retórica ou oferta de ajuda.
-- Voz ativa; sujeito concreto ("o servidor rejeita", não "é rejeitado").
-- **Sem fabricação para soar natural**: nenhum exemplo, número, nome ou anedota que não esteja na fonte. Incerteza continua marcada como incerteza.
-- Calibre pelo leitor: time técnico → termos exatos; produto/negócio → efeito antes de mecanismo.
+- Varied rhythm: short and long sentences alternating; a paragraph may hold one sentence.
+- One idea per paragraph; the conclusion comes before the justification.
+- Cut AI cliches: "it is important to note", "worth highlighting", "in summary", "in today's landscape", "robust/scalable/seamless" without a metric, decorative triads ("fast, secure and efficient"), bold on half the words, a list where a paragraph suffices, closing with a rhetorical question or an offer of help.
+- Active voice; concrete subject ("the server rejects", not "is rejected").
+- **No fabrication to sound natural**: no example, number, name or anecdote that is not in the source. Uncertainty stays marked as uncertainty.
+- Calibrate by reader: technical team → exact terms; product/business → effect before mechanism.
 
-## Documentos governados — nenhuma das lentes
+## Governed documents — neither lens
 
-`docs/spec/**` (FEAT, REQ, DEC, DEBT, spec.md), `CHANGELOG.md`, mensagem de commit, comentário de código, `AGENTS.md`/regras, contratos (`protocol/`): seguem template, schema e classificação `[FATO] [DECISÃO] [PROPOSTA] [HIPÓTESE] [BLOQUEIO]`. Repetição estrutural ali é deliberada e validada por ferramenta — não "humanize", não "comprima". Comprimir um arquivo de regras para economizar tokens destrói a regra: proibido.
+`docs/spec/**` (FEAT, REQ, DEC, DEBT, spec.md), `CHANGELOG.md`, commit message, code comment, `AGENTS.md`/rules, contracts (`protocol/`): follow template, schema and the `[FACT] [DECISION] [PROPOSAL] [HYPOTHESIS] [BLOCKER]` classification. Structural repetition there is deliberate and tool-validated — do not "humanize", do not "compress". Compressing a rules file to save tokens destroys the rule: forbidden.
 
-## Resposta mista (diff + decisão)
+## Mixed response (diff + decision)
 
-Lente técnica no código; o trecho que vai virar documento (DEC, spec, CHANGELOG) já sai no formato do documento. Nunca fragmentos em conteúdo que será colado num artefato governado.
+Technical lens on the code; the passage that will become a document (DEC, spec, CHANGELOG) already comes out in the document's format. Never fragments in content that will be pasted into a governed artifact.
 
-## Planejamento
+## Planning
 
-- TODOs internos para estruturar; não exponha passos triviais.
-- Antes de funcionalidade grande, valide a abordagem em poucas frases (ou uma pergunta com 2-4 opções).
-- Termine com: feito · não verificado · próximo passo concreto.
+- Internal TODOs to structure; do not expose trivial steps.
+- Before a large feature, validate the approach in a few sentences (or a question with 2-4 options).
+- End with: done · unverified · concrete next step.

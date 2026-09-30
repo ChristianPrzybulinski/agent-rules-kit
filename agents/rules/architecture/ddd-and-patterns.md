@@ -1,45 +1,45 @@
 ---
-description: DDD tático e catálogo de design patterns com "quando usar / quando não". Carregar ao modelar domínio, escolher um padrão ou revisar arquitetura de um módulo.
+description: Tactical DDD and a design patterns catalog with "when to use / when not". Load when modeling a domain, choosing a pattern or reviewing a module's architecture.
 trigger: model_decision
 ---
 
-# DDD tático e padrões
+# Tactical DDD and patterns
 
-Padrão se justifica por um problema presente, não por popularidade. Cada uso não óbvio → 1 linha de "porquê" no código ou ADR.
+A pattern is justified by a present problem, not by popularity. Each non-obvious use → 1 line of "why" in the code or an ADR.
 
-## DDD — o que usar
+## DDD — what to use
 
-| Bloco | Use quando | Exemplo |
+| Block | Use when | Example |
 |---|---|---|
-| Value Object | conceito definido pelos atributos, imutável | `Money`, `Position`, `Hp` — `record` com validação no construtor |
-| Entity | identidade persiste ao longo do tempo | `Player`, `Creature` |
-| Aggregate | invariantes precisam ser garantidas juntas numa transação | `Inventory` (itens + capacidade), `BattleInstance` (turnos + participantes) |
-| Domain Event | algo aconteceu e outros módulos reagem | `BattleEnded`, `ItemAcquired` |
-| Repository | persistir/recuperar aggregate inteiro | `PlayerRepository` (port no `application`, impl JPA no `adapter`) |
-| Domain Service | regra que não pertence a uma entidade | `DamageCalculator` |
+| Value Object | concept defined by its attributes, immutable | `Money`, `Position`, `Hp` — `record` with constructor validation |
+| Entity | identity persists over time | `Player`, `Creature` |
+| Aggregate | invariants must be guaranteed together in one transaction | `Inventory` (items + capacity), `BattleInstance` (turns + participants) |
+| Domain Event | something happened and other modules react | `BattleEnded`, `ItemAcquired` |
+| Repository | persist/retrieve a whole aggregate | `PlayerRepository` (port in `application`, JPA impl in `adapter`) |
+| Domain Service | rule that doesn't belong to an entity | `DamageCalculator` |
 
-Não use: DDD estratégico formal (context maps, ubiquitous language por equipe) com 1 dev; Event Sourcing sem necessidade de reconstruir histórico; CQRS completo antes de haver leitura e escrita com perfis distintos medidos.
+Do not use: formal strategic DDD (context maps, per-team ubiquitous language) with 1 dev; Event Sourcing without a need to rebuild history; full CQRS before there are measured distinct read/write profiles.
 
-## Catálogo — quando sim / quando não
+## Catalog — when yes / when no
 
-| Padrão | Sim | Não |
+| Pattern | Yes | No |
 |---|---|---|
-| Ports & Adapters | sempre na fronteira domínio↔infra | — |
-| Command | ações do usuário validadas/enfileiradas/auditadas (`MoveCommand`, `AttackCommand`) | CRUD simples |
-| State Machine | estados com transições explícitas (turno de batalha, conexão, quest) | 2 estados booleanos |
-| Strategy | variações de algoritmo escolhidas em runtime (efeito de ataque, cálculo de dano por tipo) | 1 implementação |
-| Specification | regras de validação combináveis e nomeadas (`PodeEvoluir`, `PodeTrocar`) | `if` único |
-| Transactional Outbox | evento precisa sair **se e só se** a transação commitou (recompensa, troca) | evento informativo sem consequência |
-| Idempotency Key | operação pode ser reenviada (rede, retry) e não pode duplicar efeito | leitura |
-| Factory | criação com invariantes ou múltiplos passos | construtor basta |
-| Observer/Signals | desacoplar quem emite de quem reage (Godot: sinais; Java: Domain Events) | chamada direta é clara e local |
-| Object Pool | criação cara e frequente medida (projéteis, partículas) | otimização prematura |
-| Repository | acesso a aggregate | tabela de lookup estática |
+| Ports & Adapters | always at the domain↔infra boundary | — |
+| Command | user actions validated/queued/audited (`MoveCommand`, `AttackCommand`) | simple CRUD |
+| State Machine | states with explicit transitions (battle turn, connection, quest) | 2 boolean states |
+| Strategy | algorithm variations chosen at runtime (attack effect, per-type damage calculation) | 1 implementation |
+| Specification | combinable, named validation rules (`CanEvolve`, `CanTrade`) | a single `if` |
+| Transactional Outbox | event must go out **if and only if** the transaction committed (reward, trade) | informational event without consequence |
+| Idempotency Key | operation may be resent (network, retry) and must not duplicate its effect | read |
+| Factory | creation with invariants or multiple steps | a constructor suffices |
+| Observer/Signals | decouple who emits from who reacts (Godot: signals; Java: Domain Events) | direct call is clear and local |
+| Object Pool | measured frequent, expensive creation (projectiles, particles) | premature optimization |
+| Repository | aggregate access | static lookup table |
 
-## Anti-padrões a barrar em review
+## Anti-patterns to block in review
 
-- Singleton para estado de jogo mutável (Godot: autoload virando "god object"; Java: `static` mutável).
-- Active Record no domínio (entidade que salva a si mesma).
-- Anemic Domain: entidade só com getters/setters e regras no "service".
-- Utils/Helpers genéricos crescendo sem dono.
-- Herança para reuso de código (use composição).
+- Singleton for mutable game state (Godot: autoload becoming a "god object"; Java: mutable `static`).
+- Active Record in the domain (entity that saves itself).
+- Anemic Domain: entity with only getters/setters and rules in the "service".
+- Generic Utils/Helpers growing without an owner.
+- Inheritance for code reuse (use composition).

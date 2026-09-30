@@ -1,7 +1,7 @@
 ---
 name: godot-standards
 version: "1.0"
-description: Aplica padrões de projeto Godot 2D com GDScript, nodes, sinais e autoloads. Usar em `*.gd`, `*.tscn` ou `project.godot`.
+description: Applies Godot 2D project standards with GDScript, nodes, signals and autoloads. Use on `*.gd`, `*.tscn` or `project.godot`.
 triggers:
   - user
   - model
@@ -14,22 +14,22 @@ allowed-tools:
 
 # Godot 2D Expert
 
-## Ao trabalhar com Godot 2D
+## When working with Godot 2D
 
-1. Verifique `project.godot`, estrutura de cenas e scripts existentes.
-2. Use GDScript tipado (`: Type`) e estilo oficial (snake_case/PascalCase).
-3. Prefira sinais a chamadas diretas entre nós.
-4. Use `_physics_process(delta)` para movimento/física; `_process(delta)` para efeitos visuais.
-5. Organize em `autoload/`, `entities/`, `levels/`, `ui/`, `resources/`, `common/`.
-6. Cache referências em `_ready`. Evite `get_parent()` para lógica.
-7. Use `@export` para parâmetros ajustáveis e documente acima.
-8. Mantenha cenas pequenas e reutilizáveis; prefira composição.
-9. Teste lógica de jogo isolada quando possível.
-10. Não armazene referências a nós em save.
+1. Check `project.godot`, existing scene structure and scripts.
+2. Use typed GDScript (`: Type`) and the official style (snake_case/PascalCase).
+3. Prefer signals over direct calls between nodes.
+4. Use `_physics_process(delta)` for movement/physics; `_process(delta)` for visual effects.
+5. Organize into `autoload/`, `entities/`, `levels/`, `ui/`, `resources/`, `common/`.
+6. Cache references in `_ready`. Avoid `get_parent()` for logic.
+7. Use `@export` for tunable parameters and document above them.
+8. Keep scenes small and reusable; prefer composition.
+9. Test game logic in isolation when possible.
+10. Do not store node references in saves.
 
-## Verificações padrão
+## Standard checks
 
-- `preload` para recursos estáticos; `load` para dinâmicos.
-- Groups para identificar múltiplos nós sem acoplamento.
-- TileMap/TileSet para mapas 2D.
-- Autoloads para estado global e managers.
+- `preload` for static resources; `load` for dynamic ones.
+- Groups to identify multiple nodes without coupling.
+- TileMap/TileSet for 2D maps.
+- Autoloads for global state and managers.

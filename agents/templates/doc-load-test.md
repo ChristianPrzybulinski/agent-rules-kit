@@ -1,40 +1,40 @@
-# Teste de carga — [cenário] — YYYY-MM-DD
+# Load test — [scenario] — YYYY-MM-DD
 
-FEAT/REQ: `REQ-NF-xxx`  ·  Servidor: `[repo @ commit]`  ·  Ferramenta: `[clientes sintéticos: cmd/script @ commit]`
+FEAT/REQ: `REQ-NF-xxx`  ·  Server: `[repo @ commit]`  ·  Tool: `[synthetic clients: cmd/script @ commit]`
 
-## Hipótese
+## Hypothesis
 
-[HIPÓTESE] [ex.: 200 sessões simultâneas em 1 região mantêm p95 de resposta a `Move` < 100 ms]
+[HYPOTHESIS] [e.g.: 200 simultaneous sessions in 1 region keep p95 response to `Move` < 100 ms]
 
-## Ambiente
+## Environment
 
-| Item | Valor |
+| Item | Value |
 |---|---|
 | Hardware/VM | [CPU, RAM] |
-| JVM | [versão, `-Xmx`, GC] |
-| Banco | [versão, pool size] |
-| Rede | [local | LAN | latência injetada N ms] |
+| JVM | [version, `-Xmx`, GC] |
+| Database | [version, pool size] |
+| Network | [local | LAN | injected latency N ms] |
 
-## Cenário
+## Scenario
 
-- Perfil: [N clientes, rampa X/s, duração Y min, mix de mensagens %]
-- Semente/fixtures: [`...`] (reproduzível)
+- Profile: [N clients, ramp X/s, duration Y min, message mix %]
+- Seed/fixtures: [`...`] (reproducible)
 
-## Métricas
+## Metrics
 
-| Métrica | Alvo | Medido | Fonte |
+| Metric | Target | Measured | Source |
 |---|---|---|---|
 | p50/p95/p99 [msg] | | | [Micrometer/log] |
-| erros/s | 0 | | |
+| errors/s | 0 | | |
 | CPU / heap / GC pause | | | |
-| conexões DB / lock wait | | | |
-| fila de eventos (tamanho máx.) | | | |
+| DB connections / lock wait | | | |
+| event queue (max size) | | | |
 
-## Resultado
+## Result
 
-- Veredicto: [FATO] hipótese confirmada / refutada em [ponto de quebra]
-- Gargalo observado: [`arquivo/componente`] — evidência: [...]
+- Verdict: [FACT] hypothesis confirmed / refuted at [breaking point]
+- Observed bottleneck: [`file/component`] — evidence: [...]
 
-## Não verificado / limitações
+## Unverified / limitations
 
-- [ex.: rede real, clientes reais, mix de mensagens inventado]
+- [e.g.: real network, real clients, invented message mix]

@@ -1,5 +1,5 @@
 ---
-description: Versões Godot 4.x (4.7.2 instalada, imagem CI correspondente, TileMapLayer desde 4.3, política de releases). Carregar ao configurar projeto Godot ou CI.
+description: Godot 4.x versions (4.7.2 installed, matching CI image, TileMapLayer since 4.3, release policy). Load when configuring a Godot project or CI.
 trigger: model_decision
 verified: "2026-09-29"
 sources:
@@ -7,10 +7,10 @@ sources:
   - https://github.com/godotengine/godot/releases
 ---
 
-# Godot 4 — versões
+# Godot 4 — versions
 
-- Versão instalada nesta máquina: **4.7.2.stable** (`godot --version` → `4.7.2.stable.official.ed1daf0bf`).
-- Imagem CI correspondente: `barichello/godot-ci:4.7.2` (tag existe no Docker Hub).
-- Política de releases: Godot segue releases de feature (~4.x, alguns meses) + patch releases (4.x.y). Upgrades de minor podem quebrar compatibilidade de projetos — leia o changelog antes de migrar. Fonte: https://docs.godotengine.org/en/stable/about/release_policy.html
-- `TileMapLayer` (nó separado, substitui camadas dentro de `TileMap`): introduzido no Godot **4.3**. Em projetos novos usar `TileMapLayer`; `TileMap` existe por compatibilidade.
-- Downloads/releases: https://godotengine.org/download e https://github.com/godotengine/godot/releases.
+- Version installed on this machine: **4.7.2.stable** (`godot --version` → `4.7.2.stable.official.ed1daf0bf`).
+- Matching CI image: `barichello/godot-ci:4.7.2` (tag exists on Docker Hub).
+- Release policy: Godot follows feature releases (~4.x, every few months) + patch releases (4.x.y). Minor upgrades may break project compatibility — read the changelog before migrating. Source: https://docs.godotengine.org/en/stable/about/release_policy.html
+- `TileMapLayer` (separate node, replaces layers inside `TileMap`): introduced in Godot **4.3**. In new projects use `TileMapLayer`; `TileMap` exists for compatibility.
+- Downloads/releases: https://godotengine.org/download and https://github.com/godotengine/godot/releases.

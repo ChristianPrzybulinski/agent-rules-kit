@@ -1,17 +1,17 @@
-# Design — por que o kit é assim
+# Design — why the kit is like this
 
-Os invariantes e a divisão `agents/` · `platforms/` · `docs/` estão em [`../INDEX.md`](../INDEX.md). Aqui ficam os princípios por trás deles — o que motivou cada regra, não a regra em si.
+The invariants and the `agents/` · `platforms/` · `docs/` split are in [`../INDEX.md`](../INDEX.md). Here are the principles behind them — what motivated each rule, not the rule itself.
 
-## Princípios
+## Principles
 
-- **Always-on mínimo**: cada linha de `agents/AGENTS.md` só existe se removê-la mudaria um resultado amanhã. Detalhe vive sob demanda (regra/knowledge/skill), carregado pela `description`/`trigger`. Contexto custa tokens e atenção — os dois são finitos.
-- **Um lugar para cada coisa**: regra normativa, fato datado, procedimento e forma de artefato são coisas diferentes; misturá-las produz duplicação e drift. O teste rápido do `INDEX.md` decide onde um conteúdo novo mora.
-- **Evidência e ceticismo**: o kit inteiro assume que afirmação sem fonte é hipótese. Knowledge notes têm `verified` + `sources`; specs classificam `[FATO]`/`[PROPOSTA]`/`[HIPÓTESE]`. Isso vale para o próprio kit: versões citadas são as que foram conferidas na data marcada.
-- **Absorver, não empilhar**: ideias boas de outros repositórios (credits no `CHANGELOG.md`) entram como texto do kit, adaptadas — não como mais uma camada/persona a carregar. Skills de terceiros que não dá para absorver são vendorizadas com lock de commit.
-- **Tudo validável**: o que o kit promete é checado por `platforms/tools/check.sh` e pelo CI. Uma regra que não cabe no validador tende a apodrecer; por isso índice, frontmatter, links e limites de linhas são mecânicos.
+- **Minimal always-on**: each line of `agents/AGENTS.md` exists only if removing it would change an outcome tomorrow. Detail lives on demand (rule/knowledge/skill), loaded by `description`/`trigger`. Context costs tokens and attention — both are finite.
+- **One place for each thing**: a normative rule, a dated fact, a procedure and an artifact's shape are different things; mixing them produces duplication and drift. The `INDEX.md` quick test decides where new content lives.
+- **Evidence and skepticism**: the whole kit assumes a claim without a source is a hypothesis. Knowledge notes have `verified` + `sources`; specs classify `[FACT]`/`[PROPOSAL]`/`[HYPOTHESIS]`. This applies to the kit itself: cited versions are the ones verified on the marked date.
+- **Absorb, don't stack**: good ideas from other repositories (credits in `CHANGELOG.md`) enter as kit text, adapted — not as one more layer/persona to carry. Third-party skills that cannot be absorbed are vendored with a commit lock.
+- **Everything validatable**: what the kit promises is checked by `platforms/tools/check.sh` and CI. A rule that does not fit the validator tends to rot; hence index, frontmatter, links and line limits are mechanical.
 
-## O que ficou de fora, e por quê
+## What was left out, and why
 
-- `~/.claude/CLAUDE.md` e `~/.devin/global_rules.md` como destinos: duplicariam o AGENTS.md no contexto.
-- `npx skills add` nos agentes: instalação não pinada e fora do controle do lock — o kit vendoriza.
-- Frameworks de skills (spec-kit CLI, etc.): exigem runtime extra; o kit usa arquivos markdown que qualquer agente lê.
+- `~/.claude/CLAUDE.md` and `~/.devin/global_rules.md` as destinations: they would duplicate AGENTS.md in the context.
+- `npx skills add` on the agents: unpinned installation outside the lock's control — the kit vendors.
+- Skill frameworks (spec-kit CLI, etc.): require extra runtime; the kit uses markdown files any agent can read.

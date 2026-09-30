@@ -1,72 +1,72 @@
 # AGENTS.md — Java + Spring Boot
 
-Substitua os trechos entre [colchetes]. Regras globais do Kit-IA já se aplicam; aqui só o que o agente não consegue inferir.
+Replace the passages between [brackets]. The AI Kit's global rules already apply; here only what the agent cannot infer.
 
 ## Stack
 
-- Java [21] LTS, Spring Boot [3.x]. Build via wrapper: `./mvnw` (ou `./gradlew`). Nunca `mvn` global.
-- Testes: JUnit 5 + AssertJ + Mockito. Integração: Testcontainers. Formatação: Spotless (fonte da verdade — não duplique estilo aqui).
-- Banco: [PostgreSQL]; migrations Flyway em `src/main/resources/db/migration/V*.sql`.
+- Java [21] LTS, Spring Boot [3.x]. Build via wrapper: `./mvnw` (or `./gradlew`). Never global `mvn`.
+- Tests: JUnit 5 + AssertJ + Mockito. Integration: Testcontainers. Formatting: Spotless (source of truth — do not duplicate style here).
+- Database: [PostgreSQL]; Flyway migrations in `src/main/resources/db/migration/V*.sql`.
 
-## Estrutura
+## Structure
 
 ```text
-src/main/java/[com/exemplo/app]
-├── domain/         # entidades, value objects, exceções de domínio — sem Spring/JPA
+src/main/java/[com/example/app]
+├── domain/         # entities, value objects, domain exceptions — no Spring/JPA
 ├── application/    # use cases + ports (interfaces)
-├── adapter/        # in: controllers, DTOs, mappers | out: repositórios JPA, clients HTTP
-└── infrastructure/ # config Spring, beans, segurança
-src/test/java       # espelha main
+├── adapter/        # in: controllers, DTOs, mappers | out: JPA repositories, HTTP clients
+└── infrastructure/ # Spring config, beans, security
+src/test/java       # mirrors main
 ```
 
-## Comandos
+## Commands
 
 ```bash
-./mvnw spring-boot:run                    # subir local
+./mvnw spring-boot:run                    # run locally
 ./mvnw test                               # unit
-./mvnw -Dtest=NomeDoTeste test            # um teste
-./mvnw verify                             # unit + integração
-./mvnw spotless:apply                     # formatar
-./mvnw spotless:check verify              # gate antes de commit/PR
+./mvnw -Dtest=SomeTest test               # one test
+./mvnw verify                             # unit + integration
+./mvnw spotless:apply                     # format
+./mvnw spotless:check verify              # gate before commit/PR
 ```
 
-## Padrões (condição → ação)
+## Patterns (condition → action)
 
-- Criar bean → injeção por construtor; classe `final` com campos `private final`. Nunca `@Autowired` em campo.
-- Expor endpoint → DTO (`record`) de entrada/saída; entidade JPA nunca sai do adapter.
-- Valor pode faltar → `Optional` no retorno; nunca `null`. Parâmetro nunca é `Optional`.
-- Erro de negócio → exceção de domínio específica em `domain/`; `@ControllerAdvice` converte para RFC 7807 (`ProblemDetail`).
-- Consulta com filtros → `Specification` ou query method nomeado; evite JPQL em string quando houver alternativa tipada.
-- Config → `@ConfigurationProperties` + `record`; sem `@Value` espalhado.
-- Log → SLF4J com placeholders; nunca concatenar; nunca logar dado sensível.
-- Novo teste de domínio → sem `@SpringBootTest`; puro JUnit. `@SpringBootTest` só para integração real.
+- Create a bean → constructor injection; `final` class with `private final` fields. Never field `@Autowired`.
+- Expose an endpoint → `record` DTO in/out; a JPA entity never leaves the adapter.
+- Value may be absent → `Optional` in the return; never `null`. A parameter is never `Optional`.
+- Business error → specific domain exception in `domain/`; `@ControllerAdvice` converts to RFC 7807 (`ProblemDetail`).
+- Filtered query → `Specification` or named query method; avoid string JPQL when a typed alternative exists.
+- Config → `@ConfigurationProperties` + `record`; no scattered `@Value`.
+- Log → SLF4J with placeholders; never concatenate; never log sensitive data.
+- New domain test → no `@SpringBootTest`; pure JUnit. `@SpringBootTest` only for real integration.
 
-Exemplo — use case com port:
+Example — use case with a port:
 
 ```java
-public final class CriarPedido {
-    private final PedidoRepository repo;
-    public CriarPedido(PedidoRepository repo) { this.repo = repo; }
-    public Pedido executar(NovoPedido cmd) {
-        var pedido = Pedido.novo(cmd.clienteId(), cmd.itens());
-        return repo.salvar(pedido);
+public final class CreateOrder {
+    private final OrderRepository repo;
+    public CreateOrder(OrderRepository repo) { this.repo = repo; }
+    public Order execute(NewOrder cmd) {
+        var order = Order.create(cmd.customerId(), cmd.items());
+        return repo.save(order);
     }
 }
 ```
 
 ## Git & PR
 
-1. `git switch -c feat/<nome-curto>` a partir de `main`.
+1. `git switch -c feat/<short-name>` from `main`.
 2. Conventional Commits.
-3. Antes do push: `./mvnw spotless:check verify` verde.
-4. `gh pr create` com: resumo em 1 linha, o que testou, `Closes #N`.
+3. Before pushing: `./mvnw spotless:check verify` green.
+4. `gh pr create` with: 1-line summary, what you tested, `Closes #N`.
 
-## Limites
+## Boundaries
 
-- Sempre: migration nova para mudança de schema; teste para bug corrigido; ler `application.yml` antes de assumir config.
-- Perguntar antes: mudar `pom.xml`/`build.gradle`; editar migration já aplicada; alterar auto-config do Spring; mudar contrato de API pública.
-- Nunca: `@Disabled` para ficar verde; `.env` ou credencial no repo; `ddl-auto=update` em produção.
+- Always: a new migration for a schema change; a test for a fixed bug; read `application.yml` before assuming config.
+- Ask first: change `pom.xml`/`build.gradle`; edit an already-applied migration; change Spring auto-config; change a public API contract.
+- Never: `@Disabled` to go green; `.env` or credentials in the repo; `ddl-auto=update` in production.
 
-## Mais
+## More
 
-- Fronteiras de camada: `docs/architecture.md`. Decisões: `docs/adr/`.
+- Layer boundaries: `docs/architecture.md`. Decisions: `docs/adr/`.

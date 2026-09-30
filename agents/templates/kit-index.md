@@ -1,9 +1,9 @@
-# [pasta]/ — [o que é, em meia linha]
+# [folder]/ — [what it is, in half a line]
 
-Escopo: [o que entra aqui e o que NÃO entra — aponte a pasta certa para o que não entra].
+Scope: [what goes here and what does NOT — point to the right folder for what does not].
 
-| Arquivo/Pasta | Escopo | Quando usar |
+| File/Folder | Scope | When to use |
 |---|---|---|
-| [`nome`](nome) | [1 frase] | [gatilho] |
+| [`name`](name) | [1 sentence] | [trigger] |
 
-<!-- INDEX quando só é preciso listar e dizer quando usar. Precisa explicar conceito ou passo a passo? use kit-readme.md. Nunca os dois na mesma pasta. -->
+<!-- INDEX when all that's needed is listing and saying when to use. Need to explain a concept or a step-by-step? use kit-readme.md. Never both in the same folder. -->

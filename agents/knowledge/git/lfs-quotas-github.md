@@ -1,5 +1,5 @@
 ---
-description: Quotas atuais do Git LFS por plano GitHub (Free/Pro 10 GiB, Team 250 GiB). Carregar ao configurar LFS ou avaliar custo de binários.
+description: Current Git LFS quotas per GitHub plan (Free/Pro 10 GiB, Team 250 GiB). Load when configuring LFS or evaluating binary costs.
 trigger: model_decision
 verified: "2026-09-29"
 sources:
@@ -9,13 +9,13 @@ sources:
 # GitHub Git LFS — quotas
 
 
-| Plano | Storage | Bandwidth/mês |
+| Plan | Storage | Bandwidth/month |
 |---|---|---|
 | GitHub Free / Pro / Free for orgs | 10 GiB | 10 GiB |
 | Team / Enterprise Cloud | 250 GiB | 250 GiB |
 
-- Storage é medido por uso por hora; bandwidth reseta todo ciclo de cobrança.
-- Sem método de pagamento ou budget $0: estourar quota **bloqueia** LFS até o próximo ciclo (não cobra nada).
-- Budget aberto: cobrança metered por GiB (bandwidth) e por GiB-mês (storage), sem data packs desde 2024/2025.
-- Monitorar: `git lfs ls-files -s` no repo; uso da conta em Settings → Billing.
-- Alternativa para acervo grande: manter binários fora do GitHub (ver `rules/git/git-lfs-and-binaries.md`).
+- Storage is metered by hourly usage; bandwidth resets every billing cycle.
+- No payment method or $0 budget: exceeding quota **blocks** LFS until the next cycle (charges nothing).
+- Open budget: metered billing per GiB (bandwidth) and per GiB-month (storage), no data packs since 2024/2025.
+- Monitor: `git lfs ls-files -s` in the repo; account usage in Settings → Billing.
+- Alternative for a large archive: keep binaries off GitHub (see `rules/git/git-lfs-and-binaries.md`).

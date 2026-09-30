@@ -1,7 +1,7 @@
 ---
 name: sdd-tasks
 version: "1.0"
-description: Etapa 6 do SDD — quebra o plano de uma FEAT em tarefas pequenas, ordenadas por dependência, cada uma com critério de conclusão verificável e teste associado. Usar após plan; saída é a seção Tarefas na FEAT.
+description: SDD step 6 — breaks a FEAT's plan into small tasks ordered by dependency, each with a verifiable completion criterion and an associated test. Use after plan; the output is the Tasks section in the FEAT.
 argument-hint: "FEAT-nnn"
 triggers:
   - user
@@ -12,29 +12,29 @@ allowed-tools:
 
 # SDD 6 — Tasks
 
-Pré-requisito: `status: planejada`.
+Prerequisite: `status: planejada`.
 
-## Regras de quebra
+## Splitting rules
 
-- Tarefa é **pequena**: ≈ 5-30 min de execução, ≤ 5 arquivos, um único comando/teste que prova a conclusão. Se a descrição precisa de "e também", são duas tarefas. Cada tarefa nomeia os caminhos exatos (não "os arquivos do módulo").
-- Ordem: contrato/tipos → domínio + testes unitários → persistência + migração → adapters + integração → cliente → flag/docs. Testes andam **com** a tarefa, não em tarefa separada no fim.
-- Cada tarefa: `T-nn` · título imperativo · arquivos previstos · critério de conclusão (comando ou teste que prova) · critérios de aceite cobertos (`CA-n`) · dependências (`T-mm`).
-- Tarefas independentes marcadas `[P]` (paralelizáveis).
-- Primeira tarefa de toda FEAT com regra de negócio: "escrever testes de domínio que falham" (Red).
+- A task is **small**: ≈ 5-30 min of execution, ≤ 5 files, a single command/test that proves completion. If the description needs "and also", they are two tasks. Each task names the exact paths (not "the module's files").
+- Order: contract/types → domain + unit tests → persistence + migration → adapters + integration → client → flag/docs. Tests travel **with** the task, not as a separate task at the end.
+- Each task: `T-nn` · imperative title · planned files · completion criterion (command or test that proves it) · acceptance criteria covered (`CA-n`) · dependencies (`T-mm`).
+- Independent tasks marked `[P]` (parallelizable).
+- First task of every FEAT with a business rule: "write failing domain tests" (Red).
 
-## Formato (seção **Tarefas** da FEAT)
+## Format (the FEAT's **Tasks** section)
 
 ```markdown
-| ID | Tarefa | Arquivos | Prova de conclusão | Cobre | Depende | Estado |
+| ID | Task | Files | Proof of completion | Covers | Depends on | State |
 |---|---|---|---|---|---|---|
-| T-01 | Definir mensagens MoveRequest/MoveResult no contrato | protocol/... | exemplo valida no schema | CA-1, CA-2 | — | todo |
-| T-02 [P] | Testes de domínio de movimento (falhando) | server/domain/src/test/... | `./mvnw -pl domain test` vermelho pelo motivo certo | CA-1..3 | T-01 | todo |
+| T-01 | Define MoveRequest/MoveResult messages in the contract | protocol/... | example validates against the schema | CA-1, CA-2 | — | todo |
+| T-02 [P] | Movement domain tests (failing) | server/domain/src/test/... | `./mvnw -pl domain test` red for the right reason | CA-1..3 | T-01 | todo |
 ```
 
-Estados: `todo · doing · done · blocked`.
+States: `todo · doing · done · blocked`.
 
-## Critérios de conclusão
+## Completion criteria
 
-- Todo critério de aceite aparece em ≥1 tarefa; toda tarefa cobre ≥1 critério (ou é infra explícita).
-- Nenhuma tarefa "implementar o resto".
-- `sdd-analyze` A8 passa.
+- Every acceptance criterion appears in ≥1 task; every task covers ≥1 criterion (or is explicit infra).
+- No "implement the rest" task.
+- `sdd-analyze` A8 passes.

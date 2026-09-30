@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instala AGENTS.md como global rules do Windsurf.
+# Installs AGENTS.md as the Windsurf global rules.
 set -euo pipefail
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 mkdir -p "$HOME/.codeium/windsurf/memories"

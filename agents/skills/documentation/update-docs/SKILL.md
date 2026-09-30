@@ -1,7 +1,7 @@
 ---
 name: update-docs
 version: "1.0"
-description: Atualiza README, CHANGELOG, ADRs e versionamento semântico. Usar ao fechar mudança visível ou preparar release.
+description: Updates README, CHANGELOG, ADRs and semantic versioning. Use when closing a visible change or preparing a release.
 triggers:
   - user
   - model
@@ -13,32 +13,32 @@ allowed-tools:
 
 # Documentation Expert
 
-## Sempre
+## Always
 
-1. Mantenha `README.md` sincronizado com o estado do projeto.
-2. Atualize `CHANGELOG.md` (Keep a Changelog) a cada mudança relevante.
-3. Registre decisões arquiteturais em `docs/adr/XXXX-titulo.md`.
-4. Use Conventional Commits e SemVer.
+1. Keep `README.md` in sync with the project state.
+2. Update `CHANGELOG.md` (Keep a Changelog) on every relevant change.
+3. Record architectural decisions in `docs/adr/XXXX-title.md`.
+4. Use Conventional Commits and SemVer.
 
 ## CHANGELOG
 
-- Formato: `## [X.Y.Z] - YYYY-MM-DD`
-- Seções: Added, Changed, Deprecated, Removed, Fixed, Security.
-- Cada entrada descreve o impacto para o usuário, não o código.
+- Format: `## [X.Y.Z] - YYYY-MM-DD`
+- Sections: Added, Changed, Deprecated, Removed, Fixed, Security.
+- Each entry describes the impact for the user, not the code.
 
 ## README
 
-- Propósito, instalação, uso, testes, estrutura, licença/contribuição.
+- Purpose, installation, usage, tests, structure, license/contribution.
 
 ## ADR
 
-1. Contexto
-2. Decisão
-3. Consequências
+1. Context
+2. Decision
+3. Consequences
 
-## Versionamento
+## Versioning
 
 - MAJOR: breaking changes.
-- MINOR: funcionalidades compatíveis.
-- PATCH: correções.
-- Tags Git: `vX.Y.Z`.
+- MINOR: compatible features.
+- PATCH: fixes.
+- Git tags: `vX.Y.Z`.

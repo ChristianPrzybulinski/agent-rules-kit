@@ -1,34 +1,34 @@
 ---
 id: REQ-NF-000
-title: "[Atributo de qualidade em 1 frase mensurável]"
+title: "[Quality attribute in 1 measurable sentence]"
 type: non-functional
 category: performance
 priority: should
-metric: "[o que medir, unidade]"
-target: "[valor ou HIPÓTESE]"
-measurement: "[como/onde medir]"
+metric: "[what to measure, unit]"
+target: "[value or HYPOTHESIS]"
+measurement: "[how/where to measure]"
 features: []
 created: "YYYY-MM-DD"
 ---
 
-# REQ-NF-000 — [Título]
+# REQ-NF-000 — [Title]
 
-## Enunciado
+## Statement
 
-[Ex.: O servidor deve processar uma ação de batalha em ≤ 100 ms (p95) com 50 batalhas simultâneas.]
+[E.g.: The server must process a battle action in ≤ 100 ms (p95) with 50 simultaneous battles.]
 
-## Métrica e alvo
+## Metric and target
 
-| Métrica | Alvo | Estado do alvo | Como medir |
+| Metric | Target | Target state | How to measure |
 |---|---|---|---|
-| [p95 latência ação] | [100 ms] | `[HIPÓTESE]` até teste de carga | [ferramenta, cenário, ambiente] |
+| [p95 action latency] | [100 ms] | `[HYPOTHESIS]` until a load test | [tool, scenario, environment] |
 
-Alvo sem medição planejada não é requisito — é desejo. Marque `[HIPÓTESE]` e diga quando será medido.
+A target without a planned measurement is not a requirement — it is a wish. Mark `[HYPOTHESIS]` and say when it will be measured.
 
-## Racional
+## Rationale
 
-[Por quê esse valor. Fonte se houver.]
+[Why this value. Source if any.]
 
-## Features afetadas
+## Affected features
 
 - `FEAT-000`

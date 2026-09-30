@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Inicializa docs/spec/ num repo. Uso: init-spec.sh <repo-dir>
+# Initializes docs/spec/ in a repo. Usage: init-spec.sh <repo-dir>
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-REPO="${1:?uso: init-spec.sh <repo-dir>}"
+REPO="${1:?usage: init-spec.sh <repo-dir>}"
 
 mkdir -p "$REPO/docs/spec/features" \
          "$REPO/docs/spec/requirements/functional" \
@@ -17,11 +17,11 @@ done
 
 if [[ ! -f "$REPO/docs/spec/spec.md" ]]; then
   cp "$KIT_DIR/agents/templates/spec-index.md" "$REPO/docs/spec/spec.md"
-  echo "criado docs/spec/spec.md (edite o frontmatter)"
+  echo "created docs/spec/spec.md (edit the frontmatter)"
 else
-  echo "docs/spec/spec.md ja existe; nao sobrescrito"
+  echo "docs/spec/spec.md already exists; not overwritten"
 fi
 
 "$KIT_DIR/platforms/tools/sync-project.sh" "$REPO"
 
-echo "Proximo passo: /sdd-constitution no repo alvo"
+echo "Next step: /sdd-constitution in the target repo"
