@@ -2,6 +2,15 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [6.0.1] - 2026-09-30
+
+### Fixed
+- `gitleaks` workflows: `pull-requests: read` permission added and PR comments disabled (`GITLEAKS_ENABLE_COMMENTS: "false"`) — the action lists PR commits on `pull_request` events (Dependabot PRs included) and failed with 403 "Resource not accessible by integration". Applied to the kit's own `.github/workflows/gitleaks.yml` and to the `platforms/kits/github` template.
+- Vendor `VENDOR.md` stamps in English (`Do not edit — regenerate via platforms/install/third-party.sh.`); frontend-design license text corrected to `Apache-2.0 (LICENSE.txt in dir)`.
+
+### Changed
+- Actions bumped to the Node 24 runtime: `actions/checkout` v7, `actions/setup-python` v7, `gitleaks/gitleaks-action` v3 — supersedes Dependabot PRs #1–#3.
+
 ## [6.0.0] - 2026-09-30
 
 ### Changed

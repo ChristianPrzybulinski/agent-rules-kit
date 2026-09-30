@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     container: barichello/godot-ci:4.7.2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Project import (generates .godot/, validates resources)
         run: godot --headless --path . --quit
       - name: GUT tests (if addons/gut exists)
@@ -29,7 +29,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     container: barichello/godot-ci:4.7.2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Import
         run: godot --headless --path . --quit
       - name: Export Windows Desktop
