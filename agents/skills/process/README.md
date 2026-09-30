@@ -24,7 +24,7 @@ Repeat `implement → validate` until READY. `to-card` can run right after `spec
 | 5 | `sdd-plan` | clarified FEAT | *Plan* section in the FEAT (modules, contract, migration, flag, tests); `DEC-xxx` if a decision; status `planejada` | `plan` |
 | 6 | `sdd-tasks` | plan | ordered *Tasks* section, each with a verifiable criterion | `tasks` |
 | 7 | `sdd-implement` | tasks | code + tests + docs, one task at a time; status `em-implementação` | `implement` |
-| 8 | `core/validate-implementation` | FEAT | verdict READY/PARTIAL/NOT READY; status `validada` | `converge` |
+| 8 | `validate-implementation` | FEAT | verdict READY/PARTIAL/NOT READY; status `validada` | `converge` |
 | 9 | `sdd-to-card` | FEAT | GitHub issue (Projects) synced with status | — (addition) |
 
 ## Identifiers

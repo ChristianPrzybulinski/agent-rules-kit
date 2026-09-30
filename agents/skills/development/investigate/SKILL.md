@@ -44,7 +44,7 @@ Incident with data/money/inventory affected → impact section with a count veri
 
 ## Rules
 
-- Fix only after a test that fails for the right reason (`agents/rules/development/testing.md`).
+- Fix only after a test that fails for the right reason (`agents/skills/development/testing/SKILL.md`).
 - Remove temporary instrumentation before committing; if it stays, it is deliberate structured logging.
 - A "race condition" or "cache" cause requires a demonstration (concurrent test or trace), not plausibility.
 - Do not close with "not reproduced" without listing what was tried.

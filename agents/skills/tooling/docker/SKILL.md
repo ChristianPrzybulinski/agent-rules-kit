@@ -14,7 +14,7 @@ allowed-tools:
 
 # Docker / Compose
 
-Base: `platforms/kits/docker/compose.yml` (Postgres + Redis + optional pgAdmin). Rules: `agents/rules/development/twelve-factor.md`. Verified on this machine: Docker 29.x, Compose v5.x (`docker compose`, not `docker-compose`).
+Base: `platforms/kits/docker/compose.yml` (Postgres + Redis + optional pgAdmin). Rules: `agents/skills/development/twelve-factor/SKILL.md`. Verified on this machine: Docker 29.x, Compose v5.x (`docker compose`, not `docker-compose`).
 
 ## compose
 

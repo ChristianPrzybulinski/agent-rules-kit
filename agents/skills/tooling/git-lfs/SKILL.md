@@ -13,7 +13,7 @@ allowed-tools:
 
 # Git LFS
 
-Policy in `agents/rules/git/git-lfs-and-binaries.md`. `.gitattributes` template in `platforms/kits/git-lfs/`.
+Policy in `references/git-lfs-and-binaries.md`. `.gitattributes` template in `platforms/kits/git-lfs/`.
 
 ## init (new repo or no LFS)
 

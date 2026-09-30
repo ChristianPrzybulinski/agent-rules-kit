@@ -32,4 +32,4 @@ allowed-tools:
 
 - [acting boundary: what the skill never does]
 
-<!-- Limit: 80 lines. Domain rules live in rules/ and are referenced, not copied. -->
+<!-- Limit: 80 lines. Normative detail that does not fit goes to `references/` and is linked, not copied. -->

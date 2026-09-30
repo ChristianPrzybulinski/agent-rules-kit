@@ -12,4 +12,4 @@ Code: names carry the "what"; comments only for the "why". Small functions, ≤4
 
 Process: bug → failing test first. Same error 2x → root-cause hypothesis, not blind retries. Conventional Commits, SemVer, CHANGELOG (Keep a Changelog), ADR for trade-off decisions. `gh` for PR/release.
 
-Response: no preamble; result first; minimal snippet, not whole files. Worst fact first. Ambiguity → 1 question with 2-4 options. Close with: done / unverified / next step.
+Response: no preamble; result first; minimal snippet, not whole files. Worst fact first. Ambiguity → 1 question with 2-4 options. Close with: done / unverified / next step; propose a kit change only with evidence, ask first.

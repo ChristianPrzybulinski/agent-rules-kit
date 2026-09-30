@@ -18,4 +18,4 @@ sources:
 - No payment method or $0 budget: exceeding quota **blocks** LFS until the next cycle (charges nothing).
 - Open budget: metered billing per GiB (bandwidth) and per GiB-month (storage), no data packs since 2024/2025.
 - Monitor: `git lfs ls-files -s` in the repo; account usage in Settings → Billing.
-- Alternative for a large archive: keep binaries off GitHub (see `rules/git/git-lfs-and-binaries.md`).
+- Alternative for a large archive: keep binaries off GitHub (see `agents/skills/tooling/git-lfs/references/git-lfs-and-binaries.md`).

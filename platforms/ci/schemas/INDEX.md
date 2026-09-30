@@ -2,7 +2,6 @@
 
 | File | Validates |
 |---|---|
-| `rule.schema.json` | `agents/rules/**/*.md` |
 | `knowledge.schema.json` | `agents/knowledge/**/*.md` |
 | `skill.schema.json` | non-vendor `agents/skills/` |
 | `skills-lock.schema.json` | `platforms/kits/third-party/skills.lock` |

@@ -36,7 +36,7 @@ A **human** tool; the agent guides configuration and prepares batch scripts outs
 
 ## automate
 
-- Repetitive tasks (recolor a palette, crop, batch-resize, remove background color **per verified file**) → a script outside Krita, with an input/output/hash `manifest.json` (see `agents/rules/git/git-lfs-and-binaries.md`).
+- Repetitive tasks (recolor a palette, crop, batch-resize, remove background color **per verified file**) → a script outside Krita, with an input/output/hash `manifest.json` (see `agents/skills/tooling/git-lfs/references/git-lfs-and-binaries.md`).
 - Never remove "color X from all sprites" automatically — a decision per set verified in preview.
 
 ## Formats

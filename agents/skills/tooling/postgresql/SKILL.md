@@ -15,7 +15,7 @@ allowed-tools:
 
 # PostgreSQL
 
-Rules: `agents/rules/development/twelve-factor.md` (backing service), `agents/rules/security/secure-development.md` (parameterized SQL, personal data). Local compose in `platforms/kits/docker/`. Never run a destructive command (`DROP`, `TRUNCATE`, `DELETE` without `WHERE`) without explicit authorization.
+Rules: `agents/skills/development/twelve-factor/SKILL.md` (backing service), `agents/skills/quality/secure-development/SKILL.md` (parameterized SQL, personal data). Local compose in `platforms/kits/docker/`. Never run a destructive command (`DROP`, `TRUNCATE`, `DELETE` without `WHERE`) without explicit authorization.
 
 ## migration (Flyway)
 

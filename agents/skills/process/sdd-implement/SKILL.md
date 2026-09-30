@@ -26,11 +26,11 @@ Prerequisite: the *Tasks* section exists. Kit rules and the repo's `AGENTS.md` a
    2. Test first when there is behavior: write/run → must fail for the right reason. Didn't fail? The task was not understood — stop and review.
    3. Implement the minimum to go green. Refactor with green tests.
    4. Run the task's *proof of completion* literally; paste the summarized output into *History*.
-   5. **Two-stage review**, in this order and unmixed: (a) *conformance* — does the diff do exactly what the task/CA asks, nothing more, nothing less? (b) only if (a) passed: *quality* — simplicity (`agents/rules/development/simplicity.md`), names, tests, security. A finding in (a) goes back to step 3 before any polishing.
+   5. **Two-stage review**, in this order and unmixed: (a) *conformance* — does the diff do exactly what the task/CA asks, nothing more, nothing less? (b) only if (a) passed: *quality* — simplicity (`agents/skills/development/simplicity/SKILL.md`), names, tests, security. A finding in (a) goes back to step 3 before any polishing.
    6. Atomic commit: `feat(scope): <task>` + `Refs: FEAT-nnn`.
    7. Mark `done`.
 3. Blocker (missing dependency, product decision, violated rule) → `blocked` + reason in the FEAT; do **not** work around it. Move to an independent `[P]` task if any; otherwise report.
-4. When all are done: checklist from `agents/rules/documentation/living-docs.md` (CHANGELOG `Unreleased`, README, Javadoc/docstring, flag recorded). Run the full gates (`./mvnw spotless:check verify`, `godot --headless --quit`, etc.).
+4. When all are done: checklist from `agents/skills/documentation/update-docs/references/living-docs.md` (CHANGELOG `Unreleased`, README, Javadoc/docstring, flag recorded). Run the full gates (`./mvnw spotless:check verify`, `godot --headless --quit`, etc.).
 5. Call `core/validate-implementation FEAT-nnn`. PARTIAL/NOT READY → back to step 2 with the missing tasks.
 6. READY → `gh pr create` (Conventional Commit title; body with criteria ✓, commands run, `Refs: FEAT-nnn`). Status changes to `validada` only after the PR is open with green gates; `entregue` after merge.
 

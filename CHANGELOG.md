@@ -2,7 +2,30 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [6.0.0] - 2026-09-30
+
+### Changed
+- **BREAKING**: `agents/rules/` removed — rules and skills were two artifacts with the same loading mechanism (`model_decision` ≡ `triggers: [model]`), duplicated in 5 pairs and invisible to Codex/Windsurf. Every rule is now a skill (normative content in `SKILL.md` or in the skill's `references/`). Mapping: merged into the sibling skill (`git/github-cli`, `java/java`, `godot/godot-2d`, `documentation/documentation`); moved as `references/` (`java/build-and-dependencies` → `java-standards`, `git/git-lfs-and-binaries` → `git-lfs`, `documentation/living-docs` → `update-docs`); converted 1:1 (`core/` = `evidence`, `sessions`, `tokens`; `development/` = `clean-code`, `simplicity`, `testing`, `twelve-factor`, `clean-architecture`, `ddd-and-patterns`; `tooling/branching-and-versioning`; `quality/secure-development`).
+- Skills install into `~/.agents/skills/` (read natively by Devin, Cursor and Codex) and `~/.codeium/windsurf/skills/` — flattened by basename with the `.agent-rules-kit` marker; unmarked folders are never touched.
+- `cursor.sh` removed: Cursor reads `~/.agents/skills` natively; `all.sh` removes the legacy `~/.cursor/rules/*.mdc` it used to generate.
+- `LAYOUT_VERSION` 5: `refresh.sh` forces a full reinstall (`all.sh --clean`).
+
+### Added
+- `agents/skills/core/` type (`evidence`, `sessions`, `tokens`, `session-review`).
+- Skill `session-review` (core): end-of-session summary and review of the session against the kit — at most one proposal (knowledge note, skill, `AGENTS.md` line, description fix or template), only with evidence from the session, asked before anything is written. `AGENTS.md` §Session gains the "End" bullet; the `skeptic` bullet under Skepticism gives way (already in the Specialties table).
+- `platforms/install/skills.sh`: one installer for both skills destinations.
+- `check_kit.py`: `core` skill type, `agents/rules/` now forbidden, `references/*.md` check (≤60 lines + linked from the SKILL.md).
+
+### Removed
+- `agents/rules/` (with its INDEX), `platforms/ci/schemas/rule.schema.json`, `agents/templates/kit-rule.md`, `platforms/install/cursor.sh`.
+- Destinations `~/.devin/rules`, `~/.config/devin/skills` and `~/.codex/skills` (legacy cleanup on install).
+
+### Fixed
+- Stale skill names in the "Specialties" table of `AGENTS.md` (`core/*`, `java/*`, `godot/*`, `docs/*` prefixes dropped).
+
 ## [5.0.0] - 2026-09-30
+
+Shipped with `LAYOUT_VERSION` 5 by mistake (no layout change in this version); harmless — 6.0.0 is the real layout 5.
 
 ### Changed
 - **BREAKING (for readers)**: every artifact of the kit is now written in English — `AGENTS.md`, rules, knowledge, skills, templates, prompts, indexes, docs, scripts, schema descriptions and kits. The conversation with the user stays in pt-BR (rule unchanged).

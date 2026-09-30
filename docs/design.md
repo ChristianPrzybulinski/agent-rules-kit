@@ -4,7 +4,7 @@ The invariants and the `agents/` · `platforms/` · `docs/` split are in [`../IN
 
 ## Principles
 
-- **Minimal always-on**: each line of `agents/AGENTS.md` exists only if removing it would change an outcome tomorrow. Detail lives on demand (rule/knowledge/skill), loaded by `description`/`trigger`. Context costs tokens and attention — both are finite.
+- **Minimal always-on**: each line of `agents/AGENTS.md` exists only if removing it would change an outcome tomorrow. Detail lives on demand (skill/knowledge), loaded by `description`/`trigger`. Context costs tokens and attention — both are finite.
 - **One place for each thing**: a normative rule, a dated fact, a procedure and an artifact's shape are different things; mixing them produces duplication and drift. The `INDEX.md` quick test decides where new content lives.
 - **Evidence and skepticism**: the whole kit assumes a claim without a source is a hypothesis. Knowledge notes have `verified` + `sources`; specs classify `[FACT]`/`[PROPOSAL]`/`[HYPOTHESIS]`. This applies to the kit itself: cited versions are the ones verified on the marked date.
 - **Absorb, don't stack**: good ideas from other repositories (credits in `CHANGELOG.md`) enter as kit text, adapted — not as one more layer/persona to carry. Third-party skills that cannot be absorbed are vendored with a commit lock.

@@ -1,26 +1,28 @@
 #!/usr/bin/env bash
-# Installs the kit into Devin:
-#   agents/AGENTS.md            -> ~/.config/devin/AGENTS.md
-#   agents/rules/<dom>/<n>.md   -> ~/.devin/rules/<dom>/<n>.md   (preserves subfolders)
-#   agents/skills/**/SKILL.md   -> ~/.config/devin/skills/<basename>/  (flattened, whole directory)
-# Removes ~/.devin/global_rules.md (duplicates AGENTS.md in the context).
+# Devin: global AGENTS.md only. Skills are read natively from ~/.agents/skills
+# (installed by skills.sh). Removes the legacy kit destinations:
+#   ~/.devin/global_rules.md, ~/.devin/rules/ (kit-owned) and kit-named folders in
+#   ~/.config/devin/skills/ (that dir was fully managed by rsync --delete — only
+#   folders matching a current kit skill name are removed).
 set -euo pipefail
-
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-mkdir -p "$HOME/.config/devin/skills" "$HOME/.devin/rules"
+mkdir -p "$HOME/.config/devin"
 cp "$KIT_DIR/agents/AGENTS.md" "$HOME/.config/devin/AGENTS.md"
-rsync -a --delete --exclude 'INDEX.md' "$KIT_DIR/agents/rules/" "$HOME/.devin/rules/"
-
-# flattens skills: each folder containing SKILL.md becomes ~/.config/devin/skills/<basename>
-# (copies the whole directory: SKILL.md + scripts/ references/ assets/ etc.)
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
-find "$KIT_DIR/agents/skills" -name SKILL.md | while read -r f; do
-  name="$(basename "$(dirname "$f")")"
-  cp -R "$(dirname "$f")" "$tmp/$name"
-done
-rsync -a --delete "$tmp/" "$HOME/.config/devin/skills/"
+echo "devin: $HOME/.config/devin/AGENTS.md"
 
 rm -f "$HOME/.devin/global_rules.md"
-echo "devin: AGENTS.md, $(find "$HOME/.devin/rules" -name '*.md' | wc -l | tr -d ' ') rules, $(find "$HOME/.config/devin/skills" -name SKILL.md | wc -l | tr -d ' ') skills"
+if [[ -d "$HOME/.devin/rules" ]]; then
+  rm -rf "$HOME/.devin/rules" && echo "devin: removed legacy ~/.devin/rules"
+fi
+
+LEGACY="$HOME/.config/devin/skills"
+if [[ -d "$LEGACY" ]]; then
+  find "$KIT_DIR/agents/skills" -name SKILL.md | while read -r f; do
+    name="$(basename "$(dirname "$f")")"
+    if [[ -d "$LEGACY/$name" ]]; then
+      rm -rf "${LEGACY:?}/$name" && echo "devin: removed legacy skill $name from ~/.config/devin/skills"
+    fi
+  done
+  echo "devin: notice — ~/.config/devin/skills is no longer a kit destination; skills live in ~/.agents/skills"
+fi

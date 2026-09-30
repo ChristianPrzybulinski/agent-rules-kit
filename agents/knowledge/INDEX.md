@@ -1,6 +1,6 @@
 # knowledge/ — verified facts, with source and date
 
-Scope: dated facts (versions, quotas, APIs, glossaries) with a source URL. Not a rule (normative → `../rules/`) nor a procedure (→ `../skills/`). ≤40 lines, frontmatter with `verified` + `sources`.
+Scope: dated facts (versions, quotas, APIs, glossaries) with a source URL. Normative rules and procedures live in `../skills/` (SKILL.md or `references/`). ≤40 lines, frontmatter with `verified` + `sources`.
 
 | Domain | Note | When to load |
 |---|---|---|

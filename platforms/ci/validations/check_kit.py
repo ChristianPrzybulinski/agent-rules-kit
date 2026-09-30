@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Kit validator (layout v4). Usage: check_kit.py [--links]
+"""Kit validator (layout v5). Usage: check_kit.py [--links]
 
 Without pyyaml/jsonschema: structural validation + WARN.
 With CI=1 in the environment: missing dependencies are an error.
@@ -18,7 +18,7 @@ CI = os.environ.get("CI") == "1"
 
 failures = []
 warnings = []
-counts = {"rules": 0, "knowledge": 0, "skills": 0, "templates": 0, "indexes": 0, "links": 0}
+counts = {"knowledge": 0, "skills": 0, "templates": 0, "indexes": 0, "links": 0}
 
 try:
     import yaml
@@ -134,17 +134,21 @@ def validate_schema(path, data, schema_name):
 # --- 1. Layout ---
 REQUIRED_PATHS = [
     "INDEX.md", "VERSION", "LAYOUT_VERSION", "agents/AGENTS.md",
-    "agents/rules", "agents/knowledge", "agents/skills", "agents/templates", "agents/prompts",
+    "agents/knowledge", "agents/skills", "agents/templates", "agents/prompts",
     "platforms/install", "platforms/tools", "platforms/ci/schemas", "platforms/ci/validations",
     "platforms/kits", "docs",
 ]
 FORBIDDEN_ROOT = ["rules", "skills", "schemas", "scripts", "kits", "templates", "processes", "knowledge", "prompts"]
+FORBIDDEN_PATHS = ["agents/rules"]  # layout v5: rules became skills
 for p in REQUIRED_PATHS:
     if not (KIT / p).exists():
         fail(p, "layout: required path missing")
 for p in FORBIDDEN_ROOT:
     if (KIT / p).exists():
-        fail(p, "layout: first-level folder forbidden in layout v4")
+        fail(p, "layout: first-level folder forbidden in layout v5")
+for p in FORBIDDEN_PATHS:
+    if (KIT / p).exists():
+        fail(p, "layout: path forbidden in layout v5 (rules are skills now)")
 ver = (KIT / "VERSION").read_text().strip() if (KIT / "VERSION").exists() else ""
 if ver and not re.match(r"^\d+\.\d+\.\d+$", ver):
     fail("VERSION", f"'{ver}' is not semver")
@@ -161,21 +165,6 @@ if agents_md.exists():
     n = len(agents_md.read_text(encoding="utf-8").splitlines())
     if n > 110:
         fail("agents/AGENTS.md", f"{n} lines (>110)")
-
-# --- 3. Rules ---
-for f in sorted((KIT / "agents/rules").rglob("*.md")):
-    if f.name in ("INDEX.md", "README.md"):
-        continue
-    data, lines = frontmatter(f)
-    counts["rules"] += 1
-    if data is None:
-        fail(rel(f), "missing/invalid frontmatter")
-        continue
-    validate_schema(f, data, "rule.schema.json")
-    if lines > 60:
-        fail(rel(f), f"{lines} lines (>60)")
-    if not re.search(r"Load|Use", str(data.get("description", ""))):
-        fail(rel(f), "description lacks 'Load'/'Use'")
 
 # --- 4. Knowledge ---
 for f in sorted((KIT / "agents/knowledge").rglob("*.md")):
@@ -194,7 +183,7 @@ for f in sorted((KIT / "agents/knowledge").rglob("*.md")):
             warn(rel(f), "normative line ('Must/Never/Always') — normative text is a rule, not knowledge")
 
 # --- 5. Skills ---
-SKILL_TYPES = {"quality", "development", "documentation", "process", "tooling", "vendor"}
+SKILL_TYPES = {"core", "quality", "development", "documentation", "process", "tooling", "vendor"}
 skill_names = set()
 for f in sorted((KIT / "agents/skills").rglob("SKILL.md")):
     name_dir = f.parent.name
@@ -226,6 +215,17 @@ for f in sorted((KIT / "agents/skills").rglob("SKILL.md")):
         fail(rel(f), "description lacks 'Use'")
     if "Do not use" not in desc:
         warn(rel(f), "description lacks 'Do not use'")
+
+# references/ inside own skills: ≤60 lines and linked by name from the SKILL.md
+for f in sorted((KIT / "agents/skills").rglob("references/*.md")):
+    if "vendor" in f.relative_to(KIT).parts:
+        continue
+    n = len(f.read_text(encoding="utf-8").splitlines())
+    if n > 60:
+        fail(rel(f), f"{n} lines (>60)")
+    skill_md = f.parent.parent / "SKILL.md"
+    if not skill_md.exists() or f.name not in skill_md.read_text(encoding="utf-8"):
+        fail(rel(f), f"'{f.name}' not referenced in {rel(skill_md)}")
 
 # --- 6. Templates ---
 templates_index = (KIT / "agents/templates/INDEX.md")
@@ -273,8 +273,8 @@ def exempt_dir(d):
         except ValueError:
             pass
     parts = d.relative_to(KIT).parts
-    # domain subfolders in rules/ and knowledge/ are covered by the parent INDEX
-    if len(parts) == 3 and parts[0] == "agents" and parts[1] in ("rules", "knowledge"):
+    # domain subfolders in knowledge/ are covered by the parent INDEX
+    if len(parts) == 3 and parts[0] == "agents" and parts[1] == "knowledge":
         return True
     # inner subfolders of platforms/kits/<kit>/ (<kit> itself is NOT exempt)
     if len(parts) > 3 and parts[:2] == ("platforms", "kits"):
@@ -302,8 +302,8 @@ for base in ("agents", "platforms", "docs", ".github"):
         idx_text = (d / ("INDEX.md" if has_i else "README.md")).read_text(encoding="utf-8")
         entries = [p.name for p in d.iterdir()
                    if p.name not in ("INDEX.md", "README.md", ".gitkeep") and not p.name.startswith(".")]
-        # for rules/ and knowledge/, the domain subfolders' files count too
-        if d.relative_to(KIT).parts in [("agents", "rules"), ("agents", "knowledge")]:
+        # for knowledge/, the domain subfolders' files count too
+        if d.relative_to(KIT).parts in [("agents", "knowledge")]:
             for sub in d.iterdir():
                 if sub.is_dir():
                     entries += [p.name for p in sub.iterdir() if p.suffix == ".md"]
@@ -393,6 +393,6 @@ if pc.exists():
     if len(body) > 1500:
         fail(rel(pc), f"{len(body)} chars (>1500)")
 
-print(f"check: {'OK' if not failures else 'failed'} ({counts['rules']} rules, {counts['knowledge']} knowledge, "
+print(f"check: {'OK' if not failures else 'failed'} ({counts['knowledge']} knowledge, "
       f"{counts['skills']} skills, {counts['templates']} templates, {counts['indexes']} indexes, {counts['links']} links)")
 sys.exit(1 if failures else 0)

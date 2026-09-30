@@ -3,6 +3,9 @@
 # Official doc (https://developers.openai.com/codex/guides/agents-md): global
 # scope = ~/.codex/AGENTS.md (AGENTS.override.md takes precedence; CODEX_HOME
 # can change the directory).
+# Skills: Codex reads $HOME/.agents/skills (https://developers.openai.com/codex/skills),
+# installed by skills.sh. Here we only remove legacy kit-marked folders left in
+# $CODEX_HOME/skills (user/unmarked content stays intact).
 set -euo pipefail
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DEST="${CODEX_HOME:-$HOME/.codex}"
@@ -13,25 +16,10 @@ if [[ -f "$DEST/AGENTS.override.md" ]]; then
 fi
 echo "codex: $DEST/AGENTS.md"
 
-# Skills: official doc (https://developers.openai.com/codex/skills and
-# github.com/openai/codex docs/skills.md) — Codex reads SKILL.md from
-# ~/.codex/skills/**/SKILL.md (user scope, kept for compatibility;
-# ~/.agents/skills is the new location). We install into $CODEX_HOME/skills.
-# Marker .agent-rules-kit: we only manage/delete folders we marked;
-# .system and user content stay intact.
-SKILLS_DEST="$DEST/skills"
-mkdir -p "$SKILLS_DEST"
-find "$KIT_DIR/agents/skills" -name SKILL.md | while read -r f; do
-  name="$(basename "$(dirname "$f")")"
-  mkdir -p "$SKILLS_DEST/$name"
-  rsync -a --delete "$(dirname "$f")/" "$SKILLS_DEST/$name/"
-  touch "$SKILLS_DEST/$name/.agent-rules-kit"
-done
-# removes marked folders no longer in the kit
-find "$SKILLS_DEST" -mindepth 2 -maxdepth 2 -name '.agent-rules-kit' | while read -r m; do
-  d="$(dirname "$m")"; name="$(basename "$d")"
-  if ! find "$KIT_DIR/agents/skills" -mindepth 2 -maxdepth 2 -type d -name "$name" | grep -q .; then
-    rm -rf "$d" && echo "codex: skill removed $name"
-  fi
-done
-echo "codex: skills in $SKILLS_DEST"
+LEGACY="$DEST/skills"
+if [[ -d "$LEGACY" ]]; then
+  find "$LEGACY" -mindepth 2 -maxdepth 2 -name '.agent-rules-kit' | while read -r m; do
+    d="$(dirname "$m")"
+    rm -rf "$d" && echo "codex: removed legacy skill $(basename "$d") from $LEGACY"
+  done
+fi

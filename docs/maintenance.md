@@ -10,9 +10,8 @@
 
 | Type | Steps |
 |---|---|
-| rule | copy `agents/templates/kit-rule.md` → `agents/rules/<domain>/`, list in `agents/rules/INDEX.md`, `check.sh` |
 | knowledge | copy `kit-knowledge.md` → `agents/knowledge/<domain>/` (frontmatter with `verified` + `sources`), list in `agents/knowledge/INDEX.md` |
-| skill | copy `kit-skill.md` → `agents/skills/<type>/<name>/`, `name` = folder, list in the type's INDEX and in `agents/skills/INDEX.md` |
+| skill | copy `kit-skill.md` → `agents/skills/<type>/<name>/`, `name` = folder, list in the type's INDEX and in `agents/skills/INDEX.md`; normative detail that does not fit in 80 lines → `references/<topic>.md` (≤60, linked from SKILL.md) |
 | template | `agents/templates/<prefix>-<name>.md` (regex `^(spec|doc|project|kit)-`), list in `agents/templates/INDEX.md` |
 | index | `kit-index.md` (list only) or `kit-readme.md` (explains) — never both in the same folder |
 

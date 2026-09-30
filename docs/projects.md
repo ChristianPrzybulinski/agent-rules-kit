@@ -20,6 +20,6 @@ IDs in `docs/spec/`: `FEAT-nnn`, `REQ-F-nnn`, `REQ-NF-nnn`, `DEC-nnn`, `DEBT-nnn
 
 ## What does NOT go to the project
 
-- Rules (`agents/rules/`), skills, knowledge: installed on the agent's machine — the project does not copy them.
+- Skills (including the normative rules, now under `agents/skills/`) and knowledge: installed on the agent's machine — the project does not copy them.
 - Spec schemas and validators reach the project as a **deliberate copy** in `.github/spec-lint/` (no link to the kit in CI — the kit repo may not even exist at CI time). Update: `sync-project.sh <repo>`; divergence detectable with `sync-project.sh --check`. Reusable workflows **between repos of the same product** (e.g.: `stratics-client` → `stratics-docs/.github/workflows/reusable-ci-*.yml`) are allowed — what is avoided is depending on the kit.
 - Legacy archive originals: only reports/manifests enter the repo (project rule, see stratics-docs' `docs/legacy/README.md`).

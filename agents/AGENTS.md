@@ -17,13 +17,13 @@ Ordered by half-life: durable discipline at the top, tools at the bottom. Each l
 - Confidence < 98% → do not proceed. Say what is missing and how to get it (command, file, question).
 - Disagree with evidence and hold the position under pressure until shown wrong or told "do it anyway". Yielding to tone is a bug, not politeness.
 - Found you were wrong earlier → say "I was wrong about X" and correct going forward.
-- Adversarial verification of a claim → use the `skeptic` skill.
 
 ## Session
 
 - Start: if `~/.ai-kit` exists, run `~/.ai-kit/platforms/tools/refresh.sh --quiet`; read the repo's `AGENTS.md`; name **the** outcome of this session in one sentence.
 - One session, one outcome. Request on another topic → warn and stop: follow-up or new session; never mix silently.
-- Long session (rereading, compressed context, outcome already delivered) → suggest `session-handoff` + new session. Simple mechanical task → say a smaller model tier suffices. Detail: `rules/core/sessions.md`.
+- Long session (rereading, compressed context, outcome already delivered) → suggest `session-handoff` + new session. Simple mechanical task → say a smaller model tier suffices. Detail: skill `sessions`.
+- End: brief summary (done · unverified · next step), then review the session against the kit — at most **one** knowledge note/skill/line proposed, only with evidence observed this session, asked before written; no signal → no proposal. Detail: skill `session-review`.
 
 ## Work loop
 
@@ -38,7 +38,7 @@ Ordered by half-life: durable discipline at the top, tools at the bottom. Each l
 - **Everything written is in English** — code, identifiers, Javadoc/docstring, comments, commits, README, specs, docs, folder names. Only the conversation with the user (answers, questions, options) is in pt-BR.
 - Clean Code: short, purposeful, literal name — says what it is, no abbreviation or decorative suffix (`Manager`, `Helper`, `Data`); comment only for the non-obvious "why". Functions do one thing; ≤3-4 parameters; early return instead of nesting.
 - **Pragmatic** Clean Architecture: dependency points inward (domain ← application ← adapters ← infra). Domain without framework. Port (interface) only where there is external I/O, a real implementation swap, or a domain boundary; internal service with one implementation is a concrete class. DTOs cross layers, entities do not.
-- Simplicity ladder, before writing: does it need to exist? already in the repo? stdlib? native platform feature? dependency already installed? fits in one line? Only then the minimum that works. Detail in `rules/development/simplicity.md`.
+- Simplicity ladder, before writing: does it need to exist? already in the repo? stdlib? native platform feature? dependency already installed? fits in one line? Only then the minimum that works. Detail in skill `simplicity`.
 - Never simplify: validation at the trust boundary, error handling that prevents data loss, security, what was explicitly requested. Deliberate simplification with a known ceiling → comment `// simplified: <ceiling>, <when to evolve>`.
 - Validate at the boundary, trust the interior, never swallow an error. Files per feature: 200-400 lines, 800 max; fewer files wins; deleting beats adding.
 - Before writing a utility: search the ecosystem (Maven Central, Godot Asset Lib, `gh search code`). Adopting beats writing.
@@ -54,24 +54,24 @@ Ordered by half-life: durable discipline at the top, tools at the bottom. Each l
 - Integration always in pairs: happy path + sad path. Money/inventory/reward → idempotency and concurrency test.
 - Never `@Disabled` to go green. Do not test getters, framework, or "that X was called". Never `sleep` in a test: wait for the condition.
 
-## Specialties (load rule/skill/process when the context calls for it)
+## Specialties (load the skill/process when the context calls for it)
 
 | Context | Load |
 |---|---|
-| `*.java`, `pom.xml` | `rules/java/*`, skills `java/*` — Maven required, fixed Java LTS |
-| `*.gd`, `*.tscn`, `project.godot` | `rules/godot/*`, skills `godot/*` |
-| branch, commit, PR, release, LFS | `rules/git/*`, skills `git/*` |
-| auth, endpoint, dependency, CVE, secret | `rules/security/*`, skill `core/vuln-scan` |
-| model a domain, choose a pattern | `rules/architecture/*` |
-| README, Javadoc, CHANGELOG, ADR | `rules/documentation/*`, skills `docs/*` |
+| `*.java`, `pom.xml` | skills `java-standards`, `clean-code`, `testing` — Maven required, fixed Java LTS |
+| `*.gd`, `*.tscn`, `project.godot` | skills `godot-standards`, `clean-code`, `testing` |
+| branch, commit, PR, release, LFS | skills `branching-and-versioning`, `github-cli`, `git-lfs` |
+| auth, endpoint, dependency, CVE, secret | skills `secure-development`, `vuln-scan` |
+| model a domain, design a solution, config/deploy | skills `clean-architecture`, `ddd-and-patterns`, `simplicity`, `twelve-factor` |
+| README, Javadoc, CHANGELOG, ADR | skill `update-docs` |
 | new feature end to end | `sdd` process (specify → clarify → plan → tasks → implement → validate) |
-| "is it done?" | skill `core/validate-implementation` |
-| dubious claim | skill `core/skeptic` |
-| bug, slowness, incident with no named cause | skill `core/investigate` |
-| client↔server contract message/field | skill `core/protocol-contract` |
-| legacy/ported code before refactoring or rebalancing | skill `java/characterization-tests` |
-| bringing sprites/maps/tilesets into Godot | skill `godot/asset-import` |
-| end of a long session, agent switch | skill `core/session-handoff` |
+| "is it done?" | skill `validate-implementation` |
+| dubious claim, decision between alternatives | skills `skeptic`, `evidence` |
+| bug, slowness, incident with no named cause | skill `investigate` |
+| client↔server contract message/field | skill `protocol-contract` |
+| legacy/ported code before refactoring or rebalancing | skill `characterization-tests` |
+| bringing sprites/maps/tilesets into Godot | skill `asset-import` |
+| session start/end/long session/agent switch, response register | skills `sessions`, `session-review`, `session-handoff`, `tokens` |
 | vague idea before it becomes FEAT/DEC | `/grill-me` (vendor; command only) → then `sdd-specify` |
 | create/evaluate a kit skill | skill `skill-creator` (vendor) |
 | "is there a skill for X?" | skill `find-skills` (vendor) — discovery; install only by vendoring into `platforms/kits/third-party/` |
@@ -104,7 +104,7 @@ Ordered by half-life: durable discipline at the top, tools at the bottom. Each l
 Before answering, silently classify: **technical** or **text for people**. Never mix registers within the same artifact.
 
 - **Technical** (code, debug, log, refactor, script, CLI): code/diff first; then ≤3 lines — what was skipped, when to add. Short sentences, no superfluous articles, no greeting, no "feature tour". Code, paths, commands and error messages **byte-for-byte exact**. Return to full prose for: security warning, confirmation of irreversible action, multi-step sequence, question repeated by the user.
-- **Text for people** (e-mail, report, message to the team, narrative README section, requested high-level explanation): fluid prose, varied rhythm, no AI cliches ("it is important to note", "in summary", decorative triads, bold everywhere, lists where a paragraph suffices). Do not invent facts to sound natural. Detail in `rules/core/tokens.md`.
+- **Text for people** (e-mail, report, message to the team, narrative README section, requested high-level explanation): fluid prose, varied rhythm, no AI cliches ("it is important to note", "in summary", decorative triads, bold everywhere, lists where a paragraph suffices). Do not invent facts to sound natural. Detail in skill `tokens`.
 - **Governed documents** (`docs/spec/**`, DEC/REQ/FEAT, CHANGELOG, commit, code comment): neither lens — they follow template, schema and `[FACT]`/`[PROPOSAL]` classification. Repeated structure there is deliberate.
 - Minimal snippet/diff; do not rewrite a whole file for a local change. Read only the relevant files; no broad search without a hypothesis.
 - End with: done · unverified · concrete next step. Ambiguity → one focused question with 2-4 options, not a questionnaire.

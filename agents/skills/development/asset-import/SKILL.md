@@ -19,7 +19,7 @@ Four areas, never mixed: **originals** (read-only) → **normalized** (standardi
 
 ## 1. Before the batch
 
-- Read the project's binaries rule (`agents/rules/git/git-lfs-and-binaries.md`, `.gitattributes`): what goes to LFS, what stays out of the repo.
+- Read the project's binaries rule (`agents/skills/tooling/git-lfs/references/git-lfs-and-binaries.md`, `.gitattributes`): what goes to LFS, what stays out of the repo.
 - Read `docs/legacy/` (or equivalent) for already-known archive gaps: divergent pairs, missing members, unresolved transparency. Do not assume completeness.
 - Confirm the originals' hashes against the origin manifest. Divergence → stop and report.
 

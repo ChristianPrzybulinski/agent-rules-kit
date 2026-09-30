@@ -9,3 +9,4 @@
 | `docker` | local compose, multi-stage Dockerfile, diagnostics | local infra, service won't start |
 | `dbeaver` | inspect local Postgres via GUI | explore data/schema |
 | `krita` | pixel art and sprite retouching | edit art |
+| `branching-and-versioning` | trunk-based, feature flags, Conventional Commits, SemVer, `protocol_version` | branch, commit, release, contract change |

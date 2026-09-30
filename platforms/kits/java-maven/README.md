@@ -5,7 +5,7 @@ Parent POM with the kit's quality gates. Versions verified on Maven Central on 2
 ## How to use
 
 1. In the project, copy `pom-parent.xml` to `server/pom.xml` (or the root), adjust `groupId`/`artifactId`/`version` and list the modules in `<modules>`.
-2. Module structure: see `agents/rules/java/build-and-dependencies.md` (`domain`, `application`, `adapter-*`, `bootstrap`). Modules declare the parent in `<parent>` and do **not** declare dependency versions.
+2. Module structure: see `agents/skills/development/java-standards/references/build-and-dependencies.md` (`domain`, `application`, `adapter-*`, `bootstrap`). Modules declare the parent in `<parent>` and do **not** declare dependency versions.
 3. Copy `.java-version` to the repo root.
 4. `dependency-check-suppressions.xml` goes in the project root (the parent references it by name).
 5. `toolchains.xml.example` → `~/.m2/toolchains.xml` (local, do not version). Needed because the PATH JDK may be ≠ 25 — the enforcer requires `[25,26)`.

@@ -4,7 +4,6 @@
 
 | Schema | Validates | Target file-name rule |
 |---|---|---|
-| `rule.schema.json` | `agents/rules/**/*.md` | `description` with "Load"/"Use"; `globs` required if `trigger: glob` |
 | `knowledge.schema.json` | `agents/knowledge/**/*.md` | `verified` (date) + `sources` (URLs) required |
 | `skill.schema.json` | `agents/skills/<type>/<name>/SKILL.md` (non-vendor) | `name` = folder; `version` x.y; `triggers` |
 | `skills-lock.schema.json` | lines of `platforms/kits/third-party/skills.lock` | 40-hex `sha` |
@@ -18,7 +17,7 @@ The 5 spec ones (`spec`, `feature`, `requirement`, `decision`, `debt`) go to pro
 
 | Validation | Scope |
 |---|---|
-| `validations/check_kit.py` | layout v4, frontmatters, indexes, links, lock, duplication (`--links` includes `~/.ai-kit/...`) |
+| `validations/check_kit.py` | layout v5, frontmatters, indexes, links, lock, duplication (`--links` includes `~/.ai-kit/...`) |
 | `validations/check_spec.py` | a project's `docs/spec`: schema + id=prefix + FEAT↔REQ cross-check + unique IDs |
 
 Without `pyyaml`/`jsonschema`: structural validation with a WARN; with `CI=1`, their absence is an error.

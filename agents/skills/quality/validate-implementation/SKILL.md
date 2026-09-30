@@ -41,7 +41,7 @@ Read the repo's `AGENTS.md`/README for the canonical commands. Kit default:
 
 Literal output of what failed goes in the report. Do not summarize as "some tests failed".
 
-## 4. Closing checklist (from `agents/rules/documentation/living-docs.md`)
+## 4. Closing checklist (from `agents/skills/documentation/update-docs/references/living-docs.md`)
 
 CHANGELOG `Unreleased` · README if a command changed · Javadoc/docstring on new public API · `FEAT` status updated · `DEC`/`DEBT` created if a decision/debt happened · feature flag recorded if incomplete.
 

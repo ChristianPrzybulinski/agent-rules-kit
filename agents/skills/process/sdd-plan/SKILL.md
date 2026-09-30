@@ -16,7 +16,7 @@ allowed-tools:
 
 # SDD 5 — Plan
 
-Prerequisite: `status: clarificada`, audit without a security ✗. References: `agents/rules/architecture/*`, `agents/rules/java/*`, `agents/rules/godot/*`, the repo's `AGENTS.md`, `docs/spec/decisions/`.
+Prerequisite: `status: clarificada`, audit without a security ✗. References: skills `clean-architecture`, `ddd-and-patterns`, `java-standards`, `godot-standards`, the repo's `AGENTS.md`, `docs/spec/decisions/`.
 
 ## Steps
 
