@@ -26,7 +26,7 @@ while IFS='|' read -r name repo path sha license verified; do
   tmp="$(mktemp -d)"
   git clone -q --depth 1 --filter=blob:none --sparse "https://github.com/$repo" "$tmp/repo" 2>/dev/null \
     || { echo "FALHA: clone de $repo" >&2; rm -rf "$tmp"; FAILED=1; continue; }
-  (cd "$tmp/repo" && git sparse-checkout set --no-cone "$path" && git checkout -q "$sha" 2>/dev/null || true)
+  (cd "$tmp/repo" && git sparse-checkout set --no-cone "$path" && { git checkout -q "$sha" 2>/dev/null || true; })
   src="$tmp/repo/$path"
   if [[ ! -f "$src/SKILL.md" ]]; then
     # depth 1 pode nao conter o sha se HEAD andou; refetch pinado

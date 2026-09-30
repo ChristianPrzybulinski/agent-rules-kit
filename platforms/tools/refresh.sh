@@ -8,7 +8,7 @@ set -euo pipefail
 KIT="$HOME/.ai-kit"
 STATE="$HOME/.config/agent-rules-kit"
 QUIET=0; [[ "${1:-}" == "--quiet" ]] && QUIET=1
-say() { [[ $QUIET -eq 0 ]] && echo "$@" || true; }
+say() { if [[ $QUIET -eq 0 ]]; then echo "$@"; fi; }
 
 [[ -d "$KIT" ]] || { say "refresh: $KIT nao existe; rode platforms/tools/bootstrap.sh"; exit 0; }
 
