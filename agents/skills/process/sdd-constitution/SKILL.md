@@ -30,7 +30,7 @@ Reference: `agents/skills/process/README.md`. Templates: `agents/templates/proje
 3. Repo `AGENTS.md`: ≤150 lines. Sections: Stack · Commands · Structure · Patterns (condition→action) · Boundaries (Always/Ask/Never) · Sessions (how to record progress) · Where the rest lives. The kit's global rules are **not** repeated here.
 4. `docs/spec/spec.md` from the template: vision (3 lines), explicit out-of-scope, initial glossary, empty indexes.
 5. Create folders `features/ requirements/functional requirements/non-functional decisions/ debts/` with `.gitkeep`.
-6. If the product brought already-made decisions → one `DEC-nnn` per decision with state `aprovada` and the source (who/when).
+6. If the product brought already-made decisions → one `DEC-nnn` per decision with state `approved` and the source (who/when).
 
 ## Completion criteria
 

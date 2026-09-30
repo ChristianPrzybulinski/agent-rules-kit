@@ -32,8 +32,8 @@ Cover and index. The source of truth for each subject lives in the linked files;
 
 1. `AGENTS.md`
 2. This file
-3. `decisions/` with state `aprovada`
-4. The `FEAT` in progress (status `em-implementação`)
+3. `decisions/` with status `approved`
+4. The `FEAT` in progress (status `in-progress`)
 
 ## Indexes
 

@@ -28,7 +28,7 @@ Templates: `agents/templates/spec-feature.md`, `requirement-functional.md`, `req
    - **Linked requirements**: create new `REQ-F-*` (behavior) and `REQ-NF-*` (performance, security, compatibility) or reference existing ones. Each requirement = 1 file, 1 testable sentence.
    - **Open questions** marked `[NEEDS CLARIFICATION: ...]` — maximum 5; beyond that the request is too big: propose splitting it.
    - **No** technical decisions (framework, table, message). That is `sdd-plan`.
-4. Frontmatter: `id`, `title`, `status: proposta`, `requirements: [...]`, `flag: null`, `card: null`, `created`.
+4. Frontmatter: `id`, `title`, `status: proposed`, `requirements: [...]`, `flag: null`, `card: null`, `created`.
 5. Update the index in `spec.md`.
 6. Validate: `platforms/tools/check.sh --spec docs/spec` (schemas).
 

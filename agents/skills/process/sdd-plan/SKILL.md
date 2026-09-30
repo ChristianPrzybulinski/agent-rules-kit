@@ -1,7 +1,7 @@
 ---
 name: sdd-plan
 version: "1.0"
-description: SDD step 5 — technical plan for a clarificada, audited FEAT - modules touched, domain model, contract, persistence/migration, feature flag, test strategy, risks; creates DEC-nnn for decisions with a rejected alternative. Status becomes planejada. Use after sdd-audit, before sdd-tasks.
+description: SDD step 5 — technical plan for a clarified, audited FEAT - modules touched, domain model, contract, persistence/migration, feature flag, test strategy, risks; creates DEC-nnn for decisions with a rejected alternative. Status becomes planned. Use after sdd-audit, before sdd-tasks.
 argument-hint: "FEAT-nnn [technical constraints]"
 triggers:
   - user
@@ -16,7 +16,7 @@ allowed-tools:
 
 # SDD 5 — Plan
 
-Prerequisite: `status: clarificada`, audit without a security ✗. References: skills `clean-architecture`, `ddd-and-patterns`, `java-standards`, `godot-standards`, the repo's `AGENTS.md`, `docs/spec/decisions/`.
+Prerequisite: `status: clarified`, audit without a security ✗. References: skills `clean-architecture`, `ddd-and-patterns`, `java-standards`, `godot-standards`, the repo's `AGENTS.md`, `docs/spec/decisions/`.
 
 ## Steps
 
@@ -31,9 +31,9 @@ Prerequisite: `status: clarificada`, audit without a security ✗. References: s
    - **Observability**: logs/metrics that prove it works.
    - **Risks and hypotheses**: each `[HYPOTHESIS]` with how/when to validate.
    - **Dependencies/blockers**: other FEATs, tools, pending decisions.
-3. Every choice with a rejected reasonable alternative → `DEC-nnn-slug.md` (template `decision.md`), state `proposta`; reference it in the FEAT. A decision already approved by the product → `aprovada` with a source.
+3. Every choice with a rejected reasonable alternative → `DEC-nnn-slug.md` (template `decision.md`), state `proposed`; reference it in the FEAT. A decision already approved by the product → `approved` with a source.
 4. Plan violates a kit/repo rule → do not plan a workaround: record `[BLOCKER]` or propose an explicit `DEC`.
-5. `status: planejada`; *History* updated; `sdd-analyze FEAT-nnn` must pass with no critical/high.
+5. `status: planned`; *History* updated; `sdd-analyze FEAT-nnn` must pass with no critical/high.
 
 ## Completion criteria
 

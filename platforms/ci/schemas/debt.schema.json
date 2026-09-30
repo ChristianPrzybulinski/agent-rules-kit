@@ -8,7 +8,7 @@
   "properties": {
     "id": { "type": "string", "pattern": "^DEBT-[0-9]{3,}$" },
     "title": { "type": "string", "minLength": 5, "maxLength": 120 },
-    "status": { "type": "string", "enum": ["aberta", "paga", "aceita"] },
+    "status": { "type": "string", "enum": ["open", "paid", "accepted"] },
     "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
     "trigger": { "type": "string", "minLength": 5 },
     "features": {

@@ -1,7 +1,7 @@
 ---
 name: sdd-clarify
 version: "1.0"
-description: SDD step 2 — resolves a FEAT's [NEEDS CLARIFICATION] markers with objective questions (2-4 options each) to the product, incorporates the answers into the spec and moves status to clarificada. Use when the FEAT has open questions or ambiguous criteria.
+description: SDD step 2 — resolves a FEAT's [NEEDS CLARIFICATION] markers with objective questions (2-4 options each) to the product, incorporates the answers into the spec and moves status to clarified. Use when the FEAT has open questions or ambiguous criteria.
 argument-hint: "FEAT-nnn"
 triggers:
   - user
@@ -20,7 +20,7 @@ allowed-tools:
 3. Each question: context in 1 line + 2-4 options with each one's consequence + a marked recommendation. A single `ask_user_question` call per round.
 4. Incorporate the answer **in the right place** (criterion, scope, requirement), not in an "answers" section. Record in *History*: `YYYY-MM-DD clarify: <question> → <answer>`.
 5. An answer that is a technical decision → do not incorporate here; note it for `sdd-plan`/`DEC`.
-6. Zero markers remaining → `status: clarificada`.
+6. Zero markers remaining → `status: clarified`.
 
 ## Completion criteria
 

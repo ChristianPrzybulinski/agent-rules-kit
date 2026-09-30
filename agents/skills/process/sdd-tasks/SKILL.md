@@ -12,7 +12,7 @@ allowed-tools:
 
 # SDD 6 — Tasks
 
-Prerequisite: `status: planejada`.
+Prerequisite: `status: planned`.
 
 ## Splitting rules
 

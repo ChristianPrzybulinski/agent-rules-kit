@@ -2,6 +2,19 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [7.0.0] - 2026-09-30
+
+### Changed
+- **BREAKING (spec contract)**: spec `status` enum values are now English. Feature: `proposta`→`proposed`, `clarificada`→`clarified`, `planejada`→`planned`, `em-implementação`→`in-progress`, `validada`→`validated`, `entregue`→`delivered`, `cancelada`→`cancelled`. Decision: `proposta`→`proposed`, `aprovada`→`approved`, `rejeitada`→`rejected`, `substituída`→`superseded`. Debt: `aberta`→`open`, `paga`→`paid`, `aceita`→`accepted`.
+- Updated everywhere the contract lives: `platforms/ci/schemas/{feature,decision,debt}.schema.json` (including the `substituída`→`superseded` conditional), `check_spec.py` STRUCT fallback, `agents/templates/spec-{feature,decision,debt,index}.md`, `platforms/kits/github/labels.json` (`status:*` labels), the `sdd-*` skills, `agents/skills/process/README.md` and `docs/projects.md`.
+- Projects must rerun `platforms/tools/sync-project.sh` and migrate their `status:` values: `sed -i '' -e 's/^status: proposta$/status: proposed/' -e 's/^status: clarificada$/status: clarified/' -e 's/^status: planejada$/status: planned/' -e 's/^status: em-implementação$/status: in-progress/' -e 's/^status: validada$/status: validated/' -e 's/^status: entregue$/status: delivered/' -e 's/^status: cancelada$/status: cancelled/' -e 's/^status: aprovada$/status: approved/' -e 's/^status: rejeitada$/status: rejected/' -e 's/^status: substituída$/status: superseded/' -e 's/^status: aberta$/status: open/' -e 's/^status: paga$/status: paid/' -e 's/^status: aceita$/status: accepted/' docs/spec/**/*.md`
+
+### Added
+- README bootstrap note: `gh auth setup-git` so `refresh.sh`'s plain `git pull` reuses the `gh` credentials on a private repo (otherwise it warns and keeps the local state).
+
+### Unchanged
+- File names, IDs, frontmatter keys; `priority`/`severity`/`type` enums (already English).
+
 ## [6.0.1] - 2026-09-30
 
 ### Fixed

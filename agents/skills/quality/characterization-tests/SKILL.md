@@ -44,7 +44,7 @@ Goal: turn "the code does X" from `[HYPOTHESIS]` into a reproducible `[FACT]`, s
 ## 5. Close
 
 - Motivating FEAT/DEC: link the test class under "Relations".
-- Divergence needing a product decision → `DEC-xxx` `proposta` with both options and impact.
+- Divergence needing a product decision → `DEC-xxx` `proposed` with both options and impact.
 - Only after that does the refactor/rebalancing begin — and each intentional change updates the case with justification in the commit.
 
 ## Rules

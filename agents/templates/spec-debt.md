@@ -1,7 +1,7 @@
 ---
 id: DEBT-000
 title: "[Debt in 1 sentence: Remove login-v1 flag and old code]"
-status: aberta
+status: open
 severity: medium
 trigger: "[condition that forces payment: flag on >30 days | before the vertical slice | when touching module X]"
 features: []
@@ -11,7 +11,7 @@ card: null
 
 # DEBT-000 — [Title]
 
-States: `aberta` → `paga` | `aceita` (we decide to live with it; requires a DEC).
+States: `open` → `paid` | `accepted` (we decide to live with it; requires a DEC).
 
 ## What was done and why
 

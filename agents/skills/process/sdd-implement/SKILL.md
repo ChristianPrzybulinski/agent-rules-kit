@@ -20,7 +20,7 @@ Prerequisite: the *Tasks* section exists. Kit rules and the repo's `AGENTS.md` a
 
 ## Steps
 
-1. Branch: `git switch -c feature/FEAT-nnn-slug` from an updated `main` (if it does not exist yet). `status: em-implementação`.
+1. Branch: `git switch -c feature/FEAT-nnn-slug` from an updated `main` (if it does not exist yet). `status: in-progress`.
 2. For each task in order (or the indicated `T-nn`):
    1. Mark `doing`. Read the real files it will touch.
    2. Test first when there is behavior: write/run → must fail for the right reason. Didn't fail? The task was not understood — stop and review.
@@ -32,7 +32,7 @@ Prerequisite: the *Tasks* section exists. Kit rules and the repo's `AGENTS.md` a
 3. Blocker (missing dependency, product decision, violated rule) → `blocked` + reason in the FEAT; do **not** work around it. Move to an independent `[P]` task if any; otherwise report.
 4. When all are done: checklist from `agents/skills/documentation/update-docs/references/living-docs.md` (CHANGELOG `Unreleased`, README, Javadoc/docstring, flag recorded). Run the full gates (`./mvnw spotless:check verify`, `godot --headless --quit`, etc.).
 5. Call `core/validate-implementation FEAT-nnn`. PARTIAL/NOT READY → back to step 2 with the missing tasks.
-6. READY → `gh pr create` (Conventional Commit title; body with criteria ✓, commands run, `Refs: FEAT-nnn`). Status changes to `validada` only after the PR is open with green gates; `entregue` after merge.
+6. READY → `gh pr create` (Conventional Commit title; body with criteria ✓, commands run, `Refs: FEAT-nnn`). Status changes to `validated` only after the PR is open with green gates; `delivered` after merge.
 
 ## Do not
 

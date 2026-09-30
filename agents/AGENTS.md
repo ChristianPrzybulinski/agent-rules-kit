@@ -82,7 +82,7 @@ Ordered by half-life: durable discipline at the top, tools at the bottom. Each l
 - `main` is the only long-lived branch, always green. Work in `feature/FEAT-xxx-name`; squash PR; incomplete work merges off behind a feature flag (flag on >30 days → `DEBT`).
 - Conventional Commits; SemVer with `vX.Y.Z` tag; the client↔server protocol version is a separate integer.
 - Visible change → `CHANGELOG.md` (`Unreleased`) in the same PR. Public API → Javadoc/docstring. Command changed → README.
-- Decision with trade-off → `docs/spec/decisions/DEC-xxx.md` (state `proposta` until approved). Conscious debt → `DEBT-xxx`. Feature → `FEAT-xxx` with status in frontmatter.
+- Decision with trade-off → `docs/spec/decisions/DEC-xxx.md` (state `proposed` until approved). Conscious debt → `DEBT-xxx`. Feature → `FEAT-xxx` with status in frontmatter.
 - Binary → LFS via `.gitattributes` **before** the first file; script-generated → do not version it, version the script + manifest.
 - Surprising discovery in a repo (critical constant, fragile convention) → propose it for that repo's `AGENTS.md` on the spot.
 

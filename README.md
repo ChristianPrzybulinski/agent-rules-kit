@@ -10,4 +10,6 @@ Skills (normative rules included), knowledge and tools shared by AI agents (Devi
 gh repo clone ChristianPrzybulinski/agent-rules-kit ~/.ai-kit && ~/.ai-kit/platforms/tools/bootstrap.sh
 ```
 
+Private repo: `refresh.sh` pulls with plain `git` — run `gh auth setup-git` once so git reuses the `gh` credentials (otherwise it warns and keeps the local state).
+
 Then, every session: `~/.ai-kit/platforms/tools/refresh.sh --quiet` (the `AGENTS.md` instructs the agent to do this).

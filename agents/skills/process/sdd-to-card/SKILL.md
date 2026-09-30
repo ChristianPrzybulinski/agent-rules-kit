@@ -36,7 +36,7 @@ Product decision: GitHub Issues + Projects (not Trello). `gh` already authentica
    Write `card: <n>` into the frontmatter and commit `docs(spec): link FEAT-nnn to issue #n`.
 2. Existing `card` → `gh issue edit <n> --title ... --body-file ... --add-label status:<new> --remove-label status:<old>`.
 3. Project (if `--project` or a `project` field in `spec.md`): `gh project item-add <num> --owner <owner> --url <issue-url>`; update the Status field via `gh project item-edit` (requires IDs — get with `gh project field-list`). If the Project does not exist → ask before creating.
-4. `status: entregue` → `gh issue close <n> --comment "Delivered in <PR>"`.
+4. `status: delivered` → `gh issue close <n> --comment "Delivered in <PR>"`.
 5. Labels `status:*` and `feature` missing in the repo → create with `gh label create` (once).
 
 ## Completion criteria

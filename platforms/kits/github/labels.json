@@ -2,11 +2,11 @@
   { "name": "feature",                  "color": "0e8a16", "description": "New feature" },
   { "name": "bug",                      "color": "d73a4a", "description": "Incorrect behavior" },
   { "name": "debt",                     "color": "fbca04", "description": "Technical debt (DEBT-nnn)" },
-  { "name": "status:proposta",          "color": "ededed", "description": "FEAT proposed, not yet clarified" },
-  { "name": "status:clarificada",       "color": "c5def5", "description": "FEAT clarified, no plan" },
-  { "name": "status:planejada",         "color": "bfd4f2", "description": "FEAT with plan and tasks" },
-  { "name": "status:em-implementação",  "color": "1d76db", "description": "FEAT being implemented" },
-  { "name": "status:validada",          "color": "0e8a16", "description": "FEAT validated (audit ok)" },
-  { "name": "status:entregue",          "color": "006b75", "description": "FEAT delivered/merged" },
+  { "name": "status:proposed",          "color": "ededed", "description": "FEAT proposed, not yet clarified" },
+  { "name": "status:clarified",         "color": "c5def5", "description": "FEAT clarified, no plan" },
+  { "name": "status:planned",           "color": "bfd4f2", "description": "FEAT with plan and tasks" },
+  { "name": "status:in-progress",       "color": "1d76db", "description": "FEAT being implemented" },
+  { "name": "status:validated",         "color": "0e8a16", "description": "FEAT validated (audit ok)" },
+  { "name": "status:delivered",         "color": "006b75", "description": "FEAT delivered/merged" },
   { "name": "flag",                     "color": "5319e7", "description": "A feature flag is tied to this change" }
 ]

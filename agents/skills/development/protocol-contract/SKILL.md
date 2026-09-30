@@ -20,7 +20,7 @@ The contract lives in a single place (in the project, typically `protocol/`); cl
 ## 1. Locate the source of truth
 
 - Read `protocol/README.md` (or whatever `AGENTS.md` indicates): transport, serialization, current `protocol_version`, naming convention, common envelope (id, correlation, sequence, timestamp).
-- If there is no approved DEC for transport/serialization → stop; open a `DEC-xxx` as `proposta` and report. Do not choose on your own.
+- If there is no approved DEC for transport/serialization → stop; open a `DEC-xxx` as `proposed` and report. Do not choose on your own.
 
 ## 2. Classify the change
 

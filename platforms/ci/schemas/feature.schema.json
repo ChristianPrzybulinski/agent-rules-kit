@@ -10,7 +10,7 @@
     "title": { "type": "string", "minLength": 5, "maxLength": 100 },
     "status": {
       "type": "string",
-      "enum": ["proposta", "clarificada", "planejada", "em-implementação", "validada", "entregue", "cancelada"]
+      "enum": ["proposed", "clarified", "planned", "in-progress", "validated", "delivered", "cancelled"]
     },
     "requirements": {
       "type": "array",

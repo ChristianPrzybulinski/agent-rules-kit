@@ -1,7 +1,7 @@
 ---
 id: DEC-000
 title: "[Decision in 1 sentence: Use WebSocket for the game session]"
-status: proposta
+status: proposed
 date: "YYYY-MM-DD"
 deciders: "[product | tech]"
 features: []
@@ -10,7 +10,7 @@ supersedes: null
 
 # DEC-000 — [Title]
 
-States: `proposta` → `aprovada` | `rejeitada` | `substituída` (superseded by `DEC-nnn`).
+States: `proposed` → `approved` | `rejected` | `superseded` (superseded by `DEC-nnn`).
 
 ## Context
 

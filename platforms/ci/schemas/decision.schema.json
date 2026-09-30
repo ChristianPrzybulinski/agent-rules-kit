@@ -8,7 +8,7 @@
   "properties": {
     "id": { "type": "string", "pattern": "^DEC-[0-9]{3,}$" },
     "title": { "type": "string", "minLength": 5, "maxLength": 120 },
-    "status": { "type": "string", "enum": ["proposta", "aprovada", "rejeitada", "substituída"] },
+    "status": { "type": "string", "enum": ["proposed", "approved", "rejected", "superseded"] },
     "date": { "type": "string", "format": "date" },
     "deciders": { "type": "string" },
     "features": {
@@ -19,6 +19,6 @@
     "supersedes": { "type": ["string", "null"], "pattern": "^DEC-[0-9]{3,}$" },
     "superseded_by": { "type": ["string", "null"], "pattern": "^DEC-[0-9]{3,}$" }
   },
-  "if": { "properties": { "status": { "const": "substituída" } } },
+  "if": { "properties": { "status": { "const": "superseded" } } },
   "then": { "required": ["superseded_by"] }
 }

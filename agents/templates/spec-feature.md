@@ -1,7 +1,7 @@
 ---
 id: FEAT-000
 title: "[Short infinitive title: Authenticate player]"
-status: proposta
+status: proposed
 requirements: []
 depends_on: []
 milestone: null

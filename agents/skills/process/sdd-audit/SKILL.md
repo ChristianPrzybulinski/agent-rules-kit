@@ -1,7 +1,7 @@
 ---
 name: sdd-audit
 version: "1.0"
-description: SDD step 4 — spec quality audit with a checklist - testability, completeness, security, data, errors, compatibility, observability. Produces a gap list to fix before planning. Use when the FEAT is clarificada.
+description: SDD step 4 — spec quality audit with a checklist - testability, completeness, security, data, errors, compatibility, observability. Produces a gap list to fix before planning. Use when the FEAT is clarified.
 argument-hint: "FEAT-nnn"
 triggers:
   - user

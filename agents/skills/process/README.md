@@ -17,14 +17,14 @@ Repeat `implement → validate` until READY. `to-card` can run right after `spec
 | Step | Skill | Input | Output | spec-kit origin |
 |---|---|---|---|---|
 | 0 | `sdd-constitution` | product request, stack | `AGENTS.md`, `docs/spec/spec.md` | `constitution` |
-| 1 | `sdd-specify` | feature description | `features/FEAT-xxx.md` (status `proposta`), `requirements/**/REQ-*.md` | `specify` |
-| 2 | `sdd-clarify` | FEAT | questions → answers incorporated; status `clarificada` | `clarify` |
+| 1 | `sdd-specify` | feature description | `features/FEAT-xxx.md` (status `proposed`), `requirements/**/REQ-*.md` | `specify` |
+| 2 | `sdd-clarify` | FEAT | questions → answers incorporated; status `clarified` | `clarify` |
 | 3 | `sdd-analyze` | FEAT + REQs + DECs | report of contradictions/gaps/orphans | `analyze` |
 | 4 | `sdd-audit` | FEAT | spec quality checklist (testable? complete? safe?) | `checklist` |
-| 5 | `sdd-plan` | clarified FEAT | *Plan* section in the FEAT (modules, contract, migration, flag, tests); `DEC-xxx` if a decision; status `planejada` | `plan` |
+| 5 | `sdd-plan` | clarified FEAT | *Plan* section in the FEAT (modules, contract, migration, flag, tests); `DEC-xxx` if a decision; status `planned` | `plan` |
 | 6 | `sdd-tasks` | plan | ordered *Tasks* section, each with a verifiable criterion | `tasks` |
-| 7 | `sdd-implement` | tasks | code + tests + docs, one task at a time; status `em-implementação` | `implement` |
-| 8 | `validate-implementation` | FEAT | verdict READY/PARTIAL/NOT READY; status `validada` | `converge` |
+| 7 | `sdd-implement` | tasks | code + tests + docs, one task at a time; status `in-progress` | `implement` |
+| 8 | `validate-implementation` | FEAT | verdict READY/PARTIAL/NOT READY; status `validated` | `converge` |
 | 9 | `sdd-to-card` | FEAT | GitHub issue (Projects) synced with status | — (addition) |
 
 ## Identifiers
@@ -41,7 +41,7 @@ Sequential numbering per type, never reused. File name: `PREFIX-nnn-slug.md`. Fr
 
 ## Feature status
 
-`proposta → clarificada → planejada → em-implementação → validada → entregue` (+ `cancelada`). Forward only; regression requires a note in *History*. `entregue` = merged to `main` with the flag on (or no flag).
+`proposed → clarified → planned → in-progress → validated → delivered` (+ `cancelled`). Forward only; regression requires a note in *History*. `delivered` = merged to `main` with the flag on (or no flag).
 
 ## Mandatory claim classification (in every spec/decision)
 

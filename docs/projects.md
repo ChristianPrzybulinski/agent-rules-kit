@@ -16,7 +16,7 @@ Rules, skills and knowledge stay **in the kit** and are installed on the machine
 | `infra/` / compose | `platforms/kits/docker/` | `infra/compose.yml` (`name: stratics`) |
 | `.gitattributes` (LFS) | `platforms/kits/git-lfs/` | the repo's first commit |
 
-IDs in `docs/spec/`: `FEAT-nnn`, `REQ-F-nnn`, `REQ-NF-nnn`, `DEC-nnn`, `DEBT-nnn` — sequential numbering, `id` = the file name's prefix, status in frontmatter (`proposta`/`aprovada`/`implementada`…). Process: `agents/skills/process/README.md`.
+IDs in `docs/spec/`: `FEAT-nnn`, `REQ-F-nnn`, `REQ-NF-nnn`, `DEC-nnn`, `DEBT-nnn` — sequential numbering, `id` = the file name's prefix, status in frontmatter (`proposed`/`approved`/`delivered`…). Process: `agents/skills/process/README.md`.
 
 ## What does NOT go to the project
 
