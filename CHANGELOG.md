@@ -2,6 +2,11 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento: [SemVer](https://semver.org/lang/pt-BR/).
 
+## [3.1.1] - 2026-09-30
+
+### Fixed
+- `scripts/check_spec.py`: arquivos `REQ-NF-nnn.md` não eram reconhecidos pelo prefixo de ID (regex `REQ-[FN]`); agora `REQ-NF|REQ-F`.
+
 ## [3.1.0] - 2026-09-30
 
 ### Added

@@ -96,7 +96,7 @@ STRUCT = {
              "id": r"^DEBT-\d{3,}$"},
 }
 
-ID_PREFIX = re.compile(r"^(REQ-[FN]|FEAT|DEC|DEBT)-(\d+)")
+ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|FEAT|DEC|DEBT)-(\d+)")
 
 
 def main():
