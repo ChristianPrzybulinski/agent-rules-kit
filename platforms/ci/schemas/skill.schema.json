@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/platforms/ci/schemas/skill.schema.json",
+  "title": "Frontmatter de agents/skills/<tipo>/<nome>/SKILL.md (skills próprias; vendor valida só name/description)",
+  "type": "object",
+  "required": ["name", "version", "description", "triggers"],
+  "additionalProperties": true,
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,40}$", "description": "Igual ao nome da pasta." },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+    "description": {
+      "type": "string",
+      "minLength": 60,
+      "maxLength": 700,
+      "description": "O que faz + 'Usar quando…' + 'Não usar para…'."
+    },
+    "argument-hint": { "type": "string" },
+    "triggers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["user", "model"] }
+    },
+    "allowed-tools": { "type": "array", "items": { "type": "string" } },
+    "disable-model-invocation": { "type": "boolean" }
+  }
+}

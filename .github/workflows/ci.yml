@@ -1,0 +1,24 @@
+name: ci
+
+on: [push, pull_request]
+
+env:
+  CI: "1"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pyyaml jsonschema
+      - name: shellcheck
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck platforms/install/*.sh platforms/tools/*.sh platforms/kits/*/*.sh platforms/kits/*/scripts/*.sh
+      - name: check kit
+        run: platforms/tools/check.sh
+      - name: links
+        run: python3 platforms/ci/validations/check_kit.py --links

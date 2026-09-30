@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/platforms/ci/schemas/rule.schema.json",
+  "title": "Frontmatter de agents/rules/**/*.md",
+  "type": "object",
+  "required": ["description", "trigger"],
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 40,
+      "maxLength": 400,
+      "description": "O que a regra cobre e QUANDO carregar. Deve conter a palavra 'Carregar' ou 'Usar'."
+    },
+    "trigger": { "type": "string", "enum": ["always_on", "model_decision", "glob"] },
+    "globs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 2 },
+      "minItems": 1,
+      "description": "Obrigatório quando trigger = glob."
+    }
+  },
+  "if": { "properties": { "trigger": { "const": "glob" } } },
+  "then": { "required": ["globs"] }
+}

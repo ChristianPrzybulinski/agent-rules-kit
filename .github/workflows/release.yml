@@ -1,0 +1,28 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag == VERSION
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(cat VERSION)"
+          [ "$tag" = "$ver" ] || { echo "::error::tag $tag != VERSION $ver"; exit 1; }
+      - name: Extrai seção do CHANGELOG
+        run: |
+          awk -v t="${GITHUB_REF_NAME#v}" 'index($0, "## [" t "]") == 1 {f=1} f && NR>1 && /^## \[/ && index($0, "## [" t "]") != 1 {exit} f' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "::error::secao ## [${GITHUB_REF_NAME#v}] nao encontrada no CHANGELOG"; exit 1; }
+          cat notes.md
+      - name: gh release create
+        run: gh release create "$GITHUB_REF_NAME" --notes-file notes.md --title "$GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

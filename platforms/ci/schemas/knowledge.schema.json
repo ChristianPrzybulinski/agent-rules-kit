@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/platforms/ci/schemas/knowledge.schema.json",
+  "title": "Frontmatter de agents/knowledge/**/*.md",
+  "type": "object",
+  "required": ["description", "trigger", "verified", "sources"],
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 40,
+      "maxLength": 400,
+      "description": "Qual fato/versão/glossário a nota contém e quando carregar."
+    },
+    "trigger": { "type": "string", "const": "model_decision" },
+    "verified": { "type": "string", "format": "date", "description": "Data em que os fatos foram conferidos na fonte." },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^https?://" }
+    },
+    "expires": { "type": "string", "format": "date", "description": "Opcional: quando reconferir (ex.: próximo LTS)." }
+  }
+}

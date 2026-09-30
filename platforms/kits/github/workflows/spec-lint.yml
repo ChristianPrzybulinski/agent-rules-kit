@@ -1,0 +1,26 @@
+name: spec-lint
+
+on:
+  pull_request:
+    paths:
+      - 'docs/spec/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout do agent-rules-kit (repo privado do mesmo owner)
+        uses: actions/checkout@v4
+        with:
+          repository: ChristianPrzybulinski/agent-rules-kit
+          path: .agent-rules-kit
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Se o checkout falhar por permissão, criar um PAT com `repo` scope
+          # e guardar como secret (ex.: KIT_PAT), usando `token: ${{ secrets.KIT_PAT }}`.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install jsonschema pyyaml
+      - name: Valida frontmatter e referências FEAT/REQ
+        run: .agent-rules-kit/platforms/tools/check.sh --spec docs/spec

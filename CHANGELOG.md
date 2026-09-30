@@ -2,6 +2,24 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versionamento: [SemVer](https://semver.org/lang/pt-BR/).
 
+## [4.0.0] - 2026-09-30
+
+### Changed
+- **Layout v4**: `rules/`, `knowledge/`, `prompts/` → `agents/`; skills por tipo em `agents/skills/<tipo>/`; `processes/sdd/` → `agents/skills/process/`; templates flat em `agents/templates/` (`spec-*`, `doc-*`, `project-*`, `kit-*`); `schemas/`, `scripts/` → `platforms/ci/` e `platforms/tools/`/`platforms/install/`; `kits/` → `platforms/kits/`. Índice mestre: `INDEX.md`.
+- **BREAKING**: caminhos públicos mudaram — `scripts/check.sh` → `platforms/tools/check.sh`, `scripts/install/all.sh` → `platforms/install/all.sh`, `templates/docs/spec/*` → `agents/templates/spec-*`. Projetos devem atualizar referências (ex.: `spec-lint.yml`).
+- `check.sh` agora delega a `platforms/ci/validations/check_kit.py` (layout, frontmatters, índices, links, lock, duplicação); `--spec` continua em `check_spec.py`.
+- `devin.sh`/`codex.sh` instalam skills a partir de `agents/skills/`; `cursor.sh` ignora `INDEX.md`; `all.sh` grava `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}` e ganha `--clean`.
+- Releases passam a ser automáticas: tag `v*` → workflow valida `VERSION` e publica release com a seção do changelog.
+
+### Added
+- `VERSION`, `LAYOUT_VERSION`; `INDEX.md` raiz + INDEX/README em toda pasta.
+- `platforms/tools/`: `bootstrap.sh` (1 comando) e `refresh.sh [--quiet]` (pull + reinstall por versão/layout).
+- `.github/`: workflows `ci`, `gitleaks`, `release`; `dependabot.yml`; PR template; CODEOWNERS.
+- `platforms/ci/schemas/`: `rule`, `knowledge`, `skill`, `skills-lock` (além dos 5 de spec).
+- `agents/rules/core/sessions.md` (higiene de sessão) e `agents/templates/kit-*.md` (templates do próprio kit).
+- `docs/`: `design.md` (princípios), `projects.md` (o que vive no projeto), `maintenance.md` (versionar, vendor, CI).
+- Frontmatter `knowledge.schema.json` nas 9 notas de `agents/knowledge/`.
+
 ## [3.2.0] - 2026-09-30
 
 ### Added
