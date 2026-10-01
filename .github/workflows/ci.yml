@@ -20,5 +20,7 @@ jobs:
           shellcheck platforms/install/*.sh platforms/tools/*.sh platforms/kits/*/*.sh platforms/kits/*/scripts/*.sh
       - name: check kit
         run: platforms/tools/check.sh
+      - name: install smoke
+        run: platforms/tools/install-smoke.sh
       - name: links
         run: python3 platforms/ci/validations/check_kit.py --links

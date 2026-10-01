@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [7.1.1] - 2026-09-30
+
+### Added
+- `platforms/tools/install-smoke.sh` — installs the kit twice into a throwaway `HOME` (idempotency), plants unmarked user skills, runs `all.sh --clean` and asserts they survive, every kit skill carries its marker and the always-on files match `agents/AGENTS.md`. Runs in `ci.yml`; it would have caught the `--clean` data loss fixed in 7.1.0.
+
 ## [7.1.0] - 2026-09-30
 
 ### Fixed
