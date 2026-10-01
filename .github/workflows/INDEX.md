@@ -2,6 +2,6 @@
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | push + PR | `check.sh` (full mode), `shellcheck`, `check_kit.py --links` |
+| `ci.yml` | push + PR | `check.sh` (full mode), `shellcheck`, `install-smoke.sh`, `check_kit.py --links` |
 | `gitleaks.yml` | push + PR | secrets scan |
 | `release.yml` | tag `v*` | validates tag == `VERSION`, creates a release with the CHANGELOG section |
