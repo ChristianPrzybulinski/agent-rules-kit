@@ -49,6 +49,7 @@ Everything written — code, identifiers, Javadoc/docstring, comments, commits, 
 - Plan before coding when: 3+ files, crosses a layer, vague requirement, bug with no named root cause.
 - Bug → a test that fails for the right reason first. Feature → the failing test defines "done".
 - Same error twice → stop; formulate a root-cause hypothesis and widen context before the 3rd attempt.
+- Independent steps (reads, checks, long commands) run together or in the background; sequence only what depends on a result, shares a resource, or has an external effect. Parallel is never broader.
 - One PR, one concern.
 
 ## Git, docs and versioning

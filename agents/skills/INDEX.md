@@ -4,7 +4,7 @@ Scope: how to execute a task step by step (`/name`), with inputs, outputs and "d
 
 | Type | Folder | Contains |
 |---|---|---|
-| core | [`core/`](core/INDEX.md) | session discipline, session review, evidence, response register |
+| core | [`core/`](core/INDEX.md) | session discipline, session review, evidence, response register, parallel work |
 | quality | [`quality/`](quality/INDEX.md) | verification, investigation, characterization tests, vulnerabilities, secure development |
 | development | [`development/`](development/INDEX.md) | stacks, code standards, asset import, protocol contract |
 | documentation | [`documentation/`](documentation/INDEX.md) | project docs, session handoff |
@@ -20,6 +20,7 @@ Scope: how to execute a task step by step (`/name`), with inputs, outputs and "d
 | `sessions` | core | session start, long session, topic change |
 | `session-review` | core | end of session: summary + at most one kit proposal (only with evidence) |
 | `tokens` | core | response register (technical vs. text for people) |
+| `parallelize` | core | batch independent calls, background long commands, fan out `[P]` tasks; what stays sequential |
 | `skeptic` | quality | dubious claim → verdict with confidence |
 | `validate-implementation` | quality | "is it done?" before a PR/closing a task |
 | `vuln-scan` | quality | CVEs, secrets, OWASP before a PR/release |

@@ -2,6 +2,14 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [7.3.0] - 2026-10-01
+
+### Added
+- `agents/skills/core/parallelize` — independent work leaves together: independent tool calls batched in one turn, long commands in the background while work continues, disjoint `[P]` tasks fanned out to subagents when the platform has them; names what must stay sequential (depends on a result, shares a file/index/port/DB, has an external side effect). New always-on line in `agents/AGENTS.md` (Work loop) and in `agents/prompts/chatgpt-full.md`.
+
+### Changed
+- `agents/AGENTS.md` 110 → 97 lines: sections whose detail a skill already carries in full (Session, Craft, Tests, Git/docs, Tokens) compressed to a summary line with a `Detail: skill …` pointer, after a line-by-line coverage check against `sessions`, `session-review`, `clean-code`, `clean-architecture`, `simplicity`, `ddd-and-patterns`, `testing`, `branching-and-versioning`, `update-docs`, `git-lfs`, `tokens`. Lines with no skill behind them (Truth, Skepticism, Security, Boundaries, Specialties, language, file size, ecosystem search, lint-config source) stay verbatim. "One PR, one concern" moved from Craft to the Session line. `agents/prompts/chatgpt-compact.md` unchanged (ChatGPT Custom Instructions have no tool calls to parallelize).
+
 ## [7.2.0] - 2026-10-01
 
 ### Added
