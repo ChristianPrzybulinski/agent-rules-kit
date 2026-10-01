@@ -30,4 +30,4 @@ Removing: delete the lock line + `git rm -r agents/skills/vendor/<name>`.
 
 `.github/workflows/ci.yml`: `check.sh` with `CI=1` (pyyaml/jsonschema mandatory — a local run without them runs in structural mode with a warning), `shellcheck` on `platforms/**/*.sh`, `check_kit.py --links`. `gitleaks.yml` on every push. Weekly Dependabot for actions.
 
-This machine's prerequisites (2026-09-30): Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — via `toolchains.xml`) and JDK 27 on PATH · Maven 3.9.16 · Node 26.10.0/npm 11.19.1 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita. System Python without `pyyaml`/`jsonschema` (check runs in structural mode; CI installs them).
+This machine's prerequisites (2026-09-30): Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — via `toolchains.xml`) and JDK 27 on PATH · Maven 3.9.16 · Node 26.10.0/npm 11.19.1 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita. System Python 3 with `pyyaml` 6.0.3 / `jsonschema` 4.25.1 (`check.sh` runs in full mode locally; CI installs them anyway).

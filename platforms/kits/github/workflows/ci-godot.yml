@@ -36,7 +36,7 @@ jobs:
         run: godot --headless --path . --export-release "Windows Desktop" build/windows/game.exe
       - name: Export macOS
         run: godot --headless --path . --export-release "macOS" build/macos/game.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: exports
           path: build/

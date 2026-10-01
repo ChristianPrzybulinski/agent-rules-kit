@@ -35,7 +35,7 @@ clean_legacy_cursor() {
 }
 
 if [[ "${1:-}" == "--clean" ]]; then
-  rm -rf "$HOME/.devin/rules" "$HOME/.config/devin/skills"
+  rm -rf "$HOME/.devin/rules"
   for skills_dir in "$HOME/.agents/skills" "$HOME/.codeium/windsurf/skills" "${CODEX_HOME:-$HOME/.codex}/skills"; do
     [[ -d "$skills_dir" ]] || continue
     find "$skills_dir" -mindepth 2 -maxdepth 2 -name '.agent-rules-kit' -exec dirname {} \; 2>/dev/null | while read -r d; do rm -rf "$d"; done

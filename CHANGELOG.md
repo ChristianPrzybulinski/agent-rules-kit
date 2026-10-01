@@ -2,6 +2,21 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [7.1.0] - 2026-09-30
+
+### Fixed
+- `platforms/install/all.sh --clean` no longer deletes `~/.config/devin/skills` wholesale (user-owned skills were lost; `refresh.sh` runs `--clean` automatically on a `LAYOUT_VERSION` change). Legacy kit-named folders there are still removed by `install/devin.sh`.
+- `check_spec.py` and `check_kit.py` now enforce `format: date` (`jsonschema.FormatChecker`): a `docs/spec/spec.md` left with the template placeholder `updated: "YYYY-MM-DD"` fails the lint instead of passing. Projects: rerun `platforms/tools/sync-project.sh <repo>` to pick up the new validator.
+- Stale pre-v5 path in `agents/knowledge/postgresql/postgres-17.md` (`kits/docker/compose.yml` → `platforms/kits/docker/compose.yml`); `docs/maintenance.md` prerequisites (system Python has `pyyaml`/`jsonschema`, `check.sh` runs in full mode locally); Portuguese example file names in `agents/templates/spec-feature.md` and `docs/projects.md`; `platforms/kits/INDEX.md` no longer calls `ci-java`/`ci-godot` "reusable" (they trigger on push/PR, not `workflow_call`).
+
+### Added
+- `platforms/kits/github/dependabot.yml` — weekly GitHub Actions updates for projects (same as the kit's own).
+- "Do not use for…" sentence in the 19 skill descriptions that lacked it — `check.sh` is now warning-free.
+- Language rule (English artifacts, pt-BR conversation) in `agents/prompts/chatgpt-{full,compact}.md`, missing since v5.0.0.
+
+### Changed
+- Project workflow templates bumped to current majors: `actions/setup-java` v4→v6, `actions/cache` v4→v6, `actions/upload-artifact` v4→v7 (`ci-java.yml`, `ci-godot.yml`). The kit's own workflows were already current.
+
 ## [7.0.0] - 2026-09-30
 
 ### Changed

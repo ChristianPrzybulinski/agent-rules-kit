@@ -1,7 +1,7 @@
 ---
 name: sdd-clarify
 version: "1.0"
-description: SDD step 2 — resolves a FEAT's [NEEDS CLARIFICATION] markers with objective questions (2-4 options each) to the product, incorporates the answers into the spec and moves status to clarified. Use when the FEAT has open questions or ambiguous criteria.
+description: SDD step 2 — resolves a FEAT's [NEEDS CLARIFICATION] markers with objective questions (2-4 options each) to the product, incorporates the answers into the spec and moves status to clarified. Use when the FEAT has open questions or ambiguous criteria. Do not use to write the FEAT from scratch (skill sdd-specify) or to audit its quality (skill sdd-audit).
 argument-hint: "FEAT-nnn"
 triggers:
   - user

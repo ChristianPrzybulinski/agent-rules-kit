@@ -11,7 +11,7 @@ from pathlib import Path
 
 try:
     import yaml
-    from jsonschema import validate as js_validate
+    from jsonschema import validate as js_validate, FormatChecker
     FULL = True
 except ImportError:
     FULL = False
@@ -134,7 +134,7 @@ def main():
             continue
         if FULL and kind in schemas:
             try:
-                js_validate(data, schemas[kind])
+                js_validate(data, schemas[kind], format_checker=FormatChecker())
             except Exception as e:
                 fail(f"{path}: schema {kind}: {getattr(e, 'message', e)}")
         else:

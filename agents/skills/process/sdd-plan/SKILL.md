@@ -1,7 +1,7 @@
 ---
 name: sdd-plan
 version: "1.0"
-description: SDD step 5 — technical plan for a clarified, audited FEAT - modules touched, domain model, contract, persistence/migration, feature flag, test strategy, risks; creates DEC-nnn for decisions with a rejected alternative. Status becomes planned. Use after sdd-audit, before sdd-tasks.
+description: SDD step 5 — technical plan for a clarified, audited FEAT - modules touched, domain model, contract, persistence/migration, feature flag, test strategy, risks; creates DEC-nnn for decisions with a rejected alternative. Status becomes planned. Use after sdd-audit, before sdd-tasks. Do not use to break the plan into tasks (skill sdd-tasks) or before clarify and audit are done.
 argument-hint: "FEAT-nnn [technical constraints]"
 triggers:
   - user

@@ -1,7 +1,7 @@
 ---
 name: sdd-specify
 version: "1.0"
-description: SDD step 1 — turns a feature description into FEAT-nnn (the what and why, not the how) and its linked REQ-F/REQ-NF, with testable acceptance criteria. Use when starting any new feature.
+description: SDD step 1 — turns a feature description into FEAT-nnn (the what and why, not the how) and its linked REQ-F/REQ-NF, with testable acceptance criteria. Use when starting any new feature. Do not use to refine an existing FEAT (skill sdd-clarify) or to record a technical decision alone (DEC via sdd-plan).
 argument-hint: "<feature description in natural language>"
 triggers:
   - user

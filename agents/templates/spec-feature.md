@@ -44,7 +44,7 @@ updated: "YYYY-MM-DD"
 - Depends on: [FEAT-xxx or —]
 - Conflicts/overlaps: [—]
 - Related legacy: [path in the archive, if any — `[FACT]` only if verified]
-- Evidence: [frontmatter `evidence` IDs → `docs/legacy/evidencias.md#e01`]
+- Evidence: [frontmatter `evidence` IDs → `docs/legacy/evidence.md#e01`]
 
 ## Open questions
 

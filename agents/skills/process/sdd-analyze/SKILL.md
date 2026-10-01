@@ -1,7 +1,7 @@
 ---
 name: sdd-analyze
 version: "1.0"
-description: SDD step 3 — consistency analysis across FEAT, REQs, DECs, plan and tasks - contradictions, gaps, orphan requirements, criteria without a task, tasks without a criterion. Read-only; produces a report. Use after clarify and after plan/tasks.
+description: SDD step 3 — consistency analysis across FEAT, REQs, DECs, plan and tasks - contradictions, gaps, orphan requirements, criteria without a task, tasks without a criterion. Read-only; produces a report. Use after clarify and after plan/tasks. Do not use to judge spec quality (skill sdd-audit) or to validate delivered code (skill validate-implementation).
 argument-hint: "FEAT-nnn | all"
 triggers:
   - user

@@ -1,7 +1,7 @@
 ---
 name: sdd-constitution
 version: "1.0"
-description: SDD step 0 — creates (or reviews) the project constitution - the repo's AGENTS.md with verifiable principles and docs/spec/spec.md with vision, scope, glossary and index. Use once per new project, or when principles change.
+description: SDD step 0 — creates (or reviews) the project constitution - the repo's AGENTS.md with verifiable principles and docs/spec/spec.md with vision, scope, glossary and index. Use once per new project, or when principles change. Do not use for a single feature (skill sdd-specify) or to edit the kit's own AGENTS.md.
 argument-hint: "[product description and stack, or 'review']"
 triggers:
   - user

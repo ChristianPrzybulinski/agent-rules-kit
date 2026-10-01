@@ -1,7 +1,7 @@
 ---
 name: redis
 version: "1.0"
-description: Redis as cache/ephemeral — when to use it (and when not), keys with TTL, pub/sub for presence, rate limiting, short locks; never the source of truth for inventory, progression or economy. Use when proposing cache, session, a light queue or coordination.
+description: Redis as cache/ephemeral — when to use it (and when not), keys with TTL, pub/sub for presence, rate limiting, short locks; never the source of truth for inventory, progression or economy. Use when proposing cache, session, a light queue or coordination. Do not use for durable data or the source of truth (skill postgresql).
 argument-hint: "[justify | cache | ratelimit | pubsub | lock] <context>"
 triggers:
   - user
