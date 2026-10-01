@@ -13,6 +13,7 @@ platforms/install/all.sh --clean  # deletes managed destinations first (layout c
 | `devin.sh` | `~/.config/devin/AGENTS.md` | always-on; removes legacy `~/.devin/rules/`, `~/.devin/global_rules.md` and kit-named folders in `~/.config/devin/skills/` |
 | `windsurf.sh` | `~/.codeium/windsurf/memories/global_rules.md` | always-on |
 | `codex.sh` | `~/.codex/AGENTS.md` | always-on; removes legacy kit-marked folders in `$CODEX_HOME/skills` |
+| `devin-plugin.sh <out-dir>` | `<out-dir>` (CI: `devin-plugin` branch) | Devin plugin `ai-kit`: `.devin-plugin/plugin.json`, `AGENTS.md` (always-on), flattened `skills/<name>/`; not run by `all.sh` |
 | `third-party.sh` | `agents/skills/vendor/` | vendors the lock's skills; `--check` only validates |
 | `all.sh` | all + `~/.config/agent-rules-kit/` | orchestrates + records installed state |
 

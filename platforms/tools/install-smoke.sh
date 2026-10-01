@@ -2,7 +2,8 @@
 # Install smoke test in a throwaway HOME. Usage: install-smoke.sh
 # Runs all.sh twice (idempotent), plants unmarked user skills, runs --clean and
 # asserts they survive, every kit skill carries its marker and the always-on
-# files match agents/AGENTS.md. Never touches the real HOME.
+# files match agents/AGENTS.md. Then builds the Devin plugin and asserts
+# plugin.json, AGENTS.md and the skill count. Never touches the real HOME.
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -33,4 +34,12 @@ for f in .config/devin/AGENTS.md .codeium/windsurf/memories/global_rules.md .cod
 done
 [[ "$(cat "$HOME/.config/agent-rules-kit/VERSION")" == "$(cat "$KIT_DIR/VERSION")" ]] || fail "installed VERSION differs from the repo"
 
-echo "install-smoke: OK ($expected skills installed, --clean keeps user content)"
+plugin="$HOME/devin-plugin"
+"$KIT_DIR/platforms/install/devin-plugin.sh" "$plugin" >/dev/null
+python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); assert m["name"]=="ai-kit" and m["version"]==sys.argv[2], m' \
+  "$plugin/.devin-plugin/plugin.json" "$(cat "$KIT_DIR/VERSION")" || fail "plugin.json invalid or version differs from VERSION"
+cmp -s "$KIT_DIR/agents/AGENTS.md" "$plugin/AGENTS.md" || fail "plugin AGENTS.md differs from agents/AGENTS.md"
+got="$(find "$plugin/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')"
+[[ "$got" == "$expected" ]] || fail "plugin: $got skills, expected $expected"
+
+echo "install-smoke: OK ($expected skills installed, --clean keeps user content, devin plugin built)"

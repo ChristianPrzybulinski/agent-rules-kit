@@ -16,6 +16,7 @@ Scope: executables and tool configuration. Nothing here is an instruction for th
 | `~/.agents/skills/<name>/` | Devin, Cursor, Codex skills (whole dir, `.agent-rules-kit` marker) | `install/skills.sh` |
 | `~/.codeium/windsurf/skills/<name>/` | Windsurf skills | `install/skills.sh` |
 | `~/.config/devin/AGENTS.md` | Devin always-on | `install/devin.sh` |
+| `devin-plugin` branch (Devin plugin `ai-kit`) | Devin cloud/CLI/Desktop: `AGENTS.md` always-on + skills | `install/devin-plugin.sh` via `.github/workflows/devin-plugin.yml` |
 | `~/.codeium/windsurf/memories/global_rules.md` | Windsurf always-on | `install/windsurf.sh` |
 | `~/.codex/AGENTS.md` | Codex always-on | `install/codex.sh` |
 | `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}` | installed state, read by `refresh.sh` | `install/all.sh` |

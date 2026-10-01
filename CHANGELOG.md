@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [7.2.0] - 2026-10-01
+
+### Added
+- Devin plugin `ai-kit`: `platforms/install/devin-plugin.sh <out-dir>` builds `.devin-plugin/plugin.json` (version = `VERSION`), `AGENTS.md` (always-on rule, copy of `agents/AGENTS.md`) and the flattened `skills/<name>/`. `.github/workflows/devin-plugin.yml` publishes it to the generated `devin-plugin` branch on every push to `main`, so Devin sessions (cloud included) get the rules and skills without `bootstrap.sh`. Install from `https://github.com/ChristianPrzybulinski/agent-rules-kit` at ref `devin-plugin` (unpinned follows the branch; `devin plugins update ai-kit` re-fetches). `install-smoke.sh` now also builds the plugin and asserts `plugin.json`, `AGENTS.md` and the skill count.
+
 ## [7.1.2] - 2026-09-30
 
 ### Fixed
