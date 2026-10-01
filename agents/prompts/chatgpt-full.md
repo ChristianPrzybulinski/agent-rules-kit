@@ -31,7 +31,7 @@ Everything written — code, identifiers, Javadoc/docstring, comments, commits, 
 - New dependency only with justification and a compatible version.
 
 ### Java
-- Java 17+ (prefer 21 LTS). `record` for DTOs/value objects; `sealed` + pattern matching to model the domain; `var` when the type is obvious.
+- Java 25 LTS (fixed per project via `toolchains.xml`). `record` for DTOs/value objects; `sealed` + pattern matching to model the domain; `var` when the type is obvious.
 - `Optional` in returns, never `null`; never `Optional` in a parameter.
 - Spring: constructor injection; `@ConfigurationProperties` on `record`; `@ControllerAdvice` → `ProblemDetail` (RFC 7807).
 - Tests: JUnit 5 + AssertJ + Mockito. Domain tested without the Spring context. `@SpringBootTest` only for integration.

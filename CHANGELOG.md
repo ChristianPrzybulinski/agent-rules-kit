@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [7.1.2] - 2026-09-30
+
+### Fixed
+- `agents/prompts/chatgpt-full.md` said `Java 17+ (prefer 21 LTS)`; the kit standardizes on Java 25 LTS (`agents/knowledge/java/java-25-lts.md`, `platforms/kits/java-maven/`, `ci-java.yml`). Now `Java 25 LTS (fixed per project via toolchains.xml)`.
+
 ## [7.1.1] - 2026-09-30
 
 ### Added
