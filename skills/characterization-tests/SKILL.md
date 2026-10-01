@@ -1,7 +1,7 @@
 ---
 name: characterization-tests
-version: "1.0"
-description: Creates characterization tests that pin the CURRENT behavior of legacy or ported code (formulas, tables, RNG, rounding) before refactoring, migrating or rebalancing. Use before touching a rule whose correct behavior is not specified. Do not use to validate a new rule (that is a normal test with a spec).
+version: "1.1"
+description: Tests that pin current behavior of legacy or ported code. Use before refactoring or rebalancing a rule with no spec. Not for new behavior (skill testing).
 argument-hint: "[legacy class/method | flow: damage, evolution, encounter...]"
 triggers:
   - user
@@ -11,44 +11,45 @@ allowed-tools:
   - grep
   - glob
   - exec
+  - edit
 ---
 
 # Characterization Tests
 
-Goal: turn "the code does X" from `[HYPOTHESIS]` into a reproducible `[FACT]`, so that any future change is **deliberate** and visible in a test diff.
+## 1. Delimit one rule
 
-## 1. Delimit the unit
+- Select one input-to-output rule such as damage, capture chance, XP or price.
+- If I/O obscures it, introduce only the smallest seam for RNG, clock or repository without changing behavior.
+- Record the current source at `file:line` and any original port source actually read.
 
-- One rule at a time: input → pure output (damage, capture chance, XP, price). If the rule depends on I/O, isolate first via a minimal seam (interface for RNG, clock, repository) — without changing behavior.
-- Record the source: file:line of the current code **and**, if any, the original it was ported from (e.g.: a Lingo script). `[FACT]` only for what was read.
+## 2. Build discriminating cases
 
-## 2. Generate cases
+- Cover zero, negative, maximum, overflow, empty and null where the code accepts them.
+- Add values where truncation and rounding diverge.
+- Inject a fixed RNG seed or sequence; sample a distribution only when the formula cannot be read.
+- Put tables in `src/test/resources/characterization/<rule>.csv`; use JUnit `@CsvFileSource` above five cases.
+- Preserve surprising behavior with `// CHARACTERIZATION: current behavior, not validated as correct` and link a `DEBT-xxx` when relevant.
 
-- Boundaries: zero, negative, maximum, type overflow, empty, null.
-- Rounding and integer division: cases where truncate vs round diverge.
-- RNG: inject a fixed seed/sequence; characterize the distribution by sampling only if the formula is not readable.
-- Tables (levels, types, prices): small fixture in a file (`src/test/resources/characterization/<rule>.csv`), not inline constants.
-- Surprising cases (apparent bug) go in **as they are**, with the comment `// CHARACTERIZATION: current behavior, not validated as correct` and a `DEBT-xxx` if relevant.
+## 3. Prove the baseline
 
-## 3. Write
+- Name the class `<Rule>CharacterizationTest` and methods `given<input>_returns<currentOutput>`.
+- Run `./mvnw -q -pl <module> test -Dtest=<Class>` against the untouched behavior and capture literal output.
+- A test that starts red is not characterization; resolve the observation or fixture first.
 
-- Name: `<Rule>CharacterizationTest`; method: `given<input>_returns<currentOutput>`.
-- Parameterized (JUnit `@ParameterizedTest` + `@CsvFileSource`) when >5 cases.
-- Run and confirm green on the current version: `./mvnw -q -pl <module> test -Dtest=<Class>`. Literal output in the report.
+## 4. Compare an original when available
 
-## 4. Compare with the original (when it exists)
+- If executable, run the same fixture against both versions and record `legacy-expected | current | decision`.
+- If not executable, transcribe the formula beside the test and mark divergence `[HYPOTHESIS]` until decided.
 
-- If the original is executable (rare): same fixture on both; a divergence is a finding, goes to the `legacy-expected / current-Java / decision` table.
-- If not executable: side-by-side reading, formula transcribed in the test as a comment, divergence marked `[HYPOTHESIS]` until decided.
+## 5. Hand off deliberate change
 
-## 5. Close
+- Link the test class from the motivating FEAT or DEC.
+- Put product-significant divergence in a proposed `DEC-xxx` with both options and impact.
+- Refactor or rebalance only after the baseline is green; each intentional output change updates its case with commit justification.
 
-- Motivating FEAT/DEC: link the test class under "Relations".
-- Divergence needing a product decision → `DEC-xxx` `proposed` with both options and impact.
-- Only after that does the refactor/rebalancing begin — and each intentional change updates the case with justification in the commit.
+## 6. Guard the observation
 
-## Rules
+- Do not fix behavior during characterization or mock the rule being characterized.
+- Historical coverage or portability percentages do not replace an executable baseline.
 
-- Do not "fix" behavior during characterization.
-- Do not characterize by mocking the very code under test.
-- Coverage/portability percentages inherited from old reports do not replace this step.
+Done when: the current rule is reproducibly green, sources and surprising cases are recorded, and later behavior changes must alter an explicit expectation.

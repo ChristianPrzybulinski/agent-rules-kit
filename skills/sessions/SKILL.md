@@ -1,45 +1,45 @@
 ---
 name: sessions
-version: "1.0"
-description: Session hygiene — plan before executing, one session = one outcome, detect context mixing and long sessions, suggest a smaller model tier for simple tasks. Use at the start of every session and when the request changes topic. Do not use for writing the handoff record (skill session-handoff).
+version: "1.1"
+description: Session scope and hygiene. Use when starting, changing topics or detecting a long session. Not for recording completed work (skill session-handoff).
 triggers:
   - user
   - model
 allowed-tools:
   - read
-  - grep
-  - glob
 ---
 
 # Sessions
 
-A short, focused session costs fewer tokens and errs less. These rules exist so the agent **proposes** the discipline, not to lock the user in: they decide.
+## 1. Start with one outcome
 
-## Start
+- Read the repository's `AGENTS.md` and README before broad exploration.
+- Name one outcome for the session in a single sentence. If it cannot be named, ask before proceeding.
 
-- Read the repo's `AGENTS.md`; identify **the** outcome of this session in one sentence. Couldn't? Ask before any broad reading.
+## 2. Plan at the right threshold
 
-## Plan before executing
+- For work spanning three or more files, crossing a layer, or containing ambiguity, propose planning mode before editing.
+- For a one- or two-file mechanical change, proceed directly.
+- Once a plan is approved, execute it without repeatedly reopening the plan.
 
-- Task with 3+ files, crosses a layer, or ambiguous request → if the session is **not** in planning mode, suggest the switch in one line ("this calls for a plan; switch to plan mode?") before touching a file. 1-2 file mechanical task → execute directly.
-- Approved plan → execute without re-planning at every step.
+## 3. Protect the scope
 
-## One session, one outcome
+- A new topic mid-session is not silently added. Ask whether to record it as a follow-up or close and start another session.
+- Keep follow-ups in the handoff record, not conversational memory.
 
-- One outcome = one FEAT, one bug, one decision, one document. A request from another context mid-session → **warn and stop**: "this is another topic; do I log it as a follow-up and we continue the current one, or do we close and open a new session?" Never mix silently.
-- Follow-ups go to the handoff record (`session-handoff`), not to the agent's memory.
+## 4. Detect an exhausted session
 
-## Long session
+Signals include rereading already-read files, compressed context, an outcome already delivered, new unrelated requests, or roughly two hours of work. Suggest `session-handoff` and a new session; continue only if the user chooses to.
 
-Signals: rereading files already read, summarized/compressed context, original outcome already delivered with new requests arriving, more than ~2h of work. On noticing a signal → suggest: `session-handoff` + new session. Continue only if the user says so.
+## 5. Match the agent tier
 
-## Agent tier
+- Suggest a smaller tier for a mechanical one- or two-file task with no decision or investigation.
+- Keep the current tier for architecture, investigation or risk.
 
-- Simple task (mechanical, 1-2 files, no decision, no investigation) → say in one line that a smaller model/tier handles it, and proceed with the current one if the user doesn't switch.
-- Task with architecture decision, investigation or risk → do not suggest downgrading.
+## 6. Close explicitly
 
-## End
+- Invoke `session-review` for the evidence summary and optional kit proposal.
+- Invoke `session-handoff` when work is committed, pending or transferring to another agent.
+- Leave the tree clean or list the dirty paths as a blocker.
 
-- `session-review`: summary + review of the session against the kit (proposal only with evidence; the user decides).
-- `session-handoff` if the session produced something or left something pending.
-- Working tree clean or listed as `[BLOCKER]`.
+Done when: one outcome stayed in scope and the session ends with verified status, unverified items and one next step.

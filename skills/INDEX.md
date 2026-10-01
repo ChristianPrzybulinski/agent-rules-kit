@@ -8,11 +8,10 @@ Session discipline and reasoning.
 
 | Skill | Description |
 |---|---|
-| `evidence` | Evidence-based reasoning and skepticism — claims are hypotheses until verified, >98% confidence threshold, never invent. Use when evaluating a solution proposal, deciding between alternatives, or below 98% confidence. Do not use for investigating a concrete bug (skill investigate). |
-| `parallelize` | Parallelizes independent work — batches independent tool calls in one turn, runs long commands in the background while work continues, fans out disjoint tasks to subagents when the platform offers them — and names what must stay sequential (depends on a result, shares a file/index/port/DB, has an external side effect). Use at the start of any task with more than one step, when a command will take more than a few seconds, when a task list has `[P]` tasks, or whenever you are about to issue calls one at a time that do not depend on each other. Do not use for concurrency inside the product's code (threads, async, locks — skills `java-standards`, `godot-standards`, `testing`). |
-| `session-review` | Closes a session — brief summary of what was done (done · unverified · next step) and a review of whether this session exposed a gap in the AI kit: a fact looked up externally, a procedure repeated, a behavior the user had to correct, a skill that misfired. Proposes at most one knowledge note, skill, AGENTS.md line, description fix or template, only with evidence from the session, and asks before anything is written. Use at the end of every session, once the requested work is delivered or the user closes it. Do not use for the handoff record (skill session-handoff) or for project-only discoveries (they go to the repo's AGENTS.md on the spot). |
-| `sessions` | Session hygiene — plan before executing, one session = one outcome, detect context mixing and long sessions, suggest a smaller model tier for simple tasks. Use at the start of every session and when the request changes topic. Do not use for writing the handoff record (skill session-handoff). |
-| `tokens` | The two communication lenses — compressed technical register (code, debug, logs) and text for people (e-mail, report, narrative README) — plus what to never compress and what is a governed document. Use for long responses, when writing text for humans, or when asked for more/less compression. Do not use for governed artifacts (specs and CHANGELOG follow their templates). |
+| `parallelize` | Parallel planning for tool calls, long commands and [P] tasks. Use when work has independent steps. Not for product concurrency (skill testing). |
+| `session-review` | Session closeout with evidence and one kit proposal. Use when work is delivered or a session closes. Not for handoff records (skill session-handoff). |
+| `sessions` | Session scope and hygiene. Use when starting, changing topics or detecting a long session. Not for recording completed work (skill session-handoff). |
+| `tokens` | Response register for code, e-mail, reports, README and governed docs. Use when writing long answers or text for humans. Not for doc policy (skill update-docs). |
 
 ## Quality
 
@@ -20,11 +19,11 @@ Verification and quality.
 
 | Skill | Description |
 |---|---|
-| `characterization-tests` | Creates characterization tests that pin the CURRENT behavior of legacy or ported code (formulas, tables, RNG, rounding) before refactoring, migrating or rebalancing. Use before touching a rule whose correct behavior is not specified. Do not use to validate a new rule (that is a normal test with a spec). |
-| `secure-development` | Secure development — CVEs, secrets, OWASP Top 10, authentication, authorization, personal data, auditing. Use when touching dependencies, auth, endpoints, sensitive-data persistence or CI. Do not use for a vulnerability scan of an existing change (skill vuln-scan). |
-| `skeptic` | Adversarial verification of a claim (mine, the user's or a doc's). Seeks contrary evidence first, then favorable, and issues a verdict with confidence. Use when something "seems right" but was not proven, or when the user suggests a solution. Do not use to investigate a concrete bug (skill investigate) or for the general evidence policy (skill evidence). |
-| `validate-implementation` | Validates whether an implementation is truly done — confronts what was delivered with the spec/feature (FEAT-xxx) or the request, runs the project gates, checks docs and issues a READY / PARTIAL / NOT READY verdict with evidence. Use before opening a PR, when closing a task, or when someone claims "it's done". Do not use to fix what fails (back to sdd-implement) or to audit the spec itself (skill sdd-audit). |
-| `vuln-scan` | Vulnerability scan — CVEs in dependencies (Java/Maven, Godot addons, Docker images), secrets in the repository and history, and an OWASP checklist on changed endpoints. Use before a PR touching dependencies/auth/network, on release, or periodically. Do not use for secure design guidance while writing code (skill secure-development). |
+| `characterization-tests` | Tests that pin current behavior of legacy or ported code. Use before refactoring or rebalancing a rule with no spec. Not for new behavior (skill testing). |
+| `secure-development` | Security design for dependencies, auth, endpoints and sensitive data. Use when changing a trust boundary. Not for scanning changes (skill vuln-scan). |
+| `skeptic` | Adversarial check of a claim or proposed fix. Use when the user suggests a solution, a claim is unproven, or confidence <98%. Not for bugs (skill investigate). |
+| `validate-implementation` | Completion verdict against a request or FEAT. Use when asking “is it done?” or preparing a PR. Not for fixing failures (skill sdd-implement). |
+| `vuln-scan` | Scan for CVEs, secrets and changed endpoints. Use when preparing a sensitive PR, release or requested audit. Not for security design (skill secure-development). |
 
 ## Development
 

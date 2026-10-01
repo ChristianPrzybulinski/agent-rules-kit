@@ -1,7 +1,7 @@
 ---
 name: skeptic
-version: "1.0"
-description: Adversarial verification of a claim (mine, the user's or a doc's). Seeks contrary evidence first, then favorable, and issues a verdict with confidence. Use when something "seems right" but was not proven, or when the user suggests a solution. Do not use to investigate a concrete bug (skill investigate) or for the general evidence policy (skill evidence).
+version: "1.1"
+description: Adversarial check of a claim or proposed fix. Use when the user suggests a solution, a claim is unproven, or confidence <98%. Not for bugs (skill investigate).
 argument-hint: "[claim to verify — default: last relevant claim]"
 triggers:
   - user
@@ -11,55 +11,60 @@ allowed-tools:
   - grep
   - glob
   - exec
-  - web_search
-  - webfetch
 ---
 
-# Skeptic — adversarial verification
+# Skeptic
 
-Goal: replace "seems right" with evidence. Never conclude "true" without a verifiable source; never conclude "false" without trying to sustain the claim.
+## Policy
+
+- Treat every claim, including the user's and your own, as a hypothesis until a source or observation supports it.
+- Require more than 98% confidence to proceed without a caveat; below that, state what is missing and the next test.
+- Never invent a source, command output, API, version, file or behavior.
+- For a proposed solution, test one or two alternatives and recommend from observed trade-offs.
+- When new evidence overturns an earlier conclusion, state the correction explicitly.
 
 ## 1. Pin down the claim
 
-- Use `$ARGUMENTS` if provided; otherwise, the last factual claim or proposed solution in the conversation.
-- Rewrite it as one falsifiable sentence ("X does Y in Z"). If it is not falsifiable, say so and stop.
+- Use the argument or the last relevant factual claim or proposed solution.
+- Rewrite it as one falsifiable sentence: “X does Y in Z.” If it cannot be falsified, report that and stop.
 
-## 2. Classify and choose sources
+## 2. Select evidence
 
-| Claim type | Primary source | Secondary source |
+| Claim | Primary evidence | Corroboration |
 |---|---|---|
-| Repo code behavior | read the file + run test/command | git log/blame |
-| API, flag, lib/framework version | official doc of the installed version (`pom.xml`, `project.godot`, lockfile) | changelog/release notes |
-| Best approach / architecture | 2+ concrete alternatives with trade-offs measured in the repo's context | recognized reference (book, official doc) |
-| External fact | primary source (official site, RFC, spec) | 2 independent sources |
+| Repo behavior | file plus test or command | history when provenance matters |
+| API, flag or version | installed manifest plus official docs for that version | release notes |
+| Best approach | one or two concrete alternatives measured in this repo | recognized reference |
+| External fact | primary source | two independent sources |
 
-## 3. Seek CONTRARY evidence first
+If an authoritative source is inaccessible, do not substitute training memory; leave the claim undetermined.
 
-- Actively look for what would refute the claim: a failing test, a doc saying the opposite, an edge case, a different version.
-- If the claim is a proposed solution, list 1-2 alternatives and what they do better.
-- Record each finding with a source (path:line, URL, command output).
+## 3. Seek contrary evidence first
 
-## 4. Seek FAVORABLE evidence
+- Look for the failing case, opposite passage, version mismatch or boundary that refutes the claim.
+- For a proposed solution, identify what each alternative does better.
+- Record every finding as `path:line`, URL or literal command output.
 
-- Only after step 3. Same source requirement.
+## 4. Seek favorable evidence
 
-## 5. Verdict
+Only after the contrary pass, collect evidence that sustains the claim using the same source standard.
 
-Mandatory format (short):
+## 5. Issue the verdict
 
-```
+```text
 Claim: <falsifiable sentence>
 Verdict: CONFIRMED | REFUTED | PARTIAL | UNDETERMINED
-Confidence: NN%  (≥98% required to proceed without caveats)
-Against: - <evidence + source>
-For: - <evidence + source>
-Alternatives (if a solution): - <option> — <trade-off>
-Recommendation: <what to do now; if <98%, what is missing to get there>
+Confidence: NN%
+Against: <evidence and source>
+For: <evidence and source>
+Alternatives: <option and trade-off, when applicable>
+Recommendation: <action; below 98%, missing evidence and next test>
 ```
 
-## Rules
+## 6. Respect the boundary
 
-- Do not count "the doc says" without citing the version and the passage.
-- Do not count training memory as evidence.
-- If verification requires running something destructive, stop and ask for authorization.
-- If after reasonable effort nothing decides it, UNDETERMINED with the next concrete test that would.
+- Cite the installed version and exact passage; “the docs say” is insufficient.
+- Ask before destructive verification.
+- Reasonable effort without a deciding observation ends as `UNDETERMINED`, not a guess.
+
+Done when: contrary and favorable evidence are sourced, the verdict names confidence, and any sub-98% gap has a concrete next test.
