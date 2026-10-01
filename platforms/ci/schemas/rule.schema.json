@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/platforms/ci/schemas/rule.schema.json",
+  "title": "Frontmatter of rules/*.md",
+  "type": "object",
+  "required": ["description", "trigger"],
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "type": "string",
+      "maxLength": 160
+    },
+    "trigger": {
+      "type": "string",
+      "enum": ["glob", "model_decision", "manual"]
+    },
+    "globs": {
+      "type": "string"
+    }
+  }
+}

@@ -2,8 +2,9 @@
 
 | File | Validates |
 |---|---|
-| `knowledge.schema.json` | `agents/knowledge/**/*.md` |
-| `skill.schema.json` | non-vendor `agents/skills/` |
+| `knowledge.schema.json` | legacy knowledge-note frontmatter retained for compatibility |
+| `rule.schema.json` | `rules/*.md` |
+| `skill.schema.json` | non-vendor `skills/<name>/SKILL.md` |
 | `skills-lock.schema.json` | `platforms/kits/third-party/skills.lock` |
 | `spec.schema.json` | a project's `docs/spec/spec.md` |
 | `feature.schema.json` | `docs/spec/features/*.md` |
