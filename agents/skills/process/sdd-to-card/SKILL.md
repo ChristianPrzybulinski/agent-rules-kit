@@ -1,7 +1,7 @@
 ---
 name: sdd-to-card
 version: "1.0"
-description: SDD step 9 — syncs a FEAT with a GitHub card (Issue + Project) via gh - creates the issue if missing, updates title/body/labels/status from the frontmatter, writes the number into the FEAT's card field. Use after specify (open) and after validate/merge (close).
+description: SDD step 9 — syncs a FEAT with a GitHub card (Issue + Project) via gh - creates the issue if missing, updates title/body/labels/status from the frontmatter, writes the number into the FEAT's card field. Use after specify (open) and after validate/merge (close). Do not use for branches, commits or PRs (skill github-cli).
 argument-hint: "FEAT-nnn [--project <number>]"
 triggers:
   - user

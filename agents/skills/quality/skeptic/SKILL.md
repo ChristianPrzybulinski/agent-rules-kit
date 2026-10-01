@@ -1,7 +1,7 @@
 ---
 name: skeptic
 version: "1.0"
-description: Adversarial verification of a claim (mine, the user's or a doc's). Seeks contrary evidence first, then favorable, and issues a verdict with confidence. Use when something "seems right" but was not proven, or when the user suggests a solution.
+description: Adversarial verification of a claim (mine, the user's or a doc's). Seeks contrary evidence first, then favorable, and issues a verdict with confidence. Use when something "seems right" but was not proven, or when the user suggests a solution. Do not use to investigate a concrete bug (skill investigate) or for the general evidence policy (skill evidence).
 argument-hint: "[claim to verify — default: last relevant claim]"
 triggers:
   - user

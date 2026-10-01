@@ -1,7 +1,7 @@
 ---
 name: vuln-scan
 version: "1.0"
-description: Vulnerability scan — CVEs in dependencies (Java/Maven, Godot addons, Docker images), secrets in the repository and history, and an OWASP checklist on changed endpoints. Use before a PR touching dependencies/auth/network, on release, or periodically.
+description: Vulnerability scan — CVEs in dependencies (Java/Maven, Godot addons, Docker images), secrets in the repository and history, and an OWASP checklist on changed endpoints. Use before a PR touching dependencies/auth/network, on release, or periodically. Do not use for secure design guidance while writing code (skill secure-development).
 argument-hint: "[deps | secrets | endpoints | all]  (default: all)"
 triggers:
   - user

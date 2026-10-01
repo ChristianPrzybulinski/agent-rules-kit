@@ -1,7 +1,7 @@
 ---
 name: sdd-implement
 version: "1.0"
-description: SDD step 7 — executes a FEAT's tasks one by one (Red→Green→Refactor), on branch feature/FEAT-nnn, updating task states, docs and CHANGELOG; stops on a blocker and invents nothing. Use after tasks.
+description: SDD step 7 — executes a FEAT's tasks one by one (Red→Green→Refactor), on branch feature/FEAT-nnn, updating task states, docs and CHANGELOG; stops on a blocker and invents nothing. Use after tasks. Do not use before tasks exist (skill sdd-tasks) or to issue the done verdict (skill validate-implementation).
 argument-hint: "FEAT-nnn [T-nn]"
 triggers:
   - user

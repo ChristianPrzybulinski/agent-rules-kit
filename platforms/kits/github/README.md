@@ -9,6 +9,7 @@ CI, PR and label governance templates for GitHub Actions.
 | `workflows/*.yml` | `.github/workflows/` |
 | `PULL_REQUEST_TEMPLATE.md` | `.github/PULL_REQUEST_TEMPLATE.md` |
 | `CODEOWNERS` | `.github/CODEOWNERS` (edit the user) |
+| `dependabot.yml` | `.github/dependabot.yml` |
 | `labels.json` | reference for `scripts/labels-sync.sh` |
 | `scripts/labels-sync.sh` | run from anywhere inside the repo: `bash platforms/kits/github/scripts/labels-sync.sh` |
 

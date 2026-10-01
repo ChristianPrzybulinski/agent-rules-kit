@@ -100,7 +100,7 @@ def validate_schema(path, data, schema_name):
     schema = load_schema(schema_name)
     if FULL:
         try:
-            jsonschema.validate(data, schema)
+            jsonschema.validate(data, schema, format_checker=jsonschema.FormatChecker())
             return True
         except jsonschema.ValidationError as e:
             fail(rel(path), f"schema {schema_name}: {e.message}")
@@ -356,7 +356,7 @@ if lock.exists():
         obj = dict(zip(["name", "repo", "path", "sha", "license", "verified"], parts))
         if FULL:
             try:
-                jsonschema.validate(obj, lock_schema)
+                jsonschema.validate(obj, lock_schema, format_checker=jsonschema.FormatChecker())
             except jsonschema.ValidationError as e:
                 fail(rel(lock), f"line {i}: {e.message}")
         else:

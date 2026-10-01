@@ -1,7 +1,7 @@
 ---
 name: sdd-tasks
 version: "1.0"
-description: SDD step 6 — breaks a FEAT's plan into small tasks ordered by dependency, each with a verifiable completion criterion and an associated test. Use after plan; the output is the Tasks section in the FEAT.
+description: SDD step 6 — breaks a FEAT's plan into small tasks ordered by dependency, each with a verifiable completion criterion and an associated test. Use after plan; the output is the Tasks section in the FEAT. Do not use to execute the tasks (skill sdd-implement) or when the FEAT has no Plan section (skill sdd-plan).
 argument-hint: "FEAT-nnn"
 triggers:
   - user

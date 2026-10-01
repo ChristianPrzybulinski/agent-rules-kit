@@ -1,7 +1,7 @@
 ---
 name: session-handoff
 version: "1.0"
-description: Records the handoff between work sessions — what was done with evidence, what is pending, decisions made/open and the next session's first concrete task. Use when closing a long session, before switching agent/tool, or when context will be lost.
+description: Records the handoff between work sessions — what was done with evidence, what is pending, decisions made/open and the next session's first concrete task. Use when closing a long session, before switching agent/tool, or when context will be lost. Do not use for the end-of-session summary and kit review (skill session-review).
 argument-hint: "[FEAT-xxx | session topic]"
 triggers:
   - user

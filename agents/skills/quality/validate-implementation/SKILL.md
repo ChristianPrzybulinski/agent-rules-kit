@@ -1,7 +1,7 @@
 ---
 name: validate-implementation
 version: "1.0"
-description: Validates whether an implementation is truly done — confronts what was delivered with the spec/feature (FEAT-xxx) or the request, runs the project gates, checks docs and issues a READY / PARTIAL / NOT READY verdict with evidence. Use before opening a PR, when closing a task, or when someone claims "it's done".
+description: Validates whether an implementation is truly done — confronts what was delivered with the spec/feature (FEAT-xxx) or the request, runs the project gates, checks docs and issues a READY / PARTIAL / NOT READY verdict with evidence. Use before opening a PR, when closing a task, or when someone claims "it's done". Do not use to fix what fails (back to sdd-implement) or to audit the spec itself (skill sdd-audit).
 argument-hint: "[FEAT-xxx | spec path | description of what should be done]"
 triggers:
   - user
