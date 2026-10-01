@@ -19,7 +19,7 @@ Verification and quality.
 
 | Skill | Description |
 |---|---|
-| `characterization-tests` | Tests that pin current behavior of legacy or ported code. Use before refactoring or rebalancing a rule with no spec. Not for new behavior (skill testing). |
+| `characterization-tests` | Tests that pin current behavior of legacy or ported code. Use when refactoring or rebalancing a rule with no spec. Not for new behavior (skill testing). |
 | `secure-development` | Security design for dependencies, auth, endpoints and sensitive data. Use when changing a trust boundary. Not for scanning changes (skill vuln-scan). |
 | `skeptic` | Adversarial check of a claim or proposed fix. Use when the user suggests a solution, a claim is unproven, or confidence <98%. Not for bugs (skill investigate). |
 | `validate-implementation` | Completion verdict against a request or FEAT. Use when asking “is it done?” or preparing a PR. Not for fixing failures (skill sdd-implement). |

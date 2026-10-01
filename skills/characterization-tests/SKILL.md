@@ -1,7 +1,7 @@
 ---
 name: characterization-tests
 version: "1.1"
-description: Tests that pin current behavior of legacy or ported code. Use before refactoring or rebalancing a rule with no spec. Not for new behavior (skill testing).
+description: Tests that pin current behavior of legacy or ported code. Use when refactoring or rebalancing a rule with no spec. Not for new behavior (skill testing).
 argument-hint: "[legacy class/method | flow: damage, evolution, encounter...]"
 triggers:
   - user
