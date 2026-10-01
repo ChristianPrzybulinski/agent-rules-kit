@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Vendors third-party skills into agents/skills/vendor/<name>/ from the pinned lock.
-# Usage: third-party.sh           installs/updates per platforms/kits/third-party/skills.lock
-#        third-party.sh --check   fails if any VENDOR.md diverges from the lock
+# Vendors third-party skills into skills/<name>/ from the pinned lock.
+# Usage: vendor.sh           installs/updates per platforms/kits/third-party/skills.lock
+#        vendor.sh --check   fails if any VENDOR.md diverges from the lock
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LOCK="$KIT_DIR/platforms/kits/third-party/skills.lock"
-VENDOR="$KIT_DIR/agents/skills/vendor"
+VENDOR="$KIT_DIR/skills"
 MODE="install"; [[ "${1:-}" == "--check" ]] && MODE="check"
 FAILED=0
 
@@ -44,13 +44,13 @@ sha: $sha
 license: $license
 verified: $verified
 
-Do not edit — regenerate via platforms/install/third-party.sh.
+Do not edit — regenerate via platforms/tools/vendor.sh.
 EOF
   echo "vendor: $name <- $repo:$path @ ${sha:0:7}"
   rm -rf "$tmp"
 done < "$LOCK"
 
 if [[ "$MODE" == check ]]; then
-  [[ $FAILED -eq 0 ]] && echo "third-party: lock consistent" || exit 1
+  [[ $FAILED -eq 0 ]] && echo "vendor: lock consistent" || exit 1
 fi
 exit $FAILED

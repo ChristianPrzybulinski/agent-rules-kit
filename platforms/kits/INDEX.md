@@ -9,5 +9,6 @@ Scope: configuration and infra templates a project copies (not read by the agent
 | `github/` | workflows (spec-lint, gitleaks, ci-java, ci-godot), PR template, CODEOWNERS, labels + sync, dependabot | every new repo |
 | `godot/` | Godot `.gitignore`, editor hints, `make_spritesheet.py` | Godot project |
 | `java-maven/` | parent pom with gates, toolchains, suppressions, `.java-version` | Java/Maven project |
+| `launchd/` | six-hour AI Kit refresh agent for macOS | installed by `platforms/tools/bootstrap.sh` |
 | `sdd/` | `init-spec.sh` — creates `docs/spec/` from `templates/spec-*` | spec bootstrap in the project |
 | `third-party/` | `skills.lock` — external skills pinned by commit | regenerate vendor skills under `skills/` |

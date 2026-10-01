@@ -2,10 +2,10 @@
 
 | File | Scope | When to use |
 |---|---|---|
-| `bootstrap.sh` | clones `~/.ai-kit` (gh, https fallback) and installs | first time on the machine |
-| `refresh.sh` | `git pull --ff-only` + reinstalls if VERSION/LAYOUT_VERSION changed (layout → `--clean`) | session start (`--quiet` exits silently) |
-| `check.sh` | validates the kit (`check_kit.py`); `--spec <dir>` validates a project's `docs/spec` | after any kit change; in CI |
-| `sync-project.sh` | copies `check_spec.py` + spec schemas + `spec-lint.yml` into a project's `.github/`; `--check` compares | new project (via `init-spec.sh`) or after changing the validator |
-| `install-smoke.sh` | installs into a throwaway `HOME` twice, plants unmarked user skills, runs `--clean` and asserts nothing of the user is lost | after touching `platforms/install/`; in CI |
-
-Installed state: `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}`.
+| `bootstrap.sh` | clones the kit, connects agent plugins, installs launchd, then runs doctor | first setup on a machine |
+| `refresh.sh` | fast-forwards the main clone and upgrades the Codex marketplace | scheduled refresh or manual update |
+| `doctor.sh` | verifies clone, plugins, symlinks, legacy cleanup and context budgets | diagnose setup or after refresh |
+| `smoke.sh` | runs bootstrap and doctor against isolated throwaway homes | after lifecycle changes; in CI |
+| `vendor.sh` | installs pinned third-party skills; `--check` verifies the lock | update or verify vendored skills |
+| `check.sh` | validates the kit; `--spec <dir>` validates project specs | after any kit change; in CI |
+| `sync-project.sh` | copies spec validation files into a project; `--check` compares | initialize or refresh project spec CI |
