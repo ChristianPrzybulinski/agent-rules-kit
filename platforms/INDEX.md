@@ -4,7 +4,7 @@ Scope: executables and tool configuration. Nothing here is an instruction for th
 
 | Folder | Scope | Main entry |
 |---|---|---|
-| [`install/`](install/README.md) | installs `agents/` into the tools; vendors pinned external skills | `all.sh` |
+| [`install/`](install/README.md) | installs the kit into the tools; vendors pinned external skills | `all.sh` |
 | [`tools/`](tools/INDEX.md) | kit lifecycle on the machine | `bootstrap.sh` (1st time) · `refresh.sh` (every session) · `check.sh` (validate) |
 | [`ci/`](ci/README.md) | schemas for every frontmatter and for project specs; validation scripts used by `check.sh` and by the workflows | `validations/check_kit.py` · `validations/check_spec.py` |
 | [`kits/`](kits/INDEX.md) | ready-to-copy files for projects (Maven parent, Compose, workflows, LFS, labels, external skills lock) | per kit |
