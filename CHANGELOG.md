@@ -2,6 +2,11 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **BREAKING — plugin root moved to `kit/`:** `AGENTS.md`, `rules/`, `skills/`, `templates/` and the plugin manifests live under `kit/`; tooling and documentation stay at the repository root. Devin installs `ChristianPrzybulinski/agent-rules-kit#kit`; the Codex marketplace resolves plugin content from `./kit`; `~/.codex/AGENTS.md` links to `kit/AGENTS.md` (doctor repoints the old link). The validator rejects unknown entries at the plugin root and relative paths that escape it.
+
 ## [8.0.0] - 2026-10-01
 
 ### Changed

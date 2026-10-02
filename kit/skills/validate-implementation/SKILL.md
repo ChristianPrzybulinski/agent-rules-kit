@@ -34,7 +34,7 @@ Read the repository's `AGENTS.md` and README for commands. Kit fallbacks:
 |---|---|
 | Java/Maven | `./mvnw -q spotless:check verify` |
 | Godot | `godot --path . --headless --quit` plus the project test runner |
-| Docs/spec | `../../platforms/tools/check.sh` or project spec lint |
+| Docs/spec | `platforms/tools/check.sh` or project spec lint |
 
 Capture the literal failing excerpt; never replace it with “some tests failed.”
 

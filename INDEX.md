@@ -1,50 +1,43 @@
-# agent-rules-kit — index
+# agent-rules-kit — repository index
 
 Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md).
 
-The repository root is the distributable plugin: [`.devin-plugin/plugin.json`](.devin-plugin/plugin.json) defines the Devin plugin, while [`plugin.json`](plugin.json) and [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) define the Codex plugin and marketplace entry.
+The repository separates plugin content from maintenance tooling. Devin installs `ChristianPrzybulinski/agent-rules-kit#kit`; Codex reads the root marketplace catalog, whose plugin path is `./kit`.
 
-## Roots
+## Repository roots
 
-| Root | Purpose | Context rule |
-|---|---|---|
-| [`AGENTS.md`](AGENTS.md) | always-on global behavior | one file, at most `AGENTS_MAX_LINES` from the validator |
-| [`rules/`](rules/) | Devin triggered rules (`glob`, `model_decision`, `manual`) — listed below; the folder holds rule files only (Devin loads every `.md` in it) | `always_on` is forbidden; use `AGENTS.md` instead |
-| [`skills/`](skills/INDEX.md) | flat invocable procedures and their references | descriptions are 40–160 characters; total ≤7,200 characters |
-| [`templates/`](templates/INDEX.md) | artifact skeletons used by skills | shape only, not duplicated guidance |
-| [`platforms/`](platforms/INDEX.md) | lifecycle tools, CI validators and ready-to-copy kits | executable or tool configuration |
-| [`docs/`](docs/INDEX.md) | architecture and maintenance documentation | explanation for maintainers |
+| Root | Purpose |
+|---|---|
+| [`kit/`](kit/INDEX.md) | `ai-kit` plugin root: global rules, triggered rules, skills, references, templates and manifests |
+| [`AGENTS.md`](AGENTS.md) | project rules for maintaining this repository |
+| [`platforms/`](platforms/INDEX.md) | lifecycle tools, validators and ready-to-copy kits |
+| [`docs/`](docs/INDEX.md) | architecture and maintenance documentation |
+| [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) | Codex marketplace catalog pointing to `./kit` |
+| [`.github/`](.github/README.md) | CI, release and security automation |
 
-The description budget is a hard gate because Codex limits its initial skills list to roughly 8,000 characters and may shorten or omit skills beyond it.
+## Plugin rules
 
-## Rules
-
-| File | Trigger | Globs | What it loads |
+| File | Trigger | Globs | Loads |
 |---|---|---|---|
-| [`rules/java.md`](rules/java.md) | `glob` | `**/*.java,**/pom.xml` | `java-standards`, `clean-code`, `testing` |
-| [`rules/godot.md`](rules/godot.md) | `glob` | `**/*.gd,**/*.tscn,**/project.godot` | `godot-standards`, `clean-code`, `testing` |
-| [`rules/spec.md`](rules/spec.md) | `glob` | `docs/spec/**/*.md` | `sdd-*` skills and `templates/spec-*.md` |
+| [`kit/rules/java.md`](kit/rules/java.md) | `glob` | `**/*.java`, `**/pom.xml` | `java-standards`, `clean-code`, `testing` |
+| [`kit/rules/godot.md`](kit/rules/godot.md) | `glob` | `**/*.gd`, `**/*.tscn`, `**/project.godot` | `godot-standards`, `clean-code`, `testing` |
+| [`kit/rules/spec.md`](kit/rules/spec.md) | `glob` | `docs/spec/**/*.md` | SDD skills and spec templates |
 
 ## What goes where
 
-| Content | Quick test | Location |
-|---|---|---|
-| rule | guidance triggered by a file glob or explicit rule trigger | `rules/<name>.md` |
-| skill | a procedure the model or user invokes | `skills/<name>/SKILL.md` |
-| reference | a dated fact or normative detail owned and linked by one skill | `skills/<name>/references/<topic>.md` |
-| template | a reusable artifact skeleton with placeholders | `templates/<prefix>-<name>.md` |
-
-## Reading order
-
-1. This index for the layout and invariants.
-2. [`AGENTS.md`](AGENTS.md) for always-on behavior.
-3. The rules table below or [`skills/INDEX.md`](skills/INDEX.md) for contextual detail.
-4. [`docs/maintenance.md`](docs/maintenance.md) before changing the kit.
+| Content | Location |
+|---|---|
+| always-on global behavior | `kit/AGENTS.md` |
+| triggered rule | `kit/rules/<name>.md` |
+| procedure/reference | `kit/skills/<name>/` |
+| artifact skeleton | `kit/templates/<prefix>-<name>.md` |
+| repository maintenance rule | root `AGENTS.md` |
+| executable/schema/project kit | `platforms/` |
 
 ## Invariants
 
-- `VERSION`, `.devin-plugin/plugin.json`, and `plugin.json` have the same semantic version.
-- Every skill folder appears in `skills/INDEX.md`; every rule file appears in the rules table of this file.
-- Skill descriptions and reference sizes stay within their validator budgets.
-- Relative links resolve, and each non-skill folder has exactly one `INDEX.md` or `README.md`.
-- The repository is the source of truth: plugins, caches and symlinks consume it without managed content copies elsewhere on the machine.
+- Nothing except the plugin manifests and documented content roots enters `kit/`.
+- `VERSION`, `kit/.devin-plugin/plugin.json` and `kit/plugin.json` agree.
+- Marketplace source path is `./kit`; plugin content has no managed duplicate outside the repository.
+- Every skill appears in `kit/skills/INDEX.md`; every triggered rule appears in this index.
+- `platforms/tools/check.sh` and `platforms/tools/smoke.sh` pass before a PR.

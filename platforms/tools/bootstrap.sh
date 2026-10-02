@@ -43,7 +43,7 @@ codex_bin() {
 
 ensure_agents_link() {
   local destination="$HOME/.codex/AGENTS.md"
-  local expected="$KIT/AGENTS.md"
+  local expected="$KIT/kit/AGENTS.md"
   local current
   local backup
   mkdir -p "$HOME/.codex"
@@ -54,7 +54,7 @@ ensure_agents_link() {
     elif [[ "$current" == "$KIT/"* ]]; then
       rm "$destination"
       ln -s "$expected" "$destination"
-      printf 'fix: codex AGENTS.md symlink repaired\n'
+      printf 'fix: codex AGENTS.md symlink repointed from %s to %s\n' "$current" "$expected"
     else
       fail "$destination points to $current, not kit-managed; move it by hand"
     fi
@@ -93,7 +93,7 @@ if command -v devin >/dev/null 2>&1; then
   devin_plugins="$(devin plugins list 2>/dev/null || true)"
   if [[ "$devin_plugins" == *"ai-kit"* ]]; then
     printf 'ok: devin plugin installed\n'
-  elif devin plugins install "$REPOSITORY" -y >/dev/null 2>&1; then
+  elif devin plugins install "$REPOSITORY#kit" -y >/dev/null 2>&1; then
     printf 'fix: devin plugin installed\n'
   else
     warn "devin plugin installation failed; sign in and retry"

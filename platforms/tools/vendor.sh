@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Vendors third-party skills into skills/<name>/ from the pinned lock.
+# Vendors third-party skills into kit/skills/<name>/ from the pinned lock.
 # Usage: vendor.sh           installs/updates per platforms/kits/third-party/skills.lock
 #        vendor.sh --check   fails if any VENDOR.md diverges from the lock
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LOCK="$KIT_DIR/platforms/kits/third-party/skills.lock"
-VENDOR="$KIT_DIR/skills"
+VENDOR="$KIT_DIR/kit/skills"
 MODE="install"; [[ "${1:-}" == "--check" ]] && MODE="check"
 FAILED=0
 

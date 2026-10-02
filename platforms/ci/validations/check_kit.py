@@ -13,11 +13,13 @@ import sys
 from pathlib import Path
 
 KIT = Path(__file__).resolve().parents[3]
+PLUGIN = KIT / "kit"
 SCHEMAS = KIT / "platforms/ci/schemas"
 LINKS_MODE = "--links" in sys.argv
 CI = os.environ.get("CI") == "1"
 
 AGENTS_MAX_LINES = 60
+ROOT_AGENTS_MAX_LINES = 20
 DESCRIPTION_MIN = 40
 DESCRIPTION_MAX = 160
 DESCRIPTIONS_BUDGET = 7200
@@ -170,35 +172,57 @@ def read_json(path):
 
 
 # --- 1. Layout ---
-REQUIRED_PATHS = [
-    "INDEX.md", "README.md", "VERSION", "AGENTS.md", ".devin-plugin/plugin.json",
-    "plugin.json", ".agents/plugins/marketplace.json", "rules", "skills", "templates",
-    "platforms/tools", "platforms/ci/schemas", "platforms/ci/validations", "platforms/kits", "docs",
+REQUIRED_ROOT_PATHS = [
+    "INDEX.md", "README.md", "VERSION", "AGENTS.md", ".agents/plugins/marketplace.json",
+    "kit", "platforms/tools", "platforms/ci/schemas", "platforms/ci/validations", "platforms/kits", "docs",
 ]
-FORBIDDEN_PATHS = ["agents", "LAYOUT_VERSION", "platforms/install", "knowledge", "prompts"]
-for required_path in REQUIRED_PATHS:
+REQUIRED_PLUGIN_PATHS = [
+    "AGENTS.md", "INDEX.md", ".devin-plugin/plugin.json", "plugin.json", "rules", "skills", "templates",
+]
+FORBIDDEN_ROOT_PATHS = [
+    "agents", "rules", "skills", "templates", "plugin.json", ".devin-plugin",
+    "LAYOUT_VERSION", "platforms/install", "knowledge", "prompts",
+]
+for required_path in REQUIRED_ROOT_PATHS:
     if not (KIT / required_path).exists():
         fail(required_path, "layout: required path missing")
-for forbidden_path in FORBIDDEN_PATHS:
+for required_path in REQUIRED_PLUGIN_PATHS:
+    if not (PLUGIN / required_path).exists():
+        fail(f"kit/{required_path}", "layout: required plugin path missing")
+for forbidden_path in FORBIDDEN_ROOT_PATHS:
     if (KIT / forbidden_path).exists():
-        fail(forbidden_path, "layout: forbidden path present")
+        fail(forbidden_path, "layout: forbidden legacy path present")
+
+allowed_plugin_entries = {
+    "AGENTS.md", "INDEX.md", ".devin-plugin", "plugin.json", "rules", "skills", "templates",
+}
+if PLUGIN.exists():
+    for entry in sorted(PLUGIN.iterdir()):
+        if entry.name not in allowed_plugin_entries:
+            fail(rel(entry), f"reserved/unknown plugin-root entry: {entry.name}")
 
 version = (KIT / "VERSION").read_text(encoding="utf-8").strip() if (KIT / "VERSION").exists() else ""
 if version and not re.match(r"^\d+\.\d+\.\d+$", version):
     fail("VERSION", f"'{version}' is not semver")
 
-devin_manifest = read_json(KIT / ".devin-plugin/plugin.json") if (KIT / ".devin-plugin/plugin.json").exists() else None
-portable_manifest = read_json(KIT / "plugin.json") if (KIT / "plugin.json").exists() else None
+devin_path = PLUGIN / ".devin-plugin/plugin.json"
+portable_path = PLUGIN / "plugin.json"
+devin_manifest = read_json(devin_path) if devin_path.exists() else None
+portable_manifest = read_json(portable_path) if portable_path.exists() else None
 marketplace = read_json(KIT / ".agents/plugins/marketplace.json") if (KIT / ".agents/plugins/marketplace.json").exists() else None
-for path, manifest in ((".devin-plugin/plugin.json", devin_manifest), ("plugin.json", portable_manifest)):
+for path, manifest in ((devin_path, devin_manifest), (portable_path, portable_manifest)):
     if manifest is not None and manifest.get("version") != version:
-        fail(path, f"version '{manifest.get('version')}' != VERSION '{version}'")
+        fail(rel(path), f"version '{manifest.get('version')}' != VERSION '{version}'")
 if marketplace is not None:
     plugins = marketplace.get("plugins")
     if not isinstance(plugins, list) or not plugins or not isinstance(plugins[0], dict):
         fail(".agents/plugins/marketplace.json", "plugins[0] missing")
-    elif plugins[0].get("name") != "ai-kit":
-        fail(".agents/plugins/marketplace.json", "plugins[0].name != 'ai-kit'")
+    else:
+        if plugins[0].get("name") != "ai-kit":
+            fail(".agents/plugins/marketplace.json", "plugins[0].name != 'ai-kit'")
+        source = plugins[0].get("source") or {}
+        if source.get("path") != "./kit":
+            fail(".agents/plugins/marketplace.json", "plugins[0].source.path != './kit'")
 
 for script in sorted((KIT / "platforms").rglob("*.sh")):
     if not os.access(script, os.X_OK):
@@ -206,15 +230,20 @@ for script in sorted((KIT / "platforms").rglob("*.sh")):
 
 
 # --- 2. AGENTS.md ---
-agents_md = KIT / "AGENTS.md"
+root_agents_md = KIT / "AGENTS.md"
+agents_md = PLUGIN / "AGENTS.md"
+if root_agents_md.exists():
+    root_agents_lines = len(root_agents_md.read_text(encoding="utf-8").splitlines())
+    if root_agents_lines > ROOT_AGENTS_MAX_LINES:
+        fail("AGENTS.md", f"{root_agents_lines} lines (>{ROOT_AGENTS_MAX_LINES})")
 if agents_md.exists():
     agents_lines = len(agents_md.read_text(encoding="utf-8").splitlines())
     if agents_lines > AGENTS_MAX_LINES:
-        fail("AGENTS.md", f"{agents_lines} lines (>{AGENTS_MAX_LINES})")
+        fail("kit/AGENTS.md", f"{agents_lines} lines (>{AGENTS_MAX_LINES})")
 
 
 # --- 3. Skills ---
-skills_root = KIT / "skills"
+skills_root = PLUGIN / "skills"
 skill_names = set()
 skill_descriptions = []
 skill_description_text = {}
@@ -296,7 +325,7 @@ if description_total > DESCRIPTIONS_BUDGET:
 
 
 # --- 4. Rules ---
-rules_root = KIT / "rules"
+rules_root = PLUGIN / "rules"
 for rule_file in sorted(rules_root.glob("*.md")) if rules_root.exists() else []:
     counts["rules"] += 1
     data, _ = frontmatter(rule_file)
@@ -317,7 +346,7 @@ for rule_file in sorted(rules_root.glob("*.md")) if rules_root.exists() else []:
 
 
 # --- 5. Templates ---
-templates_root = KIT / "templates"
+templates_root = PLUGIN / "templates"
 templates_index = templates_root / "INDEX.md"
 templates_index_text = templates_index.read_text(encoding="utf-8") if templates_index.exists() else ""
 SPEC_MAP = {
@@ -363,8 +392,7 @@ def exempt_dir(directory):
     return False
 
 
-for base in ("skills", "templates", "platforms", "docs", ".github"):
-    root = KIT / base
+for root in (skills_root, templates_root, KIT / "platforms", KIT / "docs", KIT / ".github"):
     if not root.exists():
         continue
     directories = [root] + [path for path in root.rglob("*") if path.is_dir()]
@@ -406,10 +434,11 @@ for skill_dir in sorted(skill_dirs):
     elif indexed_descriptions[name] != skill_description_text.get(name):
         fail(rel(skills_index), f"skill '{name}' description differs from frontmatter")
 
-root_index_text = (KIT / "INDEX.md").read_text(encoding="utf-8") if (KIT / "INDEX.md").exists() else ""
+plugin_index = PLUGIN / "INDEX.md"
+plugin_index_text = plugin_index.read_text(encoding="utf-8") if plugin_index.exists() else ""
 for rule_file in sorted(rules_root.glob("*.md")) if rules_root.exists() else []:
-    if f"rules/{rule_file.name}" not in root_index_text:
-        fail("INDEX.md", f"rule 'rules/{rule_file.name}' missing from the Rules table")
+    if f"rules/{rule_file.name}" not in plugin_index_text:
+        fail(rel(plugin_index), f"rule 'rules/{rule_file.name}' missing from plugin index")
 for stray in sorted(rules_root.iterdir()) if rules_root.exists() else []:
     if stray.name in ("INDEX.md", "README.md") or stray.is_dir():
         fail(rel(stray), "rules/ holds rule files only — Devin loads every .md in it as a rule")
@@ -420,16 +449,23 @@ link_re = re.compile(r"\]\(([^)\s#]+)(#[^)]*)?\)")
 
 
 def vendor_internal(path):
-    relative = path.relative_to(KIT)
+    try:
+        relative = path.relative_to(PLUGIN)
+    except ValueError:
+        return False
     return (len(relative.parts) >= 2 and relative.parts[0] == "skills"
-            and (KIT / "skills" / relative.parts[1] / "VENDOR.md").exists())
+            and (skills_root / relative.parts[1] / "VENDOR.md").exists())
 
 
 for markdown_file in sorted(KIT.rglob("*.md")):
     if ".git" in markdown_file.parts or vendor_internal(markdown_file):
         continue
-    relative = markdown_file.relative_to(KIT)
-    if relative.parts and relative.parts[0] == "templates" and markdown_file.name.startswith("kit-"):
+    try:
+        plugin_relative = markdown_file.relative_to(PLUGIN)
+    except ValueError:
+        plugin_relative = None
+    if (plugin_relative is not None and plugin_relative.parts
+            and plugin_relative.parts[0] == "templates" and markdown_file.name.startswith("kit-")):
         continue
     for match in link_re.finditer(markdown_file.read_text(encoding="utf-8")):
         target = match.group(1)
@@ -445,21 +481,50 @@ for markdown_file in sorted(KIT.rglob("*.md")):
             fail(rel(markdown_file), f"broken link: {target}")
 
 backtick_re = re.compile(
-    r"`((?:(?:\.\./|\./)+|references/|templates/|platforms/)[^`\s]+\.(?:md|sh|json|yml|yaml))`")
-backtick_files = [agents_md, templates_root / "INDEX.md"]
+    r"`((?:(?:\.\./|\./)+|references/|templates/|platforms/|kit/)[^`\s]+\.(?:md|sh|json|yml|yaml))`")
+backtick_files = [
+    root_agents_md, agents_md, KIT / "INDEX.md", KIT / "README.md", plugin_index,
+    templates_root / "INDEX.md",
+]
 backtick_files += list(rules_root.rglob("*.md"))
+backtick_files += list((KIT / "docs").glob("*.md"))
+backtick_files += list((KIT / "platforms").rglob("*.md"))
 for markdown_file in skills_root.rglob("*.md"):
     if not vendor_internal(markdown_file):
         backtick_files.append(markdown_file)
 for markdown_file in sorted(set(path for path in backtick_files if path.exists())):
     if markdown_file.parent == templates_root and markdown_file.name.startswith("kit-"):
         continue
+    try:
+        markdown_file.relative_to(PLUGIN)
+        inside_plugin = True
+    except ValueError:
+        inside_plugin = False
     for match in backtick_re.finditer(markdown_file.read_text(encoding="utf-8")):
         target = match.group(1)
-        base = KIT if target.startswith(("templates/", "platforms/")) else markdown_file.parent
+        if "<" in target:
+            continue
+        if inside_plugin and re.match(r"^(?:\.\./)+platforms/", target):
+            fail(rel(markdown_file), f"path escapes plugin root: {target}")
+            continue
+        if target.startswith(("platforms/", "kit/")):
+            base = KIT
+        elif target.startswith("templates/"):
+            base = PLUGIN
+        else:
+            base = markdown_file.parent
         pattern = str(base / target)
-        if not glob.glob(pattern):
+        matches = [Path(path).resolve() for path in glob.glob(pattern)]
+        if not matches:
             fail(rel(markdown_file), f"broken backtick path: {target}")
+            continue
+        if inside_plugin and not target.startswith(("platforms/", "kit/")):
+            for resolved in matches:
+                try:
+                    resolved.relative_to(PLUGIN.resolve())
+                except ValueError:
+                    fail(rel(markdown_file), f"path escapes plugin root: {target}")
+                    break
 
 
 # --- 8. Vendor skills lock ---
