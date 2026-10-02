@@ -339,7 +339,7 @@ if [[ -n "$codex" ]]; then
   fi
 
   if [[ "$plugin_ready" -eq 1 ]]; then
-    exposed="$("$codex" debug prompt-input "list skills" 2>/dev/null | grep -c 'ai-kit:' || true)"
+    exposed="$("$codex" debug prompt-input "list skills" 2>/dev/null | grep -o 'ai-kit:' | wc -l | tr -d ' ' || true)"
     if [[ "$exposed" -eq 0 ]]; then
       ensure_codex_fallback
     else
