@@ -1,6 +1,5 @@
 ---
 name: session-review
-version: "1.1"
 description: Session closeout with evidence and one kit proposal. Use when work is delivered or a session closes. Not for handoff records (skill session-handoff).
 argument-hint: "[empty | session topic]"
 triggers:

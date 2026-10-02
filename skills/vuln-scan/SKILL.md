@@ -1,6 +1,5 @@
 ---
 name: vuln-scan
-version: "1.1"
 description: Scan for CVEs, secrets and changed endpoints. Use when preparing a sensitive PR, release or requested audit. Not for security design (skill secure-development).
 argument-hint: "[deps | secrets | endpoints | all] (default: all)"
 triggers:

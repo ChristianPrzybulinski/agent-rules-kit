@@ -1,6 +1,5 @@
 ---
 name: git-lfs
-version: "1.1"
 description: Git LFS policy. Use when editing .gitattributes, adding/migrating a large binary or checking quota. Not for branch policy (skill branching-and-versioning).
 argument-hint: "[init | audit | migrate <pattern>]"
 triggers:

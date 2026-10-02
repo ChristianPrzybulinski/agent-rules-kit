@@ -1,6 +1,5 @@
 ---
 name: docker
-version: "1.1"
 description: Docker and Compose workflow. Use when editing compose, a Dockerfile or diagnosing a container that will not start. Not for app config (skill twelve-factor).
 argument-hint: "[compose | dockerfile | up | diagnose]"
 triggers:

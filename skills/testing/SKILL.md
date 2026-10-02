@@ -1,6 +1,5 @@
 ---
 name: testing
-version: "1.1"
 description: Test policy and gates. Use when setting coverage/mutation gates or deciding what not to test. Not for legacy tests (skill characterization-tests).
 triggers:
   - user

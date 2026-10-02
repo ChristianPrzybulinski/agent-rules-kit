@@ -1,6 +1,6 @@
 ---
-description: Macromedia/Adobe Director and Lingo glossary (cast, member, Score, ink, regPoint, Xtra, sendNetMessage/OpenSMUS) for reading the legacy archive. Load when analyzing Lingo code or a .dir/.cst inventory.
-trigger: model_decision
+description: Director/Lingo glossary for cast, members, Score, ink, regPoint, Xtras and network calls. Load when reading .dir/.cst archives.
+kind: fact
 verified: "2026-09-30"
 sources:
   - https://help.adobe.com/archive/en_US/director/UsingScripting/director_reference.pdf

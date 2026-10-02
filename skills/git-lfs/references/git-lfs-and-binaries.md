@@ -1,3 +1,8 @@
+---
+description: Binary and LFS rules for tracked types, generated outputs, legacy preservation and quota actions.
+kind: detail
+---
+
 # Binaries and Git LFS
 
 ## Rules

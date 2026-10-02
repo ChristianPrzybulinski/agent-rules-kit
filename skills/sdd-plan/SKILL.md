@@ -1,6 +1,5 @@
 ---
 name: sdd-plan
-version: "1.1"
 description: SDD step 5 — technical FEAT plan and decisions. Use when clarification and audit are complete. Not for task breakdown (skill sdd-tasks).
 argument-hint: "FEAT-nnn [technical constraints]"
 triggers:
@@ -10,7 +9,6 @@ allowed-tools:
   - glob
   - grep
   - edit
-  - write
   - exec
 ---
 

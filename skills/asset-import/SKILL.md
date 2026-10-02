@@ -1,6 +1,5 @@
 ---
 name: asset-import
-version: "1.1"
 description: Godot asset import with manifests and reproducible transforms. Use when bringing sprites, tilesets or maps into Godot. Not for drawing art (skill krita).
 argument-hint: "[batch: path to originals | FEAT-xxx]"
 triggers:

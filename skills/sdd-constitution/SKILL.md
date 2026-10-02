@@ -1,6 +1,5 @@
 ---
 name: sdd-constitution
-version: "1.1"
 description: SDD step 0 — project constitution and spec index. Use when starting a project or changing principles. Not for one feature (skill sdd-specify).
 argument-hint: "[product description and stack, or 'review']"
 triggers:
@@ -9,7 +8,6 @@ allowed-tools:
   - read
   - glob
   - grep
-  - write
   - edit
   - exec
 ---

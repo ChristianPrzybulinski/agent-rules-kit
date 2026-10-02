@@ -1,6 +1,5 @@
 ---
 name: sdd-implement
-version: "1.1"
 description: SDD step 7 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill validate-implementation).
 argument-hint: "FEAT-nnn [T-nn]"
 triggers:
@@ -10,7 +9,6 @@ allowed-tools:
   - glob
   - grep
   - edit
-  - write
   - exec
 ---
 

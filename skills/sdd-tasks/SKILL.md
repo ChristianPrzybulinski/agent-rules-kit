@@ -1,6 +1,5 @@
 ---
 name: sdd-tasks
-version: "1.1"
 description: SDD step 6 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement).
 argument-hint: "FEAT-nnn"
 triggers:

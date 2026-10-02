@@ -11,8 +11,8 @@ A layout or installation-destination change is a SemVer MAJOR change. There is n
 | Type | Steps |
 |---|---|
 | rule | create `rules/<name>.md` with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; list it in `rules/INDEX.md` |
-| skill | copy [`../templates/kit-skill.md`](../templates/kit-skill.md) to `skills/<name>/SKILL.md`; keep the description ≤160 characters and add its row to the correct `skills/INDEX.md` section |
-| reference | copy [`../templates/kit-reference.md`](../templates/kit-reference.md) to `skills/<owner>/references/<topic>.md`; keep it ≤60 lines and link its filename from the owning `SKILL.md` |
+| skill | copy [`../templates/kit-skill.md`](../templates/kit-skill.md) to `skills/<name>/SKILL.md`; for an exactly `[user]` trigger add `agents/openai.yaml` with implicit invocation disabled; add a verbatim description row to `skills/INDEX.md` |
+| reference | copy [`../templates/kit-reference.md`](../templates/kit-reference.md) to `skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
 | template | add `templates/<prefix>-<name>.md`, then list it in `templates/INDEX.md` |
 
 A rule uses this frontmatter shape:
@@ -41,6 +41,7 @@ The command regenerates `skills/<name>/` and its `VENDOR.md`. Remove a vendor by
 ## CI requirements
 
 - `.github/workflows/ci.yml`: ShellCheck on tools/kits, `check.sh`, `smoke.sh`, and `check_kit.py --links`.
+- `check_kit.py` also gates allowed tools, user-only Codex policy parity, reference kinds/sources, backtick paths and exact skill-index descriptions.
 - `.github/workflows/gitleaks.yml`: secret scan on pushes and pull requests.
 - `.github/workflows/release.yml`: tag/version validation and release creation.
 

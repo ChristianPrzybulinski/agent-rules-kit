@@ -1,6 +1,5 @@
 ---
 name: krita
-version: "1.1"
 description: Krita pixel-art workflow. Use when editing pixel art, retouching sprites or defining sprite export. Not for Godot import (skill asset-import).
 argument-hint: "[setup | export | spritesheet | automate]"
 triggers:

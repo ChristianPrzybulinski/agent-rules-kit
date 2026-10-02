@@ -1,6 +1,5 @@
 ---
 name: clean-code
-version: "1.1"
 description: Code rules for names, functions and comments. Use when naming, editing functions, writing comments or reviewing code. Not for test policy (skill testing).
 triggers:
   - user

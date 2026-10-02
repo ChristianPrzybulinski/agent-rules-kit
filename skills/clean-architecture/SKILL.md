@@ -1,6 +1,5 @@
 ---
 name: clean-architecture
-version: "1.1"
 description: Clean Architecture layer and port placement. Use when defining layers, ports or where a class lives. Not for pattern choice (skill ddd-and-patterns).
 triggers:
   - user

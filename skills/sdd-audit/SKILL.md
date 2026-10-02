@@ -1,6 +1,5 @@
 ---
 name: sdd-audit
-version: "1.1"
 description: SDD step 4 — spec quality checklist. Use when a clarified FEAT needs testability, security and completeness checks. Not for consistency (skill sdd-analyze).
 argument-hint: "FEAT-nnn"
 triggers:
@@ -10,7 +9,7 @@ allowed-tools:
   - read
   - glob
   - grep
-  - write
+  - edit
 ---
 
 # SDD 4 — Audit

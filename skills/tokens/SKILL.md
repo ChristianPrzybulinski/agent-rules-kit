@@ -1,6 +1,5 @@
 ---
 name: tokens
-version: "1.1"
 description: Response register for code, e-mail, reports, README and governed docs. Use when writing long answers or text for humans. Not for doc policy (skill update-docs).
 triggers:
   - user

@@ -1,6 +1,6 @@
 ---
-description: "`git worktree` add/list/remove/prune: parallel work on 2 branches without stash, pitfalls (.git is a file, shared hooks). Load when suggesting a parallel checkout."
-trigger: model_decision
+description: "Git worktree commands and pitfalls for parallel branches, shared hooks and .git files. Load when using a second checkout."
+kind: fact
 verified: "2026-09-30"
 sources:
   - https://git-scm.com/docs/git-worktree

@@ -1,6 +1,5 @@
 ---
 name: session-handoff
-version: "1.1"
 description: Session handoff record with evidence and next action. Use when switching agent/session or leaving pending work. Not for session summary (skill session-review).
 argument-hint: "[FEAT-xxx | session topic]"
 triggers:
@@ -10,7 +9,7 @@ allowed-tools:
   - grep
   - glob
   - exec
-  - write
+  - edit
 ---
 
 # Session Handoff

@@ -1,6 +1,5 @@
 ---
 name: secure-development
-version: "1.1"
 description: Security design for dependencies, auth, endpoints and sensitive data. Use when changing a trust boundary. Not for scanning changes (skill vuln-scan).
 triggers:
   - user

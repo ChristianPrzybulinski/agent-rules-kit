@@ -37,12 +37,16 @@ codex_bin() {
     printf '%s\n' "$candidate"
     return 0
   fi
-  candidate="$(find "$HOME/.cache/codex-runtimes" -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
-  if [[ -n "$candidate" && -x "$candidate" ]]; then
-    printf '%s\n' "$candidate"
-    return 0
-  fi
-  candidate="$(find /Applications/Codex.app /Applications/ChatGPT.app -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
+  for candidate in \
+    /Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex \
+    /Applications/Codex.app/Contents/Resources/codex-cli/bin/codex; do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  candidate="$(find "$HOME/.cache/codex-runtimes" /Applications/ChatGPT.app /Applications/Codex.app \
+    -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
   if [[ -n "$candidate" && -x "$candidate" ]]; then
     printf '%s\n' "$candidate"
     return 0
@@ -192,10 +196,7 @@ remove_codex_fallback() {
   local removed=0
   local destination
   local target
-  [[ -d "$codex_skills" ]] || {
-    ok "codex plugin exposes skills; fallback not needed"
-    return 0
-  }
+  [[ -d "$codex_skills" ]] || return 0
   for destination in "$codex_skills"/*; do
     [[ -L "$destination" ]] || continue
     target="$(readlink "$destination")"
@@ -208,8 +209,6 @@ remove_codex_fallback() {
   done
   if [[ "$removed" -gt 0 ]]; then
     fix "codex plugin exposes skills; fallback symlinks removed"
-  else
-    ok "codex plugin exposes skills; fallback not needed"
   fi
 }
 
@@ -317,16 +316,36 @@ ok "legacy destinations checked"
 # 5. Codex plugin and fallback
 codex="$(codex_bin || true)"
 if [[ -n "$codex" ]]; then
-  if "$codex" plugin list 2>/dev/null | grep -q 'ai-kit'; then
-    ok "codex marketplace installed"
+  marketplace_ready=1
+  marketplaces="$("$codex" plugin marketplace list 2>/dev/null || true)"
+  if [[ "$marketplaces" == *"ai-kit"* ]]; then
+    ok "codex marketplace ai-kit registered"
+  elif "$codex" plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref main >/dev/null 2>&1; then
+    fix "codex marketplace ai-kit registered"
+  else
+    fail "codex marketplace ai-kit missing and add failed — run: codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref main"
+    marketplace_ready=0
+  fi
+
+  plugin_ready=1
+  plugins="$("$codex" plugin list 2>/dev/null || true)"
+  if [[ "$plugins" == *"ai-kit@ai-kit"* ]]; then
+    ok "codex plugin ai-kit@ai-kit installed"
+  elif [[ "$marketplace_ready" -eq 1 ]] && "$codex" plugin add ai-kit@ai-kit >/dev/null 2>&1; then
+    fix "codex plugin ai-kit@ai-kit installed"
+  else
+    fail "codex plugin ai-kit@ai-kit missing and add failed — run: codex plugin add ai-kit@ai-kit"
+    plugin_ready=0
+  fi
+
+  if [[ "$plugin_ready" -eq 1 ]]; then
     exposed="$("$codex" debug prompt-input "list skills" 2>/dev/null | grep -c 'ai-kit:' || true)"
     if [[ "$exposed" -eq 0 ]]; then
       ensure_codex_fallback
     else
       remove_codex_fallback
+      ok "codex plugin exposes $exposed ai-kit skills"
     fi
-  else
-    fail "codex plugin missing — run: codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref main"
   fi
 elif [[ -f "$HOME/.codex/config.toml" || -f "$HOME/.codex/auth.json" ]]; then
   ok "codex CLI not found; desktop app detected — fallback symlinks maintained (openai/codex#22078)"

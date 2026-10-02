@@ -1,6 +1,6 @@
 ---
 description: Redis 7.4 for local dev and per-version licensing (≤7.2 BSD, 7.4–7.8 RSALv2/SSPLv1, ≥8.0 +AGPLv3). Load when proposing cache/session or pinning an image.
-trigger: model_decision
+kind: fact
 verified: "2026-09-29"
 sources:
   - https://redis.io/legal/licenses/

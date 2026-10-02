@@ -1,6 +1,5 @@
 ---
 name: ddd-and-patterns
-version: "1.1"
 description: Tactical DDD and pattern selection. Use when defining an aggregate or choosing a design pattern. Not for layer placement (skill clean-architecture).
 triggers:
   - user

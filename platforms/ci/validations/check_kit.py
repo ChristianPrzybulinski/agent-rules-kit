@@ -5,6 +5,7 @@ Without pyyaml/jsonschema: structural validation + WARN.
 With CI=1 in the environment: missing dependencies are an error.
 Each failure prints 'FAIL: <file>: <reason>'; exit 1 on any failure.
 """
+import glob
 import json
 import os
 import re
@@ -216,6 +217,7 @@ if agents_md.exists():
 skills_root = KIT / "skills"
 skill_names = set()
 skill_descriptions = []
+skill_description_text = {}
 skill_dirs = set()
 if skills_root.exists():
     for directory in sorted(path for path in skills_root.iterdir() if path.is_dir()):
@@ -242,9 +244,28 @@ if skills_root.exists():
             fail(rel(skill_file), "description missing or empty")
             description = ""
         skill_descriptions.append((name, len(description)))
+        skill_description_text[name] = description
         if (skill_dir / "VENDOR.md").exists():
             continue
         validate_schema(skill_file, data, "skill.schema.json")
+        user_only = data.get("triggers") == ["user"]
+        codex_policy = skill_dir / "agents/openai.yaml"
+        policy_disabled = False
+        if codex_policy.exists():
+            try:
+                policy_data = yaml.safe_load(codex_policy.read_text(encoding="utf-8")) if FULL else None
+            except yaml.YAMLError:
+                policy_data = None
+            if FULL and isinstance(policy_data, dict):
+                policy_disabled = (policy_data.get("policy") or {}).get("allow_implicit_invocation") is False
+            else:
+                policy_disabled = bool(re.search(
+                    r"^\s*allow_implicit_invocation:\s*false\s*$",
+                    codex_policy.read_text(encoding="utf-8"), re.MULTILINE))
+        if user_only and not policy_disabled:
+            fail(rel(codex_policy), "user-only skill requires allow_implicit_invocation: false")
+        if not user_only and policy_disabled:
+            fail(rel(codex_policy), "model-triggered skill must allow implicit invocation")
         if lines > SKILL_MAX_LINES:
             fail(rel(skill_file), f"{lines} lines (>{SKILL_MAX_LINES})")
         if "Use when" not in description:
@@ -256,7 +277,11 @@ if skills_root.exists():
         skill_dir = reference.parent.parent
         if (skill_dir / "VENDOR.md").exists():
             continue
-        reference_lines = len(reference.read_text(encoding="utf-8").splitlines())
+        reference_data, reference_lines = frontmatter(reference)
+        if reference_data is None:
+            fail(rel(reference), "missing/invalid frontmatter")
+        else:
+            validate_schema(reference, reference_data, "reference.schema.json")
         if reference_lines > REFERENCE_MAX_LINES:
             fail(rel(reference), f"{reference_lines} lines (>{REFERENCE_MAX_LINES})")
         skill_file = skill_dir / "SKILL.md"
@@ -371,9 +396,17 @@ if not (KIT / "INDEX.md").exists() or not (KIT / "README.md").exists():
 
 skills_index = skills_root / "INDEX.md"
 skills_index_text = skills_index.read_text(encoding="utf-8") if skills_index.exists() else ""
+indexed_descriptions = {}
+for line in skills_index_text.splitlines():
+    match = re.match(r"^\| `([a-z0-9-]+)` \| (.*) \|$", line)
+    if match:
+        indexed_descriptions[match.group(1)] = match.group(2)
 for skill_dir in sorted(skill_dirs):
-    if f"`{skill_dir.name}`" not in skills_index_text:
-        fail(rel(skills_index), f"skill '{skill_dir.name}' missing from index")
+    name = skill_dir.name
+    if name not in indexed_descriptions:
+        fail(rel(skills_index), f"skill '{name}' missing from index")
+    elif indexed_descriptions[name] != skill_description_text.get(name):
+        fail(rel(skills_index), f"skill '{name}' description differs from frontmatter")
 
 rules_index = rules_root / "INDEX.md"
 rules_index_text = rules_index.read_text(encoding="utf-8") if rules_index.exists() else ""
@@ -410,6 +443,23 @@ for markdown_file in sorted(KIT.rglob("*.md")):
         resolved = (markdown_file.parent / target).resolve()
         if not resolved.exists():
             fail(rel(markdown_file), f"broken link: {target}")
+
+backtick_re = re.compile(
+    r"`((?:(?:\.\./|\./)+|references/|templates/|platforms/)[^`\s]+\.(?:md|sh|json|yml|yaml))`")
+backtick_files = [agents_md, templates_root / "INDEX.md"]
+backtick_files += list(rules_root.rglob("*.md"))
+for markdown_file in skills_root.rglob("*.md"):
+    if not vendor_internal(markdown_file):
+        backtick_files.append(markdown_file)
+for markdown_file in sorted(set(path for path in backtick_files if path.exists())):
+    if markdown_file.parent == templates_root and markdown_file.name.startswith("kit-"):
+        continue
+    for match in backtick_re.finditer(markdown_file.read_text(encoding="utf-8")):
+        target = match.group(1)
+        base = KIT if target.startswith(("templates/", "platforms/")) else markdown_file.parent
+        pattern = str(base / target)
+        if not glob.glob(pattern):
+            fail(rel(markdown_file), f"broken backtick path: {target}")
 
 
 # --- 8. Vendor skills lock ---

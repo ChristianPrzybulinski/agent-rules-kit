@@ -1,6 +1,5 @@
 ---
 name: validate-implementation
-version: "1.1"
 description: Completion verdict against a request or FEAT. Use when asking “is it done?” or preparing a PR. Not for fixing failures (skill sdd-implement).
 argument-hint: "[FEAT-xxx | spec path | description of what should be done]"
 triggers:

@@ -1,3 +1,8 @@
+---
+description: SDD flow, entry points, step outputs, identifiers, statuses and project specification layout.
+kind: detail
+---
+
 # SDD — Spec-Driven Development
 
 Adapted from [github/spec-kit](https://github.com/github/spec-kit) as repository skills; project artifacts live under `docs/spec/`, never in the kit.

@@ -1,6 +1,5 @@
 ---
 name: sessions
-version: "1.1"
 description: Session scope and hygiene. Use when starting, changing topics or detecting a long session. Not for recording completed work (skill session-handoff).
 triggers:
   - user

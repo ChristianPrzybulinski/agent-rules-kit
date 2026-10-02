@@ -1,6 +1,5 @@
 ---
 name: skeptic
-version: "1.1"
 description: Adversarial check of a claim or proposed fix. Use when the user suggests a solution, a claim is unproven, or confidence <98%. Not for bugs (skill investigate).
 argument-hint: "[claim to verify — default: last relevant claim]"
 triggers:

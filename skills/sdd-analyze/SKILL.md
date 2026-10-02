@@ -1,6 +1,5 @@
 ---
 name: sdd-analyze
-version: "1.1"
 description: SDD step 3 — cross-artifact consistency report. Use when FEAT/REQ/DEC/plan/tasks need gap checks. Not for spec quality (skill sdd-audit).
 argument-hint: "FEAT-nnn | all"
 triggers:

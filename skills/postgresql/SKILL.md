@@ -1,6 +1,5 @@
 ---
 name: postgresql
-version: "1.1"
 description: PostgreSQL persistence rules. Use when changing a schema, migration or index, running EXPLAIN, or diagnosing locks. Not for cache data (skill redis).
 argument-hint: "[migration | index | tx | backup | diagnose] <context>"
 triggers:

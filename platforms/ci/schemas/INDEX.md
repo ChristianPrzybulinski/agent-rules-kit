@@ -3,6 +3,7 @@
 | File | Validates |
 |---|---|
 | `knowledge.schema.json` | legacy knowledge-note frontmatter retained for compatibility |
+| `reference.schema.json` | non-vendor `skills/<name>/references/*.md` |
 | `rule.schema.json` | `rules/*.md` |
 | `skill.schema.json` | non-vendor `skills/<name>/SKILL.md` |
 | `skills-lock.schema.json` | `platforms/kits/third-party/skills.lock` |

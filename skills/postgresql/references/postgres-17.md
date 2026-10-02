@@ -1,6 +1,6 @@
 ---
-description: PostgreSQL 17 (17.11 on Docker Hub, ~5 years of fixes, EOL Nov/2029, pg_stat_statements in the kit's compose). Load when modeling a schema or bringing up local infra.
-trigger: model_decision
+description: PostgreSQL 17 support facts, Docker tag and pg_stat_statements setup. Load when modeling a schema or local infrastructure.
+kind: fact
 verified: "2026-09-29"
 sources:
   - https://www.postgresql.org/support/versioning/

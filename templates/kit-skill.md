@@ -1,6 +1,5 @@
 ---
 name: [folder-name]
-version: "1.0"
 description: "[≤160 chars: <what>. Use when <trigger>. Not for <neighbor> (skill <x>).]"
 argument-hint: "[expected argument | empty]"
 triggers:

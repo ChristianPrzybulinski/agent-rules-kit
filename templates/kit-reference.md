@@ -1,5 +1,6 @@
 ---
 description: "[Which dated fact or normative detail this reference holds and when its owning skill reads it.]"
+kind: fact
 verified: "YYYY-MM-DD"
 sources:
   - "https://[official source 1]"

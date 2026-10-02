@@ -1,6 +1,5 @@
 ---
 name: parallelize
-version: "1.1"
 description: Parallel planning for tool calls, long commands and [P] tasks. Use when work has independent steps. Not for product concurrency (skill testing).
 argument-hint: "[task or step list | empty]"
 triggers:

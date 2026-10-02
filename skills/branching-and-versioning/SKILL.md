@@ -1,6 +1,5 @@
 ---
 name: branching-and-versioning
-version: "1.1"
 description: Branch, commit, PR and release policy. Use when creating a branch, flag, commit, PR, SemVer release or tag. Not for `gh` commands (skill github-cli).
 triggers:
   - user

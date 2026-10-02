@@ -1,6 +1,5 @@
 ---
 name: investigate
-version: "1.1"
 description: Root-cause investigation with reproduction. Use when a bug, slow behavior or incident has no named cause. Not for implementing fixes (skill sdd-implement).
 argument-hint: "[symptom description | log/issue link]"
 triggers:

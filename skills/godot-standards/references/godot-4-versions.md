@@ -1,6 +1,6 @@
 ---
 description: Godot 4.x versions (4.7.2 installed, matching CI image, TileMapLayer since 4.3, release policy). Load when configuring a Godot project or CI.
-trigger: model_decision
+kind: fact
 verified: "2026-09-29"
 sources:
   - https://docs.godotengine.org/en/stable/about/release_policy.html
