@@ -1,7 +1,7 @@
 ---
 name: simplicity
-version: "1.0"
-description: Simplicity ladder (pragmatic YAGNI) — when not to write code, when a port/interface is justified, how to mark deliberate simplifications and how to report what was skipped. Use when designing a solution, reviewing an oversized PR, choosing a dependency or deciding whether a test is needed. Do not use for domain test gates (skill testing).
+version: "1.1"
+description: YAGNI ladder for the smallest change. Use when choosing a dependency, reviewing an oversized PR or adding an abstraction. Not for test gates (skill testing).
 triggers:
   - user
   - model
@@ -9,42 +9,46 @@ allowed-tools:
   - read
   - grep
   - glob
+  - exec
+  - edit
 ---
 
 # Simplicity
 
-The best code is the code not written. Lazy = efficient, not careless. The ladder shortens the **solution**, never the **reading**: understand the whole flow (every file the change touches) before choosing a rung.
+## 1. Read the whole touched flow
 
-## The ladder — stop at the first rung that holds
+Locate callers, neighboring implementations and existing dependencies before selecting a solution. The ladder reduces the implementation, not the investigation.
 
-1. **Does it need to exist?** Speculative need → don't do it; say so in one line.
-2. **Already in the repository?** Helper, type, pattern three files away → reuse. Reimplementing the neighbor is the most common error.
-3. **Does stdlib solve it?** Use it.
-4. **Native platform feature?** Database constraint instead of code; native Godot signal instead of a custom bus; `record` instead of a builder.
-5. **Does an already-installed dependency solve it?** Use it. Never add a new one for what fits in a few lines.
-6. **Does it fit in one line?** One line.
-7. **Only then:** the minimum that works.
+## 2. Stop at the first sufficient rung
 
-Two rungs work → the higher one. Two options of the same size → the correct one in edge cases (less code, not the more fragile algorithm).
+1. Does the requested behavior need to exist now?
+2. Does the repository already contain the helper, type or pattern?
+3. Does the standard library solve it?
+4. Does the database, engine or platform provide it natively?
+5. Does an already-installed dependency solve it?
+6. Does the correct implementation fit clearly in one line?
+7. Only then write the minimum new code.
 
-## Rules
+Choose the higher rung when two work; never trade correctness at an edge case for fewer characters.
 
-- No unrequested abstraction: interface with one implementation, factory of a single product, config for a value that never changes, "for later" scaffolding.
-- **Exception that justifies an interface (port)**: external I/O (database, network, clock, RNG, file), a real planned swap between implementations, or a domain boundary that must be tested without infrastructure. Outside that, concrete class.
-- Fewer files wins. Deleting beats adding. Boring beats clever — clever is what someone deciphers at 3 a.m.
-- Bug = root cause. Before editing, `grep` all callers; the fix at the common point is the smallest diff **and** the correct one.
-- Complex request → deliver the simple version and question in the same turn: "I did X; Y covers it. Do you need the full X? Say so."
-- Deliberate simplification with a known ceiling (global lock, O(n²) scan, heuristic) → comment `// simplified: <ceiling>; <when/how to evolve>`. Becomes a `DEBT-xxx` if the ceiling is on the roadmap's path.
+## 3. Search before adding a utility or dependency
 
-## Never simplify
+- Search Maven Central, Godot Asset Library or `gh search code` before writing a reusable utility.
+- Before adding a dependency, verify it is not already present/transitive, matches the runtime, has a compatible published version, is at least seven days old and has zero critical/high CVEs.
+- Prefer adoption over maintaining a local clone of ecosystem behavior.
 
-Validation at the trust boundary · error handling that prevents data loss · security and authorization · basic accessibility · what the user explicitly requested (insisted → build it, without re-litigating) · the **domain** (money, inventory, reward, battle): there the gates of the `testing` skill apply in full.
+## 4. Reject speculative structure
 
-## Tests under the ladder
+Do not add a one-implementation interface, one-product factory, future-only configuration or unrequested scaffolding. A port is justified only by external I/O, a real planned swap or a domain boundary.
 
-- Outside the domain: non-trivial logic leaves **one** executable check that fails if it breaks (one small `test_*`/`@Test`). No per-function suite, no ahead-of-time fixture. Trivial (getter, 1:1 mapping, one-liner) is not tested.
-- Inside the domain: the ladder does not apply to tests.
+## 5. Protect non-negotiable behavior
 
-## Output
+Never simplify trust-boundary validation, data-loss prevention, security/authorization, accessibility, an explicit user requirement, or domain integrity for money/inventory/reward/battle.
 
-Pattern: `[code] → skipped: X; add when Y.` If the explanation grew bigger than the code, delete the explanation. An explicitly requested explanation (report, walkthrough) is not debt — deliver it whole.
+For a deliberate ceiling, add `// simplified: <ceiling>; <when/how to evolve>` and create `DEBT-xxx` when the roadmap reaches it.
+
+## 6. Report the ceiling
+
+Use `[code] → skipped: X; add when Y.` Delete explanation that exceeds the simple change unless the user requested a report.
+
+Done when: the solution stops at the earliest safe rung, adds no speculative dependency/abstraction, and records any deliberate ceiling with its evolution trigger.

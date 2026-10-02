@@ -1,7 +1,7 @@
 ---
 name: godot-standards
-version: "2.0"
-description: Applies Godot 2D standards — statically typed GDScript, scene composition, signals, physics separation, versioned saves. Use on `*.gd`, `*.tscn` or `project.godot`. Do not use for importing external art (skill asset-import) or pixel-art editing (skill krita).
+version: "2.1"
+description: Godot 2D and typed GDScript standards. Use when editing *.gd, *.tscn, project.godot or GDScript scenes. Not for asset import (skill asset-import).
 triggers:
   - user
   - model
@@ -10,35 +10,37 @@ allowed-tools:
   - grep
   - glob
   - exec
+  - edit
 ---
 
-# Godot 2D Expert
+# Godot 2D Standards
 
-References: `references/godot-4-versions.md` — supported Godot versions; `references/networking-transports.md` — transport comparison.
+References: `references/godot-4-versions.md` for supported versions and `references/networking-transports.md` when a project DEC compares transports.
 
-## When working with Godot 2D
+## 1. Inspect the project
 
-1. Check `project.godot`, existing scene structure and scripts.
-2. Statically typed GDScript (`: Type`); official style: `snake_case` for variables/functions/files, `PascalCase` for classes/nodes.
-3. Prefer signals over direct calls between nodes; `get_parent()` for game logic is forbidden.
-4. `_physics_process(delta)` for movement/physics; `_process(delta)` for animations/visuals; `call_deferred` to avoid intermediate physics states.
-5. Cache references in `_ready`; avoid heavy per-frame work; avoid long `_ready` code — delegate to well-named functions.
-6. `@export` for editor-tunable parameters, documented with a comment above.
-7. Scenes small and reusable — composition over deep inheritance; Groups identify nodes without coupling; separate visuals, physics and logic.
-8. `preload` for reusable scenes/resources, `load` for dynamic ones; TileMap/TileSet for 2D maps — never place tiles manually.
-9. Global state centralized in autoloads; save as JSON or a custom versioned Resource — never a Node reference.
-10. Game rules and state testable in isolation: the domain lives in autoloads/pure classes; scenes/nodes are adapters.
+Read `project.godot`, scene ownership and neighboring scripts before editing. Confirm the fixed engine version against the project and the version reference.
 
-## Project structure
+## 2. Write typed GDScript
 
-```text
-project/
-├── project.godot
-├── autoload/           # Global singletons (GameManager, Audio, Save)
-├── common/             # Reusable components
-├── entities/           # Character, enemy, item scenes
-├── levels/             # Maps/stages
-├── ui/                 # Menus, HUD, screens
-├── resources/          # Sprites, sounds, fonts, tilesets
-└── tests/              # Integration/scene tests when applicable
-```
+- Type parameters, returns and stored values; use `snake_case` for files/functions/variables and `PascalCase` for classes/nodes.
+- Cache node references in `_ready`; move substantial initialization into named functions.
+- Use `@export` only for editor-tunable values and document the reason/range above it.
+
+## 3. Separate scene responsibilities
+
+- Prefer scene composition and signals over deep inheritance or parent traversal for game rules.
+- Use `_physics_process` for physics/movement and `_process` for visuals; defer mutations that would invalidate a physics iteration.
+- Keep visuals, physics and rules separate; domain state stays in pure classes/autoload services that tests can instantiate without a scene.
+
+## 4. Manage resources and state
+
+- Use `preload` for fixed reusable resources and `load` for dynamic choices.
+- Use `TileMapLayer`/TileSet for maps rather than manually placed tiles.
+- Centralize true global state in a small autoload; persist versioned JSON/Resource data, never Node references.
+
+## 5. Verify
+
+Run `godot --path . --headless --quit` and the project test command. Treat parser/import errors as failures and report the literal output.
+
+Done when: changed scripts are typed, scene dependencies use composition/signals, rules are testable without nodes, and headless import plus tests pass.

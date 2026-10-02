@@ -31,17 +31,17 @@ Development by stack.
 
 | Skill | Description |
 |---|---|
-| `asset-import` | Imports sprites, animations, tilesets and maps into a Godot 2D project from external originals (legacy archive, Krita, Aseprite) deterministically, non-destructively and traceably — originals untouched, derivatives with a manifest (origin, hash, dimensions, pivot, aliases), rejected-items report for human review. Use when bringing art into the project or reprocessing a batch. Do not use to draw/edit art (krita skill). |
-| `clean-architecture` | Clean Architecture details — layers, dependency rule, ports/adapters, DTOs, exceptions. Use when creating a module, a layer or deciding where a class lives. Do not use for choosing a design pattern (skill ddd-and-patterns) or naming detail (skill clean-code). |
-| `clean-code` | Clean Code details — names, functions, classes, comments, tests. Use when writing or reviewing production code. Do not use for test policy (skill testing) or layer boundaries (skill clean-architecture). |
-| `ddd-and-patterns` | Tactical DDD and a design-patterns catalog with "when to use / when not". Use when modeling a domain, choosing a pattern or reviewing a module's architecture. Do not use for layer boundaries (skill clean-architecture). |
-| `godot-standards` | Applies Godot 2D standards — statically typed GDScript, scene composition, signals, physics separation, versioned saves. Use on `*.gd`, `*.tscn` or `project.godot`. Do not use for importing external art (skill asset-import) or pixel-art editing (skill krita). |
-| `investigate` | Investigates a bug, regression, performance problem or incident to a named root cause, with reproduction before any fix. Use when something "doesn't work", is slow, or failed in production/CI. Do not use to implement the fix (that returns to the normal flow with a failing test first). |
-| `java-standards` | Applies modern Java standards — style (`var`, `Optional`, `record`, `sealed`), Clean Architecture packages, Spring/Quarkus, JUnit 5 tests. Use on `*.java` or `pom.xml`. Do not use for build/module/plugin gates detail (`references/build-and-dependencies.md`) or the general test policy (skill testing). |
-| `protocol-contract` | Creates or evolves a client↔server contract message (command, event, response, error) with versioning, testable examples and compatibility rules. Use when adding/changing a field, creating a new message, or when client and server disagree about a payload. Do not use to decide transport/serialization (that is a DEC). |
-| `simplicity` | Simplicity ladder (pragmatic YAGNI) — when not to write code, when a port/interface is justified, how to mark deliberate simplifications and how to report what was skipped. Use when designing a solution, reviewing an oversized PR, choosing a dependency or deciding whether a test is needed. Do not use for domain test gates (skill testing). |
-| `testing` | Testing policy — 100% line/branch coverage and mutation ≥80% in the domain, happy+sad integration pairs, what not to test. Use when creating/changing tests or configuring build gates. Do not use for pinning the current behavior of legacy code before refactoring (skill characterization-tests). |
-| `twelve-factor` | Twelve-Factor App applied to Java services and local tools — per-environment config, stateless processes, logs as a stream, dev/prod parity. Use when configuring an application, Docker, env vars or deploy. Do not use for local infra mechanics (skill docker). |
+| `asset-import` | Godot asset import with manifests and reproducible transforms. Use when bringing sprites, tilesets or maps into Godot. Not for drawing art (skill krita). |
+| `clean-architecture` | Clean Architecture layer and port placement. Use when defining layers, ports or where a class lives. Not for pattern choice (skill ddd-and-patterns). |
+| `clean-code` | Code rules for names, functions and comments. Use when naming, editing functions, writing comments or reviewing code. Not for test policy (skill testing). |
+| `ddd-and-patterns` | Tactical DDD and pattern selection. Use when defining an aggregate or choosing a design pattern. Not for layer placement (skill clean-architecture). |
+| `godot-standards` | Godot 2D and typed GDScript standards. Use when editing *.gd, *.tscn, project.godot or GDScript scenes. Not for asset import (skill asset-import). |
+| `investigate` | Root-cause investigation with reproduction. Use when a bug, slow behavior or incident has no named cause. Not for implementing fixes (skill sdd-implement). |
+| `java-standards` | Java 25, Spring/Quarkus and JUnit standards. Use when editing *.java, pom.xml, Spring/Quarkus code or JUnit tests. Not for general test policy (skill testing). |
+| `protocol-contract` | Client↔server contracts. Use when adding a message or field, changing a payload or fixing a client/server mismatch. Not for transport choice (skill sdd-plan). |
+| `simplicity` | YAGNI ladder for the smallest change. Use when choosing a dependency, reviewing an oversized PR or adding an abstraction. Not for test gates (skill testing). |
+| `testing` | Test policy and gates. Use when setting coverage/mutation gates or deciding what not to test. Not for legacy tests (skill characterization-tests). |
+| `twelve-factor` | Twelve-Factor application configuration. Use when changing config, env vars, deploy behavior or Docker app config. Not for container mechanics (skill docker). |
 
 ## Documentation
 

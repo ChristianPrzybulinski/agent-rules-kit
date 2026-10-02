@@ -1,7 +1,7 @@
 ---
 name: clean-code
-version: "1.0"
-description: Clean Code details — names, functions, classes, comments, tests. Use when writing or reviewing production code. Do not use for test policy (skill testing) or layer boundaries (skill clean-architecture).
+version: "1.1"
+description: Code rules for names, functions and comments. Use when naming, editing functions, writing comments or reviewing code. Not for test policy (skill testing).
 triggers:
   - user
   - model
@@ -9,46 +9,40 @@ allowed-tools:
   - read
   - grep
   - glob
+  - edit
 ---
 
 # Clean Code
 
-## Names
+## 1. Read local conventions
 
-- **English, always** — identifiers, packages, files, folders, Javadoc, comments, log and error messages. Mixed language in code is a review bug.
-- Short, purposeful, literal: `balance`, `findByPlayer`, `BattleTurn`. The name says what it is, not how it was made or who uses it.
-- Forbidden: non-universal abbreviation (`usr`, `qty`, `mgr`), decorative suffix (`Manager`, `Helper`, `Util`, `Data`, `Info`, `Impl` without a second implementation), type prefix (`strName`, `IRepository`), magic number without a constant.
-- Boolean reads as a question (`isActive`, `hasStock`); collection in plural (`items`); method with a verb (`apply`, `find`, `reserve`); class with a noun.
-- One concept, one name: do not alternate `player`/`user`/`character` for the same thing. The project glossary (`docs/spec/spec.md`) is the source.
+Inspect neighboring code plus `.editorconfig`, `pom.xml` or `project.godot`. Those files own formatting and lint settings; never restate their configuration in rules or comments.
 
-## Functions and methods
+## 2. Name literally
 
-- Short: ideally up to 20 lines; recommended maximum 40.
-- Do **one single thing** (Single Responsibility Principle).
-- Maximum 3-4 parameters; beyond that, use objects/records/DTOs.
-- Avoid hidden side effects.
+- Use one English term per concept; consult the project glossary before introducing a synonym.
+- Booleans read as questions, collections are plural, methods use verbs and classes use nouns.
+- Reject type prefixes, unexplained abbreviations and decorative `Manager`, `Helper`, `Util`, `Data`, `Info` or `Impl` suffixes.
 
-## Classes and modules
+## 3. Keep functions focused
 
-- High cohesion; low coupling.
-- Open for extension, closed for modification (OCP).
-- Prefer composition over inheritance.
-- Do not expose internal state unnecessarily.
+- One function performs one behavior, uses early returns and has no hidden side effects.
+- Use at most three or four parameters; introduce a record/DTO when the values form one concept.
+- Treat 20 lines as the target and 40 as the review threshold; split by behavior, not arbitrary chunks.
 
-## Control and flow
+## 4. Handle comments and errors
 
-- Avoid deep nesting (>3 levels). Extract functions or use early returns.
-- Handle errors explicitly, not with special return codes.
-- Do not ignore exceptions/errors without a documented reason.
+- A comment records a non-obvious reason, invariant or trade-off; delete narration and dead commented code.
+- Return or throw specific errors and never swallow one.
+- Prefer a visible failure to a special return code that callers can ignore.
 
-## Comments
+## 5. Control file growth
 
-- Code must be self-explanatory.
-- Comments only to explain the "why", not the "what".
-- Do not leave dead commented-out code in the repository.
+- Aim for 200–400 lines per feature file; 800 is the maximum before mandatory decomposition.
+- Fewer files win when cohesion remains high. Delete dead code before adding another abstraction.
 
-## Tests
+## 6. Review the diff
 
-- Code without tests is code that does not work.
-- Name tests descriptively: `should_<behavior>_when_<condition>`.
-- One assert per test ideally; at most one concept per test.
+Search callers before renaming or changing behavior. Run the repository formatter/linter and its relevant tests; report literal failures rather than adding suppression.
+
+Done when: names are literal, functions have one purpose, comments explain only why, errors remain visible, and touched files respect the size ceiling.

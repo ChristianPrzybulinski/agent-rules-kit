@@ -1,7 +1,7 @@
 ---
 name: ddd-and-patterns
-version: "1.0"
-description: Tactical DDD and a design-patterns catalog with "when to use / when not". Use when modeling a domain, choosing a pattern or reviewing a module's architecture. Do not use for layer boundaries (skill clean-architecture).
+version: "1.1"
+description: Tactical DDD and pattern selection. Use when defining an aggregate or choosing a design pattern. Not for layer placement (skill clean-architecture).
 triggers:
   - user
   - model
@@ -9,45 +9,46 @@ allowed-tools:
   - read
   - grep
   - glob
+  - edit
 ---
 
-# Tactical DDD and patterns
+# Tactical DDD and Patterns
 
-A pattern is justified by a present problem, not by popularity. Each non-obvious use → 1 line of "why" in the code or an ADR.
+## 1. Name the present problem
 
-## DDD — what to use
+State the invariant, lifecycle, variation or coordination problem before selecting a pattern. A non-obvious pattern needs one recorded reason in code or a DEC; popularity and hypothetical reuse are not reasons.
 
-| Block | Use when | Example |
-|---|---|---|
-| Value Object | concept defined by its attributes, immutable | `Money`, `Position`, `Hp` — `record` with constructor validation |
-| Entity | identity persists over time | `Player`, `Creature` |
-| Aggregate | invariants must be guaranteed together in one transaction | `Inventory` (items + capacity), `BattleInstance` (turns + participants) |
-| Domain Event | something happened and other modules react | `BattleEnded`, `ItemAcquired` |
-| Repository | persist/retrieve a whole aggregate | `PlayerRepository` (port in `application`, JPA impl in `adapter`) |
-| Domain Service | rule that doesn't belong to an entity | `DamageCalculator` |
+## 2. Select a tactical building block
 
-Do not use: formal strategic DDD (context maps, per-team ubiquitous language) with 1 dev; Event Sourcing without a need to rebuild history; full CQRS before there are measured distinct read/write profiles.
+| Building block | Use when |
+|---|---|
+| Value Object | immutable concept is defined by validated attributes |
+| Entity | identity persists while attributes change |
+| Aggregate | invariants must succeed together in one transaction |
+| Domain Event | a completed domain fact must notify another module |
+| Repository | a whole aggregate crosses persistence |
+| Domain Service | a domain rule belongs to no single entity/value object |
 
-## Catalog — when yes / when no
+Aggregate boundaries follow transaction invariants, not table or screen boundaries.
 
-| Pattern | Yes | No |
-|---|---|---|
-| Ports & Adapters | always at the domain↔infra boundary | — |
-| Command | user actions validated/queued/audited (`MoveCommand`, `AttackCommand`) | simple CRUD |
-| State Machine | states with explicit transitions (battle turn, connection, quest) | 2 boolean states |
-| Strategy | algorithm variations chosen at runtime (attack effect, per-type damage calculation) | 1 implementation |
-| Specification | combinable, named validation rules (`CanEvolve`, `CanTrade`) | a single `if` |
-| Transactional Outbox | event must go out **if and only if** the transaction committed (reward, trade) | informational event without consequence |
-| Idempotency Key | operation may be resent (network, retry) and must not duplicate its effect | read |
-| Factory | creation with invariants or multiple steps | a constructor suffices |
-| Observer/Signals | decouple who emits from who reacts (Godot: signals; Java: Domain Events) | direct call is clear and local |
-| Object Pool | measured frequent, expensive creation (projectiles, particles) | premature optimization |
-| Repository | aggregate access | static lookup table |
+## 3. Select the smallest pattern
 
-## Anti-patterns to block in review
+| Pattern | Present problem |
+|---|---|
+| Command | action must be validated, queued or audited |
+| State Machine | named states have constrained transitions |
+| Strategy | multiple algorithms are selected at runtime |
+| Specification | validation rules must be named and composed |
+| Transactional Outbox | an event must publish iff its transaction commits |
+| Idempotency Key | a retried command must not repeat its effect |
+| Factory | creation has invariants or multiple steps |
+| Observer/signal | emitter and responders must vary independently |
+| Object Pool | profiling proves frequent expensive allocation |
 
-- Singleton for mutable game state (Godot: autoload becoming a "god object"; Java: mutable `static`).
-- Active Record in the domain (entity that saves itself).
-- Anemic Domain: entity with only getters/setters and rules in the "service".
-- Generic Utils/Helpers growing without an owner.
-- Inheritance for code reuse (use composition).
+Do not introduce Event Sourcing, CQRS or microservices without a measured need. Tactical aggregates, value objects and events do not require those architectures.
+
+## 4. Block accidental patterns
+
+Reject mutable global singletons, Active Record in the domain, anemic entities, ownerless utility classes and inheritance used only for code reuse.
+
+Done when: the chosen building block or pattern solves a named current problem, its rejected simpler option is understood, and no speculative architecture was added.

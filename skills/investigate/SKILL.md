@@ -1,7 +1,7 @@
 ---
 name: investigate
-version: "1.0"
-description: Investigates a bug, regression, performance problem or incident to a named root cause, with reproduction before any fix. Use when something "doesn't work", is slow, or failed in production/CI. Do not use to implement the fix (that returns to the normal flow with a failing test first).
+version: "1.1"
+description: Root-cause investigation with reproduction. Use when a bug, slow behavior or incident has no named cause. Not for implementing fixes (skill sdd-implement).
 argument-hint: "[symptom description | log/issue link]"
 triggers:
   - user
@@ -15,36 +15,32 @@ allowed-tools:
 
 # Investigate
 
-A symptom is not a cause. This skill ends when there is a deterministic reproduction and a named cause in the code — or when it is clear what is missing to get there.
-
 ## 1. Pin down the symptom
 
-- What was observed, where (environment, version/commit, platform), when, how often.
-- What was expected, and why (spec, test, doc, or just the user's expectation — say which).
-- A third-party report (issue, chat, memory) is `[HYPOTHESIS]` until reproduced.
+Record observed and expected behavior, environment, commit/version, platform, frequency and the source of the expectation. Treat third-party reports as hypotheses until reproduced.
 
-## 2. Reproduce
+## 2. Reproduce before proposing a fix
 
-- The shortest path that triggers the symptom: automated test > script > numbered manual steps.
-- Couldn't reproduce → do not "fix by intuition". Record the attempts and what is missing (data, environment, access).
-- Performance: measure first (number + tool + command), not "seems slow".
+- Prefer an automated failing test, then a script, then numbered manual steps.
+- A bug fix starts only after a test fails for the right reason; the failing test defines the defect boundary.
+- If reproduction fails, record attempts and missing data/access instead of editing by intuition.
+- For slowness, capture a number, tool and command before calling it a performance problem.
 
-## 3. Narrow down
+## 3. Prove the executed path
 
-- Bisect when a known-good commit exists (`git bisect`).
-- Read the code path actually executed (logs, breakpoints, temporary `print`), not the one that "should" run.
-- List competing hypotheses and look first for the evidence that **refutes** each.
-- A hypothesis becomes the cause only when it explains the whole symptom and the evidence shows that code executing in the scenario.
+- Use logs, a debugger, trace or temporary instrumentation to show which path ran.
+- List competing hypotheses and seek refuting evidence first.
+- Bisect only when a verified good commit exists.
+- Name a cause only when the evidence shows that code executing in the reported scenario; otherwise state the next discriminating observation.
 
-## 4. Report
+## 4. Record impact and regression proof
 
-Template: `../../templates/doc-bug-report.md` (symptom, reproduction, cause, evidence, impact, proposed fix, the test that must now exist). Destination: project issue or `docs/incidents/` per `AGENTS.md`.
+- For money, inventory or data incidents, verify affected counts by query rather than estimate.
+- Define the regression test that must remain after the fix; do not implement the fix in this skill.
+- Remove temporary instrumentation unless it becomes deliberate structured logging.
 
-Incident with data/money/inventory affected → impact section with a count verified by query, not an estimate.
+## 5. Report
 
-## Rules
+Use `../../templates/doc-bug-report.md`: symptom, reproduction, cause/evidence, impact, proposed fix and required test. A race/cache explanation needs a concurrent test or trace.
 
-- Fix only after a test that fails for the right reason (`../testing/SKILL.md`).
-- Remove temporary instrumentation before committing; if it stays, it is deliberate structured logging.
-- A "race condition" or "cache" cause requires a demonstration (concurrent test or trace), not plausibility.
-- Do not close with "not reproduced" without listing what was tried.
+Done when: the symptom reproduces deterministically and has a source-backed cause, or the report names exactly what evidence is still missing.

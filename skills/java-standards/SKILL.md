@@ -1,7 +1,7 @@
 ---
 name: java-standards
-version: "2.0"
-description: Applies modern Java standards — style (`var`, `Optional`, `record`, `sealed`), Clean Architecture packages, Spring/Quarkus, JUnit 5 tests. Use on `*.java` or `pom.xml`. Do not use for build/module/plugin gates detail (`references/build-and-dependencies.md`) or the general test policy (skill testing).
+version: "2.1"
+description: Java 25, Spring/Quarkus and JUnit standards. Use when editing *.java, pom.xml, Spring/Quarkus code or JUnit tests. Not for general test policy (skill testing).
 triggers:
   - user
   - model
@@ -10,37 +10,43 @@ allowed-tools:
   - grep
   - glob
   - exec
+  - edit
 ---
 
-# Java Expert
+# Java Standards
 
-Build, multi-module structure and quality plugins: `references/build-and-dependencies.md`.
-Reference: `references/java-25-lts.md` — verified Java 25 LTS release facts.
+Read `references/build-and-dependencies.md` for Maven/module gates and `references/java-25-lts.md` for verified Java 25 facts.
 
-## When working with Java
+## 1. Confirm the baseline
 
-1. Check the baseline (`pom.xml`, `build.gradle`, `.java-version`): fixed Java LTS, Maven wrapper — detail in `references/build-and-dependencies.md`.
-2. Respect the package structure (Clean Architecture):
+Inspect `pom.xml`, `.java-version`, Maven wrapper and toolchains. This kit uses fixed Java 25 LTS and Maven; do not silently adopt the PATH JDK or Gradle.
 
-```text
-com.example.project
-├── domain          # Entities, value objects, domain services, exceptions
-├── application     # Use cases, ports (input/output interfaces)
-├── infrastructure  # Port implementations: DB, HTTP, messaging
-└── adapter         # Controllers, presenters, CLI, web
-```
+## 2. Preserve package boundaries
 
-`domain`/`application` must not depend on external frameworks.
+- `domain`: entities, value objects, domain services and errors; no framework imports.
+- `application`: use cases and ports; depends inward on domain.
+- `adapter-*`/`infrastructure`: HTTP, persistence, messaging and external implementations.
+- `bootstrap`: framework configuration and wiring.
 
-3. Language: `var` when the type is obvious; `Optional` for possibly-absent values (never return `null`); `Stream`/`Collectors` over imperative loops when functional is clearer; `record` for DTOs/immutables; `sealed` + pattern matching to model the domain.
-4. Frameworks: Spring Boot — constructor injection (never field `@Autowired`), `@ConfigurationProperties` for config; Quarkus — constructor injection + `@ApplicationScoped`; JPA/persistence entities stay in infrastructure — domain entities separate when needed.
-5. Tests: JUnit 5 + AssertJ/Mockito, `shouldCalculateTotalWhenAddingItem` naming; domain units without the Spring context; `@SpringBootTest` only when needed.
-6. Dependencies: no new library without justification — check `pom.xml`/`build.gradle`, prefer the standard ecosystem (SLF4J, Jackson), validate compatibility with the project's Java.
-7. Document public APIs with concise JavaDoc.
+## 3. Apply Java language choices
 
-## Standard checks
+- Use `record` for immutable DTO/value carriers and `sealed` hierarchies when the variant set is closed.
+- Use `Optional` for an absent return, never for fields/parameters and never return `null` in its place.
+- Use `var` only when the initializer makes the type obvious; use streams only when clearer than the loop.
+- Document public APIs with concise JavaDoc that states purpose or invariant.
 
-- Names in English, per project convention.
-- Avoid logic in controllers; delegate to use cases/services.
-- Logging: SLF4J; never log sensitive data.
-- Exceptions: specific domain exceptions, not generic `RuntimeException`; never swallow one silently.
+## 4. Apply framework boundaries
+
+- Spring/Quarkus use constructor injection; no field injection.
+- Spring configuration uses `@ConfigurationProperties`; Quarkus services use the appropriate CDI scope.
+- Persistence/JPA entities stay in the outer adapter when the domain model carries behavior.
+
+## 5. Write JUnit tests
+
+Use JUnit 5 and AssertJ; use Mockito only at ports. Domain tests run without Spring/Quarkus context; load a full context only when the behavior requires framework wiring. General coverage/mutation policy belongs to `testing`.
+
+## 6. Verify
+
+Run the Maven wrapper with the project modules/gates from the build reference. Use SLF4J without sensitive data and translate external errors rather than throwing generic `RuntimeException`.
+
+Done when: Java 25/Maven are fixed, framework dependencies stay outside domain/application, JUnit scope matches the behavior, and the relevant Maven gate passes.

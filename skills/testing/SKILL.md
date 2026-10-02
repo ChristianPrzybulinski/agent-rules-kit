@@ -1,7 +1,7 @@
 ---
 name: testing
-version: "1.0"
-description: Testing policy — 100% line/branch coverage and mutation ≥80% in the domain, happy+sad integration pairs, what not to test. Use when creating/changing tests or configuring build gates. Do not use for pinning the current behavior of legacy code before refactoring (skill characterization-tests).
+version: "1.1"
+description: Test policy and gates. Use when setting coverage/mutation gates or deciding what not to test. Not for legacy tests (skill characterization-tests).
 triggers:
   - user
   - model
@@ -9,53 +9,43 @@ allowed-tools:
   - read
   - grep
   - glob
+  - exec
+  - edit
 ---
 
-# Tests
+# Testing
 
-## Gates (fail the build)
+## 1. Classify the behavior
 
-| Scope | Gate | Tool |
-|---|---|---|
-| `domain` module (business rules) | 100% line and branch | JaCoCo `check` on the module |
-| `domain` module | mutation score ≥ 80% | PITest |
-| Other modules | no numeric gate; **one** executable check per non-trivial logic | — |
+Domain rules involving business logic, money, inventory, rewards, battle or authorization require 100% line and branch coverage plus mutation score ≥80%. These gates are never reduced.
 
-Line coverage is necessary, not sufficient: 100% with weak asserts passes. Hence PITest on the domain.
+Outside the domain, require one executable test for each non-trivial branch, parser, rule-bearing mapping or translated adapter behavior; trivial getters, records, constructors, one-to-one mappings and framework wiring remain untested.
 
-## Outside the domain: YAGNI applies to tests
+## 2. Define behavior before implementation
 
-- Non-trivial logic (branch, loop, parser, mapping with a rule, adapter with translation) → **one** small test that fails if the logic breaks. Not a suite per method, not "for later" fixtures.
-- Trivial (getter, `record`, 1:1 mapping, one-liner, framework wiring) → not tested.
-- Adapter integration: the happy+sad pair is the minimum **and** sufficient in most cases.
-- When in doubt whether it's domain: if it involves money, inventory, reward, battle, authorization — it's domain; full gate.
+- Bug: add a test that reproduces the symptom and fails for the right reason before the fix.
+- Feature: the failing acceptance/domain test defines the behavior that makes the task done.
+- Business rule: use a parameterized valid/boundary/invalid case table.
 
-## Wait for a condition, never for time
+## 3. Choose the proof level
 
-- `Thread.sleep`/`await_timer`/`time.sleep` forbidden in tests to "give it time". Wait for the observable condition (`Awaitility`, `CountDownLatch`, Godot signal, polling with a short timeout). A test that needs `sleep` is testing timing, not behavior — or has a real race to investigate.
-- Explicit timeout and a message that says **which** condition did not occur.
+1. Unit: domain without framework or I/O; fake ports only.
+2. Integration: real adapter boundary with a happy and sad case.
+3. Contract: versioned client/server examples validated on both sides.
+4. End-to-end/smoke: few tests around the vertical slice.
 
-## Pyramid
+Money, inventory and reward operations also require idempotency (same command twice, one effect) and concurrency (competing operations, one valid outcome) tests.
 
-1. **Unit** (domain): no Spring, no I/O, no entity mocks. Mock ports only.
-2. **Integration** (adapters): real database via Testcontainers; real HTTP via `WebTestClient`/`MockMvc`. Always in pairs: **happy path + sad path** (invalid input, missing resource, conflict, timeout).
-3. **Contract** (client↔server boundary): versioned message examples, validated on both sides.
-4. **E2E/smoke**: few, on the vertical slice.
+## 4. Wait for evidence, not time
 
-## Condition → action
+Never use `Thread.sleep`, `time.sleep` or an engine timer to let a test catch up. Wait for the observable condition with a bounded timeout and an error naming the missing condition.
 
-- Fixing a bug → test that reproduces it, failing for the right reason, **before** the fix.
-- New business rule → case table (valid / boundary / invalid) in `@ParameterizedTest`.
-- Money, inventory, reward → idempotency test (same operation 2x = same state) and concurrency test (2 threads, 1 wins).
-- Failing test → fix code or test; never `@Disabled` to go green.
-- Slow test (>1s unit, >10s integration) → investigate; likely I/O where it shouldn't be.
+## 5. Keep assertions behavioral
 
-## Naming
+Do not test getters, framework behavior or that collaborator X was called. Assert the externally observable result or state transition. A failing test is fixed with code/test correction, never disabling it.
 
-`should_<result>_when_<condition>()` — consistent per project. Explicit Given/When/Then structure in the body (comments or blocks). Gherkin/Cucumber only if non-devs read the specs.
+## 6. Run gates
 
-## Do not test
+Run the narrow relevant test first, then the repository gate. Investigate unit tests over one second or integration tests over ten seconds instead of normalizing the delay.
 
-- Getters/setters, `record`, trivial constructors.
-- Framework (Spring already tests Spring).
-- Implementation ("verify that X was called") instead of behavior.
+Done when: required domain percentages and mutation pass, every non-trivial non-domain change has one proof, integrations have happy/sad coverage, and no test sleeps or asserts implementation calls.

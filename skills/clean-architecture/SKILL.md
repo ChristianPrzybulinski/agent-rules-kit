@@ -1,7 +1,7 @@
 ---
 name: clean-architecture
-version: "1.0"
-description: Clean Architecture details — layers, dependency rule, ports/adapters, DTOs, exceptions. Use when creating a module, a layer or deciding where a class lives. Do not use for choosing a design pattern (skill ddd-and-patterns) or naming detail (skill clean-code).
+version: "1.1"
+description: Clean Architecture layer and port placement. Use when defining layers, ports or where a class lives. Not for pattern choice (skill ddd-and-patterns).
 triggers:
   - user
   - model
@@ -9,53 +9,41 @@ allowed-tools:
   - read
   - grep
   - glob
+  - edit
 ---
 
 # Clean Architecture
 
-## Layers (outside in)
+## 1. Map the dependency direction
 
-1. Frameworks & Drivers (UI, DB, external APIs, libraries).
-2. Interface Adapters (controllers, presenters, gateways, DTOs).
-3. Use Cases (application rules, orchestration).
-4. Entities (business rules, pure domain).
+Classify touched code as entity/domain, use case/application, interface adapter, or framework/driver. Dependencies point inward; domain and application code import no Spring, Hibernate, Godot node, database or transport type.
 
-## Dependency Rule
+## 2. Place boundaries
 
-- Dependencies **always point inward**.
-- Inner layers do not know outer layers.
-- Use interfaces (ports) to invert dependencies **where there is something to invert** (below).
+- Validate external input at the adapter boundary, then trust the typed interior.
+- Pass DTOs across layers; do not expose domain entities directly to UI, persistence or transport code.
+- Translate infrastructure failures at the boundary while preserving a specific domain/application error.
 
-## Pragmatism — when a port is justified
+## 3. Justify each port
 
-| Situation | Port? |
-|---|---|
-| Domain needs database, network, clock, RNG, file, queue | **Yes** — external I/O; it's what gets replaced by a fake in tests |
-| Real alternative implementations expected (Postgres today, another tomorrow; optional Redis) | Yes |
-| Domain boundary consumed by another module | Yes, at the boundary; not on every internal class |
-| Internal service/policy with one implementation (`DamageFormula`, `EvolutionPolicy`) | **No** — concrete class, tested directly |
-| "Might be useful someday" | No — YAGNI (skill `simplicity`) |
+Create a port only for:
 
-A port with no second implementation **and** no I/O is ceremony: remove it. Empty layers (an `application` package that only forwards) too.
+1. external I/O such as database, network, clock, RNG, file or queue;
+2. a real planned implementation swap; or
+3. a domain boundary consumed by another module.
 
-Fewer files wins: group by use case/aggregate, not by technical type (`services/`, `impl/`, `interfaces/`).
+A single internal policy with no I/O stays concrete. Remove ports with neither a second implementation nor a boundary.
 
-## Frameworks are details
+## 4. Structure by behavior
 
-- The domain and use cases must not depend on Spring, Hibernate, Godot nodes, specific GDScript, etc.
-- Isolate adapters to swap frameworks without touching the core.
+- Group files by use case or aggregate, not generic `services/`, `interfaces/` and `impl/` buckets.
+- Keep wiring and framework annotations in outer adapters/bootstrap.
+- Reject empty layers that only forward calls; fewer files and inward dependencies win.
 
-## DTOs and boundaries
+## 5. Verify the boundary
 
-- Use DTOs at the edge between layers. Never pass entities directly to the UI/DB without adaptation.
-- Keep DTOs lean and immutable when possible.
+- Domain tests run without database, network, UI or framework context.
+- Use fakes at ports; do not mock entities.
+- Inspect imports or run the project's architecture gate before closing.
 
-## Testability
-
-- Business rules must be testable without a database, network or UI.
-- Use mocks/fakes for ports, never for entities.
-
-## Exceptions
-
-- Domain exceptions (inner layer) are different from infrastructure errors (outer layer).
-- Convert external exceptions into domain exceptions near the boundary.
+Done when: every dependency points inward, validation/error translation occurs at the edge, and each port names its I/O, swap or domain-boundary reason.

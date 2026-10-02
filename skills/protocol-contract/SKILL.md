@@ -1,7 +1,7 @@
 ---
 name: protocol-contract
-version: "1.0"
-description: Creates or evolves a client↔server contract message (command, event, response, error) with versioning, testable examples and compatibility rules. Use when adding/changing a field, creating a new message, or when client and server disagree about a payload. Do not use to decide transport/serialization (that is a DEC).
+version: "1.1"
+description: Client↔server contracts. Use when adding a message or field, changing a payload or fixing a client/server mismatch. Not for transport choice (skill sdd-plan).
 argument-hint: "[message-name | FEAT-xxx that needs a new message]"
 triggers:
   - user
@@ -11,51 +11,44 @@ allowed-tools:
   - grep
   - glob
   - exec
+  - edit
 ---
 
 # Protocol Contract
 
-The contract lives in a single place (in the project, typically `protocol/`); client and server consume it by version. This skill changes the contract, never the consumers directly.
-
 ## 1. Locate the source of truth
 
-- Read `protocol/README.md` (or whatever `AGENTS.md` indicates): transport, serialization, current `protocol_version`, naming convention, common envelope (id, correlation, sequence, timestamp).
-- If there is no approved DEC for transport/serialization → stop; open a `DEC-xxx` as `proposed` and report. Do not choose on your own.
+Read the project's protocol location and approved transport/serialization DEC. Stop with a proposed DEC if transport or serialization has no approved decision; this skill changes the contract, not that choice.
 
-## 2. Classify the change
+## 2. Classify compatibility
 
-| Change | `protocol_version` | Compatibility |
+| Change | Version effect | Compatibility |
 |---|---|---|
-| New optional field; new message | minor | old client ignores it |
-| New required field; changed type/semantics; removal | major | breaking — requires a coexistence window or a planned cutover |
-| Doc/example fix without changing bytes | none | — |
+| optional field or new message | same protocol version | older consumers ignore it |
+| required field, changed type/meaning, removal | increment protocol version | coexistence window or cutover required |
+| documentation/example only | none | bytes unchanged |
 
-Major → needs a DEC (even a short one) before proceeding.
+Record any breaking change and migration window before editing consumers.
 
 ## 3. Specify the message
 
-Template: `../../templates/doc-contract-message.md`. Required per message:
+Use `../../templates/doc-contract-message.md` and define:
 
-- direction (C→S, S→C, both), type (command / event / response / error);
-- fields with type, requiredness, limits (size, range, frequency);
-- who validates what (server validates everything that changes state; client only pre-validates UX);
-- idempotency: deduplication key for commands with an effect (inventory, economy, reward);
-- ordering: per-session or per-entity sequence; what happens out of order;
-- possible errors with a stable code (not text);
-- **one valid and ≥1 invalid example**, in separate files under `protocol/examples/`, to become contract-test fixtures on both sides.
+- direction and command/event/response/error kind;
+- field types, requiredness, range/size/frequency limits;
+- server-side validation and stable errors;
+- idempotency key for state-changing commands;
+- ordering/sequence behavior and out-of-order handling;
+- one valid and at least one invalid example under `protocol/examples/`.
 
-## 4. Legacy as reference, not as mold
+Every state-changing command has a response/error; no reserved future fields or unspecified limits.
 
-If an old protocol exists: record in "Related legacy" the equivalent subject/handler with `[FACT]` only if read in the code. Do not copy delimiters, obscure names or fields of unknown purpose. Behavior divergence from legacy → explicit `[PROPOSAL]`, never silent.
+## 4. Compare legacy behavior
+
+Link an equivalent legacy handler only after reading it. Mark divergence as a proposal; do not copy opaque names, framing or unexplained fields.
 
 ## 5. Close
 
-- `protocol/CHANGELOG.md` (or section) with the version and the change.
-- FEAT that motivated the message: link the message under "Relations".
-- Examples pass through a schema validator if the project has one (run it; output in the report).
+Update the protocol changelog and motivating FEAT, then run the schema/contract validator on examples for both sides. Capture literal output.
 
-## Rules
-
-- No "reserved for the future" fields.
-- Every message with a state effect has a defined response or error — no fire-and-forget for commands.
-- Maximum size and maximum frequency are part of the contract, not a server detail.
+Done when: compatibility is explicit, examples prove valid and invalid payloads, state effects define idempotency/ordering/errors, and both consumers share one versioned source.
