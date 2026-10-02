@@ -21,12 +21,16 @@ codex_bin() {
     printf '%s\n' "$candidate"
     return 0
   fi
-  candidate="$(find "$HOME/.cache/codex-runtimes" -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
-  if [[ -n "$candidate" && -x "$candidate" ]]; then
-    printf '%s\n' "$candidate"
-    return 0
-  fi
-  candidate="$(find /Applications/Codex.app /Applications/ChatGPT.app -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
+  for candidate in \
+    /Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex \
+    /Applications/Codex.app/Contents/Resources/codex-cli/bin/codex; do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  candidate="$(find "$HOME/.cache/codex-runtimes" /Applications/ChatGPT.app /Applications/Codex.app \
+    -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
   if [[ -n "$candidate" && -x "$candidate" ]]; then
     printf '%s\n' "$candidate"
     return 0
@@ -63,7 +67,8 @@ run_step "git pull --ff-only failed" git -C "$KIT" pull --ff-only
 
 codex="$(codex_bin || true)"
 if [[ -n "$codex" ]]; then
-  if "$codex" plugin marketplace list 2>/dev/null | grep -q 'ai-kit'; then
+  marketplaces="$("$codex" plugin marketplace list 2>/dev/null || true)"
+  if [[ "$marketplaces" == *"ai-kit"* ]]; then
     run_step "codex marketplace upgrade failed" "$codex" plugin marketplace upgrade ai-kit
   else
     warn "codex marketplace ai-kit not registered — run platforms/tools/bootstrap.sh"

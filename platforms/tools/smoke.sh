@@ -133,6 +133,104 @@ if grep -q '^fix:' "$ROOT/doctor-app-second.out"; then
   fail "second app-only doctor run was not idempotent"
 fi
 
+STUB_BIN="$ROOT/bin"
+STUB_STATE="$ROOT/stub-state"
+STUB_HOME="$ROOT/stub-home"
+mkdir -p "$STUB_BIN" "$STUB_STATE" "$STUB_HOME"
+cat > "$STUB_BIN/codex" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+state="${STUB_STATE_DIR:?}"
+case "$*" in
+  --version)
+    echo "codex-cli 0.158.0-alpha.2.1"
+    ;;
+  "plugin marketplace list")
+    if [[ "${STUB_MARKETPLACE:-0}" == "1" || -f "$state/marketplace" ]]; then
+      echo "ai-kit ChristianPrzybulinski/agent-rules-kit"
+    fi
+    ;;
+  "plugin list")
+    if [[ "${STUB_PLUGIN:-0}" == "1" || -f "$state/plugin" ]]; then
+      echo "ai-kit@ai-kit installed, enabled"
+    fi
+    ;;
+  "plugin marketplace add "*)
+    touch "$state/marketplace"
+    echo "Added marketplace ai-kit"
+    ;;
+  "plugin add ai-kit@ai-kit")
+    touch "$state/plugin"
+    echo "Added plugin ai-kit from marketplace ai-kit."
+    ;;
+  "plugin marketplace upgrade ai-kit")
+    touch "$state/upgrade"
+    echo "Upgraded marketplace ai-kit"
+    ;;
+  "debug prompt-input list skills")
+    count="${STUB_EXPOSED:-0}"
+    for ((i = 1; i <= count; i++)); do
+      echo "ai-kit:x$i"
+    done
+    ;;
+  *)
+    echo "unexpected codex stub arguments: $*" >&2
+    exit 2
+    ;;
+esac
+STUB
+chmod +x "$STUB_BIN/codex"
+git clone "$SOURCE" "$STUB_HOME/.ai-kit" >/dev/null 2>&1
+
+stub_path="$STUB_BIN:$RESTRICTED_PATH"
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-install.out" 2>&1; then
+  cat "$ROOT/doctor-stub-install.out" >&2
+  fail "doctor failed to install stub marketplace/plugin"
+fi
+grep -Fq 'fix: codex marketplace ai-kit registered' "$ROOT/doctor-stub-install.out" \
+  || fail "stub marketplace add was not reported"
+grep -Fq 'fix: codex plugin ai-kit@ai-kit installed' "$ROOT/doctor-stub-install.out" \
+  || fail "stub plugin add was not reported"
+grep -Fq 'ok: codex plugin exposes 43 ai-kit skills' "$ROOT/doctor-stub-install.out" \
+  || fail "stub exposed-skill count was not reported"
+stub_fallback_count=0
+if [[ -d "$STUB_HOME/.codex/skills" ]]; then
+  stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d ' ')"
+fi
+[[ "$stub_fallback_count" == "0" ]] || fail "fallback created despite exposed stub skills"
+
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=0 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-fallback.out" 2>&1; then
+  cat "$ROOT/doctor-stub-fallback.out" >&2
+  fail "doctor failed to create stub fallback"
+fi
+stub_skill_count="$(find "$STUB_HOME/.ai-kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d ' ')"
+[[ "$stub_fallback_count" == "$stub_skill_count" ]] \
+  || fail "$stub_fallback_count stub fallbacks, expected $stub_skill_count"
+
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-remove.out" 2>&1; then
+  cat "$ROOT/doctor-stub-remove.out" >&2
+  fail "doctor failed to remove stub fallback"
+fi
+stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d ' ')"
+[[ "$stub_fallback_count" == "0" ]] || fail "stub fallback remained after plugin exposure"
+grep -Fq 'ok: codex plugin exposes 43 ai-kit skills' "$ROOT/doctor-stub-remove.out" \
+  || fail "stub re-exposure count was not reported"
+
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" \
+    "$STUB_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-stub.out" 2>&1; then
+  cat "$ROOT/refresh-stub.out" >&2
+  fail "refresh failed with registered stub marketplace"
+fi
+[[ -f "$STUB_STATE/upgrade" ]] || fail "refresh did not upgrade the stub marketplace"
+
 FOREIGN_LINK_HOME="$ROOT/foreign-link-home"
 mkdir -p "$FOREIGN_LINK_HOME/.codex"
 git clone "$SOURCE" "$FOREIGN_LINK_HOME/.ai-kit" >/dev/null 2>&1

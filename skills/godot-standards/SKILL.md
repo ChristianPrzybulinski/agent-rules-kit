@@ -1,6 +1,5 @@
 ---
 name: godot-standards
-version: "2.1"
 description: Godot 2D and typed GDScript standards. Use when editing *.gd, *.tscn, project.godot or GDScript scenes. Not for asset import (skill asset-import).
 triggers:
   - user

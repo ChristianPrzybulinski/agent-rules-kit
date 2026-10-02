@@ -1,6 +1,5 @@
 ---
 name: redis
-version: "1.1"
 description: Redis ephemeral-data rules. Use when designing cache keys/TTL, rate limits, pub/sub or short locks. Not for durable data (skill postgresql).
 argument-hint: "[justify | cache | ratelimit | pubsub | lock] <context>"
 triggers:

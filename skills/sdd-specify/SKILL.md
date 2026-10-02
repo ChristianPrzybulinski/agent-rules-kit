@@ -1,6 +1,5 @@
 ---
 name: sdd-specify
-version: "1.1"
 description: SDD step 1 — feature and requirement specification. Use when a described feature needs FEAT/REQ criteria. Not for open questions (skill sdd-clarify).
 argument-hint: "<feature description in natural language>"
 triggers:
@@ -9,7 +8,7 @@ allowed-tools:
   - read
   - glob
   - grep
-  - write
+  - edit
   - exec
 ---
 

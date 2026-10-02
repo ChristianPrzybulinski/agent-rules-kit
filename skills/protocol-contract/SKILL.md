@@ -1,6 +1,5 @@
 ---
 name: protocol-contract
-version: "1.1"
 description: Client↔server contracts. Use when adding a message or field, changing a payload or fixing a client/server mismatch. Not for transport choice (skill sdd-plan).
 argument-hint: "[message-name | FEAT-xxx that needs a new message]"
 triggers:

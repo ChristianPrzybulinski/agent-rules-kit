@@ -1,3 +1,8 @@
+---
+description: Java build, module and dependency rules for Maven, Java 25, quality plugins and dependency changes.
+kind: detail
+---
+
 # Java — build and dependencies
 
 ## Required

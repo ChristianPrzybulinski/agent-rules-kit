@@ -1,6 +1,6 @@
 ---
-description: "Client↔server transports in Godot 4 with a non-Godot server (StreamPeerTCP, WebSocketPeer, ENetConnection, PacketPeerUDP, HTTPRequest): reliability, TLS, Java-side requirement. Load when deciding/decoding a transport."
-trigger: model_decision
+description: "Godot 4 transport facts for TCP, WebSocket, ENet, UDP and HTTP. Load when comparing client/server reliability and TLS."
+kind: fact
 verified: "2026-09-30"
 sources:
   - https://docs.godotengine.org/en/stable/classes/class_websocketpeer.html

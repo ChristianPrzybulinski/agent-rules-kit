@@ -30,6 +30,7 @@ Bootstrap links `~/.codex/AGENTS.md` to `~/.ai-kit/AGENTS.md` and registers the 
 
 ```bash
 codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref main
+codex plugin add ai-kit@ai-kit
 ```
 
 While [openai/codex#22078](https://github.com/openai/codex/issues/22078) remains open, installed plugin skills may not be exposed to the model. `doctor.sh` therefore maintains `~/.codex/skills/<name>` symlinks and removes them automatically once `codex debug prompt-input` exposes `ai-kit:*` skills. When only the desktop app is discoverable, doctor uses app-only mode and keeps the fallback active.

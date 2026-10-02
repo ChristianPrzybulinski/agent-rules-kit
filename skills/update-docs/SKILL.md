@@ -1,6 +1,5 @@
 ---
 name: update-docs
-version: "2.1"
 description: Project documentation closure. Use when updating README, CHANGELOG, Javadoc, ADR or release notes. Not for feature specs (skill sdd-specify).
 triggers:
   - user
@@ -9,7 +8,6 @@ allowed-tools:
   - read
   - grep
   - glob
-  - write
   - edit
 ---
 

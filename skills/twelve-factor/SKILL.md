@@ -1,6 +1,5 @@
 ---
 name: twelve-factor
-version: "1.1"
 description: Twelve-Factor application configuration. Use when changing config, env vars, deploy behavior or Docker app config. Not for container mechanics (skill docker).
 triggers:
   - user

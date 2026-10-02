@@ -1,6 +1,5 @@
 ---
 name: github-cli
-version: "2.1"
 description: "`gh` PR workflow. Use when writing a PR body, checking reviews, merging or publishing a release. Not for branch policy (skill branching-and-versioning)."
 triggers:
   - user

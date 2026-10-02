@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Changed
+- Own skill frontmatter no longer carries the unused `version` key; `write` tool declarations use the supported `edit` capability.
 - **BREAKING — 8.0.0 layout v6:** the repository root is now the Devin and Codex plugin. Always-on instructions, triggered rules, flat skills, references and templates are delivered directly from `main`; plugin manifest versions equal `VERSION`.
 - Agent consumption is plugin-first. Devin Cloud fetches `main` per session, local Devin refreshes its plugin cache, and Codex uses its marketplace plugin with a temporary compatibility fallback.
 - The `evidence` skill was merged into `skeptic`; knowledge notes moved under their owning skills as references.
@@ -16,10 +17,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Removed the duplicate `grill-me` vendor skill; `grilling` remains.
 
 ### Added
+- Added reference frontmatter schema, Codex user-only invocation policy files, allowed-tool validation, backtick-path validation and exact skill-index description checks.
 - Added `rules/`, root Devin/Codex manifests, flat `skills/`, root `templates/`, and v6 schema/index/link validation.
 - Added `bootstrap.sh`, `refresh.sh`, `doctor.sh`, `smoke.sh`, `vendor.sh`, and the six-hour launchd refresh agent.
 - Added the 7,200-character skill-description budget and 40–160-character per-description gate for the Codex initial-list limit.
 - Added the openai/codex#22078 fallback: doctor maintains Codex-only skill symlinks until the plugin exposes `ai-kit:*`, then removes them.
+
+### Fixed
+- Fixed lifecycle plugin detection under `pipefail`, added the required `codex plugin add ai-kit@ai-kit` installation step and prioritized the desktop app CLI wrappers.
 
 ## [7.3.0] - 2026-10-01
 

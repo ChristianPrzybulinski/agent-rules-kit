@@ -1,3 +1,8 @@
+---
+description: Documentation closure checklist for README, CHANGELOG, public APIs, decisions, debt and feature status.
+kind: detail
+---
+
 # Living documentation
 
 An outdated document is worse than a missing one: the agent trusts it. Every behavior change updates the doc **in the same PR**.

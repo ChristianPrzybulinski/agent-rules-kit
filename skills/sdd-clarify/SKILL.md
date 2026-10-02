@@ -1,6 +1,5 @@
 ---
 name: sdd-clarify
-version: "1.1"
 description: SDD step 2 — resolve ambiguous FEAT criteria. Use when a FEAT has open questions or vague terms. Not for quality auditing (skill sdd-audit).
 argument-hint: "FEAT-nnn"
 triggers:
@@ -8,7 +7,6 @@ triggers:
 allowed-tools:
   - read
   - edit
-  - ask_user_question
 ---
 
 # SDD 2 — Clarify

@@ -1,6 +1,6 @@
 ---
 description: Java 25 LTS (GA 2025-09-16, Oracle support until 2030/2033, openjdk@25 keg-only installed, Maven toolchains). Load when configuring a Java project or pom.
-trigger: model_decision
+kind: fact
 verified: "2026-09-29"
 sources:
   - https://openjdk.org/projects/jdk/25/

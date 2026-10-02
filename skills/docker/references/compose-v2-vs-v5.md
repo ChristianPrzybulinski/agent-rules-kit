@@ -1,6 +1,6 @@
 ---
-description: Compose v2+ became a CLI plugin (`docker compose`), the `version:` field is obsolete, v5.5.1 installed. Load when creating/changing a compose file or Dockerfile.
-trigger: model_decision
+description: Docker Compose facts for the CLI plugin, obsolete version field and installed v5.5.1. Load when editing Compose files.
+kind: fact
 verified: "2026-09-29"
 sources:
   - https://docs.docker.com/compose/

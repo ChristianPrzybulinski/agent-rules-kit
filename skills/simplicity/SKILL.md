@@ -1,6 +1,5 @@
 ---
 name: simplicity
-version: "1.1"
 description: YAGNI ladder for the smallest change. Use when choosing a dependency, reviewing an oversized PR or adding an abstraction. Not for test gates (skill testing).
 triggers:
   - user

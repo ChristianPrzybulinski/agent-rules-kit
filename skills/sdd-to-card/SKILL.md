@@ -1,6 +1,5 @@
 ---
 name: sdd-to-card
-version: "1.1"
 description: SDD step 9 — sync a FEAT to GitHub Issues/Projects. Use when opening, updating or closing its card. Not for PR operations (skill github-cli).
 argument-hint: "FEAT-nnn [--project <number>]"
 triggers:

@@ -1,6 +1,5 @@
 ---
 name: java-standards
-version: "2.1"
 description: Java 25, Spring/Quarkus and JUnit standards. Use when editing *.java, pom.xml, Spring/Quarkus code or JUnit tests. Not for general test policy (skill testing).
 triggers:
   - user

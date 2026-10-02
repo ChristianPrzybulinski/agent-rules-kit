@@ -24,12 +24,16 @@ codex_bin() {
     printf '%s\n' "$candidate"
     return 0
   fi
-  candidate="$(find "$HOME/.cache/codex-runtimes" -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
-  if [[ -n "$candidate" && -x "$candidate" ]]; then
-    printf '%s\n' "$candidate"
-    return 0
-  fi
-  candidate="$(find /Applications/Codex.app /Applications/ChatGPT.app -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
+  for candidate in \
+    /Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex \
+    /Applications/Codex.app/Contents/Resources/codex-cli/bin/codex; do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  candidate="$(find "$HOME/.cache/codex-runtimes" /Applications/ChatGPT.app /Applications/Codex.app \
+    -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
   if [[ -n "$candidate" && -x "$candidate" ]]; then
     printf '%s\n' "$candidate"
     return 0
@@ -86,7 +90,8 @@ fi
 ensure_agents_link
 
 if command -v devin >/dev/null 2>&1; then
-  if devin plugins list 2>/dev/null | grep -q 'ai-kit'; then
+  devin_plugins="$(devin plugins list 2>/dev/null || true)"
+  if [[ "$devin_plugins" == *"ai-kit"* ]]; then
     printf 'ok: devin plugin installed\n'
   elif devin plugins install "$REPOSITORY" -y >/dev/null 2>&1; then
     printf 'fix: devin plugin installed\n'
@@ -97,12 +102,22 @@ fi
 
 codex="$(codex_bin || true)"
 if [[ -n "$codex" ]]; then
-  if "$codex" plugin list 2>/dev/null | grep -q 'ai-kit'; then
-    printf 'ok: codex marketplace installed\n'
+  marketplaces="$("$codex" plugin marketplace list 2>/dev/null || true)"
+  if [[ "$marketplaces" == *"ai-kit"* ]]; then
+    printf 'ok: codex marketplace ai-kit registered\n'
   elif "$codex" plugin marketplace add "$REPOSITORY" --ref main >/dev/null 2>&1; then
-    printf 'fix: codex marketplace installed\n'
+    printf 'fix: codex marketplace ai-kit registered\n'
   else
-    warn "codex marketplace installation failed; retry after authentication"
+    warn "codex marketplace ai-kit registration failed; retry after authentication"
+  fi
+
+  plugins="$("$codex" plugin list 2>/dev/null || true)"
+  if [[ "$plugins" == *"ai-kit@ai-kit"* ]]; then
+    printf 'ok: codex plugin ai-kit@ai-kit installed\n'
+  elif "$codex" plugin add ai-kit@ai-kit >/dev/null 2>&1; then
+    printf 'fix: codex plugin ai-kit@ai-kit installed\n'
+  else
+    warn "codex plugin ai-kit@ai-kit installation failed; run: codex plugin add ai-kit@ai-kit"
   fi
 fi
 

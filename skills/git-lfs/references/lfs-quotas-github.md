@@ -1,6 +1,6 @@
 ---
 description: Current Git LFS quotas per GitHub plan (Free/Pro 10 GiB, Team 250 GiB). Load when configuring LFS or evaluating binary costs.
-trigger: model_decision
+kind: fact
 verified: "2026-09-29"
 sources:
   - https://docs.github.com/en/billing/concepts/product-billing/git-lfs
