@@ -21,9 +21,13 @@ A rule uses this frontmatter shape:
 ---
 description: <what loads and when, at most 160 characters>
 trigger: glob
-globs: "<comma-separated globs>"
+globs:
+  - "<glob>"
+  - "<glob>"
 ---
 ```
+
+`globs` must be a YAML sequence: Devin rejects a comma-separated string (`YAML parse error: globs: invalid type: string ..., expected a sequence`).
 
 Use `kit-index.md` for a directory listing or `kit-readme.md` for explanation; never put both in one directory.
 
