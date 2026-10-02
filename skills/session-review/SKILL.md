@@ -37,7 +37,7 @@ Before proposing, search `~/.ai-kit/skills`, `~/.ai-kit/rules` and `~/.ai-kit/AG
 
 ## 3. Decide whether to propose
 
-- No observed signal or a project-only signal → stop after the summary.
+- No observed signal → stop after the summary. Project-only discovery (critical constant, fragile convention) → propose one line for that repo's `AGENTS.md` on the spot; it is not a kit proposal.
 - Several signals → choose the strongest; put the rest in the handoff as follow-ups.
 - Never propose kit growth because it merely sounds useful.
 

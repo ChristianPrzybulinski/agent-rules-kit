@@ -16,7 +16,7 @@ SCHEMAS = KIT / "platforms/ci/schemas"
 LINKS_MODE = "--links" in sys.argv
 CI = os.environ.get("CI") == "1"
 
-AGENTS_MAX_LINES = 110
+AGENTS_MAX_LINES = 60
 DESCRIPTION_MIN = 40
 DESCRIPTION_MAX = 160
 DESCRIPTIONS_BUDGET = 7200

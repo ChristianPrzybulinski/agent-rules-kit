@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - **BREAKING — 8.0.0 layout v6:** the repository root is now the Devin and Codex plugin. Always-on instructions, triggered rules, flat skills, references and templates are delivered directly from `main`; plugin manifest versions equal `VERSION`.
 - Agent consumption is plugin-first. Devin Cloud fetches `main` per session, local Devin refreshes its plugin cache, and Codex uses its marketplace plugin with a temporary compatibility fallback.
 - The `evidence` skill was merged into `skeptic`; knowledge notes moved under their owning skills as references.
+- `AGENTS.md` 97 → 57 lines (9.7 KB → 4.4 KB): Craft, Tests, Git/docs and the Specialties table left for the skills that own them (`clean-code`, `clean-architecture`, `simplicity`, `ddd-and-patterns`, `testing`, `branching-and-versioning`, `update-docs`, `git-lfs`); Java/Godot routing moved to `rules/` globs. Every skill description ≤160 chars (total 6,803 of the 7,200 budget) with front-loaded triggers; ceremonies and side-effect skills are user-invoked only.
 
 ### Removed
 - Removed the `agents/` level, prompts, separate knowledge tree, layout-state file, legacy install scripts and machine-managed Windsurf/Cursor/ChatGPT destinations.
