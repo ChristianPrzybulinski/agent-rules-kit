@@ -43,7 +43,7 @@ codex_bin() {
 
 ensure_agents_link() {
   local destination="$HOME/.codex/AGENTS.md"
-  local expected="$KIT/AGENTS.md"
+  local expected="$KIT/plugins/ai-kit/AGENTS.md"
   local current
   local backup
   mkdir -p "$HOME/.codex"
@@ -54,7 +54,7 @@ ensure_agents_link() {
     elif [[ "$current" == "$KIT/"* ]]; then
       rm "$destination"
       ln -s "$expected" "$destination"
-      printf 'fix: codex AGENTS.md symlink repaired\n'
+      printf 'fix: codex AGENTS.md symlink repointed from %s to %s\n' "$current" "$expected"
     else
       fail "$destination points to $current, not kit-managed; move it by hand"
     fi

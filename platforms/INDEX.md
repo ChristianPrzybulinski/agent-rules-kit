@@ -12,6 +12,6 @@ Scope: executable lifecycle, validation and ready-to-copy project configuration.
 
 | Agent | Always-on | Skills and rules | Refresh |
 |---|---|---|---|
-| Devin Cloud | plugin `AGENTS.md` | plugin `skills/`, `rules/`, templates and references | fetches `main` per session |
-| Devin CLI/Desktop | plugin `AGENTS.md` | plugin contents | app startup; `doctor.sh` updates a stale plugin SHA |
-| Codex | `~/.codex/AGENTS.md` symlink | marketplace plugin plus temporary skill symlinks for #22078 | launchd every six hours via `refresh.sh` |
+| Devin Cloud | meta-plugin requires `plugins/ai-kit/AGENTS.md` | `plugins/ai-kit/skills/`, rules, templates and references | fetches `main` per session |
+| Devin CLI/Desktop | root meta-plugin | required `plugins/ai-kit/` plugin | app startup; `doctor.sh` updates a stale plugin SHA |
+| Codex | `~/.codex/AGENTS.md` → `~/.ai-kit/plugins/ai-kit/AGENTS.md` | marketplace plugin plus temporary skill symlinks for #22078 | launchd every six hours via `refresh.sh` |

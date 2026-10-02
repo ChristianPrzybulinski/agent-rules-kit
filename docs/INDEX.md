@@ -1,6 +1,6 @@
 # docs/ — documentation about the kit
 
-Scope: architecture and maintenance information for humans changing the kit. Agent behavior lives in `AGENTS.md`, `rules/` and `skills/`; executable lifecycle belongs in `platforms/`.
+Scope: architecture and maintenance information for humans changing the kit. Plugin behavior lives in `plugins/ai-kit/AGENTS.md`, `plugins/ai-kit/rules/` and `plugins/ai-kit/skills/`; executable lifecycle belongs in `platforms/`.
 
 | File | Read when |
 |---|---|

@@ -32,7 +32,7 @@ Use `read`, `glob`, `grep` and the session evidence to classify only observed si
 | Skill missed or mis-triggered | description change | that skill's frontmatter |
 | Repeated artifact shape | template | `../../templates/` |
 
-Before proposing, search `~/.ai-kit/skills`, `~/.ai-kit/rules` and `~/.ai-kit/AGENTS.md`. If the material exists, propose improving its reach instead of adding another file.
+Before proposing, search `~/.ai-kit/plugins/ai-kit/skills`, `~/.ai-kit/plugins/ai-kit/rules` and `~/.ai-kit/plugins/ai-kit/AGENTS.md`. If the material exists, propose improving its reach instead of adding another file.
 
 ## 3. Decide whether to propose
 
@@ -55,6 +55,6 @@ Ask whether to do it now, defer it, adjust it or discard it. Do not edit the kit
 
 ## 5. Close accepted work
 
-An accepted proposal is a separate kit outcome and follows `../../docs/maintenance.md`, `../../platforms/tools/check.sh`, `../../CHANGELOG.md` and `../../VERSION`.
+An accepted proposal is a separate kit outcome and follows `docs/maintenance.md`, `platforms/tools/check.sh`, `CHANGELOG.md` and `VERSION`.
 
 Done when: the evidence-based summary is delivered and either no proposal qualified or exactly one proposal received a user decision.

@@ -56,7 +56,7 @@ codex_bin() {
 
 ensure_agents_link() {
   local destination="$HOME/.codex/AGENTS.md"
-  local expected="$KIT/AGENTS.md"
+  local expected="$KIT/plugins/ai-kit/AGENTS.md"
   local current
   local backup
   mkdir -p "$HOME/.codex"
@@ -67,7 +67,7 @@ ensure_agents_link() {
     elif [[ "$current" == "$KIT/"* ]]; then
       rm "$destination"
       ln -s "$expected" "$destination"
-      fix "codex AGENTS.md symlink repaired"
+      fix "codex AGENTS.md symlink repointed from $current to $expected"
     else
       fail "$destination points to $current, not kit-managed; move it by hand"
     fi
@@ -148,17 +148,17 @@ ensure_codex_fallback() {
   local current
   local target
   mkdir -p "$codex_skills"
-  for skill_file in "$KIT"/skills/*/SKILL.md; do
+  for skill_file in "$KIT"/plugins/ai-kit/skills/*/SKILL.md; do
     [[ -f "$skill_file" ]] || continue
     expected_count=$((expected_count + 1))
     name="$(basename "$(dirname "$skill_file")")"
     destination="$codex_skills/$name"
-    expected="$KIT/skills/$name"
+    expected="$KIT/plugins/ai-kit/skills/$name"
     if [[ -L "$destination" ]]; then
       current="$(readlink "$destination")"
       if [[ "$current" == "$expected" ]]; then
         active_count=$((active_count + 1))
-      elif [[ "$current" == "$KIT/skills/"* ]]; then
+      elif [[ "$current" == "$KIT/plugins/ai-kit/skills/"* ]]; then
         rm "$destination"
         ln -s "$expected" "$destination"
         fix "codex fallback repaired for $name"
@@ -178,7 +178,7 @@ ensure_codex_fallback() {
     [[ -L "$destination" ]] || continue
     target="$(readlink "$destination")"
     case "$target" in
-      "$KIT"/skills/*)
+      "$KIT"/plugins/ai-kit/skills/*)
         if [[ ! -e "$target" ]]; then
           rm "$destination"
           fix "removed stale codex fallback $(basename "$destination")"
@@ -201,7 +201,7 @@ remove_codex_fallback() {
     [[ -L "$destination" ]] || continue
     target="$(readlink "$destination")"
     case "$target" in
-      "$KIT"/skills/*)
+      "$KIT"/plugins/ai-kit/skills/*)
         rm "$destination"
         removed=$((removed + 1))
         ;;
@@ -361,7 +361,7 @@ description_budget="$(awk -F= '/^DESCRIPTIONS_BUDGET = / {gsub(/[[:space:]]/, ""
 if [[ ! "$agents_limit" =~ ^[0-9]+$ || ! "$description_budget" =~ ^[0-9]+$ ]]; then
   fail "cannot read validator limits"
 else
-  agents_lines="$(wc -l < "$KIT/AGENTS.md" | tr -d ' ')"
+  agents_lines="$(wc -l < "$KIT/plugins/ai-kit/AGENTS.md" | tr -d ' ')"
   if [[ "$agents_lines" -le "$agents_limit" ]]; then
     ok "AGENTS.md $agents_lines lines (limit $agents_limit)"
   else
@@ -373,7 +373,7 @@ from pathlib import Path
 import sys
 
 total = 0
-for skill in Path(sys.argv[1], "skills").glob("*/SKILL.md"):
+for skill in Path(sys.argv[1], "plugins", "ai-kit", "skills").glob("*/SKILL.md"):
     for line in skill.read_text(encoding="utf-8").splitlines():
         if line.startswith("description: "):
             value = line.removeprefix("description: ")
