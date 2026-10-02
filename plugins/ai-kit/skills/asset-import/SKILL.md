@@ -4,6 +4,7 @@ description: Godot asset import with manifests and reproducible transforms. Use 
 argument-hint: "[batch: path to originals | FEAT-xxx]"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - grep

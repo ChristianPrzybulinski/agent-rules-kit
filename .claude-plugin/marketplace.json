@@ -1,0 +1,18 @@
+{
+  "name": "ai-kit",
+  "owner": {
+    "name": "Christian Przybulinski"
+  },
+  "metadata": {
+    "description": "agent-rules-kit marketplace"
+  },
+  "plugins": [
+    {
+      "name": "ai-kit",
+      "source": "./plugins/ai-kit",
+      "description": "agent-rules-kit: always-on global rules, triggered rules and skills (Clean Code, Clean Architecture, Java, Godot 2D, SDD, GitHub CLI)",
+      "version": "8.0.0",
+      "category": "productivity"
+    }
+  ]
+}

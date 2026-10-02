@@ -4,6 +4,9 @@ trigger: glob
 globs:
   - "**/*.java"
   - "**/pom.xml"
+paths:
+  - "**/*.java"
+  - "**/pom.xml"
 ---
 
 Load skill `java-standards`; it points to `clean-code` and `testing`.

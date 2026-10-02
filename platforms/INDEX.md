@@ -15,3 +15,4 @@ Scope: executable lifecycle, validation and ready-to-copy project configuration.
 | Devin Cloud | meta-plugin requires `plugins/ai-kit/AGENTS.md` | `plugins/ai-kit/skills/`, rules, templates and references | fetches `main` per session |
 | Devin CLI/Desktop | root meta-plugin | required `plugins/ai-kit/` plugin | app startup; `doctor.sh` updates a stale plugin SHA |
 | Codex | `~/.codex/AGENTS.md` → `~/.ai-kit/plugins/ai-kit/AGENTS.md` | marketplace plugin plus temporary skill symlinks for #22078 | launchd every six hours via `refresh.sh` |
+| Claude Code | `~/.claude/CLAUDE.md` → shared AGENTS file | marketplace plugin plus shared agent/hook and path-rule symlinks | launchd every six hours via `refresh.sh` |

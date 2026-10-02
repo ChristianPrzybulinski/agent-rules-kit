@@ -5,6 +5,11 @@ argument-hint: "[expected argument | empty]"
 triggers:
   - user
   - model
+# disable-model-invocation: true  # required when triggers is exactly [user]
+# subagent: true                 # choose this or agent, never both
+# agent: researcher
+# context: fork                  # required with subagent or agent
+# background: false              # required with subagent or agent
 allowed-tools:
   - read
   - grep

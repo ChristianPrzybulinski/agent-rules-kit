@@ -4,6 +4,7 @@ description: SDD step 1 — feature and requirement specification. Use when a de
 argument-hint: "<feature description in natural language>"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - glob

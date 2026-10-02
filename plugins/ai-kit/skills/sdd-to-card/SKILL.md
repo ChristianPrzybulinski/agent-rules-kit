@@ -4,6 +4,7 @@ description: SDD step 9 — sync a FEAT to GitHub Issues/Projects. Use when open
 argument-hint: "FEAT-nnn [--project <number>]"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - edit

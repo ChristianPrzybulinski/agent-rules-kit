@@ -4,6 +4,7 @@ description: Session handoff record with evidence and next action. Use when swit
 argument-hint: "[FEAT-xxx | session topic]"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - grep

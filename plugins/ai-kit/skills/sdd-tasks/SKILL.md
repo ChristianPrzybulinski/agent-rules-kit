@@ -4,6 +4,7 @@ description: SDD step 6 — dependency-ordered implementation tasks. Use when a 
 argument-hint: "FEAT-nnn"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - edit

@@ -18,6 +18,10 @@ jobs:
         run: |
           sudo apt-get install -y shellcheck
           shellcheck platforms/tools/*.sh platforms/kits/*/*.sh platforms/kits/*/scripts/*.sh
+      - name: install Claude Code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: check kit
         run: platforms/tools/check.sh
       - name: smoke

@@ -2,7 +2,7 @@
 
 Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md).
 
-The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/plugin.json) requires the real `ai-kit` plugin from `plugins/ai-kit/`; Codex uses the root marketplace catalog with the same plugin path.
+The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/plugin.json) requires the real `ai-kit` plugin from `plugins/ai-kit/`; Codex and Claude Code use root marketplace catalogs with the same plugin path.
 
 ## Repository roots
 
@@ -13,6 +13,7 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 | [`platforms/`](platforms/INDEX.md) | lifecycle tools, validators and ready-to-copy kits |
 | [`docs/`](docs/INDEX.md) | architecture and maintenance documentation |
 | [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) | Codex marketplace catalog pointing to `./plugins/ai-kit` |
+| [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Claude Code marketplace catalog pointing to `./plugins/ai-kit` |
 | [`.github/`](.github/README.md) | CI, release and security automation |
 
 ## Plugin rules
@@ -38,6 +39,6 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 
 - The repository root contains no agent-facing content; `.devin-plugin/plugin.json` only requires the real plugin.
 - Every directory under `plugins/` is a plugin with `.devin-plugin/plugin.json`.
-- `VERSION`, the meta-plugin manifest and all plugin manifests agree.
-- Marketplace source path is `./plugins/ai-kit`; plugin content has no managed duplicate.
+- `VERSION`, the meta-plugin manifest and all Devin, Codex and Claude plugin manifests agree.
+- Codex and Claude marketplace source paths are `./plugins/ai-kit`; plugin content has no managed duplicate.
 - Every skill appears in `plugins/ai-kit/skills/INDEX.md`; every triggered rule appears in this index.

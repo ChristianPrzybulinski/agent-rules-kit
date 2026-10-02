@@ -4,6 +4,7 @@ description: SDD step 7 — task-by-task Red-Green-Refactor delivery. Use when a
 argument-hint: "FEAT-nnn [T-nn]"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - glob

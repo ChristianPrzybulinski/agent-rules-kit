@@ -3,6 +3,8 @@ description: Load governed specification templates and SDD skills for files unde
 trigger: glob
 globs:
   - "docs/spec/**/*.md"
+paths:
+  - "docs/spec/**/*.md"
 ---
 
 Governed documents: use `templates/spec-*.md` and the `sdd-*` skills.

@@ -5,6 +5,10 @@ globs:
   - "**/*.gd"
   - "**/*.tscn"
   - "**/project.godot"
+paths:
+  - "**/*.gd"
+  - "**/*.tscn"
+  - "**/project.godot"
 ---
 
 Load skill `godot-standards`; it points to `clean-code` and `testing`.
