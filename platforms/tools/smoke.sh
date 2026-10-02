@@ -108,6 +108,25 @@ fi
 [[ ! -e "$TEST_HOME/.config/agent-rules-kit" ]] || fail "legacy state survived"
 [[ -f "$TEST_HOME/.agents/skills/my-own/SKILL.md" ]] || fail "unmarked user skill was removed"
 
+printf '%s\n' '{}' > "$TEST_HOME/.config/devin/config.json"
+if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
+    "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-devin-config-warn.out" 2>&1; then
+  cat "$ROOT/doctor-devin-config-warn.out" >&2
+  fail "doctor warning changed its exit code"
+fi
+grep -Fq "warn: devin read_config_from imports other tools' configs — add to ~/.config/devin/config.json:" \
+  "$ROOT/doctor-devin-config-warn.out" || fail "Devin import warning was not reported"
+
+printf '%s\n' '{"read_config_from":{"agents_standard":true,"cursor":false,"windsurf":false,"claude":false,"copilot":false,"opencode":false,"zed":false}}' \
+  > "$TEST_HOME/.config/devin/config.json"
+if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
+    "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-devin-config-ok.out" 2>&1; then
+  cat "$ROOT/doctor-devin-config-ok.out" >&2
+  fail "doctor failed with narrowed Devin imports"
+fi
+grep -Fq 'ok: devin read_config_from limited to agents_standard' "$ROOT/doctor-devin-config-ok.out" \
+  || fail "narrowed Devin imports were not reported"
+
 FOREIGN_HOME="$ROOT/foreign-home"
 mkdir -p "$FOREIGN_HOME/.codex"
 git clone "$SOURCE" "$FOREIGN_HOME/.ai-kit" >/dev/null 2>&1

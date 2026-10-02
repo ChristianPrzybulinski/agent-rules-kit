@@ -19,6 +19,7 @@ allowed-tools:
 - Re-read the actual diff, commands and outputs; do not reconstruct them from memory.
 - Report in at most six technical lines: done with paths and verification, unverified claims, and one concrete next step.
 - If work is committed or pending, invoke `session-handoff` first and point the summary to that record.
+- In Devin Cloud, open Session insights for ACU size, issues and the improved prompt; treat “misleading guidance” as a skill-description defect.
 
 ## 2. Look for a demonstrated kit gap
 

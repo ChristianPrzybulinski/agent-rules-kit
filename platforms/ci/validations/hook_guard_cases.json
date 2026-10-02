@@ -1,0 +1,32 @@
+{
+  "blocked": [
+    "rm -rf /tmp/x",
+    "sudo rm -rf /var/lib/x",
+    "cd build && rm -fr dist",
+    "find . -name '*.o' | xargs rm -rf",
+    "git push --force origin main",
+    "git push -f",
+    "git push origin feat --force-with-lease",
+    "git push --force-with-lease=main origin feat",
+    "git reset --hard HEAD~1",
+    "git clean -fd",
+    "psql -d app -c \"DROP TABLE users\"",
+    "mysql app -e 'truncate t'",
+    "echo x; rm -Rf y"
+  ],
+  "allowed": [
+    "grep -rn \"rm -rf\" docs",
+    "git push origin feature/x",
+    "rm file.txt",
+    "rm -r build",
+    "git log --oneline -5",
+    "git reset HEAD~1",
+    "git clean -n",
+    "echo 'DROP TABLE' > notes.md",
+    "git push --force-if-includes",
+    "rmdir x",
+    "git diff --stat",
+    "git commit -m 'remove rm -rf from script'",
+    "git push -u origin feat"
+  ]
+}

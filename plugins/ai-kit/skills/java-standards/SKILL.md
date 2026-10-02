@@ -14,6 +14,8 @@ allowed-tools:
 
 # Java Standards
 
+Names and functions: read `../clean-code/SKILL.md`. Test gates and coverage: read `../testing/SKILL.md`.
+
 Read `references/build-and-dependencies.md` for Maven/module gates and `references/java-25-lts.md` for verified Java 25 facts.
 
 ## 1. Confirm the baseline

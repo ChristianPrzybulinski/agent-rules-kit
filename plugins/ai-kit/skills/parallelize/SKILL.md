@@ -14,6 +14,8 @@ allowed-tools:
 
 # Parallelize
 
+Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/review, or built-in `subagent_explore`/`subagent_general`); Devin Cloud uses managed Devins within ACU limits because profiles and hooks do not load there; Codex has no subagents, so keep steps sequential or ask the user to open parallel sessions.
+
 ## 1. Map dependencies
 
 - List the steps. Two steps share a wave only when neither needs the other's result, they share no file/index/port/DB/fixture, and neither has an external side effect.

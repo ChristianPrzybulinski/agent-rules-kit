@@ -5,6 +5,7 @@ argument-hint: "[FEAT-xxx | spec path | description of what should be done]"
 triggers:
   - user
   - model
+agent: reviewer
 allowed-tools:
   - read
   - grep

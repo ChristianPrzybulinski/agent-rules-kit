@@ -2,6 +2,7 @@
 
 | File | Validates |
 |---|---|
+| `agent.schema.json` | `plugins/ai-kit/agents/*.md` subagent profile frontmatter |
 | `knowledge.schema.json` | legacy knowledge-note frontmatter retained for compatibility |
 | `reference.schema.json` | non-vendor `plugins/ai-kit/skills/<name>/references/*.md` |
 | `rule.schema.json` | `plugins/ai-kit/rules/*.md` |

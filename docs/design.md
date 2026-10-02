@@ -25,4 +25,8 @@ Plugin skills remain installed but may be absent from the model input while [ope
 - **`~/.agents/skills` for Codex was left out:** Devin reads that location too, producing duplicates beside plugin skills. The fallback uses the Codex-only directory instead.
 - **Knowledge notes as `model_decision` rules were left out:** each rule description would tax every message. Notes now live as references owned by the skill that needs them.
 - **A built `devin-plugin` branch was left out:** `main` itself is the release and the plugin source.
+- **Playbooks were left out:** user-invoked plugin skills cover the same procedures while staying version-controlled and portable across surfaces.
+- **Knowledge was left out:** Cognition deprecated it; references now live under the skill that owns and loads them.
+- **MCP servers were left out:** tool schemas cost context on every turn, while `gh` covers the GitHub operations this kit needs.
+- **Stop and UserPromptSubmit hooks were left out:** Stop can loop, and UserPromptSubmit spends tokens on every turn. The narrow PreToolUse guard is local and best effort.
 - **Additional skill frameworks were left out:** markdown procedures avoid another runtime and remain portable across supported agents.

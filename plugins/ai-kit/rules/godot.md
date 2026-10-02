@@ -7,5 +7,5 @@ globs:
   - "**/project.godot"
 ---
 
-Load skills `godot-standards`, `clean-code`, and `testing`.
+Load skill `godot-standards`; it points to `clean-code` and `testing`.
 Apply their guidance to matching Godot files.

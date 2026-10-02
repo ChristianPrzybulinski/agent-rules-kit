@@ -4,7 +4,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- Added a local-Devin PreToolUse guard hook for destructive commands and `researcher`/`reviewer` custom subagent profiles.
+- Five skills now run through a named or built-in subagent: SDD analyze/audit, implementation validation, vulnerability scanning and investigation.
+
 ### Changed
+- Java and Godot glob rules now load one standard skill, which points to Clean Code and testing guidance for Devin Cloud's one-active-skill limit.
+- Doctor now warns when local Devin's `read_config_from` imports other tools' configuration.
 - **BREAKING — plugin content moved to `plugins/ai-kit/`:** the repository root is now a content-free meta-plugin following Cognition's team-marketplace pattern and requires the real plugin through `git-subdir`. Devin's install source remains `ChristianPrzybulinski/agent-rules-kit`; the Codex marketplace resolves `./plugins/ai-kit`; doctor repoints `~/.codex/AGENTS.md` from either legacy target to `plugins/ai-kit/AGENTS.md`. The validator enforces the meta-plugin contract, plugin container and escape boundaries.
 
 ## [8.0.0] - 2026-10-01

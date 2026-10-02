@@ -6,5 +6,5 @@ globs:
   - "**/pom.xml"
 ---
 
-Load skills `java-standards`, `clean-code`, and `testing`.
+Load skill `java-standards`; it points to `clean-code` and `testing`.
 Maven is required; use the fixed Java LTS.

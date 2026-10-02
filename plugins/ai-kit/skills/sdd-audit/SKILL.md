@@ -5,6 +5,7 @@ argument-hint: "FEAT-nnn"
 triggers:
   - user
   - model
+agent: researcher
 allowed-tools:
   - read
   - glob

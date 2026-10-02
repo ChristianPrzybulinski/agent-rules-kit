@@ -14,6 +14,8 @@ allowed-tools:
 
 # Godot 2D Standards
 
+Names and functions: read `../clean-code/SKILL.md`. Test gates and coverage: read `../testing/SKILL.md`.
+
 References: `references/godot-4-versions.md` for supported versions and `references/networking-transports.md` when a project DEC compares transports.
 
 ## 1. Inspect the project
