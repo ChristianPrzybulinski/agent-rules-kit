@@ -10,7 +10,7 @@ A layout or installation-destination change is a SemVer MAJOR change. There is n
 
 | Type | Steps |
 |---|---|
-| rule | create `rules/<name>.md` with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; list it in `rules/INDEX.md` |
+| rule | create `rules/<name>.md` with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; list it in the Rules table of the root `INDEX.md` (never add non-rule files to `rules/` — Devin loads every `.md` there as a rule) |
 | skill | copy [`../templates/kit-skill.md`](../templates/kit-skill.md) to `skills/<name>/SKILL.md`; for an exactly `[user]` trigger add `agents/openai.yaml` with implicit invocation disabled; add a verbatim description row to `skills/INDEX.md` |
 | reference | copy [`../templates/kit-reference.md`](../templates/kit-reference.md) to `skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
 | template | add `templates/<prefix>-<name>.md`, then list it in `templates/INDEX.md` |
