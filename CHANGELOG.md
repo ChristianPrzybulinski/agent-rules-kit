@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [9.0.0] - 2026-10-02
+
 ### Added
 - Added Claude Code plugin and marketplace manifests, offline validation in CI, and zero-copy CLAUDE.md/rule symlinks.
 - Added a shared local-Devin/Claude PreToolUse guard hook for destructive commands and `researcher`/`reviewer` custom subagent profiles.
