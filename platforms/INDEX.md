@@ -1,24 +1,17 @@
 # platforms/ — what runs on the machine and in CI
 
-Scope: executables and tool configuration. Nothing here is an instruction for the agent; the agent only **runs** what is here (install, validate, update).
+Scope: executable lifecycle, validation and ready-to-copy project configuration.
 
 | Folder | Scope | Main entry |
 |---|---|---|
-| [`install/`](install/README.md) | installs `agents/` into the tools; vendors pinned external skills | `all.sh` |
-| [`tools/`](tools/INDEX.md) | kit lifecycle on the machine | `bootstrap.sh` (1st time) · `refresh.sh` (every session) · `check.sh` (validate) |
-| [`ci/`](ci/README.md) | schemas for every frontmatter and for project specs; validation scripts used by `check.sh` and by the workflows | `validations/check_kit.py` · `validations/check_spec.py` |
-| [`kits/`](kits/INDEX.md) | ready-to-copy files for projects (Maven parent, Compose, workflows, LFS, labels, external skills lock) | per kit |
+| [`tools/`](tools/INDEX.md) | bootstrap, refresh, diagnostics, validation and vendoring | `bootstrap.sh` · `doctor.sh` · `check.sh` |
+| [`ci/`](ci/README.md) | schemas and validation scripts used locally and in CI | `validations/check_kit.py` · `validations/check_spec.py` |
+| [`kits/`](kits/INDEX.md) | project configuration, workflows, launchd and external-skill lock | per kit |
 
-## Where each thing is installed
+## How agents consume v6
 
-| Destination | Content | Managed by |
-|---|---|---|
-| `~/.agents/skills/<name>/` | Devin, Cursor, Codex skills (whole dir, `.agent-rules-kit` marker) | `install/skills.sh` |
-| `~/.codeium/windsurf/skills/<name>/` | Windsurf skills | `install/skills.sh` |
-| `~/.config/devin/AGENTS.md` | Devin always-on | `install/devin.sh` |
-| `devin-plugin` branch (Devin plugin `ai-kit`) | Devin cloud/CLI/Desktop: `AGENTS.md` always-on + skills | `install/devin-plugin.sh` via `.github/workflows/devin-plugin.yml` |
-| `~/.codeium/windsurf/memories/global_rules.md` | Windsurf always-on | `install/windsurf.sh` |
-| `~/.codex/AGENTS.md` | Codex always-on | `install/codex.sh` |
-| `~/.config/agent-rules-kit/{VERSION,LAYOUT_VERSION}` | installed state, read by `refresh.sh` | `install/all.sh` |
-
-A `LAYOUT_VERSION` different from the installed one → `refresh.sh` deletes the managed destinations and reinstalls everything. A different `VERSION` → reinstall only. Equal → exits silently.
+| Agent | Always-on | Skills and rules | Refresh |
+|---|---|---|---|
+| Devin Cloud | plugin `AGENTS.md` | plugin `skills/`, `rules/`, templates and references | fetches `main` per session |
+| Devin CLI/Desktop | plugin `AGENTS.md` | plugin contents | app startup; `doctor.sh` updates a stale plugin SHA |
+| Codex | `~/.codex/AGENTS.md` symlink | marketplace plugin plus temporary skill symlinks for #22078 | launchd every six hours via `refresh.sh` |

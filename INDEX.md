@@ -1,48 +1,42 @@
 # agent-rules-kit — index
 
-Version: see `VERSION` · Layout: see `LAYOUT_VERSION` (changes → full reinstall) · History: `CHANGELOG.md`.
+Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md).
 
-A kit of rules, knowledge, skills and tools so AI agents (Devin, Cursor, Windsurf, Codex, ChatGPT) work with the same behavior. One place for each thing; nothing duplicated. If content fits two folders, the table below decides.
+The repository root is the distributable plugin: [`.devin-plugin/plugin.json`](.devin-plugin/plugin.json) defines the Devin plugin, while [`plugin.json`](plugin.json) and [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) define the Codex plugin and marketplace entry.
 
-## The three folders
+## Roots
 
-| Folder | What it is | Who consumes it | Admission rule |
-|---|---|---|---|
-| [`agents/`](agents/INDEX.md) | Everything that enters **the agent's context**: always-on instructions, skills (normative rules included), facts, templates the agent fills, prompts | the model, in session | Enters only if it changes an agent behavior. Each file has frontmatter with `description` + `trigger` and a line limit. |
-| [`platforms/`](platforms/INDEX.md) | Everything that **runs on the machine or in CI**: installers, bootstrap/refresh, validations, schemas, config kits copied into projects | shell, CI, human | Enters only if it is executable or tool configuration. Nothing here is read by the agent as an instruction. |
-| [`docs/`](docs/INDEX.md) | Documentation **about the kit**: design principles, what lives in projects, maintenance and versioning | human (and the agent only when maintaining the kit) | Explains the kit; does not instruct the agent in project tasks. |
+| Root | Purpose | Context rule |
+|---|---|---|
+| [`AGENTS.md`](AGENTS.md) | always-on global behavior | one file, at most `AGENTS_MAX_LINES` from the validator |
+| [`rules/`](rules/INDEX.md) | Devin triggered rules (`glob`, `model_decision`, `manual`) | `always_on` is forbidden; use `AGENTS.md` instead |
+| [`skills/`](skills/INDEX.md) | flat invocable procedures and their references | descriptions are 40–160 characters; total ≤7,200 characters |
+| [`templates/`](templates/INDEX.md) | artifact skeletons used by skills | shape only, not duplicated guidance |
+| [`platforms/`](platforms/INDEX.md) | lifecycle tools, CI validators and ready-to-copy kits | executable or tool configuration |
+| [`docs/`](docs/INDEX.md) | architecture and maintenance documentation | explanation for maintainers |
 
-## Inside `agents/` — do not confuse
+The description budget is a hard gate because Codex limits its initial skills list to roughly 8,000 characters and may shorten or omit skills beyond it.
 
-| Content | Question it answers | Format | It is not |
-|---|---|---|---|
-| `AGENTS.md` | "How do I always behave?" | ≤110 lines, always-on, unique | a place for detail |
-| `knowledge/` | "What is the verified fact (version, quota, API) and its source?" | factual, dated, ≤40 lines, with URL | a rule or an opinion |
-| `skills/` | "How do I execute this task step by step?" and "what MUST/MUST NOT I do in this domain?" | invocable procedure `/name`; normative detail in `references/` | a dated fact |
-| `templates/` | "What shape does this artifact have?" | skeleton with `[brackets]`, one per artifact type | ready-made content |
-| `prompts/` | "What do I paste into a tool without AGENTS.md support?" | compiled text from AGENTS.md | source of truth (it is derived) |
+## What goes where
 
-Quick test: knowledge has a date and a URL; a skill has numbered steps and a "done when" (normative "must/never" detail lives in its `references/`); a template has brackets.
-
-## Inside `platforms/`
-
-| Folder | Scope |
-|---|---|
-| `install/` | installs `agents/` into the tools (Devin, Cursor, Windsurf, Codex) and vendors external skills |
-| `tools/` | `bootstrap.sh` (first time) · `refresh.sh` (every session) · `check.sh` (validates the kit) |
-| `ci/` | `schemas/` (JSON Schema for every frontmatter and for project specs) · `validations/` (scripts that CI and `check.sh` run) |
-| `kits/` | ready-to-copy files for projects: Maven parent, Compose, workflows, LFS, labels |
+| Content | Quick test | Location |
+|---|---|---|
+| rule | guidance triggered by a file glob or explicit rule trigger | `rules/<name>.md` |
+| skill | a procedure the model or user invokes | `skills/<name>/SKILL.md` |
+| reference | a dated fact or normative detail owned and linked by one skill | `skills/<name>/references/<topic>.md` |
+| template | a reusable artifact skeleton with placeholders | `templates/<prefix>-<name>.md` |
 
 ## Reading order
 
-1. This file.
-2. `agents/AGENTS.md` — what always holds.
-3. `agents/INDEX.md` → the skill for your context.
-4. Going to create/change the kit? `docs/maintenance.md` first.
+1. This index for the layout and invariants.
+2. [`AGENTS.md`](AGENTS.md) for always-on behavior.
+3. [`rules/INDEX.md`](rules/INDEX.md) or [`skills/INDEX.md`](skills/INDEX.md) for contextual detail.
+4. [`docs/maintenance.md`](docs/maintenance.md) before changing the kit.
 
-## Invariants (validated by `platforms/tools/check.sh` and by CI)
+## Invariants
 
-- Every folder has an `INDEX.md` (list + when to use) or a `README.md` (needs to explain more); never both.
-- Every file in `agents/` has frontmatter valid against its type's schema and respects the line limit.
-- Every relative link points to an existing file; every file in a folder appears in its index.
-- No content repeated between `AGENTS.md`, `knowledge/`, `skills/`: summary in `AGENTS.md`, detail in a single place, references elsewhere.
+- `VERSION`, `.devin-plugin/plugin.json`, and `plugin.json` have the same semantic version.
+- Every skill folder appears in `skills/INDEX.md`; every rule file appears in `rules/INDEX.md`.
+- Skill descriptions and reference sizes stay within their validator budgets.
+- Relative links resolve, and each non-skill folder has exactly one `INDEX.md` or `README.md`.
+- The repository is the source of truth: plugins, caches and symlinks consume it without managed content copies elsewhere on the machine.

@@ -2,32 +2,52 @@
 
 ## Versioning
 
-`VERSION` (semver) + an entry in `CHANGELOG.md` + a `vX.Y.Z` tag. Pushing the tag triggers `.github/workflows/release.yml`, which validates tag == `VERSION` and creates the release with the changelog section — **releases are automatic**, do not create a release manually.
+A release changes [`VERSION`](../VERSION), adds a [`CHANGELOG.md`](../CHANGELOG.md) entry and tags `vX.Y.Z`. `.github/workflows/release.yml` validates tag == `VERSION` and creates the release automatically.
 
-`LAYOUT_VERSION` (integer) bumps when the folder structure or an install destination changes — `refresh.sh` detects it and runs `install/all.sh --clean` (full reinstall). A content change without a layout change → `VERSION` only.
+A layout or installation-destination change is a SemVer MAJOR change. There is no separate layout version: migration behavior belongs in `bootstrap.sh`, `doctor.sh` and the release notes.
 
 ## Adding content
 
 | Type | Steps |
 |---|---|
-| knowledge | copy `kit-knowledge.md` → `agents/knowledge/<domain>/` (frontmatter with `verified` + `sources`), list in `agents/knowledge/INDEX.md` |
-| skill | copy `kit-skill.md` → `agents/skills/<type>/<name>/`, `name` = folder, list in the type's INDEX and in `agents/skills/INDEX.md`; normative detail that does not fit in 80 lines → `references/<topic>.md` (≤60, linked from SKILL.md) |
-| template | `agents/templates/<prefix>-<name>.md` (regex `^(spec|doc|project|kit)-`), list in `agents/templates/INDEX.md` |
-| index | `kit-index.md` (list only) or `kit-readme.md` (explains) — never both in the same folder |
+| rule | create `rules/<name>.md` with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; list it in `rules/INDEX.md` |
+| skill | copy [`../templates/kit-skill.md`](../templates/kit-skill.md) to `skills/<name>/SKILL.md`; keep the description ≤160 characters and add its row to the correct `skills/INDEX.md` section |
+| reference | copy [`../templates/kit-reference.md`](../templates/kit-reference.md) to `skills/<owner>/references/<topic>.md`; keep it ≤60 lines and link its filename from the owning `SKILL.md` |
+| template | add `templates/<prefix>-<name>.md`, then list it in `templates/INDEX.md` |
 
-## Third-party skills (vendor)
+A rule uses this frontmatter shape:
 
-Policy: **never `npx skills add` directly into the agents**. Updating a vendored skill:
+```yaml
+---
+description: <what loads and when, at most 160 characters>
+trigger: glob
+globs: "<comma-separated globs>"
+---
+```
 
-1. `git ls-remote https://github.com/<repo> HEAD` → new SHA.
-2. Update the line in `platforms/kits/third-party/skills.lock` (name | repo | path | sha | license | date).
-3. `platforms/install/third-party.sh` regenerates `agents/skills/vendor/<name>/` + `VENDOR.md`.
-4. `platforms/tools/check.sh` (lock × VENDOR.md × schema) → commit.
+Use `kit-index.md` for a directory listing or `kit-readme.md` for explanation; never put both in one directory.
 
-Removing: delete the lock line + `git rm -r agents/skills/vendor/<name>`.
+## Third-party skills
 
-## What CI requires
+Pinned sources live in `platforms/kits/third-party/skills.lock`. Update the SHA, license and verification date, then run:
 
-`.github/workflows/ci.yml`: `check.sh` with `CI=1` (pyyaml/jsonschema mandatory — a local run without them runs in structural mode with a warning), `shellcheck` on `platforms/**/*.sh`, `install-smoke.sh` (install into a throwaway `HOME`, `--clean` must keep user content), `check_kit.py --links`. `devin-plugin.yml` on push to `main`: `check.sh`, then builds the Devin plugin and force-pushes it to the generated `devin-plugin` branch (never edit that branch by hand). `gitleaks.yml` on every push. Weekly Dependabot for actions.
+```bash
+platforms/tools/vendor.sh
+platforms/tools/vendor.sh --check
+```
 
-This machine's prerequisites (2026-09-30): Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — via `toolchains.xml`) and JDK 27 on PATH · Maven 3.9.16 · Node 26.10.0/npm 11.19.1 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita. System Python 3 with `pyyaml` 6.0.3 / `jsonschema` 4.25.1 (`check.sh` runs in full mode locally; CI installs them anyway).
+The command regenerates `skills/<name>/` and its `VENDOR.md`. Remove a vendor by deleting both its lock line and skill folder.
+
+## CI requirements
+
+- `.github/workflows/ci.yml`: ShellCheck on tools/kits, `check.sh`, `smoke.sh`, and `check_kit.py --links`.
+- `.github/workflows/gitleaks.yml`: secret scan on pushes and pull requests.
+- `.github/workflows/release.yml`: tag/version validation and release creation.
+
+## After merging to main
+
+- Devin Cloud needs no manual refresh; it fetches `main` for each session.
+- Devin CLI/Desktop re-fetches at app start; run `devin plugins update ai-kit` to force it.
+- Codex refreshes through launchd and `platforms/tools/refresh.sh`; run `platforms/tools/doctor.sh` to diagnose local state.
+
+This machine's prerequisites (2026-10-01): Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — via `toolchains.xml`) and JDK 27 on PATH · Maven 3.9.16 · Node 26.10.0/npm 11.19.1 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita · Devin Desktop with plugin `ai-kit` from `main` · Codex desktop app (CLI not on PATH, so doctor uses app-only mode). System Python 3 has `pyyaml` 6.0.3 and `jsonschema` 4.25.1.

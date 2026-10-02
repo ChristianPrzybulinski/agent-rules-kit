@@ -1,31 +1,75 @@
 #!/usr/bin/env bash
-# Updates the installed kit. Usage: refresh.sh [--quiet]
-# pull --ff-only; compares the repo's VERSION/LAYOUT_VERSION with the installed
-# state in ~/.config/agent-rules-kit/. Different LAYOUT -> full reinstall
-# (--clean); only VERSION different -> reinstall; equal -> silence with --quiet.
+# Updates the kit clone and Codex marketplace plugin. Usage: refresh.sh
 set -euo pipefail
 
-KIT="$HOME/.ai-kit"
-STATE="$HOME/.config/agent-rules-kit"
-QUIET=0; [[ "${1:-}" == "--quiet" ]] && QUIET=1
-say() { if [[ $QUIET -eq 0 ]]; then echo "$@"; fi; }
+KIT="${AI_KIT_DIR:-$HOME/.ai-kit}"
 
-[[ -d "$KIT" ]] || { say "refresh: $KIT does not exist; run platforms/tools/bootstrap.sh"; exit 0; }
+warn() {
+  printf 'WARN: refresh: %s\n' "$*" >&2
+}
 
-if ! git -C "$KIT" pull --ff-only -q 2>/dev/null; then
-  say "refresh: WARN: pull failed (network or divergence); using local state"
+fail() {
+  printf 'FAIL: refresh: %s\n' "$*" >&2
+  exit 1
+}
+
+codex_bin() {
+  local candidate
+  [[ "${AI_KIT_NO_CODEX_CLI:-0}" != "1" ]] || return 1
+  candidate="$(command -v codex 2>/dev/null || true)"
+  if [[ -n "$candidate" && -x "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  candidate="$(find "$HOME/.cache/codex-runtimes" -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
+  if [[ -n "$candidate" && -x "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  candidate="$(find /Applications/Codex.app /Applications/ChatGPT.app -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
+  if [[ -n "$candidate" && -x "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  return 1
+}
+
+run_step() {
+  local label="$1"
+  local output
+  shift
+  if ! output="$("$@" 2>&1)"; then
+    [[ -z "$output" ]] || printf '%s\n' "$output" >&2
+    fail "$label"
+  fi
+}
+
+[[ -d "$KIT/.git" ]] || fail "$KIT is not a git clone — run platforms/tools/bootstrap.sh"
+
+run_step "git fetch origin failed" git -C "$KIT" fetch origin
+
+branch="$(git -C "$KIT" branch --show-current)" || fail "cannot read current branch"
+status="$(git -C "$KIT" status --short)" || fail "cannot read git status"
+if [[ -n "$status" ]]; then
+  printf 'FAIL: refresh: working tree is dirty; refusing to update\n%s\n' "$status" >&2
+  exit 1
 fi
 
-repo_ver="$(cat "$KIT/VERSION" 2>/dev/null || echo 0)"
-repo_layout="$(cat "$KIT/LAYOUT_VERSION" 2>/dev/null || echo 0)"
-inst_ver="$(cat "$STATE/VERSION" 2>/dev/null || echo '')"
-inst_layout="$(cat "$STATE/LAYOUT_VERSION" 2>/dev/null || echo '')"
-
-if [[ "$repo_layout" != "$inst_layout" ]]; then
-  say "refresh: layout $inst_layout -> $repo_layout; full reinstall"
-  exec "$KIT/platforms/install/all.sh" --clean
-elif [[ "$repo_ver" != "$inst_ver" ]]; then
-  say "refresh: version $inst_ver -> $repo_ver; reinstalling"
-  exec "$KIT/platforms/install/all.sh"
+if [[ "$branch" != "main" ]]; then
+  run_step "cannot checkout main" git -C "$KIT" checkout main
 fi
-exit 0
+
+run_step "git pull --ff-only failed" git -C "$KIT" pull --ff-only
+
+codex="$(codex_bin || true)"
+if [[ -n "$codex" ]]; then
+  if "$codex" plugin marketplace list 2>/dev/null | grep -q 'ai-kit'; then
+    run_step "codex marketplace upgrade failed" "$codex" plugin marketplace upgrade ai-kit
+  else
+    warn "codex marketplace ai-kit not registered — run platforms/tools/bootstrap.sh"
+  fi
+fi
+
+sha="$(git -C "$KIT" rev-parse --short HEAD)" || fail "cannot read HEAD"
+date="$(git -C "$KIT" show -s --format=%cs HEAD)" || fail "cannot read commit date"
+printf 'refresh: %s %s main\n' "$sha" "$date"

@@ -1,0 +1,70 @@
+---
+name: skeptic
+version: "1.1"
+description: Adversarial check of a claim or proposed fix. Use when the user suggests a solution, a claim is unproven, or confidence <98%. Not for bugs (skill investigate).
+argument-hint: "[claim to verify — default: last relevant claim]"
+triggers:
+  - user
+  - model
+allowed-tools:
+  - read
+  - grep
+  - glob
+  - exec
+---
+
+# Skeptic
+
+## Policy
+
+- Treat every claim, including the user's and your own, as a hypothesis until a source or observation supports it.
+- Require more than 98% confidence to proceed without a caveat; below that, state what is missing and the next test.
+- Never invent a source, command output, API, version, file or behavior.
+- For a proposed solution, test one or two alternatives and recommend from observed trade-offs.
+- When new evidence overturns an earlier conclusion, state the correction explicitly.
+
+## 1. Pin down the claim
+
+- Use the argument or the last relevant factual claim or proposed solution.
+- Rewrite it as one falsifiable sentence: “X does Y in Z.” If it cannot be falsified, report that and stop.
+
+## 2. Select evidence
+
+| Claim | Primary evidence | Corroboration |
+|---|---|---|
+| Repo behavior | file plus test or command | history when provenance matters |
+| API, flag or version | installed manifest plus official docs for that version | release notes |
+| Best approach | one or two concrete alternatives measured in this repo | recognized reference |
+| External fact | primary source | two independent sources |
+
+If an authoritative source is inaccessible, do not substitute training memory; leave the claim undetermined.
+
+## 3. Seek contrary evidence first
+
+- Look for the failing case, opposite passage, version mismatch or boundary that refutes the claim.
+- For a proposed solution, identify what each alternative does better.
+- Record every finding as `path:line`, URL or literal command output.
+
+## 4. Seek favorable evidence
+
+Only after the contrary pass, collect evidence that sustains the claim using the same source standard.
+
+## 5. Issue the verdict
+
+```text
+Claim: <falsifiable sentence>
+Verdict: CONFIRMED | REFUTED | PARTIAL | UNDETERMINED
+Confidence: NN%
+Against: <evidence and source>
+For: <evidence and source>
+Alternatives: <option and trade-off, when applicable>
+Recommendation: <action; below 98%, missing evidence and next test>
+```
+
+## 6. Respect the boundary
+
+- Cite the installed version and exact passage; “the docs say” is insufficient.
+- Ask before destructive verification.
+- Reasonable effort without a deciding observation ends as `UNDETERMINED`, not a guess.
+
+Done when: contrary and favorable evidence are sourced, the verdict names confidence, and any sub-98% gap has a concrete next test.

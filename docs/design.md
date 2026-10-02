@@ -1,17 +1,26 @@
 # Design — why the kit is like this
 
-The invariants and the `agents/` · `platforms/` · `docs/` split are in [`../INDEX.md`](../INDEX.md). Here are the principles behind them — what motivated each rule, not the rule itself.
+The validated layout and routing test live in [`../INDEX.md`](../INDEX.md). These principles explain the choices behind them.
 
 ## Principles
 
-- **Minimal always-on**: each line of `agents/AGENTS.md` exists only if removing it would change an outcome tomorrow. Detail lives on demand (skill/knowledge), loaded by `description`/`trigger`. Context costs tokens and attention — both are finite.
-- **One place for each thing**: a normative rule, a dated fact, a procedure and an artifact's shape are different things; mixing them produces duplication and drift. The `INDEX.md` quick test decides where new content lives.
-- **Evidence and skepticism**: the whole kit assumes a claim without a source is a hypothesis. Knowledge notes have `verified` + `sources`; specs classify `[FACT]`/`[PROPOSAL]`/`[HYPOTHESIS]`. This applies to the kit itself: cited versions are the ones verified on the marked date.
-- **Absorb, don't stack**: good ideas from other repositories (credits in `CHANGELOG.md`) enter as kit text, adapted — not as one more layer/persona to carry. Third-party skills that cannot be absorbed are vendored with a commit lock.
-- **Everything validatable**: what the kit promises is checked by `platforms/tools/check.sh` and CI. A rule that does not fit the validator tends to rot; hence index, frontmatter, links and line limits are mechanical.
+- **Single source: the repository is the plugin.** `main` contains the manifests, always-on instructions, rules, skills, references and templates consumed by each supported agent. There is no generated distribution tree.
+- **Plugin-first on every surface.** Devin Cloud and local Devin consume the repository plugin; Codex consumes its marketplace plugin. Machine setup adds only the always-on symlink and the temporary Codex compatibility fallback.
+- **Minimal always-on context.** `AGENTS.md` keeps only durable routing and boundaries. Procedures and detail load through skills or triggered rules instead of consuming every message.
+- **Glob over `model_decision`.** A glob rule costs nothing until a matching file is touched; a `model_decision` rule contributes its description on every message. Use it only when no reliable glob exists.
+- **Zero content copies on the machine.** Agent-facing content is reached through plugin caches or symlinks. This prevents duplicate skill names and drift between installed copies.
+- **Description budget is a hard gate.** Codex budgets about 8,000 characters for the initial skill list, so the kit reserves at most 7,200 for all skill descriptions.
+- **One owner per detail.** A rule routes, a skill executes, a reference holds facts or normative depth, and a template supplies shape. Cross-links replace copied paragraphs.
+- **Everything validatable.** Layout, manifests, frontmatter, budgets, indexes, links and vendor locks are mechanical CI gates.
+
+## Codex compatibility fallback
+
+Plugin skills remain installed but may be absent from the model input while [openai/codex#22078](https://github.com/openai/codex/issues/22078) is open. `doctor.sh` probes for `ai-kit:*`; while absent, it maintains skill symlinks under `~/.codex/skills/`, and removes them once the plugin exposes the skills. If that directory proves unreadable, the documented one-time administrative fallback is `/etc/codex/skills` pointing to the repository skills. This is a measured compatibility exception, not a second source.
 
 ## What was left out, and why
 
-- `~/.claude/CLAUDE.md` and `~/.devin/global_rules.md` as destinations: they would duplicate AGENTS.md in the context.
-- `npx skills add` on the agents: unpinned installation outside the lock's control — the kit vendors.
-- Skill frameworks (spec-kit CLI, etc.): require extra runtime; the kit uses markdown files any agent can read.
+- **Windsurf, Cursor and ChatGPT destinations were left out:** they are outside the initial v6 surface. Windsurf directories were also imported by Devin and helped triple the observed startup context.
+- **`~/.agents/skills` for Codex was left out:** Devin reads that location too, producing duplicates beside plugin skills. The fallback uses the Codex-only directory instead.
+- **Knowledge notes as `model_decision` rules were left out:** each rule description would tax every message. Notes now live as references owned by the skill that needs them.
+- **A built `devin-plugin` branch was left out:** `main` itself is the release and the plugin source.
+- **Additional skill frameworks were left out:** markdown procedures avoid another runtime and remain portable across supported agents.
