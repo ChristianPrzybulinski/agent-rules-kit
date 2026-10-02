@@ -2,7 +2,7 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [8.0.0] - 2026-10-01
 
 ### Changed
 - Own skill frontmatter no longer carries the unused `version` key; `write` tool declarations use the supported `edit` capability.
