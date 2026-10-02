@@ -1,7 +1,7 @@
 ---
 name: sdd-specify
-version: "1.0"
-description: SDD step 1 — turns a feature description into FEAT-nnn (the what and why, not the how) and its linked REQ-F/REQ-NF, with testable acceptance criteria. Use when starting any new feature. Do not use to refine an existing FEAT (skill sdd-clarify) or to record a technical decision alone (DEC via sdd-plan).
+version: "1.1"
+description: SDD step 1 — feature and requirement specification. Use when a described feature needs FEAT/REQ criteria. Not for open questions (skill sdd-clarify).
 argument-hint: "<feature description in natural language>"
 triggers:
   - user
@@ -15,27 +15,30 @@ allowed-tools:
 
 # SDD 1 — Specify
 
-Process reference: `../sdd-constitution/references/sdd-process.md`.
+Process: `../sdd-constitution/references/sdd-process.md`. Templates: `../../templates/spec-feature.md`, `../../templates/spec-requirement-functional.md`, `../../templates/spec-requirement-non-functional.md`.
 
-Templates: `../../templates/spec-feature.md`, `../../templates/spec-requirement-functional.md`, `../../templates/spec-requirement-non-functional.md`.
+## 1. Qualify the input
 
-## Steps
+If the idea is still vague or the user wants it stress-tested, run `/grilling` first. Start this step when the problem/value and intended user can be described without choosing implementation.
 
-1. Next number: `ls docs/spec/features | sort | tail -1`. Never reuse.
-2. Read `docs/spec/spec.md` (scope, glossary) and existing features: does the feature already exist, collide with, or depend on another? Record under *Relations*.
-3. Write `FEAT-nnn-slug.md`:
-   - **Problem/value** for the player/user (the why).
-   - Explicit **Scope** and **Out of scope**.
-   - **Acceptance criteria** in Given/When/Then format, each verifiable by an automated test or a reproducible step. Minimum: 1 happy path, 1 sad path.
-   - **Linked requirements**: create new `REQ-F-*` (behavior) and `REQ-NF-*` (performance, security, compatibility) or reference existing ones. Each requirement = 1 file, 1 testable sentence.
-   - **Open questions** marked `[NEEDS CLARIFICATION: ...]` — maximum 5; beyond that the request is too big: propose splitting it.
-   - **No** technical decisions (framework, table, message). That is `sdd-plan`.
-4. Frontmatter: `id`, `title`, `status: proposed`, `requirements: [...]`, `flag: null`, `card: null`, `created`.
-5. Update the index in `spec.md`.
-6. Validate: `platforms/tools/check.sh --spec docs/spec` (schemas).
+## 2. Select identifiers
 
-## Completion criteria
+Read `docs/spec/spec.md` and existing features. Choose the next unused `FEAT-nnn`; record collisions, dependencies and related features rather than duplicating them.
 
-- Every acceptance criterion answers "which test proves this?".
-- No orphan requirement (no FEAT) and no FEAT without a requirement.
-- Claims classified (`[FACT]`/`[HYPOTHESIS]`/...).
+## 3. Write the feature
+
+Create `FEAT-nnn-slug.md` with:
+
+- problem/value, explicit scope and out-of-scope;
+- Given/When/Then criteria with at least one happy and one sad path;
+- linked `REQ-F-*` behavior and `REQ-NF-*` quality requirements, one testable sentence per file;
+- at most five `[NEEDS CLARIFICATION: ...]` questions; split the feature if more are needed;
+- no framework, table or message choice—those belong to planning.
+
+Set `status: proposed`, requirements, `flag: null`, `card: null` and creation date; update the feature/requirement indexes.
+
+## 4. Validate
+
+Run `platforms/tools/check.sh --spec docs/spec`. Every criterion must name an automated test or reproducible proof, and every requirement must be linked from a feature.
+
+Done when: a described feature has valid FEAT/REQ files, happy/sad criteria, classified claims and no implementation decision.

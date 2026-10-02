@@ -1,7 +1,7 @@
 ---
 name: sdd-tasks
-version: "1.0"
-description: SDD step 6 — breaks a FEAT's plan into small tasks ordered by dependency, each with a verifiable completion criterion and an associated test. Use after plan; the output is the Tasks section in the FEAT. Do not use to execute the tasks (skill sdd-implement) or when the FEAT has no Plan section (skill sdd-plan).
+version: "1.1"
+description: SDD step 6 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement).
 argument-hint: "FEAT-nnn"
 triggers:
   - user
@@ -12,31 +12,33 @@ allowed-tools:
 
 # SDD 6 — Tasks
 
-Process reference: `../sdd-constitution/references/sdd-process.md`.
+Process: `../sdd-constitution/references/sdd-process.md`.
 
-Prerequisite: `status: planned`.
+## 1. Confirm the plan
 
-## Splitting rules
+Require `status: planned` and a Plan section with files, boundaries and test strategy.
 
-- A task is **small**: ≈ 5-30 min of execution, ≤ 5 files, a single command/test that proves completion. If the description needs "and also", they are two tasks. Each task names the exact paths (not "the module's files").
-- Order: contract/types → domain + unit tests → persistence + migration → adapters + integration → client → flag/docs. Tests travel **with** the task, not as a separate task at the end.
-- Each task: `T-nn` · imperative title · planned files · completion criterion (command or test that proves it) · acceptance criteria covered (`CA-n`) · dependencies (`T-mm`).
-- Independent tasks marked `[P]` (parallelizable).
-- First task of every FEAT with a business rule: "write failing domain tests" (Red).
+## 2. Split by verifiable outcome
 
-## Format (the FEAT's **Tasks** section)
+- Each task takes roughly 5–30 minutes, touches at most five named files and has one command/test proving completion.
+- Split any title needing “and also”. Tests travel with behavior, not in an end-of-feature test task.
+- Order contract/types → domain/tests → persistence/migration → adapters/integration → client → flag/docs.
+- For a business rule, the first implementation task writes the failing domain test.
+
+## 3. Write task rows
+
+Each row contains `T-nn`, imperative title, exact files, proof, covered acceptance criteria, dependencies and state. Mark dependency-independent rows `[P]`.
 
 ```markdown
-| ID | Task | Files | Proof of completion | Covers | Depends on | State |
+| ID | Task | Files | Proof | Covers | Depends on | State |
 |---|---|---|---|---|---|---|
-| T-01 | Define MoveRequest/MoveResult messages in the contract | protocol/... | example validates against the schema | CA-1, CA-2 | — | todo |
-| T-02 [P] | Movement domain tests (failing) | server/domain/src/test/... | `./mvnw -pl domain test` red for the right reason | CA-1..3 | T-01 | todo |
+| T-01 | Define MoveRequest contract | protocol/... | example validates | CA-1 | — | todo |
 ```
 
-States: `todo · doing · done · blocked`.
+States: `todo`, `doing`, `done`, `blocked`.
 
-## Completion criteria
+## 4. Check coverage
 
-- Every acceptance criterion appears in ≥1 task; every task covers ≥1 criterion (or is explicit infra).
-- No "implement the rest" task.
-- `sdd-analyze` A8 passes.
+Every acceptance criterion appears in at least one task; every task covers a criterion or is explicitly infrastructure. Run `sdd-analyze` A8 and remove vague “implement the rest” rows.
+
+Done when: tasks are dependency ordered, independently provable, mapped both ways to criteria and ready for one-at-a-time execution.

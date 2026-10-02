@@ -1,7 +1,7 @@
 ---
 name: sdd-clarify
-version: "1.0"
-description: SDD step 2 — resolves a FEAT's [NEEDS CLARIFICATION] markers with objective questions (2-4 options each) to the product, incorporates the answers into the spec and moves status to clarified. Use when the FEAT has open questions or ambiguous criteria. Do not use to write the FEAT from scratch (skill sdd-specify) or to audit its quality (skill sdd-audit).
+version: "1.1"
+description: SDD step 2 — resolve ambiguous FEAT criteria. Use when a FEAT has open questions or vague terms. Not for quality auditing (skill sdd-audit).
 argument-hint: "FEAT-nnn"
 triggers:
   - user
@@ -13,22 +13,24 @@ allowed-tools:
 
 # SDD 2 — Clarify
 
-Process reference: `../sdd-constitution/references/sdd-process.md`.
+Process: `../sdd-constitution/references/sdd-process.md`.
 
-## Steps
+## 1. Find product ambiguity
 
-1. Read the FEAT and its linked REQs. Collect: `[NEEDS CLARIFICATION]` markers, criteria without a sad path, terms missing from the glossary, vague quantifiers ("fast", "many", "safe").
-2. Prioritize: questions that change scope or architecture first. Maximum **5 per round**; if any remain, a second round.
-3. Each question: context in 1 line + 2-4 options with each one's consequence + a marked recommendation. A single `ask_user_question` call per round.
-4. Incorporate the answer **in the right place** (criterion, scope, requirement), not in an "answers" section. Record in *History*: `YYYY-MM-DD clarify: <question> → <answer>`.
-5. An answer that is a technical decision → do not incorporate here; note it for `sdd-plan`/`DEC`.
-6. Zero markers remaining → `status: clarified`.
+Read the FEAT and linked requirements. Collect clarification markers, criteria without a sad path, undefined glossary terms and vague quantities such as “fast”, “many” or “safe”.
 
-## Completion criteria
+## 2. Ask one focused round
 
-- No `[NEEDS CLARIFICATION]`; no vague quantifier without a number or a `[HYPOTHESIS]` with a measurement method.
-- `spec.md` glossary updated with new terms.
+Prioritize scope/risk questions. Ask at most five per round in one `ask_user_question` call; each has one-line context, two to four options, consequences and a marked recommendation.
 
-## Do not
+Do not answer a product, cost or risk choice yourself. Route a technical decision to `sdd-plan` and a DEC.
 
-- Answer a product question yourself "to avoid bothering". A reversible technical decision → decide and record `[PROPOSAL]`; a product/cost/risk decision → ask.
+## 3. Incorporate answers
+
+Edit the criterion, scope, requirement or glossary where the answer belongs; do not append an answers section. Record `YYYY-MM-DD clarify: <question> → <answer>` in History.
+
+## 4. Close ambiguity
+
+Repeat only if markers remain. Set `status: clarified` when every vague quantity is numeric or a hypothesis with a measurement method.
+
+Done when: no clarification markers remain, criteria include relevant sad paths, new terms are in the glossary and product choices came from the user.

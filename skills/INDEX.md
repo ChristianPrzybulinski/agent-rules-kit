@@ -58,15 +58,15 @@ Spec-Driven Development procedures.
 
 | Skill | Description |
 |---|---|
-| `sdd-analyze` | SDD step 3 — consistency analysis across FEAT, REQs, DECs, plan and tasks - contradictions, gaps, orphan requirements, criteria without a task, tasks without a criterion. Read-only; produces a report. Use after clarify and after plan/tasks. Do not use to judge spec quality (skill sdd-audit) or to validate delivered code (skill validate-implementation). |
-| `sdd-audit` | SDD step 4 — spec quality audit with a checklist - testability, completeness, security, data, errors, compatibility, observability. Produces a gap list to fix before planning. Use when the FEAT is clarified. Do not use for cross-artifact consistency (skill sdd-analyze) or to resolve open questions (skill sdd-clarify). |
-| `sdd-clarify` | SDD step 2 — resolves a FEAT's [NEEDS CLARIFICATION] markers with objective questions (2-4 options each) to the product, incorporates the answers into the spec and moves status to clarified. Use when the FEAT has open questions or ambiguous criteria. Do not use to write the FEAT from scratch (skill sdd-specify) or to audit its quality (skill sdd-audit). |
-| `sdd-constitution` | SDD step 0 — creates (or reviews) the project constitution - the repo's AGENTS.md with verifiable principles and docs/spec/spec.md with vision, scope, glossary and index. Use once per new project, or when principles change. Do not use for a single feature (skill sdd-specify) or to edit the kit's own AGENTS.md. |
-| `sdd-implement` | SDD step 7 — executes a FEAT's tasks one by one (Red→Green→Refactor), on branch feature/FEAT-nnn, updating task states, docs and CHANGELOG; stops on a blocker and invents nothing. Use after tasks. Do not use before tasks exist (skill sdd-tasks) or to issue the done verdict (skill validate-implementation). |
-| `sdd-plan` | SDD step 5 — technical plan for a clarified, audited FEAT - modules touched, domain model, contract, persistence/migration, feature flag, test strategy, risks; creates DEC-nnn for decisions with a rejected alternative. Status becomes planned. Use after sdd-audit, before sdd-tasks. Do not use to break the plan into tasks (skill sdd-tasks) or before clarify and audit are done. |
-| `sdd-specify` | SDD step 1 — turns a feature description into FEAT-nnn (the what and why, not the how) and its linked REQ-F/REQ-NF, with testable acceptance criteria. Use when starting any new feature. Do not use to refine an existing FEAT (skill sdd-clarify) or to record a technical decision alone (DEC via sdd-plan). |
-| `sdd-tasks` | SDD step 6 — breaks a FEAT's plan into small tasks ordered by dependency, each with a verifiable completion criterion and an associated test. Use after plan; the output is the Tasks section in the FEAT. Do not use to execute the tasks (skill sdd-implement) or when the FEAT has no Plan section (skill sdd-plan). |
-| `sdd-to-card` | SDD step 9 — syncs a FEAT with a GitHub card (Issue + Project) via gh - creates the issue if missing, updates title/body/labels/status from the frontmatter, writes the number into the FEAT's card field. Use after specify (open) and after validate/merge (close). Do not use for branches, commits or PRs (skill github-cli). |
+| `sdd-analyze` | SDD step 3 — cross-artifact consistency report. Use when FEAT/REQ/DEC/plan/tasks need gap checks. Not for spec quality (skill sdd-audit). |
+| `sdd-audit` | SDD step 4 — spec quality checklist. Use when a clarified FEAT needs testability, security and completeness checks. Not for consistency (skill sdd-analyze). |
+| `sdd-clarify` | SDD step 2 — resolve ambiguous FEAT criteria. Use when a FEAT has open questions or vague terms. Not for quality auditing (skill sdd-audit). |
+| `sdd-constitution` | SDD step 0 — project constitution and spec index. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
+| `sdd-implement` | SDD step 7 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill validate-implementation). |
+| `sdd-plan` | SDD step 5 — technical FEAT plan and decisions. Use when clarification and audit are complete. Not for task breakdown (skill sdd-tasks). |
+| `sdd-specify` | SDD step 1 — feature and requirement specification. Use when a described feature needs FEAT/REQ criteria. Not for open questions (skill sdd-clarify). |
+| `sdd-tasks` | SDD step 6 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement). |
+| `sdd-to-card` | SDD step 9 — sync a FEAT to GitHub Issues/Projects. Use when opening, updating or closing its card. Not for PR operations (skill github-cli). |
 
 ## Tooling
 

@@ -1,7 +1,7 @@
 ---
 name: sdd-implement
-version: "1.0"
-description: SDD step 7 — executes a FEAT's tasks one by one (Red→Green→Refactor), on branch feature/FEAT-nnn, updating task states, docs and CHANGELOG; stops on a blocker and invents nothing. Use after tasks. Do not use before tasks exist (skill sdd-tasks) or to issue the done verdict (skill validate-implementation).
+version: "1.1"
+description: SDD step 7 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill validate-implementation).
 argument-hint: "FEAT-nnn [T-nn]"
 triggers:
   - user
@@ -16,28 +16,31 @@ allowed-tools:
 
 # SDD 7 — Implement
 
-Process reference: `../sdd-constitution/references/sdd-process.md`.
+Process: `../sdd-constitution/references/sdd-process.md`.
 
-Prerequisite: the *Tasks* section exists. Kit rules and the repo's `AGENTS.md` apply in full.
+## 1. Start the delivery branch
 
-## Steps
+Create or use `feature/FEAT-nnn-slug` from updated `main`; set `status: in-progress`. Work one task at a time unless independent `[P]` tasks have disjoint files.
 
-1. Branch: `git switch -c feature/FEAT-nnn-slug` from an updated `main` (if it does not exist yet). `status: in-progress`.
-2. For each task in order (or the indicated `T-nn`):
-   1. Mark `doing`. Read the real files it will touch.
-   2. Test first when there is behavior: write/run → must fail for the right reason. Didn't fail? The task was not understood — stop and review.
-   3. Implement the minimum to go green. Refactor with green tests.
-   4. Run the task's *proof of completion* literally; paste the summarized output into *History*.
-   5. **Two-stage review**, in this order and unmixed: (a) *conformance* — does the diff do exactly what the task/CA asks, nothing more, nothing less? (b) only if (a) passed: *quality* — simplicity (`../simplicity/SKILL.md`), names, tests, security. A finding in (a) goes back to step 3 before any polishing.
-   6. Atomic commit: `feat(scope): <task>` + `Refs: FEAT-nnn`.
-   7. Mark `done`.
-3. Blocker (missing dependency, product decision, violated rule) → `blocked` + reason in the FEAT; do **not** work around it. Move to an independent `[P]` task if any; otherwise report.
-4. When all are done: checklist from `../update-docs/references/living-docs.md` (CHANGELOG `Unreleased`, README, Javadoc/docstring, flag recorded). Run the full gates (`./mvnw spotless:check verify`, `godot --headless --quit`, etc.).
-5. Call `core/validate-implementation FEAT-nnn`. PARTIAL/NOT READY → back to step 2 with the missing tasks.
-6. READY → `gh pr create` (Conventional Commit title; body with criteria ✓, commands run, `Refs: FEAT-nnn`). Status changes to `validated` only after the PR is open with green gates; `delivered` after merge.
+## 2. Execute each task
 
-## Do not
+1. Mark `doing` and read every named file.
+2. For behavior, run/write the test first; it must fail for the intended reason.
+3. Implement the minimum, make the test green, then refactor.
+4. Run the task's proof literally and summarize output in History.
+5. Review conformance to task/criterion before code quality; a scope finding returns to implementation.
+6. Commit atomically as `feat(scope): <task>` with `Refs: FEAT-nnn`; mark `done`.
 
-- Implement outside the FEAT's scope ("while I'm here"). Note it as a follow-up.
-- Disable a test, lower a coverage gate, suppress a CVE without justification.
-- Claim it was tested without a recorded command output.
+A dependency/product/rule blocker becomes `blocked` with reason; never invent a workaround. Move only to an independent task.
+
+## 3. Close the implementation
+
+Use `../update-docs/references/living-docs.md`, update CHANGELOG/README/API docs and run full repository gates. Then call `validate-implementation`; PARTIAL/NOT READY returns to the missing task.
+
+Incomplete work may merge only behind a recorded flag that defaults off. A flag continuously on for more than 30 days creates a `DEBT-nnn` removal item. Security/integrity rules never hide behind a flag.
+
+## 4. Open the PR
+
+After READY and green gates, open a squash PR with criteria/proofs and `Refs: FEAT-nnn`. Set `validated` after the green PR and `delivered` after merge.
+
+Done when: all tasks and proofs are recorded, full gates pass, validation is READY, and incomplete merged behavior is safely flagged with expiry handling.
