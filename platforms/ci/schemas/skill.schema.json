@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/platforms/ci/schemas/skill.schema.json",
-  "title": "Frontmatter of kit/skills/<name>/SKILL.md (own skills; vendor only validates name/description)",
+  "title": "Frontmatter of plugins/ai-kit/skills/<name>/SKILL.md (own skills; vendor only validates name/description)",
   "type": "object",
   "required": ["name", "description", "triggers"],
   "additionalProperties": true,

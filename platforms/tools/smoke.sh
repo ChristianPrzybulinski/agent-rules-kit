@@ -32,7 +32,7 @@ from pathlib import Path
 import sys
 
 replacement = "description: Smoke lifecycle fixture. Use when testing bootstrap and doctor. Not for production guidance (skill testing)."
-for skill in Path(sys.argv[1], "kit", "skills").glob("*/SKILL.md"):
+for skill in Path(sys.argv[1], "plugins", "ai-kit", "skills").glob("*/SKILL.md"):
     lines = skill.read_text(encoding="utf-8").splitlines()
     for index, line in enumerate(lines):
         if line.startswith("description: "):
@@ -56,7 +56,7 @@ fi
 agents_link="$TEST_HOME/.codex/AGENTS.md"
 [[ -L "$agents_link" ]] || fail "Codex AGENTS.md is not a symlink"
 resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$agents_link")"
-expected_resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$TEST_HOME/.ai-kit/kit/AGENTS.md")"
+expected_resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$TEST_HOME/.ai-kit/plugins/ai-kit/AGENTS.md")"
 [[ "$resolved" == "$expected_resolved" ]] || fail "Codex AGENTS.md resolves to $resolved"
 
 rm "$agents_link"
@@ -68,8 +68,18 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-ki
 fi
 grep -Fq 'fix: codex AGENTS.md symlink repointed' "$ROOT/doctor-repoint.out" \
   || fail "legacy AGENTS.md symlink repoint was not reported"
-[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/kit/AGENTS.md" ]] \
+[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/ai-kit/AGENTS.md" ]] \
   || fail "legacy AGENTS.md symlink was not repointed"
+
+rm "$agents_link"
+ln -s "$TEST_HOME/.ai-kit/kit/AGENTS.md" "$agents_link"
+if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
+    "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-repoint-kit.out" 2>&1; then
+  cat "$ROOT/doctor-repoint-kit.out" >&2
+  fail "doctor failed to repoint the former kit/ AGENTS.md symlink"
+fi
+[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/ai-kit/AGENTS.md" ]] \
+  || fail "former kit/ AGENTS.md symlink was not repointed"
 
 if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
     "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-initial.out" 2>&1; then
@@ -122,13 +132,13 @@ if ! env HOME="$APP_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$APP_HOME/.ai-kit"
 fi
 grep -Fq 'ok: codex CLI not found; desktop app detected — fallback symlinks maintained (openai/codex#22078)' \
   "$ROOT/doctor-app.out" || fail "app-only mode was not reported"
-app_skill_count="$(find "$APP_HOME/.ai-kit/kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+app_skill_count="$(find "$APP_HOME/.ai-kit/plugins/ai-kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 fallback_count=0
-for skill_file in "$APP_HOME/.ai-kit"/kit/skills/*/SKILL.md; do
+for skill_file in "$APP_HOME/.ai-kit"/plugins/ai-kit/skills/*/SKILL.md; do
   [[ -f "$skill_file" ]] || continue
   name="$(basename "$(dirname "$skill_file")")"
   fallback="$APP_HOME/.codex/skills/$name"
-  expected="$APP_HOME/.ai-kit/kit/skills/$name"
+  expected="$APP_HOME/.ai-kit/plugins/ai-kit/skills/$name"
   [[ -L "$fallback" ]] || fail "app-only fallback missing for $name"
   [[ "$(readlink "$fallback")" == "$expected" ]] || fail "app-only fallback for $name has the wrong target"
   fallback_count=$((fallback_count + 1))
@@ -219,7 +229,7 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
   cat "$ROOT/doctor-stub-fallback.out" >&2
   fail "doctor failed to create stub fallback"
 fi
-stub_skill_count="$(find "$STUB_HOME/.ai-kit/kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+stub_skill_count="$(find "$STUB_HOME/.ai-kit/plugins/ai-kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d ' ')"
 [[ "$stub_fallback_count" == "$stub_skill_count" ]] \
   || fail "$stub_fallback_count stub fallbacks, expected $stub_skill_count"
@@ -262,14 +272,22 @@ import sys
 
 kit = Path(sys.argv[1])
 version = (kit / "VERSION").read_text(encoding="utf-8").strip()
-for manifest in (kit / "kit/.devin-plugin/plugin.json", kit / "kit/plugin.json"):
+meta = json.loads((kit / ".devin-plugin/plugin.json").read_text(encoding="utf-8"))
+assert meta["name"] == "agent-rules-kit"
+assert meta["version"] == version
+assert meta["requiredPlugins"] == [{
+    "source": "git-subdir",
+    "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+    "path": "plugins/ai-kit",
+}]
+for manifest in (kit / "plugins/ai-kit/.devin-plugin/plugin.json", kit / "plugins/ai-kit/plugin.json"):
     assert json.loads(manifest.read_text(encoding="utf-8"))["version"] == version
 marketplace = json.loads((kit / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
-assert marketplace["plugins"][0]["source"]["path"] == "./kit"
+assert marketplace["plugins"][0]["source"]["path"] == "./plugins/ai-kit"
 PY
 
-skill_count="$(find "$TEST_HOME/.ai-kit/kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
-index_count="$(grep -c "^| \`[a-z0-9-][a-z0-9-]*\` |" "$TEST_HOME/.ai-kit/kit/skills/INDEX.md")"
+skill_count="$(find "$TEST_HOME/.ai-kit/plugins/ai-kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+index_count="$(grep -c "^| \`[a-z0-9-][a-z0-9-]*\` |" "$TEST_HOME/.ai-kit/plugins/ai-kit/skills/INDEX.md")"
 [[ "$skill_count" == "$index_count" ]] || fail "$skill_count skill folders but $index_count index rows"
 
 printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests)\n' "$skill_count"

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/platforms/ci/schemas/rule.schema.json",
-  "title": "Frontmatter of kit/rules/*.md",
+  "title": "Frontmatter of plugins/ai-kit/rules/*.md",
   "type": "object",
   "required": ["description", "trigger"],
   "additionalProperties": false,

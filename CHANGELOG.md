@@ -5,7 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Changed
-- **BREAKING — plugin root moved to `kit/`:** `AGENTS.md`, `rules/`, `skills/`, `templates/` and the plugin manifests live under `kit/`; tooling and documentation stay at the repository root. Devin installs `ChristianPrzybulinski/agent-rules-kit#kit`; the Codex marketplace resolves plugin content from `./kit`; `~/.codex/AGENTS.md` links to `kit/AGENTS.md` (doctor repoints the old link). The validator rejects unknown entries at the plugin root and relative paths that escape it.
+- **BREAKING — plugin content moved to `plugins/ai-kit/`:** the repository root is now a content-free meta-plugin following Cognition's team-marketplace pattern and requires the real plugin through `git-subdir`. Devin's install source remains `ChristianPrzybulinski/agent-rules-kit`; the Codex marketplace resolves `./plugins/ai-kit`; doctor repoints `~/.codex/AGENTS.md` from either legacy target to `plugins/ai-kit/AGENTS.md`. The validator enforces the meta-plugin contract, plugin container and escape boundaries.
 
 ## [8.0.0] - 2026-10-01
 

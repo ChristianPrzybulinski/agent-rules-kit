@@ -1,4 +1,4 @@
-# kit/ — ai-kit plugin root
+# plugins/ai-kit/ — plugin root
 
 Scope: content loaded by Devin and Codex. Repository tooling and documentation stay outside this directory.
 

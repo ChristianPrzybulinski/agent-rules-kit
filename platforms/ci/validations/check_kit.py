@@ -13,13 +13,12 @@ import sys
 from pathlib import Path
 
 KIT = Path(__file__).resolve().parents[3]
-PLUGIN = KIT / "kit"
+PLUGIN = KIT / "plugins/ai-kit"
 SCHEMAS = KIT / "platforms/ci/schemas"
 LINKS_MODE = "--links" in sys.argv
 CI = os.environ.get("CI") == "1"
 
 AGENTS_MAX_LINES = 60
-ROOT_AGENTS_MAX_LINES = 20
 DESCRIPTION_MIN = 40
 DESCRIPTION_MAX = 160
 DESCRIPTIONS_BUDGET = 7200
@@ -173,25 +172,34 @@ def read_json(path):
 
 # --- 1. Layout ---
 REQUIRED_ROOT_PATHS = [
-    "INDEX.md", "README.md", "VERSION", "AGENTS.md", ".agents/plugins/marketplace.json",
-    "kit", "platforms/tools", "platforms/ci/schemas", "platforms/ci/validations", "platforms/kits", "docs",
+    "INDEX.md", "README.md", "VERSION", ".devin-plugin/plugin.json",
+    ".agents/plugins/marketplace.json", "plugins", "platforms/tools",
+    "platforms/ci/schemas", "platforms/ci/validations", "platforms/kits", "docs",
 ]
 REQUIRED_PLUGIN_PATHS = [
     "AGENTS.md", "INDEX.md", ".devin-plugin/plugin.json", "plugin.json", "rules", "skills", "templates",
 ]
 FORBIDDEN_ROOT_PATHS = [
-    "agents", "rules", "skills", "templates", "plugin.json", ".devin-plugin",
-    "LAYOUT_VERSION", "platforms/install", "knowledge", "prompts",
+    "AGENTS.md", "rules", "skills", "templates", "agents", "hooks.json", ".mcp.json", "mcp.json",
+    "plugin.json", "LAYOUT_VERSION", "platforms/install", "knowledge", "prompts",
 ]
 for required_path in REQUIRED_ROOT_PATHS:
     if not (KIT / required_path).exists():
         fail(required_path, "layout: required path missing")
 for required_path in REQUIRED_PLUGIN_PATHS:
     if not (PLUGIN / required_path).exists():
-        fail(f"kit/{required_path}", "layout: required plugin path missing")
+        fail(f"plugins/ai-kit/{required_path}", "layout: required plugin path missing")
 for forbidden_path in FORBIDDEN_ROOT_PATHS:
     if (KIT / forbidden_path).exists():
-        fail(forbidden_path, "layout: forbidden legacy path present")
+        fail(forbidden_path, "layout: forbidden content at meta-plugin root")
+
+plugins_root = KIT / "plugins"
+if plugins_root.exists():
+    for entry in sorted(plugins_root.iterdir()):
+        if not entry.is_dir():
+            fail(rel(entry), "plugins/ entry must be a plugin directory")
+        elif not (entry / ".devin-plugin/plugin.json").exists():
+            fail(rel(entry), "plugin directory missing .devin-plugin/plugin.json")
 
 allowed_plugin_entries = {
     "AGENTS.md", "INDEX.md", ".devin-plugin", "plugin.json", "rules", "skills", "templates",
@@ -205,14 +213,31 @@ version = (KIT / "VERSION").read_text(encoding="utf-8").strip() if (KIT / "VERSI
 if version and not re.match(r"^\d+\.\d+\.\d+$", version):
     fail("VERSION", f"'{version}' is not semver")
 
-devin_path = PLUGIN / ".devin-plugin/plugin.json"
-portable_path = PLUGIN / "plugin.json"
-devin_manifest = read_json(devin_path) if devin_path.exists() else None
-portable_manifest = read_json(portable_path) if portable_path.exists() else None
+required_plugin = {
+    "source": "git-subdir",
+    "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+    "path": "plugins/ai-kit",
+}
+meta_path = KIT / ".devin-plugin/plugin.json"
+meta_manifest = read_json(meta_path) if meta_path.exists() else None
+if meta_manifest is not None:
+    if meta_manifest.get("name") != "agent-rules-kit":
+        fail(rel(meta_path), "name != 'agent-rules-kit'")
+    if meta_manifest.get("version") != version:
+        fail(rel(meta_path), f"version '{meta_manifest.get('version')}' != VERSION '{version}'")
+    if meta_manifest.get("requiredPlugins") != [required_plugin]:
+        fail(rel(meta_path), "requiredPlugins must contain exactly the ai-kit git-subdir entry")
+
+if plugins_root.exists():
+    for plugin_directory in sorted(path for path in plugins_root.iterdir() if path.is_dir()):
+        for manifest_path in (plugin_directory / ".devin-plugin/plugin.json", plugin_directory / "plugin.json"):
+            if not manifest_path.exists():
+                continue
+            manifest = read_json(manifest_path)
+            if manifest is not None and manifest.get("version") != version:
+                fail(rel(manifest_path), f"version '{manifest.get('version')}' != VERSION '{version}'")
+
 marketplace = read_json(KIT / ".agents/plugins/marketplace.json") if (KIT / ".agents/plugins/marketplace.json").exists() else None
-for path, manifest in ((devin_path, devin_manifest), (portable_path, portable_manifest)):
-    if manifest is not None and manifest.get("version") != version:
-        fail(rel(path), f"version '{manifest.get('version')}' != VERSION '{version}'")
 if marketplace is not None:
     plugins = marketplace.get("plugins")
     if not isinstance(plugins, list) or not plugins or not isinstance(plugins[0], dict):
@@ -221,8 +246,8 @@ if marketplace is not None:
         if plugins[0].get("name") != "ai-kit":
             fail(".agents/plugins/marketplace.json", "plugins[0].name != 'ai-kit'")
         source = plugins[0].get("source") or {}
-        if source.get("path") != "./kit":
-            fail(".agents/plugins/marketplace.json", "plugins[0].source.path != './kit'")
+        if source.get("path") != "./plugins/ai-kit":
+            fail(".agents/plugins/marketplace.json", "plugins[0].source.path != './plugins/ai-kit'")
 
 for script in sorted((KIT / "platforms").rglob("*.sh")):
     if not os.access(script, os.X_OK):
@@ -230,16 +255,11 @@ for script in sorted((KIT / "platforms").rglob("*.sh")):
 
 
 # --- 2. AGENTS.md ---
-root_agents_md = KIT / "AGENTS.md"
 agents_md = PLUGIN / "AGENTS.md"
-if root_agents_md.exists():
-    root_agents_lines = len(root_agents_md.read_text(encoding="utf-8").splitlines())
-    if root_agents_lines > ROOT_AGENTS_MAX_LINES:
-        fail("AGENTS.md", f"{root_agents_lines} lines (>{ROOT_AGENTS_MAX_LINES})")
 if agents_md.exists():
     agents_lines = len(agents_md.read_text(encoding="utf-8").splitlines())
     if agents_lines > AGENTS_MAX_LINES:
-        fail("kit/AGENTS.md", f"{agents_lines} lines (>{AGENTS_MAX_LINES})")
+        fail("plugins/ai-kit/AGENTS.md", f"{agents_lines} lines (>{AGENTS_MAX_LINES})")
 
 
 # --- 3. Skills ---
@@ -481,10 +501,9 @@ for markdown_file in sorted(KIT.rglob("*.md")):
             fail(rel(markdown_file), f"broken link: {target}")
 
 backtick_re = re.compile(
-    r"`((?:(?:\.\./|\./)+|references/|templates/|platforms/|kit/)[^`\s]+\.(?:md|sh|json|yml|yaml))`")
+    r"`((?:(?:\.\./|\./)+|references/|templates/|platforms/|plugins/)[^`\s]+\.(?:md|sh|json|yml|yaml))`")
 backtick_files = [
-    root_agents_md, agents_md, KIT / "INDEX.md", KIT / "README.md", plugin_index,
-    templates_root / "INDEX.md",
+    agents_md, KIT / "INDEX.md", KIT / "README.md", plugin_index, templates_root / "INDEX.md",
 ]
 backtick_files += list(rules_root.rglob("*.md"))
 backtick_files += list((KIT / "docs").glob("*.md"))
@@ -507,7 +526,7 @@ for markdown_file in sorted(set(path for path in backtick_files if path.exists()
         if inside_plugin and re.match(r"^(?:\.\./)+platforms/", target):
             fail(rel(markdown_file), f"path escapes plugin root: {target}")
             continue
-        if target.startswith(("platforms/", "kit/")):
+        if target.startswith(("platforms/", "plugins/")):
             base = KIT
         elif target.startswith("templates/"):
             base = PLUGIN
@@ -518,7 +537,7 @@ for markdown_file in sorted(set(path for path in backtick_files if path.exists()
         if not matches:
             fail(rel(markdown_file), f"broken backtick path: {target}")
             continue
-        if inside_plugin and not target.startswith(("platforms/", "kit/")):
+        if inside_plugin and not target.startswith(("platforms/", "plugins/")):
             for resolved in matches:
                 try:
                     resolved.relative_to(PLUGIN.resolve())

@@ -5,8 +5,8 @@
 | Schema | Validates | Target file-name rule |
 |---|---|---|
 | `knowledge.schema.json` | legacy knowledge-note frontmatter retained for compatibility | `verified` (date) + `sources` (URLs) required |
-| `rule.schema.json` | `kit/rules/*.md` | `trigger` is `glob`, `model_decision`, or `manual` |
-| `skill.schema.json` | `kit/skills/<name>/SKILL.md` (non-vendor) | `name` = folder; `triggers`; allowed tools |
+| `rule.schema.json` | `plugins/ai-kit/rules/*.md` | `trigger` is `glob`, `model_decision`, or `manual` |
+| `skill.schema.json` | `plugins/ai-kit/skills/<name>/SKILL.md` (non-vendor) | `name` = folder; `triggers`; allowed tools |
 | `skills-lock.schema.json` | lines of `platforms/kits/third-party/skills.lock` | 40-hex `sha` |
 | `spec.schema.json` | a project's `docs/spec/spec.md` | fixed |
 | `feature.schema.json` | `docs/spec/features/*.md` | `FEAT-nnn-slug.md` |

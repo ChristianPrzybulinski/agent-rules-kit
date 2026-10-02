@@ -43,7 +43,7 @@ codex_bin() {
 
 ensure_agents_link() {
   local destination="$HOME/.codex/AGENTS.md"
-  local expected="$KIT/kit/AGENTS.md"
+  local expected="$KIT/plugins/ai-kit/AGENTS.md"
   local current
   local backup
   mkdir -p "$HOME/.codex"
@@ -93,7 +93,7 @@ if command -v devin >/dev/null 2>&1; then
   devin_plugins="$(devin plugins list 2>/dev/null || true)"
   if [[ "$devin_plugins" == *"ai-kit"* ]]; then
     printf 'ok: devin plugin installed\n'
-  elif devin plugins install "$REPOSITORY#kit" -y >/dev/null 2>&1; then
+  elif devin plugins install "$REPOSITORY" -y >/dev/null 2>&1; then
     printf 'fix: devin plugin installed\n'
   else
     warn "devin plugin installation failed; sign in and retry"

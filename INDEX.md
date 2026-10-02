@@ -2,42 +2,42 @@
 
 Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md).
 
-The repository separates plugin content from maintenance tooling. Devin installs `ChristianPrzybulinski/agent-rules-kit#kit`; Codex reads the root marketplace catalog, whose plugin path is `./kit`.
+The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/plugin.json) requires the real `ai-kit` plugin from `plugins/ai-kit/`; Codex uses the root marketplace catalog with the same plugin path.
 
 ## Repository roots
 
 | Root | Purpose |
 |---|---|
-| [`kit/`](kit/INDEX.md) | `ai-kit` plugin root: global rules, triggered rules, skills, references, templates and manifests |
-| [`AGENTS.md`](AGENTS.md) | project rules for maintaining this repository |
+| [`.devin-plugin/plugin.json`](.devin-plugin/plugin.json) | meta-plugin manifest requiring `plugins/ai-kit/` through `git-subdir` |
+| [`plugins/ai-kit/`](plugins/ai-kit/INDEX.md) | real plugin: global rules, triggered rules, skills, references, templates and manifests |
 | [`platforms/`](platforms/INDEX.md) | lifecycle tools, validators and ready-to-copy kits |
 | [`docs/`](docs/INDEX.md) | architecture and maintenance documentation |
-| [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) | Codex marketplace catalog pointing to `./kit` |
+| [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) | Codex marketplace catalog pointing to `./plugins/ai-kit` |
 | [`.github/`](.github/README.md) | CI, release and security automation |
 
 ## Plugin rules
 
 | File | Trigger | Globs | Loads |
 |---|---|---|---|
-| [`kit/rules/java.md`](kit/rules/java.md) | `glob` | `**/*.java`, `**/pom.xml` | `java-standards`, `clean-code`, `testing` |
-| [`kit/rules/godot.md`](kit/rules/godot.md) | `glob` | `**/*.gd`, `**/*.tscn`, `**/project.godot` | `godot-standards`, `clean-code`, `testing` |
-| [`kit/rules/spec.md`](kit/rules/spec.md) | `glob` | `docs/spec/**/*.md` | SDD skills and spec templates |
+| [`plugins/ai-kit/rules/java.md`](plugins/ai-kit/rules/java.md) | `glob` | `**/*.java`, `**/pom.xml` | `java-standards`, `clean-code`, `testing` |
+| [`plugins/ai-kit/rules/godot.md`](plugins/ai-kit/rules/godot.md) | `glob` | `**/*.gd`, `**/*.tscn`, `**/project.godot` | `godot-standards`, `clean-code`, `testing` |
+| [`plugins/ai-kit/rules/spec.md`](plugins/ai-kit/rules/spec.md) | `glob` | `docs/spec/**/*.md` | SDD skills and spec templates |
 
 ## What goes where
 
 | Content | Location |
 |---|---|
-| always-on global behavior | `kit/AGENTS.md` |
-| triggered rule | `kit/rules/<name>.md` |
-| procedure/reference | `kit/skills/<name>/` |
-| artifact skeleton | `kit/templates/<prefix>-<name>.md` |
-| repository maintenance rule | root `AGENTS.md` |
+| always-on global behavior | `plugins/ai-kit/AGENTS.md` |
+| triggered rule | `plugins/ai-kit/rules/<name>.md` |
+| procedure/reference | `plugins/ai-kit/skills/<name>/` |
+| artifact skeleton | `plugins/ai-kit/templates/<prefix>-<name>.md` |
 | executable/schema/project kit | `platforms/` |
+| maintainer guidance | README `Maintainers` section and `docs/maintenance.md` |
 
 ## Invariants
 
-- Nothing except the plugin manifests and documented content roots enters `kit/`.
-- `VERSION`, `kit/.devin-plugin/plugin.json` and `kit/plugin.json` agree.
-- Marketplace source path is `./kit`; plugin content has no managed duplicate outside the repository.
-- Every skill appears in `kit/skills/INDEX.md`; every triggered rule appears in this index.
-- `platforms/tools/check.sh` and `platforms/tools/smoke.sh` pass before a PR.
+- The repository root contains no agent-facing content; `.devin-plugin/plugin.json` only requires the real plugin.
+- Every directory under `plugins/` is a plugin with `.devin-plugin/plugin.json`.
+- `VERSION`, the meta-plugin manifest and all plugin manifests agree.
+- Marketplace source path is `./plugins/ai-kit`; plugin content has no managed duplicate.
+- Every skill appears in `plugins/ai-kit/skills/INDEX.md`; every triggered rule appears in this index.

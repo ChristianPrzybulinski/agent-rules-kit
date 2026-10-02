@@ -1,0 +1,12 @@
+{
+  "name": "agent-rules-kit",
+  "version": "8.0.0",
+  "description": "Meta-plugin: installs the ai-kit plugin from plugins/ai-kit for Devin Cloud, CLI and Desktop",
+  "requiredPlugins": [
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/ai-kit"
+    }
+  ]
+}
