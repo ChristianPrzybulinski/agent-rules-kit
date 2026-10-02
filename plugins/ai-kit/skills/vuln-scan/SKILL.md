@@ -4,6 +4,7 @@ description: Scan for CVEs, secrets and changed endpoints. Use when preparing a 
 argument-hint: "[deps | secrets | endpoints | all] (default: all)"
 triggers:
   - user
+agent: reviewer
 allowed-tools:
   - read
   - grep

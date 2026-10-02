@@ -5,6 +5,7 @@ argument-hint: "[symptom description | log/issue link]"
 triggers:
   - user
   - model
+subagent: true
 allowed-tools:
   - read
   - grep

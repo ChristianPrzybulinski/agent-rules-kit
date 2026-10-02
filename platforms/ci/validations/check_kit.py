@@ -9,6 +9,7 @@ import glob
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -202,7 +203,8 @@ if plugins_root.exists():
             fail(rel(entry), "plugin directory missing .devin-plugin/plugin.json")
 
 allowed_plugin_entries = {
-    "AGENTS.md", "INDEX.md", ".devin-plugin", "plugin.json", "rules", "skills", "templates",
+    "AGENTS.md", "INDEX.md", ".devin-plugin", "plugin.json", "agents", "hooks.json",
+    "rules", "skills", "templates",
 }
 if PLUGIN.exists():
     for entry in sorted(PLUGIN.iterdir()):
@@ -262,7 +264,119 @@ if agents_md.exists():
         fail("plugins/ai-kit/AGENTS.md", f"{agents_lines} lines (>{AGENTS_MAX_LINES})")
 
 
-# --- 3. Skills ---
+# --- 3. Subagents and hooks ---
+agents_root = PLUGIN / "agents"
+agent_names = set()
+if agents_root.exists():
+    for profile in sorted(agents_root.iterdir()):
+        if not profile.is_file() or profile.suffix != ".md":
+            fail(rel(profile), "agents/ holds only *.md profile files; subdirectories are forbidden")
+            continue
+        data, _ = frontmatter(profile)
+        if data is None:
+            fail(rel(profile), "missing/invalid frontmatter")
+            continue
+        validate_schema(profile, data, "agent.schema.json")
+        if data.get("name") != profile.stem:
+            fail(rel(profile), f"name='{data.get('name')}' != file stem '{profile.stem}'")
+        description = data.get("description")
+        if not isinstance(description, str) or not DESCRIPTION_MIN <= len(description) <= DESCRIPTION_MAX:
+            fail(rel(profile), f"description must be {DESCRIPTION_MIN}-{DESCRIPTION_MAX} characters")
+        tools = data.get("allowed-tools")
+        if not isinstance(tools, list) or not tools:
+            fail(rel(profile), "allowed-tools must be a non-empty list")
+        elif not set(tools) <= {"read", "grep", "glob", "exec"}:
+            fail(rel(profile), "allowed-tools contains an unsupported tool")
+        if isinstance(data.get("name"), str):
+            agent_names.add(data["name"])
+
+hooks_path = PLUGIN / "hooks.json"
+guard_commands = []
+if hooks_path.exists():
+    hooks_data = read_json(hooks_path)
+    if not isinstance(hooks_data, dict):
+        fail(rel(hooks_path), "top level must be an object")
+    else:
+        unknown_events = set(hooks_data) - {"PreToolUse"}
+        if unknown_events:
+            fail(rel(hooks_path), f"unsupported top-level hooks: {sorted(unknown_events)}")
+        pre_tool_hooks = hooks_data.get("PreToolUse", [])
+        if not isinstance(pre_tool_hooks, list):
+            fail(rel(hooks_path), "PreToolUse must be an array")
+        else:
+            for group_index, group in enumerate(pre_tool_hooks):
+                if not isinstance(group, dict):
+                    fail(rel(hooks_path), f"PreToolUse[{group_index}] must be an object")
+                    continue
+                matcher = group.get("matcher")
+                if not isinstance(matcher, str) or not matcher:
+                    fail(rel(hooks_path), f"PreToolUse[{group_index}] matcher missing")
+                hooks = group.get("hooks")
+                if not isinstance(hooks, list):
+                    fail(rel(hooks_path), f"PreToolUse[{group_index}].hooks must be an array")
+                    continue
+                for hook_index, hook in enumerate(hooks):
+                    location = f"PreToolUse[{group_index}].hooks[{hook_index}]"
+                    if not isinstance(hook, dict):
+                        fail(rel(hooks_path), f"{location} must be an object")
+                        continue
+                    if hook.get("type") != "command":
+                        fail(rel(hooks_path), f"{location} type must be 'command'")
+                    timeout = hook.get("timeout")
+                    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout > 10:
+                        fail(rel(hooks_path), f"{location} timeout must be at most 10")
+                    command = hook.get("command")
+                    if not isinstance(command, str) or not command:
+                        fail(rel(hooks_path), f"{location} command missing")
+                    elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
+                        guard_commands.append((command, timeout))
+
+hook_cases_path = KIT / "platforms/ci/validations/hook_guard_cases.json"
+hook_cases = read_json(hook_cases_path) if hook_cases_path.exists() else None
+if hook_cases is None:
+    if not hook_cases_path.exists():
+        fail(rel(hook_cases_path), "hook guard cases missing")
+elif not isinstance(hook_cases, dict):
+    fail(rel(hook_cases_path), "top level must be an object")
+else:
+    blocked_cases = hook_cases.get("blocked")
+    allowed_cases = hook_cases.get("allowed")
+    if not isinstance(blocked_cases, list):
+        fail(rel(hook_cases_path), "blocked must be an array")
+        blocked_cases = []
+    elif len(blocked_cases) < 10:
+        fail(rel(hook_cases_path), "blocked must contain at least 10 cases")
+    if not isinstance(allowed_cases, list):
+        fail(rel(hook_cases_path), "allowed must be an array")
+        allowed_cases = []
+    elif len(allowed_cases) < 10:
+        fail(rel(hook_cases_path), "allowed must contain at least 10 cases")
+    for command, timeout in guard_commands:
+        for expected, cases in (("blocked", blocked_cases), ("allowed", allowed_cases)):
+            for case in cases:
+                if not isinstance(case, str):
+                    fail(rel(hook_cases_path), f"{expected} case must be a string: {case!r}")
+                    continue
+                payload = json.dumps({"tool_name": "exec", "tool_input": {"command": case}})
+                try:
+                    result = subprocess.run(
+                        ["bash", "-c", command], input=payload, text=True,
+                        capture_output=True, timeout=timeout, check=False)
+                except subprocess.TimeoutExpired:
+                    fail(rel(hook_cases_path), f"{expected} case timed out: {case}")
+                    continue
+                if expected == "blocked":
+                    try:
+                        output = json.loads(result.stdout)
+                    except json.JSONDecodeError:
+                        output = None
+                    if result.returncode != 2 or not isinstance(output, dict) or output.get("decision") != "block":
+                        fail(rel(hook_cases_path), f"blocked case not blocked: {case}")
+                elif result.returncode != 0 or result.stdout != "":
+                    fail(rel(hook_cases_path), f"allowed case not allowed cleanly: {case}")
+
+
+# --- 4. Skills ---
 skills_root = PLUGIN / "skills"
 skill_names = set()
 skill_descriptions = []
@@ -297,6 +411,12 @@ if skills_root.exists():
         if (skill_dir / "VENDOR.md").exists():
             continue
         validate_schema(skill_file, data, "skill.schema.json")
+        if "subagent" in data and "agent" in data:
+            fail(rel(skill_file), "skill may not set both 'subagent' and 'agent'")
+        agent = data.get("agent")
+        allowed_agents = {"subagent_explore", "subagent_general"} | agent_names
+        if agent is not None and agent not in allowed_agents:
+            fail(rel(skill_file), f"agent '{agent}' is not a built-in or profile name")
         user_only = data.get("triggers") == ["user"]
         codex_policy = skill_dir / "agents/openai.yaml"
         policy_disabled = False
@@ -344,7 +464,7 @@ if description_total > DESCRIPTIONS_BUDGET:
     fail("skills", f"description budget {description_total} chars (>{DESCRIPTIONS_BUDGET}); longest: {longest}")
 
 
-# --- 4. Rules ---
+# --- 5. Rules ---
 rules_root = PLUGIN / "rules"
 for rule_file in sorted(rules_root.glob("*.md")) if rules_root.exists() else []:
     counts["rules"] += 1
@@ -365,7 +485,7 @@ for rule_file in sorted(rules_root.glob("*.md")) if rules_root.exists() else []:
         fail(rel(rule_file), f"body has {body_lines} lines (>{RULE_BODY_MAX_LINES})")
 
 
-# --- 5. Templates ---
+# --- 6. Templates ---
 templates_root = PLUGIN / "templates"
 templates_index = templates_root / "INDEX.md"
 templates_index_text = templates_index.read_text(encoding="utf-8") if templates_index.exists() else ""
@@ -397,7 +517,7 @@ for template in sorted(templates_root.glob("*.md")) if templates_root.exists() e
                 fail(rel(template), f"frontmatter missing schema-required fields: {sorted(missing)}")
 
 
-# --- 6. Indexes ---
+# --- 7. Indexes ---
 def exempt_dir(directory):
     directory = Path(directory)
     for skill_dir in skill_dirs:
@@ -464,7 +584,7 @@ for stray in sorted(rules_root.iterdir()) if rules_root.exists() else []:
         fail(rel(stray), "rules/ holds rule files only — Devin loads every .md in it as a rule")
 
 
-# --- 7. Relative links ---
+# --- 8. Relative links ---
 link_re = re.compile(r"\]\(([^)\s#]+)(#[^)]*)?\)")
 
 
@@ -546,7 +666,7 @@ for markdown_file in sorted(set(path for path in backtick_files if path.exists()
                     break
 
 
-# --- 8. Vendor skills lock ---
+# --- 9. Vendor skills lock ---
 lock = KIT / "platforms/kits/third-party/skills.lock"
 lock_schema = load_schema("skills-lock.schema.json")
 if lock.exists():
@@ -577,7 +697,7 @@ if lock.exists():
             fail(rel(vendor_file), f"sha diverges from the lock ({obj['sha'][:7]})")
 
 
-# --- 9. Paragraph duplication ---
+# --- 10. Paragraph duplication ---
 duplication_files = []
 if agents_md.exists():
     duplication_files.append(agents_md)

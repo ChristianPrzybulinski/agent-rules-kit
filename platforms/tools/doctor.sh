@@ -15,6 +15,10 @@ fix() {
   printf 'fix: %s\n' "$*"
 }
 
+warn() {
+  printf 'warn: %s\n' "$*"
+}
+
 fail() {
   printf 'FAIL: %s\n' "$*" >&2
   FAILURES=$((FAILURES + 1))
@@ -282,6 +286,37 @@ if [[ -f "$lock" ]]; then
   fi
 else
   ok "devin plugin lock absent — skipped"
+fi
+
+devin_config="$HOME/.config/devin/config.json"
+if [[ ! -f "$devin_config" ]]; then
+  ok "devin config absent — skipped"
+elif expected_read_config_from="$(python3 - "$devin_config" <<'PY'
+import json
+import sys
+
+expected = {
+    "agents_standard": True,
+    "cursor": False,
+    "windsurf": False,
+    "claude": False,
+    "copilot": False,
+    "opencode": False,
+    "zed": False,
+}
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        actual = json.load(handle).get("read_config_from")
+except (OSError, json.JSONDecodeError, AttributeError):
+    actual = None
+print(json.dumps(expected))
+raise SystemExit(0 if actual == expected else 1)
+PY
+)"; then
+  ok "devin read_config_from limited to agents_standard"
+else
+  warn "devin read_config_from imports other tools' configs — add to ~/.config/devin/config.json:"
+  printf '%s\n' "$expected_read_config_from"
 fi
 
 # 4. Legacy destinations

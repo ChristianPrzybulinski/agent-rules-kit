@@ -13,6 +13,7 @@ A layout or installation-destination change is a SemVer MAJOR change. There is n
 | rule | create `plugins/ai-kit/rules/<name>.md` with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; list it in the table of `plugins/ai-kit/INDEX.md` (never add non-rule files to `plugins/ai-kit/rules/` — Devin loads every `.md` there as a rule) |
 | skill | copy [`../plugins/ai-kit/templates/kit-skill.md`](../plugins/ai-kit/templates/kit-skill.md) to `plugins/ai-kit/skills/<name>/SKILL.md`; for an exactly `[user]` trigger add `plugins/ai-kit/skills/<name>/agents/openai.yaml` with implicit invocation disabled; add a verbatim description row to `plugins/ai-kit/skills/INDEX.md` |
 | reference | copy [`../plugins/ai-kit/templates/kit-reference.md`](../plugins/ai-kit/templates/kit-reference.md) to `plugins/ai-kit/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
+| subagent profile | add `plugins/ai-kit/agents/<name>.md` with frontmatter validated by `platforms/ci/schemas/agent.schema.json`; profiles are local-Devin only |
 | template | add `plugins/ai-kit/templates/<prefix>-<name>.md`, then list it in `plugins/ai-kit/templates/INDEX.md` |
 
 A rule uses this frontmatter shape:
@@ -30,6 +31,8 @@ globs:
 `globs` must be a YAML sequence: Devin rejects a comma-separated string (`YAML parse error: globs: invalid type: string ..., expected a sequence`).
 
 Use `kit-index.md` for a directory listing or `kit-readme.md` for explanation; never put both in one directory.
+
+Hooks are a guard, not a guardrail: they fail open, load only in local Devin and cannot replace user confirmation or the always-on safety boundaries.
 
 ## Third-party skills
 
