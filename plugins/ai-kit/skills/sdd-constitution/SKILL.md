@@ -4,6 +4,7 @@ description: SDD step 0 — project constitution and spec index. Use when starti
 argument-hint: "[product description and stack, or 'review']"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - glob

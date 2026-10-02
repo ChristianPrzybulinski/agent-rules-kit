@@ -3,16 +3,24 @@
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/platforms/ci/schemas/agent.schema.json",
   "title": "Frontmatter of plugins/ai-kit/agents/*.md",
   "type": "object",
-  "required": ["name", "description", "allowed-tools"],
+  "required": ["name", "description", "allowed-tools", "tools"],
   "additionalProperties": false,
   "properties": {
     "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,40}$", "description": "Same as the file stem." },
     "description": { "type": "string", "minLength": 40, "maxLength": 160 },
+    "model": { "type": "string" },
+    "omitClaudeMd": { "type": "boolean" },
     "allowed-tools": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "enum": ["read", "grep", "glob", "exec"] }
+      "items": { "type": "string", "enum": ["read", "grep", "glob", "exec", "edit", "write"] }
+    },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["Read", "Grep", "Glob", "Bash", "Edit", "Write"] }
     }
   }
 }

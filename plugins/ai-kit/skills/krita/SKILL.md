@@ -4,6 +4,7 @@ description: Krita pixel-art workflow. Use when editing pixel art, retouching sp
 argument-hint: "[setup | export | spritesheet | automate]"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - exec

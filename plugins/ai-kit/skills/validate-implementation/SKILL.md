@@ -6,6 +6,8 @@ triggers:
   - user
   - model
 agent: reviewer
+context: fork
+background: false
 allowed-tools:
   - read
   - grep

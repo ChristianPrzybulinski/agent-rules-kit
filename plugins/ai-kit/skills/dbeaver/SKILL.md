@@ -4,6 +4,7 @@ description: DBeaver GUI inspection. Use when inspecting a database, exporting t
 argument-hint: "[connect | export | er-diagram]"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - exec

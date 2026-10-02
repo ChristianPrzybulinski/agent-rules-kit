@@ -174,11 +174,12 @@ def read_json(path):
 # --- 1. Layout ---
 REQUIRED_ROOT_PATHS = [
     "INDEX.md", "README.md", "VERSION", ".devin-plugin/plugin.json",
-    ".agents/plugins/marketplace.json", "plugins", "platforms/tools",
+    ".agents/plugins/marketplace.json", ".claude-plugin/marketplace.json", "plugins", "platforms/tools",
     "platforms/ci/schemas", "platforms/ci/validations", "platforms/kits", "docs",
 ]
 REQUIRED_PLUGIN_PATHS = [
-    "AGENTS.md", "INDEX.md", ".devin-plugin/plugin.json", "plugin.json", "rules", "skills", "templates",
+    "AGENTS.md", "INDEX.md", ".devin-plugin/plugin.json", ".claude-plugin/plugin.json",
+    "plugin.json", "agents", "hooks/hooks.json", "rules", "skills", "templates",
 ]
 FORBIDDEN_ROOT_PATHS = [
     "AGENTS.md", "rules", "skills", "templates", "agents", "hooks.json", ".mcp.json", "mcp.json",
@@ -203,13 +204,16 @@ if plugins_root.exists():
             fail(rel(entry), "plugin directory missing .devin-plugin/plugin.json")
 
 allowed_plugin_entries = {
-    "AGENTS.md", "INDEX.md", ".devin-plugin", "plugin.json", "agents", "hooks.json",
+    "AGENTS.md", "INDEX.md", ".devin-plugin", ".claude-plugin", "plugin.json", "agents", "hooks",
     "rules", "skills", "templates",
 }
 if PLUGIN.exists():
     for entry in sorted(PLUGIN.iterdir()):
         if entry.name not in allowed_plugin_entries:
             fail(rel(entry), f"reserved/unknown plugin-root entry: {entry.name}")
+legacy_hooks_path = PLUGIN / "hooks.json"
+if legacy_hooks_path.exists():
+    fail(rel(legacy_hooks_path), "root hooks.json is forbidden; use hooks/hooks.json")
 
 version = (KIT / "VERSION").read_text(encoding="utf-8").strip() if (KIT / "VERSION").exists() else ""
 if version and not re.match(r"^\d+\.\d+\.\d+$", version):
@@ -232,7 +236,10 @@ if meta_manifest is not None:
 
 if plugins_root.exists():
     for plugin_directory in sorted(path for path in plugins_root.iterdir() if path.is_dir()):
-        for manifest_path in (plugin_directory / ".devin-plugin/plugin.json", plugin_directory / "plugin.json"):
+        for manifest_path in (
+                plugin_directory / ".devin-plugin/plugin.json",
+                plugin_directory / ".claude-plugin/plugin.json",
+                plugin_directory / "plugin.json"):
             if not manifest_path.exists():
                 continue
             manifest = read_json(manifest_path)
@@ -250,6 +257,29 @@ if marketplace is not None:
         source = plugins[0].get("source") or {}
         if source.get("path") != "./plugins/ai-kit":
             fail(".agents/plugins/marketplace.json", "plugins[0].source.path != './plugins/ai-kit'")
+
+claude_manifest_path = PLUGIN / ".claude-plugin/plugin.json"
+claude_manifest = read_json(claude_manifest_path) if claude_manifest_path.exists() else None
+if claude_manifest is not None:
+    if claude_manifest.get("name") != "ai-kit":
+        fail(rel(claude_manifest_path), "name != 'ai-kit'")
+    if claude_manifest.get("version") != version:
+        fail(rel(claude_manifest_path), f"version '{claude_manifest.get('version')}' != VERSION '{version}'")
+
+claude_marketplace_path = KIT / ".claude-plugin/marketplace.json"
+claude_marketplace = read_json(claude_marketplace_path) if claude_marketplace_path.exists() else None
+if claude_marketplace is not None:
+    entries = claude_marketplace.get("plugins")
+    if not isinstance(entries, list) or len(entries) != 1 or not isinstance(entries[0], dict):
+        fail(rel(claude_marketplace_path), "plugins must contain exactly one entry")
+    elif claude_manifest is not None:
+        entry = entries[0]
+        if entry.get("name") != claude_manifest.get("name"):
+            fail(rel(claude_marketplace_path), "plugin name differs from Claude plugin manifest")
+        if entry.get("source") != "./plugins/ai-kit":
+            fail(rel(claude_marketplace_path), "plugin source != './plugins/ai-kit'")
+        if entry.get("version") != version:
+            fail(rel(claude_marketplace_path), f"plugin version '{entry.get('version')}' != VERSION '{version}'")
 
 for script in sorted((KIT / "platforms").rglob("*.sh")):
     if not os.access(script, os.X_OK):
@@ -285,24 +315,34 @@ if agents_root.exists():
         tools = data.get("allowed-tools")
         if not isinstance(tools, list) or not tools:
             fail(rel(profile), "allowed-tools must be a non-empty list")
-        elif not set(tools) <= {"read", "grep", "glob", "exec"}:
+        elif not set(tools) <= {"read", "grep", "glob", "exec", "edit", "write"}:
             fail(rel(profile), "allowed-tools contains an unsupported tool")
+        claude_tools = data.get("tools")
+        tool_names = {"read": "Read", "grep": "Grep", "glob": "Glob", "exec": "Bash", "edit": "Edit", "write": "Write"}
+        expected_claude_tools = [tool_names[tool] for tool in tools] if isinstance(tools, list) \
+            and all(tool in tool_names for tool in tools) else []
+        if not isinstance(claude_tools, list) or claude_tools != expected_claude_tools:
+            fail(rel(profile), "tools must map 1:1 and in order from allowed-tools")
         if isinstance(data.get("name"), str):
             agent_names.add(data["name"])
 
-hooks_path = PLUGIN / "hooks.json"
+hooks_path = PLUGIN / "hooks/hooks.json"
 guard_commands = []
 if hooks_path.exists():
     hooks_data = read_json(hooks_path)
-    if not isinstance(hooks_data, dict):
-        fail(rel(hooks_path), "top level must be an object")
+    if not isinstance(hooks_data, dict) or set(hooks_data) != {"hooks"}:
+        fail(rel(hooks_path), "top level must contain only the 'hooks' key")
     else:
-        unknown_events = set(hooks_data) - {"PreToolUse"}
+        hook_events = hooks_data.get("hooks")
+        if not isinstance(hook_events, dict):
+            fail(rel(hooks_path), "hooks must be an object")
+            hook_events = {}
+        unknown_events = set(hook_events) - {"PreToolUse"}
         if unknown_events:
-            fail(rel(hooks_path), f"unsupported top-level hooks: {sorted(unknown_events)}")
-        pre_tool_hooks = hooks_data.get("PreToolUse", [])
+            fail(rel(hooks_path), f"unsupported hooks: {sorted(unknown_events)}")
+        pre_tool_hooks = hook_events.get("PreToolUse", [])
         if not isinstance(pre_tool_hooks, list):
-            fail(rel(hooks_path), "PreToolUse must be an array")
+            fail(rel(hooks_path), "hooks.PreToolUse must be an array")
         else:
             for group_index, group in enumerate(pre_tool_hooks):
                 if not isinstance(group, dict):
@@ -311,6 +351,13 @@ if hooks_path.exists():
                 matcher = group.get("matcher")
                 if not isinstance(matcher, str) or not matcher:
                     fail(rel(hooks_path), f"PreToolUse[{group_index}] matcher missing")
+                else:
+                    try:
+                        matches_both_tools = all(re.fullmatch(matcher, tool) for tool in ("exec", "Bash"))
+                    except re.error:
+                        matches_both_tools = False
+                    if not matches_both_tools:
+                        fail(rel(hooks_path), f"PreToolUse[{group_index}] matcher must match exec and Bash")
                 hooks = group.get("hooks")
                 if not isinstance(hooks, list):
                     fail(rel(hooks_path), f"PreToolUse[{group_index}].hooks must be an array")
@@ -414,9 +461,16 @@ if skills_root.exists():
         if "subagent" in data and "agent" in data:
             fail(rel(skill_file), "skill may not set both 'subagent' and 'agent'")
         agent = data.get("agent")
-        allowed_agents = {"subagent_explore", "subagent_general"} | agent_names
-        if agent is not None and agent not in allowed_agents:
-            fail(rel(skill_file), f"agent '{agent}' is not a built-in or profile name")
+        if agent is not None and agent not in agent_names:
+            fail(rel(skill_file), f"agent '{agent}' has no plugins/ai-kit/agents profile")
+        uses_subagent = data.get("subagent") is True or agent is not None
+        context_fork = data.get("context") == "fork"
+        background_false = "background" in data and data.get("background") is False
+        if uses_subagent and not (context_fork and background_false):
+            fail(rel(skill_file), "subagent skill requires context: fork and background: false")
+        if context_fork and not uses_subagent:
+            fail(rel(skill_file), "context: fork requires subagent: true or agent")
+
         user_only = data.get("triggers") == ["user"]
         codex_policy = skill_dir / "agents/openai.yaml"
         policy_disabled = False
@@ -431,10 +485,9 @@ if skills_root.exists():
                 policy_disabled = bool(re.search(
                     r"^\s*allow_implicit_invocation:\s*false\s*$",
                     codex_policy.read_text(encoding="utf-8"), re.MULTILINE))
-        if user_only and not policy_disabled:
-            fail(rel(codex_policy), "user-only skill requires allow_implicit_invocation: false")
-        if not user_only and policy_disabled:
-            fail(rel(codex_policy), "model-triggered skill must allow implicit invocation")
+        claude_disabled = data.get("disable-model-invocation") is True
+        if len({user_only, policy_disabled, claude_disabled}) != 1:
+            fail(rel(skill_file), "user-only parity requires triggers [user], Codex policy false, and disable-model-invocation: true")
         if lines > SKILL_MAX_LINES:
             fail(rel(skill_file), f"{lines} lines (>{SKILL_MAX_LINES})")
         if "Use when" not in description:
@@ -480,6 +533,8 @@ for rule_file in sorted(rules_root.glob("*.md")) if rules_root.exists() else []:
         fail(rel(rule_file), "trigger 'glob' requires 'globs'")
     if trigger != "glob" and "globs" in data:
         fail(rel(rule_file), "'globs' is allowed only with trigger 'glob'")
+    if data.get("paths") != data.get("globs"):
+        fail(rel(rule_file), "paths must equal globs")
     body_lines = body_line_count(rule_file)
     if body_lines > RULE_BODY_MAX_LINES:
         fail(rel(rule_file), f"body has {body_lines} lines (>{RULE_BODY_MAX_LINES})")

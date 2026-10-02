@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Updates the kit clone and Codex marketplace plugin. Usage: refresh.sh
+# Updates the kit clone plus Codex and Claude marketplace plugins. Usage: refresh.sh
 set -euo pipefail
 
 KIT="${AI_KIT_DIR:-$HOME/.ai-kit}"
@@ -11,6 +11,30 @@ warn() {
 fail() {
   printf 'FAIL: refresh: %s\n' "$*" >&2
   exit 1
+}
+
+json_contains() {
+  local payload="$1"
+  local needle="$2"
+  python3 - "$needle" "$payload" <<'PY'
+import json
+import sys
+
+try:
+    data = json.loads(sys.argv[2])
+except json.JSONDecodeError:
+    raise SystemExit(1)
+needle = sys.argv[1]
+def contains(value):
+    if isinstance(value, str):
+        return value == needle
+    if isinstance(value, list):
+        return any(contains(item) for item in value)
+    if isinstance(value, dict):
+        return any(contains(item) for item in value.values())
+    return False
+raise SystemExit(0 if contains(data) else 1)
+PY
 }
 
 codex_bin() {
@@ -72,6 +96,21 @@ if [[ -n "$codex" ]]; then
     run_step "codex marketplace upgrade failed" "$codex" plugin marketplace upgrade ai-kit
   else
     warn "codex marketplace ai-kit not registered — run platforms/tools/bootstrap.sh"
+  fi
+fi
+
+if command -v claude >/dev/null 2>&1; then
+  claude_marketplaces="$(claude plugin marketplace list --json 2>/dev/null || true)"
+  if json_contains "$claude_marketplaces" "ai-kit"; then
+    run_step "claude marketplace update failed" claude plugin marketplace update ai-kit --json
+    claude_plugins="$(claude plugin list --json 2>/dev/null || true)"
+    if json_contains "$claude_plugins" "ai-kit@ai-kit"; then
+      run_step "claude plugin update failed" claude plugin update ai-kit@ai-kit --json
+    else
+      warn "claude plugin ai-kit@ai-kit not installed — run platforms/tools/bootstrap.sh"
+    fi
+  else
+    warn "claude marketplace ai-kit not registered — run platforms/tools/bootstrap.sh"
   fi
 fi
 

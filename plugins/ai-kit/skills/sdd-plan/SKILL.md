@@ -4,6 +4,7 @@ description: SDD step 5 — technical FEAT plan and decisions. Use when clarific
 argument-hint: "FEAT-nnn [technical constraints]"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - glob

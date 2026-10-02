@@ -4,7 +4,10 @@ description: Scan for CVEs, secrets and changed endpoints. Use when preparing a 
 argument-hint: "[deps | secrets | endpoints | all] (default: all)"
 triggers:
   - user
+disable-model-invocation: true
 agent: reviewer
+context: fork
+background: false
 allowed-tools:
   - read
   - grep

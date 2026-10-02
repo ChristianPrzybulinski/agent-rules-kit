@@ -5,7 +5,10 @@ The validated layout and routing test live in [`../INDEX.md`](../INDEX.md). Thes
 ## Principles
 
 - **Single source: `plugins/ai-kit/` is the real plugin root.** The repository root follows Cognition's team-marketplace pattern: a content-free meta-plugin requires it through `git-subdir`; root tooling/documentation maintains it. There is no generated distribution tree.
-- **Plugin-first on every surface.** Devin Cloud and local Devin consume the repository plugin; Codex consumes its marketplace plugin. Machine setup adds only the always-on symlink and the temporary Codex compatibility fallback.
+- **One plugin, three agent families.** `plugins/ai-kit/` is consumed directly by Devin, Codex and Claude Code; manifests adapt discovery without copying rules, skills, agents or hooks.
+- **Shared-key frontmatter.** A file carries each platform's routing keys together: `triggers`/Codex policy/`disable-model-invocation`, `globs`/`paths`, and lowercase/Claude tool names are validated for parity.
+- **One hook file.** `hooks/hooks.json` uses Claude's wrapper because both local Devin and Claude Code load it; one command and one case table prevent security drift.
+- **Plugin-first on every surface.** Devin Cloud and local Devin consume the repository plugin; Codex and Claude Code consume their marketplace plugins. Machine setup adds only zero-copy instruction/rule symlinks and the temporary Codex compatibility fallback.
 - **Minimal always-on context.** `AGENTS.md` keeps only durable routing and boundaries. Procedures and detail load through skills or triggered rules instead of consuming every message.
 - **Always-on test.** A line stays in `AGENTS.md` only if the behavior must hold before any skill could trigger—session start, response shape, safety stops or boundaries. Everything else is a skill or a glob rule.
 - **Glob over `model_decision`.** A glob rule costs nothing until a matching file is touched; a `model_decision` rule contributes its description on every message. Use it only when no reliable glob exists.

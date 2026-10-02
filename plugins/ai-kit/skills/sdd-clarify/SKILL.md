@@ -4,6 +4,7 @@ description: SDD step 2 — resolve ambiguous FEAT criteria. Use when a FEAT has
 argument-hint: "FEAT-nnn"
 triggers:
   - user
+disable-model-invocation: true
 allowed-tools:
   - read
   - edit

@@ -108,17 +108,36 @@ fi
 [[ ! -e "$TEST_HOME/.config/agent-rules-kit" ]] || fail "legacy state survived"
 [[ -f "$TEST_HOME/.agents/skills/my-own/SKILL.md" ]] || fail "unmarked user skill was removed"
 
-printf '%s\n' '{}' > "$TEST_HOME/.config/devin/config.json"
-if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
-    "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-devin-config-warn.out" 2>&1; then
-  cat "$ROOT/doctor-devin-config-warn.out" >&2
-  fail "doctor warning changed its exit code"
-fi
-grep -Fq "warn: devin read_config_from imports other tools' configs — add to ~/.config/devin/config.json:" \
-  "$ROOT/doctor-devin-config-warn.out" || fail "Devin import warning was not reported"
-
-printf '%s\n' '{"read_config_from":{"agents_standard":true,"cursor":false,"windsurf":false,"claude":false,"copilot":false,"opencode":false,"zed":false}}' \
+printf '%s\n' '{"version":1,"extra":{"keep":true},"read_config_from":{"claude":false,"cursor":true}}' \
   > "$TEST_HOME/.config/devin/config.json"
+if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
+    "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-devin-config-merge.out" 2>&1; then
+  cat "$ROOT/doctor-devin-config-merge.out" >&2
+  fail "doctor failed to merge Devin imports"
+fi
+grep -Fq 'fix: devin read_config_from ' "$ROOT/doctor-devin-config-merge.out" \
+  || fail "Devin import merge was not reported"
+python3 - "$TEST_HOME/.config/devin/config.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+assert data["version"] == 1
+assert data["extra"] == {"keep": True}
+assert data["read_config_from"] == {
+    "agents_standard": True,
+    "cursor": False,
+    "windsurf": False,
+    "claude": False,
+    "copilot": False,
+    "opencode": False,
+    "zed": False,
+}
+assert path.read_text(encoding="utf-8").endswith("\n")
+PY
+cp "$TEST_HOME/.config/devin/config.json" "$ROOT/devin-config-before"
 if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
     "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-devin-config-ok.out" 2>&1; then
   cat "$ROOT/doctor-devin-config-ok.out" >&2
@@ -126,6 +145,8 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-ki
 fi
 grep -Fq 'ok: devin read_config_from limited to agents_standard' "$ROOT/doctor-devin-config-ok.out" \
   || fail "narrowed Devin imports were not reported"
+cmp -s "$ROOT/devin-config-before" "$TEST_HOME/.config/devin/config.json" \
+  || fail "Devin config merge was not idempotent"
 
 FOREIGN_HOME="$ROOT/foreign-home"
 mkdir -p "$FOREIGN_HOME/.codex"
@@ -221,6 +242,48 @@ case "$*" in
 esac
 STUB
 chmod +x "$STUB_BIN/codex"
+cat > "$STUB_BIN/claude" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+state="${STUB_STATE_DIR:?}"
+case "$*" in
+  "plugin marketplace list --json")
+    if [[ -f "$state/claude-marketplace" ]]; then
+      echo '[{"name":"ai-kit"}]'
+    else
+      echo '[]'
+    fi
+    ;;
+  "plugin marketplace add ChristianPrzybulinski/agent-rules-kit --json")
+    touch "$state/claude-marketplace"
+    echo '{"name":"ai-kit"}'
+    ;;
+  "plugin list --json")
+    if [[ -f "$state/claude-plugin" ]]; then
+      echo '[{"id":"ai-kit@ai-kit"}]'
+    else
+      echo '[]'
+    fi
+    ;;
+  "plugin install ai-kit@ai-kit --json")
+    touch "$state/claude-plugin"
+    echo '{"id":"ai-kit@ai-kit"}'
+    ;;
+  "plugin marketplace update ai-kit --json")
+    touch "$state/claude-marketplace-update"
+    echo '{"name":"ai-kit"}'
+    ;;
+  "plugin update ai-kit@ai-kit --json")
+    touch "$state/claude-plugin-update"
+    echo '{"id":"ai-kit@ai-kit"}'
+    ;;
+  *)
+    echo "unexpected claude stub arguments: $*" >&2
+    exit 2
+    ;;
+esac
+STUB
+chmod +x "$STUB_BIN/claude"
 git clone "$SOURCE" "$STUB_HOME/.ai-kit" >/dev/null 2>&1
 
 stub_path="$STUB_BIN:$RESTRICTED_PATH"
@@ -236,6 +299,18 @@ grep -Fq 'fix: codex plugin ai-kit@ai-kit installed' "$ROOT/doctor-stub-install.
   || fail "stub plugin add was not reported"
 grep -Fq 'ok: codex plugin exposes 43 ai-kit skills' "$ROOT/doctor-stub-install.out" \
   || fail "stub exposed-skill count was not reported"
+grep -Fq 'fix: claude marketplace ai-kit registered' "$ROOT/doctor-stub-install.out" \
+  || fail "Claude marketplace add was not reported"
+grep -Fq 'fix: claude plugin ai-kit@ai-kit installed' "$ROOT/doctor-stub-install.out" \
+  || fail "Claude plugin install was not reported"
+[[ -f "$STUB_STATE/claude-marketplace" && -f "$STUB_STATE/claude-plugin" ]] \
+  || fail "Claude stub install markers missing"
+[[ "$(readlink "$STUB_HOME/.claude/CLAUDE.md")" == "$STUB_HOME/.ai-kit/plugins/ai-kit/AGENTS.md" ]] \
+  || fail "Claude CLAUDE.md symlink has the wrong target"
+for name in java godot spec; do
+  [[ "$(readlink "$STUB_HOME/.claude/rules/ai-kit-$name.md")" == "$STUB_HOME/.ai-kit/plugins/ai-kit/rules/$name.md" ]] \
+    || fail "Claude rule symlink has the wrong target for $name"
+done
 stub_fallback_count=0
 if [[ -d "$STUB_HOME/.codex/skills" ]]; then
   stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d ' ')"
@@ -271,6 +346,8 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
   fail "refresh failed with registered stub marketplace"
 fi
 [[ -f "$STUB_STATE/upgrade" ]] || fail "refresh did not upgrade the stub marketplace"
+[[ -f "$STUB_STATE/claude-marketplace-update" ]] || fail "refresh did not update the Claude marketplace"
+[[ -f "$STUB_STATE/claude-plugin-update" ]] || fail "refresh did not update the Claude plugin"
 
 FOREIGN_LINK_HOME="$ROOT/foreign-link-home"
 mkdir -p "$FOREIGN_LINK_HOME/.codex"
@@ -283,6 +360,65 @@ fi
 grep -q '^FAIL:' "$ROOT/doctor-foreign-link.out" || fail "foreign-symlink failure was not reported"
 [[ "$(readlink "$FOREIGN_LINK_HOME/.codex/AGENTS.md")" == "/tmp/elsewhere.md" ]] \
   || fail "foreign Codex AGENTS.md symlink changed"
+
+guard_command="$(python3 - "$SOURCE/plugins/ai-kit/hooks/hooks.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as handle:
+    print(json.load(handle)["hooks"]["PreToolUse"][0]["hooks"][0]["command"])
+PY
+)"
+set +e
+guard_output="$(printf '%s\n' '{"tool_name":"Bash","tool_input":{"command":"git push --force"}}' \
+  | bash -c "$guard_command" 2>"$ROOT/hook-blocked.err")"
+guard_status=$?
+set -e
+[[ "$guard_status" -eq 2 ]] || fail "hook guard blocked command exited $guard_status"
+[[ "$guard_output" == *'"decision": "block"'* ]] || fail "hook guard block JSON missing"
+grep -Fq 'ai-kit guard: git push --force is destructive' "$ROOT/hook-blocked.err" \
+  || fail "hook guard stderr reason missing"
+allowed_output="$(printf '%s\n' '{"tool_name":"Bash","tool_input":{"command":"git push origin feature/x"}}' \
+  | bash -c "$guard_command")"
+[[ -z "$allowed_output" ]] || fail "hook guard allowed command wrote stdout"
+
+expect_validator_failure() {
+  local label="$1"
+  local expected="$2"
+  local output
+  local status
+  set +e
+  output="$(python3 "$SOURCE/platforms/ci/validations/check_kit.py" 2>&1)"
+  status=$?
+  set -e
+  [[ "$status" -ne 0 ]] || fail "$label unexpectedly passed validation"
+  grep -Fq "$expected" <<<"$output" || fail "$label did not report: $expected"
+}
+
+cp "$SOURCE/plugins/ai-kit/hooks/hooks.json" "$SOURCE/plugins/ai-kit/hooks.json"
+expect_validator_failure "root hooks.json" "root hooks.json is forbidden"
+rm "$SOURCE/plugins/ai-kit/hooks.json"
+
+skill="$SOURCE/plugins/ai-kit/skills/asset-import/SKILL.md"
+cp "$skill" "$ROOT/asset-import.before"
+python3 - "$skill" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text(encoding="utf-8").replace("disable-model-invocation: true\n", "", 1), encoding="utf-8")
+PY
+expect_validator_failure "user-only Claude parity" "user-only parity requires"
+cp "$ROOT/asset-import.before" "$skill"
+
+profile="$SOURCE/plugins/ai-kit/agents/researcher.md"
+cp "$profile" "$ROOT/researcher.before"
+python3 - "$profile" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text(encoding="utf-8").replace("  - Read\n", "  - Bash\n", 1), encoding="utf-8")
+PY
+expect_validator_failure "agent tool mapping" "tools must map 1:1"
+cp "$ROOT/researcher.before" "$profile"
 
 python3 - "$TEST_HOME/.ai-kit" <<'PY'
 import json
@@ -299,8 +435,21 @@ assert meta["requiredPlugins"] == [{
     "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
     "path": "plugins/ai-kit",
 }]
-for manifest in (kit / "plugins/ai-kit/.devin-plugin/plugin.json", kit / "plugins/ai-kit/plugin.json"):
+for manifest in (
+        kit / "plugins/ai-kit/.devin-plugin/plugin.json",
+        kit / "plugins/ai-kit/.claude-plugin/plugin.json",
+        kit / "plugins/ai-kit/plugin.json"):
     assert json.loads(manifest.read_text(encoding="utf-8"))["version"] == version
+claude_plugin = json.loads((kit / "plugins/ai-kit/.claude-plugin/plugin.json").read_text(encoding="utf-8"))
+claude_marketplace = json.loads((kit / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
+assert claude_plugin["name"] == "ai-kit"
+assert claude_marketplace["plugins"] == [{
+    "name": "ai-kit",
+    "source": "./plugins/ai-kit",
+    "description": claude_plugin["description"],
+    "version": version,
+    "category": "productivity",
+}]
 marketplace = json.loads((kit / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
 assert marketplace["plugins"][0]["source"]["path"] == "./plugins/ai-kit"
 PY

@@ -6,6 +6,8 @@ triggers:
   - user
   - model
 subagent: true
+context: fork
+background: false
 allowed-tools:
   - read
   - grep

@@ -33,6 +33,30 @@ finish() {
   exit 1
 }
 
+json_contains() {
+  local payload="$1"
+  local needle="$2"
+  python3 - "$needle" "$payload" <<'PY'
+import json
+import sys
+
+try:
+    data = json.loads(sys.argv[2])
+except json.JSONDecodeError:
+    raise SystemExit(1)
+needle = sys.argv[1]
+def contains(value):
+    if isinstance(value, str):
+        return value == needle
+    if isinstance(value, list):
+        return any(contains(item) for item in value)
+    if isinstance(value, dict):
+        return any(contains(item) for item in value.values())
+    return False
+raise SystemExit(0 if contains(data) else 1)
+PY
+}
+
 codex_bin() {
   local candidate
   [[ "${AI_KIT_NO_CODEX_CLI:-0}" != "1" ]] || return 1
@@ -94,6 +118,61 @@ ensure_agents_link() {
   fi
   ln -s "$expected" "$destination"
   fix "codex AGENTS.md symlink created"
+}
+
+ensure_claude_links() {
+  local claude_md="$HOME/.claude/CLAUDE.md"
+  local expected_agents="$KIT/plugins/ai-kit/AGENTS.md"
+  local current
+  local backup
+  local name
+  local destination
+  local expected
+  mkdir -p "$HOME/.claude/rules"
+  if [[ -L "$claude_md" ]]; then
+    current="$(readlink "$claude_md")"
+    if [[ "$current" == "$expected_agents" ]]; then
+      ok "claude CLAUDE.md symlink"
+    elif [[ "$current" == "$KIT/"* ]]; then
+      rm "$claude_md"
+      ln -s "$expected_agents" "$claude_md"
+      fix "claude CLAUDE.md symlink repointed from $current to $expected_agents"
+    else
+      fail "$claude_md points to $current, not kit-managed; move it by hand"
+    fi
+  elif [[ -f "$claude_md" ]]; then
+    backup="$claude_md.bak.$(date +%Y%m%d-%H%M%S)"
+    mv "$claude_md" "$backup"
+    ln -s "$expected_agents" "$claude_md"
+    fix "claude CLAUDE.md backed up to $backup and symlinked"
+  elif [[ -e "$claude_md" ]]; then
+    fail "$claude_md is not a file or symlink; remove it by hand"
+  else
+    ln -s "$expected_agents" "$claude_md"
+    fix "claude CLAUDE.md symlink created"
+  fi
+
+  for name in java godot spec; do
+    destination="$HOME/.claude/rules/ai-kit-$name.md"
+    expected="$KIT/plugins/ai-kit/rules/$name.md"
+    if [[ -L "$destination" ]]; then
+      current="$(readlink "$destination")"
+      if [[ "$current" == "$expected" ]]; then
+        ok "claude rule symlink $name"
+      elif [[ "$current" == "$KIT/"* ]]; then
+        rm "$destination"
+        ln -s "$expected" "$destination"
+        fix "claude rule symlink repaired for $name"
+      else
+        fail "$destination points to $current, not kit-managed; move it by hand"
+      fi
+    elif [[ -e "$destination" ]]; then
+      fail "$destination is not a managed symlink; move it by hand"
+    else
+      ln -s "$expected" "$destination"
+      fix "claude rule symlink created for $name"
+    fi
+  done
 }
 
 devin_plugin_record() {
@@ -289,12 +368,13 @@ else
 fi
 
 devin_config="$HOME/.config/devin/config.json"
-if [[ ! -f "$devin_config" ]]; then
-  ok "devin config absent — skipped"
-elif expected_read_config_from="$(python3 - "$devin_config" <<'PY'
+mkdir -p "$(dirname "$devin_config")"
+if ! config_result="$(python3 - "$devin_config" <<'PY'
 import json
 import sys
+from pathlib import Path
 
+path = Path(sys.argv[1])
 expected = {
     "agents_standard": True,
     "cursor": False,
@@ -305,18 +385,34 @@ expected = {
     "zed": False,
 }
 try:
-    with open(sys.argv[1], encoding="utf-8") as handle:
-        actual = json.load(handle).get("read_config_from")
-except (OSError, json.JSONDecodeError, AttributeError):
-    actual = None
-print(json.dumps(expected))
-raise SystemExit(0 if actual == expected else 1)
+    data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"version": 1}
+except (OSError, json.JSONDecodeError) as error:
+    print(error, file=sys.stderr)
+    raise SystemExit(2)
+if not isinstance(data, dict):
+    print("top-level Devin config must be an object", file=sys.stderr)
+    raise SystemExit(2)
+before = data.get("read_config_from")
+status = "unchanged"
+if before != expected:
+    data["read_config_from"] = expected
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    status = "changed"
+print("\t".join((status, json.dumps(before, separators=(",", ":")),
+                 json.dumps(expected, separators=(",", ":")))))
 PY
 )"; then
-  ok "devin read_config_from limited to agents_standard"
+  fail "cannot merge read_config_from into $devin_config"
 else
-  warn "devin read_config_from imports other tools' configs — add to ~/.config/devin/config.json:"
-  printf '%s\n' "$expected_read_config_from"
+  config_status="${config_result%%$'\t'*}"
+  config_values="${config_result#*$'\t'}"
+  before_config="${config_values%%$'\t'*}"
+  after_config="${config_values#*$'\t'}"
+  if [[ "$config_status" == "changed" ]]; then
+    fix "devin read_config_from $before_config → $after_config"
+  else
+    ok "devin read_config_from limited to agents_standard"
+  fi
 fi
 
 # 4. Legacy destinations
@@ -389,7 +485,51 @@ else
   ok "codex not installed — skipped"
 fi
 
-# 6. Kit gates
+# 6. Claude plugin and shared instructions
+if command -v claude >/dev/null 2>&1; then
+  claude_marketplace_ready=1
+  claude_marketplaces="$(claude plugin marketplace list --json 2>/dev/null || true)"
+  if json_contains "$claude_marketplaces" "ai-kit"; then
+    ok "claude marketplace ai-kit registered"
+  elif claude plugin marketplace add ChristianPrzybulinski/agent-rules-kit --json >/dev/null 2>&1; then
+    fix "claude marketplace ai-kit registered"
+  else
+    fail "claude marketplace ai-kit missing and add failed — run: claude plugin marketplace add ChristianPrzybulinski/agent-rules-kit"
+    claude_marketplace_ready=0
+  fi
+
+  claude_plugins="$(claude plugin list --json 2>/dev/null || true)"
+  if json_contains "$claude_plugins" "ai-kit@ai-kit"; then
+    ok "claude plugin ai-kit@ai-kit installed"
+  elif [[ "$claude_marketplace_ready" -eq 1 ]] \
+      && claude plugin install ai-kit@ai-kit --json >/dev/null 2>&1; then
+    fix "claude plugin ai-kit@ai-kit installed"
+  else
+    fail "claude plugin ai-kit@ai-kit missing and install failed — run: claude plugin install ai-kit@ai-kit"
+  fi
+  ensure_claude_links
+
+  if [[ -L "$HOME/.claude/CLAUDE.md" ]]; then
+    claude_import="$(python3 - "$devin_config" <<'PY'
+import json
+import sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        value = (json.load(handle).get("read_config_from") or {}).get("claude")
+except (OSError, json.JSONDecodeError, AttributeError):
+    value = None
+print(json.dumps(value))
+PY
+)"
+    if [[ "$claude_import" != "false" ]]; then
+      fail "$HOME/.claude/CLAUDE.md is linked while Devin read_config_from.claude is not false"
+    fi
+  fi
+else
+  warn "claude not installed — skipped"
+fi
+
+# 7. Kit gates
 validator="$KIT/platforms/ci/validations/check_kit.py"
 agents_limit="$(awk -F= '/^AGENTS_MAX_LINES = / {gsub(/[[:space:]]/, "", $2); print $2; exit}' "$validator")"
 description_budget="$(awk -F= '/^DESCRIPTIONS_BUDGET = / {gsub(/[[:space:]]/, "", $2); print $2; exit}' "$validator")"

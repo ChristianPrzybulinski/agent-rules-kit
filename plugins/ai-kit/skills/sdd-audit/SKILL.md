@@ -6,6 +6,8 @@ triggers:
   - user
   - model
 agent: researcher
+context: fork
+background: false
 allowed-tools:
   - read
   - glob

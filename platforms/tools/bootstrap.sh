@@ -16,6 +16,30 @@ fail() {
   exit 1
 }
 
+json_contains() {
+  local payload="$1"
+  local needle="$2"
+  python3 - "$needle" "$payload" <<'PY'
+import json
+import sys
+
+try:
+    data = json.loads(sys.argv[2])
+except json.JSONDecodeError:
+    raise SystemExit(1)
+needle = sys.argv[1]
+def contains(value):
+    if isinstance(value, str):
+        return value == needle
+    if isinstance(value, list):
+        return any(contains(item) for item in value)
+    if isinstance(value, dict):
+        return any(contains(item) for item in value.values())
+    return False
+raise SystemExit(0 if contains(data) else 1)
+PY
+}
+
 codex_bin() {
   local candidate
   [[ "${AI_KIT_NO_CODEX_CLI:-0}" != "1" ]] || return 1
@@ -118,6 +142,26 @@ if [[ -n "$codex" ]]; then
     printf 'fix: codex plugin ai-kit@ai-kit installed\n'
   else
     warn "codex plugin ai-kit@ai-kit installation failed; run: codex plugin add ai-kit@ai-kit"
+  fi
+fi
+
+if command -v claude >/dev/null 2>&1; then
+  claude_marketplaces="$(claude plugin marketplace list --json 2>/dev/null || true)"
+  if json_contains "$claude_marketplaces" "ai-kit"; then
+    printf 'ok: claude marketplace ai-kit registered\n'
+  elif claude plugin marketplace add "$REPOSITORY" --json >/dev/null 2>&1; then
+    printf 'fix: claude marketplace ai-kit registered\n'
+  else
+    warn "claude marketplace ai-kit registration failed; retry after authentication"
+  fi
+
+  claude_plugins="$(claude plugin list --json 2>/dev/null || true)"
+  if json_contains "$claude_plugins" "ai-kit@ai-kit"; then
+    printf 'ok: claude plugin ai-kit@ai-kit installed\n'
+  elif claude plugin install ai-kit@ai-kit --json >/dev/null 2>&1; then
+    printf 'fix: claude plugin ai-kit@ai-kit installed\n'
+  else
+    warn "claude plugin ai-kit@ai-kit installation failed; run: claude plugin install ai-kit@ai-kit"
   fi
 fi
 

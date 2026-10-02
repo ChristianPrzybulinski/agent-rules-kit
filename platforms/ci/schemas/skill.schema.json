@@ -4,7 +4,7 @@
   "title": "Frontmatter of plugins/ai-kit/skills/<name>/SKILL.md (own skills; vendor only validates name/description)",
   "type": "object",
   "required": ["name", "description", "triggers"],
-  "additionalProperties": true,
+  "additionalProperties": false,
   "properties": {
     "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,40}$", "description": "Same as the folder name." },
     "description": {
@@ -16,6 +16,9 @@
     "argument-hint": { "type": "string" },
     "subagent": { "type": "boolean" },
     "agent": { "type": "string" },
+    "disable-model-invocation": { "type": "boolean" },
+    "context": { "type": "string", "enum": ["fork"] },
+    "background": { "type": "boolean" },
     "triggers": {
       "type": "array",
       "minItems": 1,
