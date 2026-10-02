@@ -7,7 +7,7 @@ Scope: shape, not content. Every file created by the agent or the kit is born fr
 | `spec-` | the **project**'s `docs/spec/` (validated by `platforms/ci/schemas/{spec,feature,requirement,decision,debt}.schema.json`) | `spec-index.md` (→ `docs/spec/spec.md`) · `spec-feature.md` · `spec-requirement-functional.md` · `spec-requirement-non-functional.md` · `spec-decision.md` · `spec-debt.md` |
 | `doc-` | the project's `docs/` (sessions, incidents, reports, protocol) | `doc-session-handoff.md` · `doc-bug-report.md` · `doc-recovery-report.md` · `doc-load-test.md` · `doc-contract-message.md` · `doc-review-checklist.md` |
 | `project-` | the project root | `project-agents-java-spring.md` · `project-agents-godot-2d.md` (→ the repo's `AGENTS.md`) |
-| `kit-` | this kit | `kit-knowledge.md` · `kit-skill.md` · `kit-index.md` · `kit-readme.md` |
+| `kit-` | this kit | `kit-reference.md` · `kit-skill.md` · `kit-index.md` · `kit-readme.md` |
 
 ## Which to use when
 

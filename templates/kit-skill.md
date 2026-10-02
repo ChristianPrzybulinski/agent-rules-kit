@@ -1,7 +1,7 @@
 ---
 name: [folder-name]
 version: "1.0"
-description: "[What it does in 1 sentence]. Use when [concrete trigger]. Do not use for [neighbor case that confuses]."
+description: "[≤160 chars: <what>. Use when <trigger>. Not for <neighbor> (skill <x>).]"
 argument-hint: "[expected argument | empty]"
 triggers:
   - user
@@ -31,5 +31,7 @@ allowed-tools:
 ## Rules
 
 - [acting boundary: what the skill never does]
+
+Done when: [observable completion condition].
 
 <!-- Limit: 80 lines. Normative detail that does not fit goes to `references/` and is linked, not copied. -->

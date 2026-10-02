@@ -1,9 +1,9 @@
 # docs/ — documentation about the kit
 
-Scope: explains the kit to whoever maintains it. Does not instruct the agent in project tasks (that is `agents/`); executes nothing (that is `platforms/`).
+Scope: architecture and maintenance information for humans changing the kit. Agent behavior lives in `AGENTS.md`, `rules/` and `skills/`; executable lifecycle belongs in `platforms/`.
 
 | File | Read when |
 |---|---|
-| [`design.md`](design.md) | you want to understand why the kit is like this (principles, what was left out and why) |
-| [`projects.md`](projects.md) | you are creating or auditing a project that uses the kit: what lives in the project (`docs/spec/`, the repo's `AGENTS.md`, workflows, validations) and what stays here |
-| [`maintenance.md`](maintenance.md) | you are changing the kit: versioning, changing layout, updating vendor skills, publishing a release, what CI requires |
+| [`design.md`](design.md) | understanding the plugin-first architecture, context costs and deliberate exclusions |
+| [`projects.md`](projects.md) | deciding which artifacts belong in a project repository and where their templates originate |
+| [`maintenance.md`](maintenance.md) | changing layout, content, vendors, CI or a release |

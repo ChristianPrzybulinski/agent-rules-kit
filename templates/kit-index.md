@@ -1,9 +1,9 @@
 # [folder]/ — [what it is, in half a line]
 
-Scope: [what goes here and what does NOT — point to the right folder for what does not].
+Scope: [what goes here and what does NOT — point to the correct root for excluded content].
 
 | File/Folder | Scope | When to use |
 |---|---|---|
-| [`name`](name) | [1 sentence] | [trigger] |
+| [`file.md`](file.md) | [one sentence] | [trigger] |
 
-<!-- INDEX when all that's needed is listing and saying when to use. Need to explain a concept or a step-by-step? use kit-readme.md. Never both in the same folder. -->
+<!-- Use INDEX when listing plus routing is enough. If explanation or procedure is required, use kit-readme.md; never both in one folder. -->
