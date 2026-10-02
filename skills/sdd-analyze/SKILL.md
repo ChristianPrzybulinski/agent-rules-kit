@@ -1,7 +1,7 @@
 ---
 name: sdd-analyze
-version: "1.0"
-description: SDD step 3 — consistency analysis across FEAT, REQs, DECs, plan and tasks - contradictions, gaps, orphan requirements, criteria without a task, tasks without a criterion. Read-only; produces a report. Use after clarify and after plan/tasks. Do not use to judge spec quality (skill sdd-audit) or to validate delivered code (skill validate-implementation).
+version: "1.1"
+description: SDD step 3 — cross-artifact consistency report. Use when FEAT/REQ/DEC/plan/tasks need gap checks. Not for spec quality (skill sdd-audit).
 argument-hint: "FEAT-nnn | all"
 triggers:
   - user
@@ -14,32 +14,33 @@ allowed-tools:
 
 # SDD 3 — Analyze
 
-Process reference: `../sdd-constitution/references/sdd-process.md`.
+Process: `../sdd-constitution/references/sdd-process.md`. This step is read-only; it edits no specification.
 
-Read-only. Does not edit specs; the report goes to the chat (and optionally `docs/spec/reports/analyze-YYYYMMDD.md` if the user asks).
+## 1. Select the artifact graph
 
-## Checks
+Load the requested FEAT or all features, linked requirements/decisions and any Plan/Tasks sections. Validate frontmatter before comparing content.
 
-| # | Check | Severity |
-|---|---|---|
-| A1 | REQ referenced in the FEAT exists as a file; every REQ file is referenced by ≥1 FEAT | high |
-| A2 | Acceptance criterion contradicts another criterion or a REQ (e.g.: "no login" vs auth REQ) | critical |
-| A3 | FEAT depends on a FEAT with a lower status (planning on what was not clarified) | high |
-| A4 | Term used is not in the `spec.md` glossary | low |
-| A5 | Vague quantifier with no number and no `[HYPOTHESIS]` | medium |
-| A6 | Claim without `[FACT]/[DECISION]/[PROPOSAL]/[HYPOTHESIS]/[BLOCKER]` classification | medium |
-| A7 | (if there is a plan) technical decision in the plan without a `DEC` when an alternative was rejected | medium |
-| A8 | (if there are tasks) acceptance criterion with no covering task; task with no criterion | high |
-| A9 | Plan violates a kit/repo rule (e.g.: Redis as source of truth; Gradle; framework in the domain) | critical |
-| A10 | Invalid frontmatter against `platforms/ci/schemas/` | high |
+## 2. Check consistency
 
-## Report
+| Check | Severity |
+|---|---|
+| missing FEAT↔REQ link or orphan requirement | high |
+| contradictory criteria/requirements | critical |
+| dependency on a lower-status feature | high |
+| undefined glossary term | low |
+| vague unmeasured quantity | medium |
+| unclassified claim | medium |
+| rejected alternative without DEC | medium |
+| criterion without task or task without criterion | high |
+| plan violating kit/repository rule | critical |
+| invalid frontmatter | high |
 
-```
-Scope: FEAT-nnn | all
-| # | Severity | Where (file:line) | Problem | Suggestion |
-Summary: N critical, M high, ...
-Blocks moving to <next step>? YES (critical/high) | NO
-```
+## 3. Report evidence
 
-Critical or high → do not proceed to `plan`/`implement` until resolved (via `clarify` or spec edit).
+Produce `# | severity | file:line | problem | suggestion`, counts by severity and whether the next SDD step is blocked. Save under `docs/spec/reports/` only when requested.
+
+## 4. Route findings
+
+Critical/high findings block planning or implementation. Route ambiguity to `sdd-clarify`, quality gaps to `sdd-audit`, and artifact corrections to the owning step.
+
+Done when: every finding cites an artifact location, contradictions/orphans are counted, and the report states whether progression is blocked.

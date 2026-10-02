@@ -1,7 +1,7 @@
 ---
 name: sdd-audit
-version: "1.0"
-description: SDD step 4 — spec quality audit with a checklist - testability, completeness, security, data, errors, compatibility, observability. Produces a gap list to fix before planning. Use when the FEAT is clarified. Do not use for cross-artifact consistency (skill sdd-analyze) or to resolve open questions (skill sdd-clarify).
+version: "1.1"
+description: SDD step 4 — spec quality checklist. Use when a clarified FEAT needs testability, security and completeness checks. Not for consistency (skill sdd-analyze).
 argument-hint: "FEAT-nnn"
 triggers:
   - user
@@ -13,42 +13,36 @@ allowed-tools:
   - write
 ---
 
-# SDD 4 — Audit (checklist)
+# SDD 4 — Audit
 
-Process reference: `../sdd-constitution/references/sdd-process.md`.
+Process: `../sdd-constitution/references/sdd-process.md`.
 
-Equivalent to spec-kit's `checklist`. Produces `docs/spec/features/FEAT-nnn.checklist.md` (or an *Audit* section in the FEAT, per the project) with ✓/✗/n.a. items and justification.
+## 1. Create the checklist
 
-## Checklist
+Use `docs/spec/features/FEAT-nnn.checklist.md` or the project's Audit section. Mark each item pass/fail/not-applicable with evidence.
 
-**Testability**
-- [ ] Each criterion has a happy and a sad path.
-- [ ] Each criterion states the test type that proves it (unit/integration/contract/e2e).
-- [ ] Test data described without real personal data.
+## 2. Audit testability and completeness
 
-**Completeness**
-- [ ] Error states defined (invalid input, missing resource, conflict, timeout, no permission).
-- [ ] Reconnect/retry behavior defined, if it involves the network.
-- [ ] Limits (size, frequency, quantity) numeric or `[HYPOTHESIS]`.
+- Each criterion has happy/sad behavior and names its unit/integration/contract/e2e proof.
+- Invalid input, missing resource, conflict, timeout and permission errors are defined.
+- Network reconnect/retry and numeric size/frequency/quantity limits are explicit or hypotheses.
 
-**Security and integrity**
-- [ ] Who can execute (authz per action and entity).
-- [ ] What the server validates vs. what it trusts from the client (nothing).
-- [ ] Operation with money/inventory/reward → idempotency and transaction described.
-- [ ] Personal data involved listed; retention defined.
+## 3. Audit security and integrity
 
-**Data and compatibility**
-- [ ] Schema change → migration mentioned; existing data handled.
-- [ ] Contract change → compatible/incompatible decided; `protocol_version` impacted?
-- [ ] Windows and macOS considered, if it touches the client.
+- Actor and per-entity authorization are specified.
+- Server validation versus client intent is explicit.
+- Money/inventory/reward effects define idempotency and transaction boundaries.
+- Personal data, retention and non-production test data are identified.
 
-**Operation**
-- [ ] What to log/measure to know it works in production.
-- [ ] Feature flag needed? name and off behavior.
+## 4. Audit data, compatibility and operation
 
-**Documentation**
-- [ ] Docs to update listed (README, CHANGELOG, protocol, glossary).
+- Schema changes include migration and existing-data handling.
+- Contract changes declare compatibility and protocol-version effect.
+- Client platform impact is addressed.
+- Logs/metrics, feature flag/off behavior and documentation changes are listed.
 
-## Output
+## 5. Route gaps
 
-✗ items become a gap list with an action (go back to `clarify`, edit the spec, or an explicit `[HYPOTHESIS]`). A security/integrity gap ✗ → **blocks** `plan`.
+Turn each failure into a concrete clarification, spec edit or measurable hypothesis. Security/integrity failures block `sdd-plan`.
+
+Done when: every checklist item has evidence, each failure has an owner/action, and no security/integrity gap can enter planning.

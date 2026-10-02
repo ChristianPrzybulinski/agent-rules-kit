@@ -1,7 +1,7 @@
 ---
 name: sdd-constitution
-version: "1.0"
-description: SDD step 0 — creates (or reviews) the project constitution - the repo's AGENTS.md with verifiable principles and docs/spec/spec.md with vision, scope, glossary and index. Use once per new project, or when principles change. Do not use for a single feature (skill sdd-specify) or to edit the kit's own AGENTS.md.
+version: "1.1"
+description: SDD step 0 — project constitution and spec index. Use when starting a project or changing principles. Not for one feature (skill sdd-specify).
 argument-hint: "[product description and stack, or 'review']"
 triggers:
   - user
@@ -16,29 +16,28 @@ allowed-tools:
 
 # SDD 0 — Constitution
 
-Process reference: `references/sdd-process.md`. Templates: `../../templates/project-agents-*.md`, `../../templates/spec-index.md`.
+Process: `references/sdd-process.md`. Templates: `../../templates/project-agents-*.md` and `../../templates/spec-index.md`.
 
-## Prerequisites
+## 1. Inspect before creating
 
-- Repo initialized. If `AGENTS.md` or `docs/spec/` already exist, **do not overwrite**: read and propose a diff.
-- Stack decisions already made by the product (language, engine, database). If missing, ask — it is a product decision.
+Read the README, repository structure and stack manifests. If `AGENTS.md` or `docs/spec/` exists, review and propose a diff instead of overwriting it. Ask for missing product choices such as language, engine or database.
 
-## Steps
+## 2. Write the project constitution
 
-1. Read the README, folder structure, manifests (`pom.xml`, `project.godot`, `compose.yml`) — what the agent **cannot infer** is what goes into `AGENTS.md`.
-2. Pick the closest project template; fill `[brackets]` only with verified facts (actually installed/pinned versions). No fact → `[HYPOTHESIS: ...]`.
-3. Repo `AGENTS.md`: ≤150 lines. Sections: Stack · Commands · Structure · Patterns (condition→action) · Boundaries (Always/Ask/Never) · Sessions (how to record progress) · Where the rest lives. The kit's global rules are **not** repeated here.
-4. `docs/spec/spec.md` from the template: vision (3 lines), explicit out-of-scope, initial glossary, empty indexes.
-5. Create folders `features/ requirements/functional requirements/non-functional decisions/ debts/` with `.gitkeep`.
-6. If the product brought already-made decisions → one `DEC-nnn` per decision with state `approved` and the source (who/when).
+- Select the closest project template and replace placeholders only with verified versions, commands and paths.
+- Keep repository `AGENTS.md` within 150 lines: Stack, Commands, Structure, condition→action Patterns, Always/Ask/Never boundaries, Sessions and pointers to detail.
+- Do not copy the kit's global rules into the project.
 
-## Completion criteria
+## 3. Initialize the spec
 
-- `AGENTS.md` passes: does each line change a behavior? is there a real build/test command executed at least once (`[FACT]`)?
-- `spec.md` validates against `platforms/ci/schemas/spec.schema.json`.
-- Nothing invented: versions, commands and paths exist.
+Create `docs/spec/spec.md` with a three-line vision, explicit out-of-scope, glossary and empty FEAT/REQ/DEC/DEBT indexes. Create `features/`, `requirements/{functional,non-functional}/`, `decisions/` and `debts/`.
 
-## Do not
+## 4. Record existing decisions
 
-- Copy generic kit rules into the repo.
-- Fix numeric targets (players, latency) without a hypothesis and a measurement method.
+For an already-approved product decision, create one `DEC-nnn` with `status: approved` and its source. Unknown numeric targets remain hypotheses with a measurement method.
+
+## 5. Validate
+
+Run the project spec validator and one real build/test command. Mark only observed commands and versions as facts.
+
+Done when: project principles change behavior, `spec.md` validates, required folders exist, and no version, command, path or target was invented.

@@ -1,7 +1,7 @@
 ---
 name: sdd-plan
-version: "1.0"
-description: SDD step 5 — technical plan for a clarified, audited FEAT - modules touched, domain model, contract, persistence/migration, feature flag, test strategy, risks; creates DEC-nnn for decisions with a rejected alternative. Status becomes planned. Use after sdd-audit, before sdd-tasks. Do not use to break the plan into tasks (skill sdd-tasks) or before clarify and audit are done.
+version: "1.1"
+description: SDD step 5 — technical FEAT plan and decisions. Use when clarification and audit are complete. Not for task breakdown (skill sdd-tasks).
 argument-hint: "FEAT-nnn [technical constraints]"
 triggers:
   - user
@@ -16,29 +16,30 @@ allowed-tools:
 
 # SDD 5 — Plan
 
-Process reference: `../sdd-constitution/references/sdd-process.md`.
+Process: `../sdd-constitution/references/sdd-process.md`.
 
-Prerequisite: `status: clarified`, audit without a security ✗. References: skills `clean-architecture`, `ddd-and-patterns`, `java-standards`, `godot-standards`, the repo's `AGENTS.md`, `docs/spec/decisions/`.
+## 1. Confirm readiness
 
-## Steps
+Require `status: clarified` and an audit without a security/integrity failure. Read the actual modules/files plus repository rules; do not infer structure from the desired design.
 
-1. Read existing code in the touched areas (do not presume structure). List real files/modules.
-2. Write the **Plan** section in the FEAT:
-   - **Domain**: new or changed aggregates/VOs/events; invariants the server protects.
-   - **Boundaries**: what lives on the client (presentation/intent) vs server (validation/result) vs protocol.
-   - **Contract**: new or changed messages/endpoints, with a minimal example; compatible or incompatible (`protocol_version`).
-   - **Persistence**: tables/columns, `V<n>__slug.sql` migration, indexes, transaction, idempotency key if applicable.
-   - **Feature flag**: name, default, off behavior — or "not needed" with a reason.
-   - **Tests**: per acceptance criterion → test type and where it lives. Domain: case table.
-   - **Observability**: logs/metrics that prove it works.
-   - **Risks and hypotheses**: each `[HYPOTHESIS]` with how/when to validate.
-   - **Dependencies/blockers**: other FEATs, tools, pending decisions.
-3. Every choice with a rejected reasonable alternative → `DEC-nnn-slug.md` (template `decision.md`), state `proposed`; reference it in the FEAT. A decision already approved by the product → `approved` with a source.
-4. Plan violates a kit/repo rule → do not plan a workaround: record `[BLOCKER]` or propose an explicit `DEC`.
-5. `status: planned`; *History* updated; `sdd-analyze FEAT-nnn` must pass with no critical/high.
+## 2. Write the FEAT Plan
 
-## Completion criteria
+Cover:
 
-- Every acceptance criterion has a planned test.
-- No relevant technical decision without a `DEC` or a 1-line justification.
-- Does not introduce a layer/infra (queue, cache, service) without a demonstrated need in the plan.
+- domain aggregates/value objects/events and protected invariants;
+- client, server, protocol and adapter boundaries;
+- changed messages/endpoints with compatibility and protocol-version effect;
+- tables/columns, `V<n>__slug.sql`, indexes, transaction and idempotency;
+- feature flag name, default and off behavior, or why none is needed;
+- each acceptance criterion's test type/location;
+- logs/metrics, hypotheses with validation, dependencies and blockers.
+
+## 3. Record decisions
+
+A choice with a rejected reasonable alternative gets `DEC-nnn-slug.md` with `status: proposed`; an already-approved product choice records its source and may be approved. Do not hide a kit-rule exception in prose—record a blocker or explicit DEC.
+
+## 4. Check restraint and consistency
+
+Do not add queue/cache/service/layer without demonstrated need. Ensure every criterion has a planned proof, then set `status: planned`, update History and run `sdd-analyze` with no critical/high findings.
+
+Done when: the Plan names real files/boundaries, every criterion has a test, decisions have DEC or justification, and consistency analysis is unblocked.
