@@ -298,8 +298,6 @@ if description_total > DESCRIPTIONS_BUDGET:
 # --- 4. Rules ---
 rules_root = KIT / "rules"
 for rule_file in sorted(rules_root.glob("*.md")) if rules_root.exists() else []:
-    if rule_file.name == "INDEX.md":
-        continue
     counts["rules"] += 1
     data, _ = frontmatter(rule_file)
     if data is None:
@@ -365,7 +363,7 @@ def exempt_dir(directory):
     return False
 
 
-for base in ("rules", "skills", "templates", "platforms", "docs", ".github"):
+for base in ("skills", "templates", "platforms", "docs", ".github"):
     root = KIT / base
     if not root.exists():
         continue
@@ -408,11 +406,13 @@ for skill_dir in sorted(skill_dirs):
     elif indexed_descriptions[name] != skill_description_text.get(name):
         fail(rel(skills_index), f"skill '{name}' description differs from frontmatter")
 
-rules_index = rules_root / "INDEX.md"
-rules_index_text = rules_index.read_text(encoding="utf-8") if rules_index.exists() else ""
+root_index_text = (KIT / "INDEX.md").read_text(encoding="utf-8") if (KIT / "INDEX.md").exists() else ""
 for rule_file in sorted(rules_root.glob("*.md")) if rules_root.exists() else []:
-    if rule_file.name != "INDEX.md" and rule_file.name not in rules_index_text:
-        fail(rel(rules_index), f"rule '{rule_file.name}' missing from index")
+    if f"rules/{rule_file.name}" not in root_index_text:
+        fail("INDEX.md", f"rule 'rules/{rule_file.name}' missing from the Rules table")
+for stray in sorted(rules_root.iterdir()) if rules_root.exists() else []:
+    if stray.name in ("INDEX.md", "README.md") or stray.is_dir():
+        fail(rel(stray), "rules/ holds rule files only — Devin loads every .md in it as a rule")
 
 
 # --- 7. Relative links ---

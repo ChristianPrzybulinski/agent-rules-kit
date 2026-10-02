@@ -9,13 +9,21 @@ The repository root is the distributable plugin: [`.devin-plugin/plugin.json`](.
 | Root | Purpose | Context rule |
 |---|---|---|
 | [`AGENTS.md`](AGENTS.md) | always-on global behavior | one file, at most `AGENTS_MAX_LINES` from the validator |
-| [`rules/`](rules/INDEX.md) | Devin triggered rules (`glob`, `model_decision`, `manual`) | `always_on` is forbidden; use `AGENTS.md` instead |
+| [`rules/`](rules/) | Devin triggered rules (`glob`, `model_decision`, `manual`) — listed below; the folder holds rule files only (Devin loads every `.md` in it) | `always_on` is forbidden; use `AGENTS.md` instead |
 | [`skills/`](skills/INDEX.md) | flat invocable procedures and their references | descriptions are 40–160 characters; total ≤7,200 characters |
 | [`templates/`](templates/INDEX.md) | artifact skeletons used by skills | shape only, not duplicated guidance |
 | [`platforms/`](platforms/INDEX.md) | lifecycle tools, CI validators and ready-to-copy kits | executable or tool configuration |
 | [`docs/`](docs/INDEX.md) | architecture and maintenance documentation | explanation for maintainers |
 
 The description budget is a hard gate because Codex limits its initial skills list to roughly 8,000 characters and may shorten or omit skills beyond it.
+
+## Rules
+
+| File | Trigger | Globs | What it loads |
+|---|---|---|---|
+| [`rules/java.md`](rules/java.md) | `glob` | `**/*.java,**/pom.xml` | `java-standards`, `clean-code`, `testing` |
+| [`rules/godot.md`](rules/godot.md) | `glob` | `**/*.gd,**/*.tscn,**/project.godot` | `godot-standards`, `clean-code`, `testing` |
+| [`rules/spec.md`](rules/spec.md) | `glob` | `docs/spec/**/*.md` | `sdd-*` skills and `templates/spec-*.md` |
 
 ## What goes where
 
@@ -30,13 +38,13 @@ The description budget is a hard gate because Codex limits its initial skills li
 
 1. This index for the layout and invariants.
 2. [`AGENTS.md`](AGENTS.md) for always-on behavior.
-3. [`rules/INDEX.md`](rules/INDEX.md) or [`skills/INDEX.md`](skills/INDEX.md) for contextual detail.
+3. The rules table below or [`skills/INDEX.md`](skills/INDEX.md) for contextual detail.
 4. [`docs/maintenance.md`](docs/maintenance.md) before changing the kit.
 
 ## Invariants
 
 - `VERSION`, `.devin-plugin/plugin.json`, and `plugin.json` have the same semantic version.
-- Every skill folder appears in `skills/INDEX.md`; every rule file appears in `rules/INDEX.md`.
+- Every skill folder appears in `skills/INDEX.md`; every rule file appears in the rules table of this file.
 - Skill descriptions and reference sizes stay within their validator budgets.
 - Relative links resolve, and each non-skill folder has exactly one `INDEX.md` or `README.md`.
 - The repository is the source of truth: plugins, caches and symlinks consume it without managed content copies elsewhere on the machine.
