@@ -1,7 +1,7 @@
 ---
 name: update-docs
-version: "2.0"
-description: Updates README, CHANGELOG, ADRs and semantic versioning. Use when closing a visible change, editing docs or preparing a release. Do not use for spec artifacts — they follow the `spec-*` templates and schemas.
+version: "2.1"
+description: Project documentation closure. Use when updating README, CHANGELOG, Javadoc, ADR or release notes. Not for feature specs (skill sdd-specify).
 triggers:
   - user
   - model
@@ -13,41 +13,33 @@ allowed-tools:
   - edit
 ---
 
-# Documentation Expert
+# Update Documentation
 
-Per-change checklist ("living docs"): `references/living-docs.md`.
+Use `references/living-docs.md` as the closure checklist. Written artifacts are English and updated in the same PR as behavior.
 
-## Language
+## 1. Classify the visible change
 
-- Written artifacts (README, CHANGELOG, spec, ADR/DEC, comment, commit, file and folder names) in **English**; the conversation with the user stays in pt-BR. A passage that will become a file comes out in English already in the response.
+- Build/run/test command changed → update README and repository AGENTS instructions.
+- User-visible behavior changed → add a Keep a Changelog `Unreleased` entry.
+- Public API changed → add concise Javadoc/docstring for purpose and invariants.
+- Rejected alternative/trade-off → create `DEC-nnn` proposed until approved.
+- Conscious debt → create `DEBT-nnn` with a payment trigger.
+- Feature progress → update FEAT status/history/frontmatter.
 
-## Always
+## 2. Update narrative docs
 
-1. Keep `README.md` in sync with the project: purpose, prerequisites, install/run/test commands, summarized structure, license/contribution.
-2. Update `CHANGELOG.md` (Keep a Changelog) on every relevant change — the entry must be understandable without reading the code.
-3. Record architectural decisions in `docs/adr/XXXX-title.md`: context, decision, consequences.
-4. Conventional Commits (`type(scope): description` — feat, fix, docs, style, refactor, test, chore; footer for breaking changes and issue references) and SemVer.
+Keep README purpose, versioned prerequisites, exact build/run/test commands, short structure and pointers current. Remove stale commands rather than preserving historical alternatives.
 
-## CHANGELOG
+## 3. Update code-facing docs
 
-- Format: `## [X.Y.Z] - YYYY-MM-DD`; versions in descending order, newest on top.
-- Sections: Added, Changed, Deprecated, Removed, Fixed, Security.
-- Each entry describes the impact for the user, not the code.
+Document public Java APIs and exported GDScript/signals only when behavior or non-obvious invariants require it. Do not document getters, records, trivial overrides or signatures verbatim.
 
-```markdown
-## [1.2.3] - 2026-09-29
-### Added
-- OAuth2 authentication support.
-```
+## 4. Maintain CHANGELOG and release notes
 
-## Versioning
+Write user impact under `## [Unreleased]` using Added/Changed/Deprecated/Removed/Fixed/Security. On release, move entries to `## [X.Y.Z] - YYYY-MM-DD`; release notes and tag must match VERSION/SemVer policy.
 
-- MAJOR: incompatible changes.
-- MINOR: compatible features.
-- PATCH: fixes.
-- Git tags: `vX.Y.Z`.
+## 5. Verify closure
 
-## Comments and public API
+Search for the old command/name/version, resolve relative links and run the documentation/project checks. If documentation contradicts code, observed code wins and the docs change now.
 
-- Comments explain the "why", not the "what"; no dead commented-out code.
-- Public APIs get Javadoc/docstrings — purpose and invariants, not the signature restated.
+Done when: each applicable checklist item is updated in the same PR, public/decision/debt/feature records are current, links pass and release notes match VERSION.

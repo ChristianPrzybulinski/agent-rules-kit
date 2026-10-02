@@ -1,7 +1,7 @@
 ---
 name: docker
-version: "1.0"
-description: Docker and Compose for a reproducible local environment — Postgres/Redis compose with healthchecks, multi-stage Dockerfile for Java, volumes, networks, .env, diagnostics. Use when creating/changing local infra, a Dockerfile, or when a service won't start. Do not use for application config/env policy (skill twelve-factor) or Postgres/Redis internals (skills postgresql, redis).
+version: "1.1"
+description: Docker and Compose workflow. Use when editing compose, a Dockerfile or diagnosing a container that will not start. Not for app config (skill twelve-factor).
 argument-hint: "[compose | dockerfile | up | diagnose]"
 triggers:
   - user
@@ -10,47 +10,35 @@ allowed-tools:
   - read
   - glob
   - exec
+  - edit
 ---
 
-# Docker / Compose
+# Docker and Compose
 
-Base: `platforms/kits/docker/compose.yml` (Postgres + Redis + optional pgAdmin). Rules: `../twelve-factor/SKILL.md`. Verified on this machine: Docker 29.x, Compose v5.x (`docker compose`, not `docker-compose`).
+Use `platforms/kits/docker/compose.yml`; read `references/compose-v2-vs-v5.md` for the installed Compose behavior and `../twelve-factor/SKILL.md` for application configuration.
 
-Reference: `references/compose-v2-vs-v5.md` — verified Docker Compose v5 compatibility notes.
+## 1. Define Compose services
 
-## compose
+- Pin image major/minor; never use `latest`.
+- Add a healthcheck per service and depend on `service_healthy`.
+- Put secrets in ignored `.env` with placeholders in `.env.example`.
+- Use named data volumes, read-only init mounts and host binding `127.0.0.1:`.
+- Enable `pg_stat_statements` for the local PostgreSQL service.
 
-- Images tagged **major.minor** (`postgres:17.x`, `redis:7.x`); never `latest`. Same major as the intended production.
-- `healthcheck` on every service; the app depends with `condition: service_healthy`.
-- Secrets via `.env` (gitignored) + `.env.example`; never inline in the yml.
-- Named volumes for data; bind mount only for init scripts (`./infra/postgres/init:/docker-entrypoint-initdb.d:ro`).
-- Ports exposed only on `127.0.0.1:` (not `0.0.0.0`).
-- `pg_stat_statements` enabled via `command: postgres -c shared_preload_libraries=pg_stat_statements`.
+## 2. Build Java images
 
-## dockerfile (Java)
+Use a multi-stage Maven/Java 25 build and Java 25 JRE runtime, copy only the jar, run as non-root and keep build outputs, `.git` and `.godot` in `.dockerignore`.
 
-Multi-stage: `maven:3.9-eclipse-temurin-25` build → `eclipse-temurin:25-jre` runtime; non-root user; `COPY --from=build target/*.jar app.jar`; `ENTRYPOINT ["java","-XX:+UseContainerSupport","-jar","app.jar"]`. `.dockerignore` with `target/ .git/ .godot/`. Check existing tags on Docker Hub before pinning.
+## 3. Start and inspect
 
-## up
+Run `docker compose up -d --wait`, then `docker compose ps`. On failure inspect `docker compose logs <service>` and execute the service health command.
 
-```bash
-docker compose up -d --wait          # waits for healthchecks
-docker compose ps                    # state
-docker compose logs -f postgres      # logs
-docker compose down                  # keeps volumes
-docker compose down -v               # DELETES data — ask first
-```
+## 4. Diagnose common failures
 
-## diagnose
+- Port conflict → `lsof -i :<port>`.
+- Container-to-container connection → service name, not localhost.
+- macOS data slowness → named volume instead of bind-mounted database files.
+- Disk pressure → `docker system df`; ask before prune.
+- `docker compose down -v` destroys data; ask first.
 
-| Symptom | Check |
-|---|---|
-| `unhealthy` service | `docker compose logs <svc>`; manual healthcheck `docker compose exec postgres pg_isready` |
-| port in use | `lsof -i :5432` |
-| out of space | `docker system df`; `docker system prune` (ask; removes unused images) |
-| app can't connect | host is the **service name** on the compose network, `localhost` only from outside |
-| slow on macOS | named volume instead of bind mount for data |
-
-## Verdict
-
-Services · pinned versions · `docker compose up -d --wait` → output · unverified · next step.
+Done when: images are pinned, services become healthy, data/secrets follow the volume/env rules and the failing container has literal diagnostic output.
