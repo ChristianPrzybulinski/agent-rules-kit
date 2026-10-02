@@ -1,7 +1,7 @@
 ---
 name: parallelize
-version: "1.0"
-description: Parallelizes independent work — batches independent tool calls in one turn, runs long commands in the background while work continues, fans out disjoint tasks to subagents when the platform offers them — and names what must stay sequential (depends on a result, shares a file/index/port/DB, has an external side effect). Use at the start of any task with more than one step, when a command will take more than a few seconds, when a task list has `[P]` tasks, or whenever you are about to issue calls one at a time that do not depend on each other. Do not use for concurrency inside the product's code (threads, async, locks — skills `java-standards`, `godot-standards`, `testing`).
+version: "1.1"
+description: Parallel planning for tool calls, long commands and [P] tasks. Use when work has independent steps. Not for product concurrency (skill testing).
 argument-hint: "[task or step list | empty]"
 triggers:
   - user
@@ -15,43 +15,39 @@ allowed-tools:
 
 # Parallelize
 
-Latency is paid once per **dependency**, not once per call. This skill turns a task into waves of independent work and names what must stay sequential; it does not decide *what* to do (that is the plan), only what leaves together. Parallel is not broader: run in parallel what you would run anyway — never add calls to fill slots.
+## 1. Map dependencies
 
-## 1. Map dependencies before the first call
+- List the steps. Two steps share a wave only when neither needs the other's result, they share no file/index/port/DB/fixture, and neither has an external side effect.
+- Run a decision-producing step first and alone; do not launch work whose need depends on its result.
+- An edit and its check stay sequential unless the platform guarantees ordered calls.
 
-- List the steps. For each pair ask three questions: (a) does B need A's result? (b) do they share a resource — same file, git index/worktree, port, database, Maven/Gradle local repo, test fixture? (c) does either have an external side effect (push, deploy, e-mail, payment, state-changing API)? Three "no" → same wave.
-- An edit and the check that verifies it are the same wave **only** if the platform executes calls in order; otherwise the check goes in the next turn.
-- Steps whose result decides whether the next one is needed (a grep that may end the search) go first, alone — speculative reads behind them burn tokens.
+## 2. Batch immediate work
 
-## 2. Wave 1 — same turn (zero risk)
+- Batch independent `read`, `grep`, `glob`, status and short `exec` calls in one response.
+- Prefer one precise aggregate command over many file-by-file calls.
+- Do not add speculative reads merely to fill a parallel wave; the scope rule in `../tokens/SKILL.md` still applies.
 
-- Independent reads, greps, globs, status commands: all in one response. One read-only call when you already know the next three is a round trip wasted.
-- Batching is not a substitute for the right call: one `wc -l` or `grep -c` over forty files beats forty parallel reads.
-- A tool that cannot run in parallel (e.g. a search subagent) runs alone; the rest goes around it.
-- Scope rule from `../tokens/SKILL.md` still holds: broad reading needs a hypothesis, parallel or not.
+## 3. Background long work
 
-## 3. Wave 2 — background for long commands
+- Start commands expected to exceed 10 seconds in the background while unrelated work continues.
+- Keep the process handle, collect literal output before reporting, and stop servers/watchers when finished.
+- Do not run concurrent commands that contend for one local repository, port, database or test fixture.
 
-- A command expected to take more than ~10 s (build, test suite, container start, download, dev server) starts in the background; work that does not depend on it continues (read the next file, write the next test); the output is collected when needed.
-- Own the lifecycle: keep the handle/id; collect the output **before** claiming anything about the result; kill what you started (servers, watchers) or state explicitly that it stays up and why.
-- Two background commands never share a resource: two Maven builds on one local repo, two servers on one port, two test runs on one database → sequential.
+## 4. Fan out disjoint tasks
 
-## 4. Wave 3 — fan out to subagents (when the platform has them)
+- Fan out `[P]` tasks from `../sdd-tasks/SKILL.md` only when file ownership is disjoint.
+- Brief each worker with its goal, owned files, interface, verification command and required report.
+- The lead reviews every diff and integrates results; a worker report is not evidence by itself.
 
-- Candidates: `[P]` tasks from `../sdd-tasks/SKILL.md` with disjoint file sets; research in parallel with implementation; independent gates (lint ∥ tests ∥ build) when the environment tolerates it.
-- Brief each with: goal, the exact files it may touch, the interface it must respect, how to verify, what to return. Two agents on one file is a merge conflict, not parallelism.
-- The lead integrates and reviews every diff before it lands. A report is a claim; the diff and the command output are the evidence.
-- Keep sequential: work whose output decides the next step (root-cause investigation), correctness-critical work (queries, metrics, security), anything with an external side effect.
+## 5. Keep unsafe work sequential
 
-## 5. Close
+- Keep dependencies, shared resources, correctness-critical queries, and external effects sequential.
+- Serialize Git operations on one worktree; use another worktree when branches must progress independently (`references/worktrees.md`).
+- After the same failure twice, stop parallel retries and form a new hypothesis.
 
-- Collect every background output before the summary — no "probably passed".
-- Report per wave: what ran together, what was sequential and why (one line), what is still running.
-- Done when: no step waited on an unrelated step; every started process is collected or explicitly left running; no shared-resource conflict happened.
+## 6. Close
 
-## Rules — never in parallel
+- Collect every background result and name anything intentionally left running.
+- Report what ran together, what stayed sequential and why.
 
-- Dependent steps; anything sharing a file, git index, port, database or lock; external side effects — one at a time, confirmed.
-- Blind retry variants: "same error twice" demands a hypothesis, not five guesses at once.
-- Git operations on one worktree (index lock). Two branches at once → `git worktree` (`references/worktrees.md`).
-- Speculative reads to fill slots; widening the task to "use" the parallelism.
+Done when: no unrelated step waited unnecessarily, no shared resource raced, and every started process has a collected result or an explicit owner.

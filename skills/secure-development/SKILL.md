@@ -1,7 +1,7 @@
 ---
 name: secure-development
-version: "1.0"
-description: Secure development — CVEs, secrets, OWASP Top 10, authentication, authorization, personal data, auditing. Use when touching dependencies, auth, endpoints, sensitive-data persistence or CI. Do not use for a vulnerability scan of an existing change (skill vuln-scan).
+version: "1.1"
+description: Security design for dependencies, auth, endpoints and sensitive data. Use when changing a trust boundary. Not for scanning changes (skill vuln-scan).
 triggers:
   - user
   - model
@@ -9,47 +9,49 @@ allowed-tools:
   - read
   - grep
   - glob
+  - exec
 ---
 
-# Secure development
+# Secure Development
 
-## Gates (fail the build/PR)
+## 1. Apply release gates
 
-- **0 critical or high CVEs** in dependencies: OWASP Dependency-Check (Java) in CI, `failBuildOnCVSS=7`. False positive → suppression with justification and a review date.
-- Secret detected in the diff (gitleaks/`gh secret scanning`) → PR blocked.
-- New dependency only with a version published ≥7 days ago (supply chain).
+- Reject critical/high dependency CVEs: OWASP Dependency-Check uses `failBuildOnCVSS=7`.
+- A suppression needs the false-positive reason and a review date.
+- Accept a new dependency only after it has been published for at least seven days.
+- Block a change containing a detected secret.
 
-## Secrets and credentials
+## 2. Handle secrets as an incident
 
-- Source: environment variable or keychain. Never in code, yml, log, commit, chat.
-- `.env.example` versioned with placeholders; `.env` in `.gitignore`.
-- Secret leaked → rotate **this session**, then scan history (`gitleaks detect`) and siblings.
+- Read credentials only from environment variables or a keychain; version `.env.example` placeholders and ignore `.env`.
+- Never place a password, token or key in source, YAML, logs, command output or chat.
+- On exposure, stop the current work, warn first, rotate during this session, then run `gitleaks detect` on history and search sibling credentials.
 
-## Authentication and session
+## 3. Design authentication and sessions
 
-- Password → Argon2id (preferred) or bcrypt cost ≥ 12. Never plain MD5/SHA-1/SHA-256.
-- Session token: random ≥128 bits, expires, revocable, never in URL/log.
-- Access recovery: single-use, short-lived token, sent out of band.
+- Hash passwords with Argon2id, or bcrypt cost at least 12; general-purpose hashes are invalid.
+- Generate session tokens with at least 128 random bits; make them expiring, revocable and absent from URLs/logs.
+- Recovery tokens are single-use, short-lived and sent out of band.
 
-## Authorization
+## 4. Enforce authorization and client distrust
 
-- Per action **and** per entity: "may move *this* character", not "is logged in".
-- Server is authoritative: client sends intent, server validates invariants and decides the result.
-- Administrative tool: explicit role + audit of every use.
+- Authorize each action against the target entity, not only the authenticated role.
+- Treat client messages as intent; the server validates every invariant and decides the result.
+- Administrative actions require an explicit role and an audit event.
 
-## Input and output
+## 5. Protect boundaries and data
 
-- Validate at the boundary (size, type, range, enum). Reject, don't "sanitize and carry on".
-- Parameterized SQL only. No concatenation, no `nativeQuery` with a built-up string.
-- Error to the client: code + generic message. Stack trace, SQL, internal path → log only.
+- Validate input size, type, range and enum at the boundary; reject invalid input.
+- Use parameterized SQL; never concatenate a query or construct a `nativeQuery` string.
+- Return stable error codes and generic messages; keep stack traces, SQL and internal paths out of client responses.
+- Minimize personal data; e-mail and IP are personal. Fixtures never contain real personal data.
+- Audit who, when, action and result without credentials or sensitive payloads.
 
-## Personal data (LGPD)
+## 6. Review each sensitive change
 
-- Collect the minimum. E-mail and IP are personal. Do not copy real legacy data into fixtures.
-- Audit log: who, when, what, result. No password, token or sensitive payload.
+- Endpoint: authentication, entity authorization, validation, rate limit, non-leaking error, and audit for state changes.
+- Dependency: run `mvn dependency-check:check` before the PR.
+- Network message: define size and rate limits in the contract.
+- Commit: inspect the diff for credentials, concatenated SQL, missing authorization and leaked internals.
 
-## Condition → action
-
-- New endpoint → checklist: auth? per-entity authz? validation? rate limit? audit log if it changes state?
-- New dependency → local `mvn dependency-check:check` before the PR.
-- New network message → size and rate limits defined in the contract.
+Done when: the trust boundary has explicit validation and authorization, secrets are absent, and the CVE/password/token constants above are enforced or reported as blockers.
