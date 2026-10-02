@@ -1,7 +1,7 @@
 ---
 name: github-cli
-version: "2.0"
-description: Uses `gh` and git for branches, commits, PRs, releases and reviews — authentication, PR body with what/why/how-to-test, merge only after checks. Use when creating branches, commits, PRs or releases. Do not use for the branching/SemVer policy (skill branching-and-versioning) or LFS (skill git-lfs).
+version: "2.1"
+description: "`gh` PR workflow. Use when writing a PR body, checking reviews, merging or publishing a release. Not for branch policy (skill branching-and-versioning)."
 triggers:
   - user
   - model
@@ -12,32 +12,28 @@ allowed-tools:
   - exec
 ---
 
-# GitHub CLI Expert
+# GitHub CLI
 
-`gh` for PRs, issues, releases and status; `git` locally for commits, branches, stash and rebase.
+## 1. Check local and remote state
 
-## Before any operation
+Run `git status`, identify the branch/remote and verify `gh auth status`. If authentication is missing, ask the user to run `gh auth login`; never print `GH_TOKEN` or `GITHUB_TOKEN`.
 
-1. Check `git status`, current branch and remote.
-2. Confirm `gh` is authenticated (`gh auth status`). If not, ask the user to run `gh auth login`.
-3. Tokens come from `GH_TOKEN`/`GITHUB_TOKEN` env — never expose them in chat.
+## 2. Create the PR
 
-## Workflow
+Run required local gates, then use `gh pr create`. The body states what changed, why, exact test commands/results and linked issues (`Closes #n`/`Refs: FEAT-nnn`). Do not use a generic generated body without evidence.
 
-1. Branch per task: `git switch -c feature/description` (`fix/`, `docs/` likewise).
-2. Atomic commits with Conventional Commits.
-3. Run local checks (tests, lint, build) before merging.
-4. Create the PR: `gh pr create --title "feat: add JWT authentication" --body "## Summary..."` — body: what changed, why, how to test; link issues with `Closes #123`.
-5. Track: `gh pr checks`, `gh pr view`.
-6. Merge only after approval/tests: `gh pr merge`.
+## 3. Review and merge
 
-## Releases
+- Inspect `gh pr checks`, `gh pr view` and review comments.
+- Resolve findings and rerun affected gates before merge.
+- Merge only after required approvals/checks, using the repository's squash policy.
 
-- SemVer: `gh release create v1.2.3 --generate-notes`.
-- Update `CHANGELOG.md` first.
+## 4. Protect history
 
-## Security
+Never force-push or rewrite public history without explicit authorization. If an authorized feature-branch rebase requires it, use `git push --force-with-lease`, never plain `--force` and never on `main`.
 
-- Do not commit secrets, `.env` or tokens.
-- Do not force-push shared branches without explicit user confirmation.
-- Do not rewrite public history without authorization.
+## 5. Publish a release
+
+After `VERSION` and CHANGELOG are ready under the branching/versioning policy, use `gh release create vX.Y.Z` with curated notes or the approved changelog excerpt; verify the resulting tag/release.
+
+Done when: authentication is valid, the PR body contains evidence, reviews/checks pass, merge follows policy and any release matches its approved version/tag.

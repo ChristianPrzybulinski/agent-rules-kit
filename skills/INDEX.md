@@ -49,8 +49,8 @@ Project documentation.
 
 | Skill | Description |
 |---|---|
-| `session-handoff` | Records the handoff between work sessions — what was done with evidence, what is pending, decisions made/open and the next session's first concrete task. Use when closing a long session, before switching agent/tool, or when context will be lost. Do not use for the end-of-session summary and kit review (skill session-review). |
-| `update-docs` | Updates README, CHANGELOG, ADRs and semantic versioning. Use when closing a visible change, editing docs or preparing a release. Do not use for spec artifacts — they follow the `spec-*` templates and schemas. |
+| `session-handoff` | Session handoff record with evidence and next action. Use when switching agent/session or leaving pending work. Not for session summary (skill session-review). |
+| `update-docs` | Project documentation closure. Use when updating README, CHANGELOG, Javadoc, ADR or release notes. Not for feature specs (skill sdd-specify). |
 
 ## Process
 
@@ -74,14 +74,14 @@ Tools and services.
 
 | Skill | Description |
 |---|---|
-| `branching-and-versioning` | Trunk-based with main + feature/*, feature flags with expiry, Conventional Commits, SemVer and a separate protocol version. Use when creating a branch, committing, opening a PR, publishing a release or changing the contract. Do not use for `gh` command mechanics (skill github-cli). |
-| `dbeaver` | DBeaver to inspect the local PostgreSQL — connection via .env, exporting/importing test data, generating DDL/ER for documentation, without becoming a source of schema change (that is Flyway). Use when the human needs to see/edit data or generate a diagram. Do not use to change the schema (Flyway, skill postgresql). |
-| `docker` | Docker and Compose for a reproducible local environment — Postgres/Redis compose with healthchecks, multi-stage Dockerfile for Java, volumes, networks, .env, diagnostics. Use when creating/changing local infra, a Dockerfile, or when a service won't start. Do not use for application config/env policy (skill twelve-factor) or Postgres/Redis internals (skills postgresql, redis). |
-| `git-lfs` | Configures and audits Git LFS in a repository — .gitattributes by type/size, migrating already-committed binaries, quota verification and files that escaped LFS. Use when starting a repo with assets, adding a new binary type, or when `git status` shows a large binary. Do not use for branching or release policy (skill branching-and-versioning) or `gh` mechanics (skill github-cli). |
-| `github-cli` | Uses `gh` and git for branches, commits, PRs, releases and reviews — authentication, PR body with what/why/how-to-test, merge only after checks. Use when creating branches, commits, PRs or releases. Do not use for the branching/SemVer policy (skill branching-and-versioning) or LFS (skill git-lfs). |
-| `krita` | Krita for pixel art and sprite retouching — document setup (size, no antialiasing, indexed palette), exporting PNG for Godot preserving transparency, spritesheets, and what to automate by script instead of the GUI. Use when preparing/fixing 2D art or defining an export workflow. Do not use to import finished art into Godot (skill asset-import). |
-| `postgresql` | PostgreSQL as the source of truth — modeling, Flyway migrations, indexes, transactions/isolation, idempotency, backup/restore and diagnostics (EXPLAIN, locks, bloat). Use when creating/changing a schema, investigating slowness or planning persistence. Do not use for cache/ephemeral data (skill redis) or GUI inspection (skill dbeaver). |
-| `redis` | Redis as cache/ephemeral — when to use it (and when not), keys with TTL, pub/sub for presence, rate limiting, short locks; never the source of truth for inventory, progression or economy. Use when proposing cache, session, a light queue or coordination. Do not use for durable data or the source of truth (skill postgresql). |
+| `branching-and-versioning` | Branch, commit, PR and release policy. Use when creating a branch, flag, commit, PR, SemVer release or tag. Not for `gh` commands (skill github-cli). |
+| `dbeaver` | DBeaver GUI inspection. Use when inspecting a database, exporting test data or drawing an ER diagram. Not for schema changes (skill postgresql). |
+| `docker` | Docker and Compose workflow. Use when editing compose, a Dockerfile or diagnosing a container that will not start. Not for app config (skill twelve-factor). |
+| `git-lfs` | Git LFS policy. Use when editing .gitattributes, adding/migrating a large binary or checking quota. Not for branch policy (skill branching-and-versioning). |
+| `github-cli` | `gh` PR workflow. Use when writing a PR body, checking reviews, merging or publishing a release. Not for branch policy (skill branching-and-versioning). |
+| `krita` | Krita pixel-art workflow. Use when editing pixel art, retouching sprites or defining sprite export. Not for Godot import (skill asset-import). |
+| `postgresql` | PostgreSQL persistence rules. Use when changing a schema, migration or index, running EXPLAIN, or diagnosing locks. Not for cache data (skill redis). |
+| `redis` | Redis ephemeral-data rules. Use when designing cache keys/TTL, rate limits, pub/sub or short locks. Not for durable data (skill postgresql). |
 
 ## Vendor
 

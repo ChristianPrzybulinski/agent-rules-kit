@@ -1,42 +1,38 @@
 ---
 name: session-handoff
-version: "1.0"
-description: Records the handoff between work sessions — what was done with evidence, what is pending, decisions made/open and the next session's first concrete task. Use when closing a long session, before switching agent/tool, or when context will be lost. Do not use for the end-of-session summary and kit review (skill session-review).
+version: "1.1"
+description: Session handoff record with evidence and next action. Use when switching agent/session or leaving pending work. Not for session summary (skill session-review).
 argument-hint: "[FEAT-xxx | session topic]"
 triggers:
   - user
-  - model
 allowed-tools:
   - read
   - grep
   - glob
   - exec
+  - write
 ---
 
 # Session Handoff
 
-A new session must be able to continue without this conversation. The record is short, factual and points to artifacts — it does not repeat content already in spec/DEC/commit.
+Use `../../templates/doc-session-handoff.md`; the record must let a new session continue without this conversation.
 
-## 1. Collect (not from memory)
+## 1. Collect observed state
 
-- `git status --short` and `git log --oneline <base>..HEAD` in each touched repo: what was committed, what was left dirty.
-- Specs with `status`/`updated` changed this session (`grep -l "updated: <today>" docs/spec -r`).
-- Verification commands run and a summary of the literal output (OK / FAILED + excerpt).
-- Questions asked to the user and the answers obtained.
+- Run `git status --short` and the relevant base-to-HEAD log/diff in every touched repository.
+- Read changed specs/status/history, literal verification outputs and user decisions.
+- Classify claims as fact, decision, proposal, hypothesis or blocker; never infer from memory.
 
-## 2. Write
+## 2. Write the record
 
-Template: `../../templates/doc-session-handoff.md`. Destination in the project: `docs/sessions/YYYY-MM-DD-<topic>.md` (create the folder if missing; if the project defines another location in `AGENTS.md`, use it).
+Save to the project-defined location or `docs/sessions/YYYY-MM-DD-topic.md`. Link specs, decisions, commits and reports instead of copying them. A dirty tree lists every path and is an explicit blocker.
 
-Each item classified: `[FACT]` (observed), `[DECISION]` (approved, with DEC), `[PROPOSAL]`, `[HYPOTHESIS]`, `[BLOCKER]`.
+## 3. Name one continuation action
 
-## 3. Next session's first task
+Give exactly one executable first task with a file/command and done criterion. If it needs a decision, the task is to obtain that decision with its options.
 
-Exactly one, executable without questions: a command or file + done criterion. If it depends on a user decision, the task is "obtain decision X" with the options listed.
+## 4. Verify handoff completeness
 
-## Rules
+Confirm each “tested/works” claim names its command and outcome, pending work has an owner/state, and the record is included in the same commit/PR that closes the session.
 
-- Do not claim "tested"/"works" without command + output in the record.
-- Do not copy long spec excerpts; link them.
-- A dirty working tree is an explicit `[BLOCKER]`, with the files listed.
-- The record goes in the same commit/PR that closes the session; if nothing was committed, the record is the only commit.
+Done when: repository state and evidence are reproducible, blockers/pending work are explicit and the next session has one unambiguous first action.

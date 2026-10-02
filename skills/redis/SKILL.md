@@ -1,7 +1,7 @@
 ---
 name: redis
-version: "1.0"
-description: Redis as cache/ephemeral — when to use it (and when not), keys with TTL, pub/sub for presence, rate limiting, short locks; never the source of truth for inventory, progression or economy. Use when proposing cache, session, a light queue or coordination. Do not use for durable data or the source of truth (skill postgresql).
+version: "1.1"
+description: Redis ephemeral-data rules. Use when designing cache keys/TTL, rate limits, pub/sub or short locks. Not for durable data (skill postgresql).
 argument-hint: "[justify | cache | ratelimit | pubsub | lock] <context>"
 triggers:
   - user
@@ -10,39 +10,32 @@ allowed-tools:
   - read
   - grep
   - exec
+  - edit
 ---
 
 # Redis
 
-Product decision (`[DECISION]`): Redis available **for justified needs**; **never** the source of truth for inventory, progression or economy (that is PostgreSQL). Compose in `platforms/kits/docker/`.
+Read `references/redis-7.md` before pinning a version/license. PostgreSQL remains the source of truth for inventory, progression and economy.
 
-Reference: `references/redis-7.md` — verified Redis 7 release facts.
+## 1. Justify Redis
 
-## justify (before using)
+Record the measured latency/contention/volume Postgres does not solve, whether loss is harmless and behavior when Redis is unavailable. Without a measurement, mark a hypothesis and start without Redis.
 
-Answer in writing in the FEAT/DEC:
-1. What measured problem does Postgres not solve? (p95 latency, contention, volume) — no measurement → `[HYPOTHESIS]`, start **without** Redis.
-2. Can the data be lost at any moment without inconsistency? If not → it's not Redis.
-3. How does the system behave with Redis down? It must degrade, not break.
+## 2. Select an ephemeral use
 
-## Accepted uses
+- Cache: `cache:<type>:<id>`, cache-aside, invalidate on write, always TTL.
+- Presence: set/heartbeat with 30–60 second expiry.
+- Rate limit: actor/action/window counter with expiry.
+- Pub/sub: only for multiple processes; events may be lost.
+- Short lock: unique value, `SET NX PX`, compare-and-delete Lua, at most five seconds; never protect economy integrity.
+- Light queue: Streams only while its delivery guarantee is sufficient.
 
-| Use | Structure | TTL | Note |
-|---|---|---|---|
-| Read cache (static content, profile) | `STRING`/`HASH` `cache:<type>:<id>` | yes, always | invalidate on write; cache-aside |
-| Presence/online | `SET` per map + `EXPIRE` renewed by heartbeat | 30-60 s | source is the connection, Redis is a reflection |
-| Rate limit | `INCR` + `EXPIRE` per `<actor>:<action>:<window>` | window | sliding window if precision is needed |
-| Pub/sub between server instances | channel per map/region | — | only if >1 process; otherwise in-memory |
-| Short lock | `SET key val NX PX <ms>` + release by Lua script comparing `val` | ≤ 5 s | never for an economy invariant (that is `FOR UPDATE` in PG) |
-| Light queue | `XADD`/Streams | — | reevaluate if a strong guarantee is needed |
+## 3. Define failure behavior
 
-## Rules
+Prefix every key with the app/type and set TTL except pub/sub. Use small JSON/hash values, short client timeouts and a circuit breaker/fallback to PostgreSQL. Select eviction (`allkeys-lru` for cache, otherwise `noeviction` plus alert) deliberately.
 
-- Every key has a `<app>:<type>:` prefix and a TTL (except pub/sub). No TTL = leak.
-- Serialization: small JSON or `HASH`; never a Java serialized object.
-- Config `maxmemory-policy allkeys-lru` (cache) or `noeviction` + alert (if something cannot evaporate — then question whether it's Redis).
-- Client: Lettuce (Spring Data Redis default); short timeout; circuit breaker (Resilience4j) → fallback to PG.
+## 4. Verify
 
-## Verdict
+Document key examples, TTL, outage behavior and the metric proving benefit. Test that an unavailable/empty Redis does not corrupt durable state.
 
-Proposed use · justification (measured or `[HYPOTHESIS]`) · behavior without Redis · keys/TTL · unverified · next step.
+Done when: Redis solves a measured ephemeral need, every stored key has ownership/TTL, outage degrades safely and no durable invariant depends on it.

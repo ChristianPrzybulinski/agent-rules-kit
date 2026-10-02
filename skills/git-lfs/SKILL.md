@@ -1,7 +1,7 @@
 ---
 name: git-lfs
-version: "1.0"
-description: Configures and audits Git LFS in a repository — .gitattributes by type/size, migrating already-committed binaries, quota verification and files that escaped LFS. Use when starting a repo with assets, adding a new binary type, or when `git status` shows a large binary. Do not use for branching or release policy (skill branching-and-versioning) or `gh` mechanics (skill github-cli).
+version: "1.1"
+description: Git LFS policy. Use when editing .gitattributes, adding/migrating a large binary or checking quota. Not for branch policy (skill branching-and-versioning).
 argument-hint: "[init | audit | migrate <pattern>]"
 triggers:
   - user
@@ -9,44 +9,33 @@ triggers:
 allowed-tools:
   - read
   - exec
+  - edit
 ---
 
 # Git LFS
 
-Policy in `references/git-lfs-and-binaries.md`. `.gitattributes` template in `platforms/kits/git-lfs/`.
+Read `references/git-lfs-and-binaries.md` for file policy and `references/lfs-quotas-github.md` for current quota facts.
 
-## init (new repo or no LFS)
+## 1. Classify before adding
 
-1. `git lfs install --local` (does not change global config).
-2. Copy `platforms/kits/git-lfs/.gitattributes` to the root; adjust patterns to the project (Godot: keep `*.import` out of LFS).
-3. Commit `.gitattributes` **before** any binary: `git add .gitattributes && git commit -m "chore: configure Git LFS"`.
-4. Verify: `git lfs track` lists the patterns.
+Add the binary pattern to root `.gitattributes` before the first file. Script-generated output is not versioned when the script plus manifest can reproduce it; use LFS with that manifest only when generation exceeds five minutes or CI lacks the tool.
 
-## audit
+## 2. Initialize tracking
 
-```bash
-git lfs ls-files -s | sort -k3 -h | tail        # largest in LFS
-git lfs status                                   # pending
-git ls-files -z | xargs -0 -I{} sh -c 'test $(stat -f%z "{}") -gt 1048576 && echo "{}"' \
-  | while read f; do git check-attr filter "$f" | grep -q lfs || echo "OUTSIDE LFS: $f"; done
-```
-Files >1 MB outside LFS → list with size. Quota (GitHub Free/Pro: 10 GiB storage + 10 GiB bandwidth/month; source in `references/lfs-quotas-github.md`): `git lfs ls-files -s` summed; >70% → warn.
+Run `git lfs install --local`, update `.gitattributes`, commit it before binaries and verify with `git lfs track`. Godot versions `*.import` but never `.godot/`.
 
-## migrate (binary already committed without LFS)
+## 3. Audit storage and quota
 
-Rewrites history. **Ask first** if the repo has a remote with other clones.
-```bash
-git lfs migrate info --everything --include="*.png,*.wav"     # preview
-git lfs migrate import --everything --include="*.png,*.wav"   # execute
-git push --force-with-lease origin main                      # only with explicit authorization
-```
+- Run `git lfs status` and `git lfs ls-files -s`.
+- Find tracked files over 1 MB whose `git check-attr filter` is not `lfs`; stop before commit.
+- Sum LFS sizes and compare with the referenced GitHub quota; warn above 70%.
 
-## Verdict
+## 4. Migrate existing history safely
 
-```
-LFS: installed | not installed
-.gitattributes: OK | missing | incomplete (missing: ...)
-Outside LFS (>1MB): <list or none>
-Estimated usage: N MB (GitHub Free quota 10 GiB)
-Next step: ...
-```
+Preview with `git lfs migrate info --everything --include=<patterns>`. Migration rewrites history: ask before execution when any remote/shared clone exists. If explicitly authorized, import then push the feature branch with `--force-with-lease`; never rewrite `main` by default.
+
+## 5. Report
+
+List installed state, `.gitattributes` gaps, escaped files with sizes, estimated usage/quota and the next required action.
+
+Done when: patterns precede binaries, generated artifacts follow script+manifest policy, no large file escapes LFS and any history rewrite has explicit authorization.
