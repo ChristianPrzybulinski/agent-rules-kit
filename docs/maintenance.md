@@ -51,6 +51,7 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 ## CI requirements
 
 - `.github/workflows/ci.yml`: ShellCheck on tools/kits, `check.sh`, `smoke.sh`, and `check_kit.py --links`.
+- Scripts under `platforms/` must parse under bash 3.2 (macOS `/bin/bash`, the `smoke.sh` restricted PATH): avoid unquoted text after a quoted string inside `"$(...)"` — write `"$(basename "$f")"`/`"${f##*/}"` instead of `"$(basename "$f" .md)"`.
 - `check.sh` runs `claude plugin validate` on the plugin and marketplace when Claude Code is installed.
 - `check_kit.py` also gates allowed tools, three-way user-only/subagent/rule parity, reference kinds/sources, hooks, backtick paths and exact skill-index descriptions.
 - `.github/workflows/gitleaks.yml`: secret scan on pushes and pull requests.
