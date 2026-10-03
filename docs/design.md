@@ -4,7 +4,7 @@ The validated layout and routing test live in [`../INDEX.md`](../INDEX.md). Thes
 
 ## Principles
 
-- **Single source: `plugins/` is the plugin family root.** The repository root follows Cognition's team-marketplace pattern: a content-free meta-plugin requires `core` through `git-subdir` and offers the satellites and the `all` bundle as optional. Each plugin directory is consumed directly by Devin, Codex and Claude Code; there is no generated distribution tree.
+- **Single source: `plugins/` is the plugin family root.** The repository root follows Cognition's team-marketplace pattern: a content-free meta-plugin requires the `all` bundle through `git-subdir` (install repo = full kit) and lists every content plugin as optional for minimal installs via `#plugins/<name>`. Each plugin directory is consumed directly by Devin, Codex and Claude Code; there is no generated distribution tree.
 - **One content tree, three agent families.** Skills, rules, agents and templates are shared across Devin, Codex and Claude Code; per-platform manifests (`plugins/<name>/.devin-plugin`, `.claude-plugin`, `plugin.json`) adapt discovery and dependencies without copying content.
 - **Dependency graph, not duplication.** Satellites declare their parent through `requiredPlugins` (Devin) / `dependencies` (Claude): `dev-java`→`dev-core`→`core`. The `all` bundle is manifest-only and resolves to every plugin. Plugin names double as the taxonomy: `family-name`.
 - **Shared-key frontmatter.** A file carries each platform's routing keys together: `triggers`/Codex policy/`disable-model-invocation`, `globs`/`paths`, and lowercase/Claude tool names are validated for parity.

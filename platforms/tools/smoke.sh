@@ -459,7 +459,7 @@ assert meta["version"] == version
 assert meta["requiredPlugins"] == [{
     "source": "git-subdir",
     "url": repo,
-    "path": "plugins/core",
+    "path": "plugins/all",
 }]
 plugin_dirs = sorted(
     path for path in (kit / "plugins").iterdir()
@@ -467,7 +467,7 @@ plugin_dirs = sorted(
 )
 assert len(plugin_dirs) == 12
 optional = {entry["path"] for entry in meta["optionalPlugins"]}
-assert optional == {f"plugins/{path.name}" for path in plugin_dirs if path.name != "core"}
+assert optional == {f"plugins/{path.name}" for path in plugin_dirs if path.name != "all"}
 for plugin_dir in plugin_dirs:
     for manifest in (
             plugin_dir / ".devin-plugin/plugin.json",

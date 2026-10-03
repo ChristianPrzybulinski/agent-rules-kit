@@ -1,30 +1,15 @@
 {
   "name": "agent-rules-kit",
   "version": "10.0.0",
-  "description": "Meta-plugin: installs the ai-kit core plugin; satellites and the 'all' bundle are optional",
+  "description": "Meta-plugin: installs the ai-kit 'all' bundle; individual plugins remain optional",
   "requiredPlugins": [
     {
       "source": "git-subdir",
       "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/core"
+      "path": "plugins/all"
     }
   ],
   "optionalPlugins": [
-    {
-      "source": "git-subdir",
-      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/dev-core"
-    },
-    {
-      "source": "git-subdir",
-      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/dev-java"
-    },
-    {
-      "source": "git-subdir",
-      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/dev-godot"
-    },
     {
       "source": "git-subdir",
       "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
@@ -38,12 +23,22 @@
     {
       "source": "git-subdir",
       "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/quality-core"
+      "path": "plugins/core"
     },
     {
       "source": "git-subdir",
       "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/quality-security"
+      "path": "plugins/dev-core"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/dev-godot"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/dev-java"
     },
     {
       "source": "git-subdir",
@@ -53,17 +48,22 @@
     {
       "source": "git-subdir",
       "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/infra-persistence"
-    },
-    {
-      "source": "git-subdir",
-      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
       "path": "plugins/infra-github"
     },
     {
       "source": "git-subdir",
       "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/all"
+      "path": "plugins/infra-persistence"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/quality-core"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/quality-security"
     }
   ]
 }

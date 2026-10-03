@@ -2,7 +2,7 @@
 
 Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md).
 
-The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/plugin.json) requires the `core` plugin through `git-subdir` and offers the satellites plus the `all` bundle as optional; Codex and Claude Code use root marketplace catalogs listing every plugin.
+The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/plugin.json) requires the `all` bundle through `git-subdir` and lists every content plugin as optional; Codex and Claude Code use root marketplace catalogs listing every plugin.
 
 ## Repository roots
 
@@ -56,7 +56,7 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 
 ## Invariants
 
-- The repository root contains no agent-facing content; `.devin-plugin/plugin.json` only requires `core` and lists the rest as optional.
+- The repository root contains no agent-facing content; `.devin-plugin/plugin.json` requires the `all` bundle and lists every content plugin as optional.
 - Every directory under `plugins/` is a plugin with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json` and `INDEX.md`.
 - `plugins/core/` is the only plugin with `AGENTS.md` or `hooks/`; `plugins/all/` is the only manifest-only plugin.
 - Plugin names are unique across the repo and referenced skills/agents must be reachable through the dependency graph.

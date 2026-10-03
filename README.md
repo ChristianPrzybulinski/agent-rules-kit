@@ -32,11 +32,11 @@ gh repo clone ChristianPrzybulinski/agent-rules-kit ~/.ai-kit && ~/.ai-kit/platf
 
 ## Devin plugin
 
-The existing repository source remains valid: the content-free root meta-plugin requires `plugins/core/` and offers the satellites plus the `all` bundle as optional:
+The existing repository source remains valid: the content-free root meta-plugin requires the `all` bundle, so installing the repo restores the full kit — and every content plugin is listed as optional for minimal setups:
 
 ```bash
-devin plugins install ChristianPrzybulinski/agent-rules-kit        # core only
-devin plugins install ChristianPrzybulinski/agent-rules-kit#plugins/all   # everything
+devin plugins install ChristianPrzybulinski/agent-rules-kit                # everything (via all)
+devin plugins install ChristianPrzybulinski/agent-rules-kit#plugins/dev-java  # one satellite + its chain
 ```
 
 Existing Customize entries need no source change; Reindex to pick up the new dependency. The legacy `ai-kit` plugin should be removed (`devin plugins remove ai-kit`) — its path no longer exists. Run `devin plugins update` to force a local refresh.

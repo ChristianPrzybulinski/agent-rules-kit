@@ -335,14 +335,14 @@ if meta_manifest is not None:
         fail(rel(meta_path), "name != 'agent-rules-kit'")
     if meta_manifest.get("version") != version:
         fail(rel(meta_path), f"version '{meta_manifest.get('version')}' != VERSION '{version}'")
-    if meta_manifest.get("requiredPlugins") != [dep_entry(CORE_PLUGIN)]:
-        fail(rel(meta_path), f"requiredPlugins must contain exactly the '{CORE_PLUGIN}' git-subdir entry")
-    expected_optional = sorted(plugins.keys() - {CORE_PLUGIN})
+    if meta_manifest.get("requiredPlugins") != [dep_entry(BUNDLE_PLUGIN)]:
+        fail(rel(meta_path), f"requiredPlugins must contain exactly the '{BUNDLE_PLUGIN}' git-subdir entry")
+    expected_optional = sorted(plugins.keys() - {BUNDLE_PLUGIN})
     optional_paths = sorted(
         entry.get("path", "") for entry in (meta_manifest.get("optionalPlugins") or [])
         if isinstance(entry, dict))
     if optional_paths != [f"plugins/{name}" for name in expected_optional]:
-        fail(rel(meta_path), "optionalPlugins must list every plugin except core")
+        fail(rel(meta_path), f"optionalPlugins must list every plugin except '{BUNDLE_PLUGIN}'")
 
 marketplace = read_json(KIT / ".agents/plugins/marketplace.json") if (KIT / ".agents/plugins/marketplace.json").exists() else None
 if marketplace is not None:
