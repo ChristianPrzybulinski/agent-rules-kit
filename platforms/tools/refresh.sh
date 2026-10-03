@@ -104,11 +104,13 @@ if command -v claude >/dev/null 2>&1; then
   if json_contains "$claude_marketplaces" "ai-kit"; then
     run_step "claude marketplace update failed" claude plugin marketplace update ai-kit --json
     claude_plugins="$(claude plugin list --json 2>/dev/null || true)"
-    if json_contains "$claude_plugins" "ai-kit@ai-kit"; then
-      run_step "claude plugin update failed" claude plugin update ai-kit@ai-kit --json
-    else
-      warn "claude plugin ai-kit@ai-kit not installed — run platforms/tools/bootstrap.sh"
-    fi
+    for plugin_dir in "$KIT"/plugins/*/; do
+      plugin_name="$(basename "$plugin_dir")"
+      [[ -d "$plugin_dir/.claude-plugin" ]] || continue
+      if json_contains "$claude_plugins" "$plugin_name@ai-kit"; then
+        run_step "claude plugin update failed for $plugin_name" claude plugin update "$plugin_name@ai-kit" --json
+      fi
+    done
   else
     warn "claude marketplace ai-kit not registered — run platforms/tools/bootstrap.sh"
   fi

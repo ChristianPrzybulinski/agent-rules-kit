@@ -4,10 +4,10 @@
 
 | Schema | Validates | Target file-name rule |
 |---|---|---|
-| `agent.schema.json` | shared Devin/Claude profiles under `plugins/ai-kit/agents/` | lowercase and Claude tool lists map 1:1 |
+| `agent.schema.json` | shared Devin/Claude profiles under `plugins/*/agents/` | lowercase and Claude tool lists map 1:1 |
 | `knowledge.schema.json` | legacy knowledge-note frontmatter retained for compatibility | `verified` (date) + `sources` (URLs) required |
-| `rule.schema.json` | `plugins/ai-kit/rules/*.md` | `trigger` is `glob`, `model_decision`, or `manual` |
-| `skill.schema.json` | `plugins/ai-kit/skills/<name>/SKILL.md` (non-vendor) | `name` = folder; `triggers`; allowed tools |
+| `rule.schema.json` | `plugins/*/rules/*.md` | `trigger` is `glob`, `model_decision`, or `manual` |
+| `skill.schema.json` | `plugins/*/skills/<name>/SKILL.md` (non-vendor) | `name` = folder; `triggers`; allowed tools |
 | `skills-lock.schema.json` | lines of `platforms/kits/third-party/skills.lock` | 40-hex `sha` |
 | `spec.schema.json` | a project's `docs/spec/spec.md` | fixed |
 | `feature.schema.json` | `docs/spec/features/*.md` | `FEAT-nnn-slug.md` |
@@ -19,7 +19,7 @@ The five spec schemas (`spec`, `feature`, `requirement`, `decision`, `debt`) go 
 
 | Validation | Scope |
 |---|---|
-| `validations/check_kit.py` | layout v6, frontmatters, description budget, indexes, links, vendor lock, duplication (`--links` includes `~/.ai-kit/...`) |
+| `validations/check_kit.py` | multi-plugin layout, manifests and dependency graph, frontmatters, description budget, indexes, links, vendor lock, duplication (`--links` includes `~/.ai-kit/...`) |
 | `validations/check_spec.py` | a project's `docs/spec`: schema + id=prefix + FEAT↔REQ cross-check + unique IDs |
 
 Without `pyyaml`/`jsonschema`: structural validation with a WARN; with `CI=1`, their absence is an error.

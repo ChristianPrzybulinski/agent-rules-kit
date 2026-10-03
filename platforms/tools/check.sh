@@ -14,7 +14,10 @@ fi
 python3 "$KIT_DIR/platforms/ci/validations/check_kit.py" "$@"
 
 if command -v claude >/dev/null 2>&1; then
-  claude plugin validate "$KIT_DIR/plugins/ai-kit"
+  for plugin_dir in "$KIT_DIR"/plugins/*/; do
+    [[ -d "$plugin_dir/.claude-plugin" ]] || continue
+    claude plugin validate "$plugin_dir"
+  done
   claude plugin validate "$KIT_DIR"
 else
   printf 'check: claude plugin validate skipped (claude not in PATH)\n'

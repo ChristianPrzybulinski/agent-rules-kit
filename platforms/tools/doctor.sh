@@ -84,7 +84,7 @@ codex_bin() {
 
 ensure_agents_link() {
   local destination="$HOME/.codex/AGENTS.md"
-  local expected="$KIT/plugins/ai-kit/AGENTS.md"
+  local expected="$KIT/plugins/core/AGENTS.md"
   local current
   local backup
   mkdir -p "$HOME/.codex"
@@ -122,7 +122,7 @@ ensure_agents_link() {
 
 ensure_claude_links() {
   local claude_md="$HOME/.claude/CLAUDE.md"
-  local expected_agents="$KIT/plugins/ai-kit/AGENTS.md"
+  local expected_agents="$KIT/plugins/core/AGENTS.md"
   local current
   local backup
   local name
@@ -152,26 +152,44 @@ ensure_claude_links() {
     fix "claude CLAUDE.md symlink created"
   fi
 
-  for name in java godot spec; do
-    destination="$HOME/.claude/rules/ai-kit-$name.md"
-    expected="$KIT/plugins/ai-kit/rules/$name.md"
+  local rule_file
+  local plugin
+  for rule_file in "$KIT"/plugins/*/rules/*.md; do
+    [[ -f "$rule_file" ]] || continue
+    plugin="$(basename "$(dirname "$(dirname "$rule_file")")")"
+    name="${rule_file##*/}"
+    name="${name%.md}"
+    destination="$HOME/.claude/rules/$plugin-$name.md"
     if [[ -L "$destination" ]]; then
       current="$(readlink "$destination")"
-      if [[ "$current" == "$expected" ]]; then
-        ok "claude rule symlink $name"
+      if [[ "$current" == "$rule_file" ]]; then
+        ok "claude rule symlink $plugin-$name"
       elif [[ "$current" == "$KIT/"* ]]; then
         rm "$destination"
-        ln -s "$expected" "$destination"
-        fix "claude rule symlink repaired for $name"
+        ln -s "$rule_file" "$destination"
+        fix "claude rule symlink repaired for $plugin-$name"
       else
         fail "$destination points to $current, not kit-managed; move it by hand"
       fi
     elif [[ -e "$destination" ]]; then
       fail "$destination is not a managed symlink; move it by hand"
     else
-      ln -s "$expected" "$destination"
-      fix "claude rule symlink created for $name"
+      ln -s "$rule_file" "$destination"
+      fix "claude rule symlink created for $plugin-$name"
     fi
+  done
+
+  for destination in "$HOME/.claude/rules/"*.md; do
+    [[ -L "$destination" ]] || continue
+    current="$(readlink "$destination")"
+    case "$current" in
+      "$KIT"/plugins/*/rules/*)
+        if [[ ! -e "$current" ]]; then
+          rm "$destination"
+          fix "removed stale claude rule symlink $(basename "$destination")"
+        fi
+        ;;
+    esac
   done
 }
 
@@ -184,7 +202,9 @@ try:
     data = json.load(open(sys.argv[1], encoding="utf-8"))
 except (OSError, json.JSONDecodeError):
     raise SystemExit(2)
-entry = next((item for item in data.get("resolved", []) if item.get("name") == "ai-kit"), None)
+entry = next((item for item in data.get("resolved", []) if item.get("name") == "core"), None)
+if entry is None:
+    entry = next((item for item in data.get("resolved", []) if item.get("name") == "agent-rules-kit"), None)
 if entry is None:
     print("MISSING")
 else:
@@ -231,17 +251,17 @@ ensure_codex_fallback() {
   local current
   local target
   mkdir -p "$codex_skills"
-  for skill_file in "$KIT"/plugins/ai-kit/skills/*/SKILL.md; do
+  for skill_file in "$KIT"/plugins/*/skills/*/SKILL.md; do
     [[ -f "$skill_file" ]] || continue
     expected_count=$((expected_count + 1))
     name="$(basename "$(dirname "$skill_file")")"
     destination="$codex_skills/$name"
-    expected="$KIT/plugins/ai-kit/skills/$name"
+    expected="$(dirname "$skill_file")"
     if [[ -L "$destination" ]]; then
       current="$(readlink "$destination")"
       if [[ "$current" == "$expected" ]]; then
         active_count=$((active_count + 1))
-      elif [[ "$current" == "$KIT/plugins/ai-kit/skills/"* ]]; then
+      elif [[ "$current" == "$KIT"/plugins/*/skills/* ]]; then
         rm "$destination"
         ln -s "$expected" "$destination"
         fix "codex fallback repaired for $name"
@@ -261,7 +281,7 @@ ensure_codex_fallback() {
     [[ -L "$destination" ]] || continue
     target="$(readlink "$destination")"
     case "$target" in
-      "$KIT"/plugins/ai-kit/skills/*)
+      "$KIT"/plugins/*/skills/*)
         if [[ ! -e "$target" ]]; then
           rm "$destination"
           fix "removed stale codex fallback $(basename "$destination")"
@@ -284,7 +304,7 @@ remove_codex_fallback() {
     [[ -L "$destination" ]] || continue
     target="$(readlink "$destination")"
     case "$target" in
-      "$KIT"/plugins/ai-kit/skills/*)
+      "$KIT"/plugins/*/skills/*)
         rm "$destination"
         removed=$((removed + 1))
         ;;
@@ -338,7 +358,11 @@ if [[ -f "$lock" ]]; then
   if ! record="$(devin_plugin_record "$lock" 2>/dev/null)"; then
     fail "$lock is not readable JSON"
   elif [[ "$record" == "MISSING" ]]; then
-    fail "ai-kit plugin not installed — run: devin plugins install ChristianPrzybulinski/agent-rules-kit"
+    if grep -q '"name": "ai-kit"' "$lock"; then
+      fail "legacy 'ai-kit' plugin installed — run: devin plugins remove ai-kit && devin plugins install ChristianPrzybulinski/agent-rules-kit"
+    else
+      fail "core plugin not installed — run: devin plugins install ChristianPrzybulinski/agent-rules-kit"
+    fi
   else
     ref="${record%%|*}"
     resolved_sha="${record#*|}"
@@ -352,15 +376,15 @@ if [[ -f "$lock" ]]; then
     elif [[ "$resolved_sha" == "$ORIGIN_SHA" ]]; then
       ok "devin plugin sha matches origin/main"
     elif command -v devin >/dev/null 2>&1; then
-      if devin plugins update ai-kit >/dev/null 2>&1 \
+      if devin plugins update >/dev/null 2>&1 \
           && updated_record="$(devin_plugin_record "$lock" 2>/dev/null)" \
           && [[ "${updated_record#*|}" == "$ORIGIN_SHA" ]]; then
-        fix "devin plugin updated to origin/main"
+        fix "devin plugins updated to origin/main"
       else
         fail "devin plugin sha differs from origin/main and update failed"
       fi
     else
-      fail "devin plugin sha differs from origin/main; install devin and run: devin plugins update ai-kit"
+      fail "devin plugin sha differs from origin/main; install devin and run: devin plugins update"
     fi
   fi
 else
@@ -460,22 +484,40 @@ if [[ -n "$codex" ]]; then
 
   plugin_ready=1
   plugins="$("$codex" plugin list 2>/dev/null || true)"
-  if [[ "$plugins" == *"ai-kit@ai-kit"* ]]; then
-    ok "codex plugin ai-kit@ai-kit installed"
-  elif [[ "$marketplace_ready" -eq 1 ]] && "$codex" plugin add ai-kit@ai-kit >/dev/null 2>&1; then
-    fix "codex plugin ai-kit@ai-kit installed"
+  plugin_names=()
+  plugin_pattern=""
+  for plugin_dir in "$KIT"/plugins/*/; do
+    [[ -d "$plugin_dir/.devin-plugin" || -d "$plugin_dir/.claude-plugin" || -f "$plugin_dir/plugin.json" ]] || continue
+    plugin_name="$(basename "$plugin_dir")"
+    plugin_names+=("$plugin_name")
+    plugin_pattern="${plugin_pattern}${plugin_pattern:+|}${plugin_name}"
+  done
+  missing_plugins=()
+  for plugin_name in "${plugin_names[@]:-}"; do
+    [[ -n "$plugin_name" ]] || continue
+    if [[ "$plugins" == *"$plugin_name@ai-kit"* ]]; then
+      continue
+    fi
+    if [[ "$marketplace_ready" -eq 1 ]] && "$codex" plugin add "$plugin_name@ai-kit" >/dev/null 2>&1; then
+      fix "codex plugin $plugin_name@ai-kit installed"
+    else
+      missing_plugins+=("$plugin_name")
+      plugin_ready=0
+    fi
+  done
+  if [[ "${#missing_plugins[@]}" -eq 0 ]]; then
+    ok "codex plugins installed (${#plugin_names[@]} entries)"
   else
-    fail "codex plugin ai-kit@ai-kit missing and add failed — run: codex plugin add ai-kit@ai-kit"
-    plugin_ready=0
+    fail "codex plugins missing and add failed: ${missing_plugins[*]} — run: codex plugin add <name>@ai-kit"
   fi
 
   if [[ "$plugin_ready" -eq 1 ]]; then
-    exposed="$("$codex" debug prompt-input "list skills" 2>/dev/null | grep -o 'ai-kit:' | wc -l | tr -d ' ' || true)"
+    exposed="$("$codex" debug prompt-input "list skills" 2>/dev/null | grep -oE "(${plugin_pattern}):" | wc -l | tr -d ' ' || true)"
     if [[ "$exposed" -eq 0 ]]; then
       ensure_codex_fallback
     else
       remove_codex_fallback
-      ok "codex plugin exposes $exposed ai-kit skills"
+      ok "codex plugin exposes $exposed kit skills"
     fi
   fi
 elif [[ -f "$HOME/.codex/config.toml" || -f "$HOME/.codex/auth.json" ]]; then
@@ -499,13 +541,13 @@ if command -v claude >/dev/null 2>&1; then
   fi
 
   claude_plugins="$(claude plugin list --json 2>/dev/null || true)"
-  if json_contains "$claude_plugins" "ai-kit@ai-kit"; then
-    ok "claude plugin ai-kit@ai-kit installed"
+  if json_contains "$claude_plugins" "all@ai-kit"; then
+    ok "claude bundle all@ai-kit installed"
   elif [[ "$claude_marketplace_ready" -eq 1 ]] \
-      && claude plugin install ai-kit@ai-kit --json >/dev/null 2>&1; then
-    fix "claude plugin ai-kit@ai-kit installed"
+      && claude plugin install all@ai-kit --json >/dev/null 2>&1; then
+    fix "claude bundle all@ai-kit installed"
   else
-    fail "claude plugin ai-kit@ai-kit missing and install failed — run: claude plugin install ai-kit@ai-kit"
+    fail "claude bundle all@ai-kit missing and install failed — run: claude plugin install all@ai-kit"
   fi
   ensure_claude_links
 
@@ -536,7 +578,7 @@ description_budget="$(awk -F= '/^DESCRIPTIONS_BUDGET = / {gsub(/[[:space:]]/, ""
 if [[ ! "$agents_limit" =~ ^[0-9]+$ || ! "$description_budget" =~ ^[0-9]+$ ]]; then
   fail "cannot read validator limits"
 else
-  agents_lines="$(wc -l < "$KIT/plugins/ai-kit/AGENTS.md" | tr -d ' ')"
+  agents_lines="$(wc -l < "$KIT/plugins/core/AGENTS.md" | tr -d ' ')"
   if [[ "$agents_lines" -le "$agents_limit" ]]; then
     ok "AGENTS.md $agents_lines lines (limit $agents_limit)"
   else
@@ -548,7 +590,7 @@ from pathlib import Path
 import sys
 
 total = 0
-for skill in Path(sys.argv[1], "plugins", "ai-kit", "skills").glob("*/SKILL.md"):
+for skill in Path(sys.argv[1], "plugins").glob("*/skills/*/SKILL.md"):
     for line in skill.read_text(encoding="utf-8").splitlines():
         if line.startswith("description: "):
             value = line.removeprefix("description: ")

@@ -1,0 +1,12 @@
+{
+  "name": "dev-java",
+  "version": "10.0.0",
+  "description": "ai-kit Java: Java 25, Spring/Quarkus and Maven standards",
+  "requiredPlugins": [
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/dev-core"
+    }
+  ]
+}

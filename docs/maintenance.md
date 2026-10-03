@@ -10,11 +10,12 @@ A layout or installation-destination change is a SemVer MAJOR change. There is n
 
 | Type | Steps |
 |---|---|
-| rule | create `plugins/ai-kit/rules/<name>.md` with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; list it in the table of `plugins/ai-kit/INDEX.md` (never add non-rule files to `plugins/ai-kit/rules/` — Devin loads every `.md` there as a rule) |
-| skill | copy [`../plugins/ai-kit/templates/kit-skill.md`](../plugins/ai-kit/templates/kit-skill.md) to `plugins/ai-kit/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; add the verbatim description to `plugins/ai-kit/skills/INDEX.md` |
-| reference | copy [`../plugins/ai-kit/templates/kit-reference.md`](../plugins/ai-kit/templates/kit-reference.md) to `plugins/ai-kit/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
-| subagent profile | add `plugins/ai-kit/agents/<name>.md` with frontmatter validated by `platforms/ci/schemas/agent.schema.json`; profiles are local-Devin only |
-| template | add `plugins/ai-kit/templates/<prefix>-<name>.md`, then list it in `plugins/ai-kit/templates/INDEX.md` |
+| rule | create `plugins/<plugin>/rules/<name>.md` in the owning plugin with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; list it in the plugin's `INDEX.md` and the root `INDEX.md` rules table (never add non-rule files to `rules/` — Devin loads every `.md` there as a rule) |
+| skill | copy [`../plugins/core/templates/kit-skill.md`](../plugins/core/templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; add the verbatim description to the plugin's `INDEX.md` |
+| reference | copy [`../plugins/core/templates/kit-reference.md`](../plugins/core/templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
+| subagent profile | add `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it (reachable through the dependency graph) with frontmatter validated by `platforms/ci/schemas/agent.schema.json`; profiles are local-Devin only |
+| template | add `plugins/<plugin>/templates/<prefix>-<name>.md`, then list it in the plugin's `INDEX.md` |
+| plugin | create `plugins/<name>/` with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json` and `INDEX.md`; declare `requiredPlugins`/`dependencies` on the plugins it consumes; register it in the root meta-plugin `optionalPlugins`, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`; add it to `all`'s manifests |
 
 A rule uses this frontmatter shape:
 
@@ -32,7 +33,7 @@ globs:
 
 Use `kit-index.md` for a directory listing or `kit-readme.md` for explanation; never put both in one directory.
 
-A subagent skill sets Devin `subagent: true` or a shared `agent: <profile>`, plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/ai-kit/agents/`.
+A subagent skill sets Devin `subagent: true` or a shared `agent: <profile>`, plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/<plugin>/agents/` of a plugin reachable through the dependency graph.
 
 Hooks are a guard, not a guardrail: they fail open, load only in local Devin and Claude Code, and cannot replace user confirmation or the always-on safety boundaries.
 
@@ -45,11 +46,12 @@ platforms/tools/vendor.sh
 platforms/tools/vendor.sh --check
 ```
 
-The command regenerates `plugins/ai-kit/skills/<name>/` and its `VENDOR.md`. Remove a vendor by deleting both its lock line and skill folder.
+The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, where the plugin comes from the lock's second column. Remove a vendor by deleting both its lock line and skill folder.
 
 ## CI requirements
 
 - `.github/workflows/ci.yml`: ShellCheck on tools/kits, `check.sh`, `smoke.sh`, and `check_kit.py --links`.
+- Scripts under `platforms/` must parse under bash 3.2 (macOS `/bin/bash`, the `smoke.sh` restricted PATH): avoid unquoted text after a quoted string inside `"$(...)"` — write `"$(basename "$f")"`/`"${f##*/}"` instead of `"$(basename "$f" .md)"`.
 - `check.sh` runs `claude plugin validate` on the plugin and marketplace when Claude Code is installed.
 - `check_kit.py` also gates allowed tools, three-way user-only/subagent/rule parity, reference kinds/sources, hooks, backtick paths and exact skill-index descriptions.
 - `.github/workflows/gitleaks.yml`: secret scan on pushes and pull requests.
@@ -58,8 +60,8 @@ The command regenerates `plugins/ai-kit/skills/<name>/` and its `VENDOR.md`. Rem
 ## After merging to main
 
 - Devin Cloud needs no manual refresh; it fetches `main` for each session.
-- Devin CLI/Desktop re-fetches at app start; run `devin plugins update ai-kit` to force it.
+- Devin CLI/Desktop re-fetches at app start; run `devin plugins update` to force it.
 - Codex and Claude Code refresh through launchd and `platforms/tools/refresh.sh`; run `platforms/tools/doctor.sh` to diagnose local state.
 - In Claude Code, use `/doctor prompt-audit` to inspect loaded instructions and `/context` to inspect token cost.
 
-This machine's prerequisites (2026-10-01): Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — via `toolchains.xml`) and JDK 27 on PATH · Maven 3.9.16 · Node 26.10.0/npm 11.19.1 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita · Devin Desktop with plugin `ai-kit` from `main` · Codex desktop app (CLI not on PATH, so doctor uses app-only mode) · Claude Code 2.1.287. System Python 3 has `pyyaml` 6.0.3 and `jsonschema` 4.25.1.
+This machine's prerequisites (2026-10-01): Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — via `toolchains.xml`) and JDK 27 on PATH · Maven 3.9.16 · Node 26.10.0/npm 11.19.1 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita · Devin Desktop with plugins from `main` · Codex desktop app (CLI not on PATH, so doctor uses app-only mode) · Claude Code 2.1.287. System Python 3 has `pyyaml` 6.0.3 and `jsonschema` 4.25.1.

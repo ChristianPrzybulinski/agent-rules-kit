@@ -12,7 +12,7 @@ Scope: executable lifecycle, validation and ready-to-copy project configuration.
 
 | Agent | Always-on | Skills and rules | Refresh |
 |---|---|---|---|
-| Devin Cloud | meta-plugin requires `plugins/ai-kit/AGENTS.md` | `plugins/ai-kit/skills/`, rules, templates and references | fetches `main` per session |
-| Devin CLI/Desktop | root meta-plugin | required `plugins/ai-kit/` plugin | app startup; `doctor.sh` updates a stale plugin SHA |
-| Codex | `~/.codex/AGENTS.md` → `~/.ai-kit/plugins/ai-kit/AGENTS.md` | marketplace plugin plus temporary skill symlinks for #22078 | launchd every six hours via `refresh.sh` |
-| Claude Code | `~/.claude/CLAUDE.md` → shared AGENTS file | marketplace plugin plus shared agent/hook and path-rule symlinks | launchd every six hours via `refresh.sh` |
+| Devin Cloud | meta-plugin requires `plugins/core/AGENTS.md` | `plugins/*/skills/`, rules, templates and references | fetches `main` per session |
+| Devin CLI/Desktop | root meta-plugin requires `core`; satellites and `all` optional | `plugins/*/` plugins | app startup; `doctor.sh` updates a stale plugin SHA |
+| Codex | `~/.codex/AGENTS.md` → `~/.ai-kit/plugins/core/AGENTS.md` | marketplace plugins plus temporary skill symlinks for #22078 | launchd every six hours via `refresh.sh` |
+| Claude Code | `~/.claude/CLAUDE.md` → shared AGENTS file | marketplace plugins plus shared agent/hook and path-rule symlinks | launchd every six hours via `refresh.sh` |

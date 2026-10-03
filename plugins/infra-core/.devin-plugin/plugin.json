@@ -1,0 +1,12 @@
+{
+  "name": "infra-core",
+  "version": "10.0.0",
+  "description": "ai-kit infra: Docker, Git LFS and twelve-factor configuration",
+  "requiredPlugins": [
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/core"
+    }
+  ]
+}

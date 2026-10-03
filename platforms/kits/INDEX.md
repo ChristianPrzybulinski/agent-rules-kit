@@ -1,6 +1,6 @@
 # kits/ — ready-to-copy files for projects
 
-Scope: configuration and infra templates a project copies (not read by the agent as instructions — plugin instructions are in `plugins/ai-kit/AGENTS.md`, `plugins/ai-kit/rules/`, and `plugins/ai-kit/skills/`).
+Scope: configuration and infra templates a project copies (not read by the agent as instructions — plugin instructions are in `plugins/core/AGENTS.md`, `plugins/*/rules/`, and `plugins/*/skills/`).
 
 | Kit | Contents | When to use |
 |---|---|---|
@@ -10,5 +10,5 @@ Scope: configuration and infra templates a project copies (not read by the agent
 | `godot/` | Godot `.gitignore`, editor hints, `make_spritesheet.py` | Godot project |
 | `java-maven/` | parent pom with gates, toolchains, suppressions, `.java-version` | Java/Maven project |
 | `launchd/` | six-hour AI Kit refresh agent for macOS | installed by `platforms/tools/bootstrap.sh` |
-| `sdd/` | `init-spec.sh` — creates `docs/spec/` from `plugins/ai-kit/templates/spec-*` | spec bootstrap in the project |
-| `third-party/` | `skills.lock` — external skills pinned by commit | regenerate vendor skills under `plugins/ai-kit/skills/` |
+| `sdd/` | `init-spec.sh` — creates `docs/spec/` from `plugins/architect-sdd/templates/spec-*` | spec bootstrap in the project |
+| `third-party/` | `skills.lock` — external skills pinned by commit | regenerate vendor skills under `plugins/<plugin>/skills/` |

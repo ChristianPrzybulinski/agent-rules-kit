@@ -1,0 +1,11 @@
+{
+  "name": "infra-persistence",
+  "version": "10.0.0",
+  "description": "ai-kit persistence: PostgreSQL, Redis and DBeaver",
+  "author": {
+    "name": "Christian Przybulinski"
+  },
+  "dependencies": [
+    "infra-core"
+  ]
+}
