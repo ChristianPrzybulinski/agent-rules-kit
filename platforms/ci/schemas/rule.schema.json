@@ -1,9 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/platforms/ci/schemas/rule.schema.json",
-  "title": "Frontmatter of plugins/ai-kit/rules/*.md",
+  "title": "Frontmatter of plugins/*/rules/*.md",
   "type": "object",
-  "required": ["description", "trigger"],
+  "required": [
+    "description",
+    "trigger"
+  ],
   "additionalProperties": false,
   "properties": {
     "description": {
@@ -12,17 +15,27 @@
     },
     "trigger": {
       "type": "string",
-      "enum": ["glob", "model_decision", "manual"]
+      "enum": [
+        "glob",
+        "model_decision",
+        "manual"
+      ]
     },
     "globs": {
       "type": "array",
       "minItems": 1,
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "paths": {
       "type": "array",
       "minItems": 1,
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     }
   }
 }

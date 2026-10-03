@@ -32,7 +32,7 @@ from pathlib import Path
 import sys
 
 replacement = "description: Smoke lifecycle fixture. Use when testing bootstrap and doctor. Not for production guidance (skill testing)."
-for skill in Path(sys.argv[1], "plugins", "ai-kit", "skills").glob("*/SKILL.md"):
+for skill in Path(sys.argv[1], "plugins").glob("*/skills/*/SKILL.md"):
     lines = skill.read_text(encoding="utf-8").splitlines()
     for index, line in enumerate(lines):
         if line.startswith("description: "):
@@ -56,7 +56,7 @@ fi
 agents_link="$TEST_HOME/.codex/AGENTS.md"
 [[ -L "$agents_link" ]] || fail "Codex AGENTS.md is not a symlink"
 resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$agents_link")"
-expected_resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$TEST_HOME/.ai-kit/plugins/ai-kit/AGENTS.md")"
+expected_resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$TEST_HOME/.ai-kit/plugins/core/AGENTS.md")"
 [[ "$resolved" == "$expected_resolved" ]] || fail "Codex AGENTS.md resolves to $resolved"
 
 rm "$agents_link"
@@ -68,7 +68,7 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-ki
 fi
 grep -Fq 'fix: codex AGENTS.md symlink repointed' "$ROOT/doctor-repoint.out" \
   || fail "legacy AGENTS.md symlink repoint was not reported"
-[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/ai-kit/AGENTS.md" ]] \
+[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/core/AGENTS.md" ]] \
   || fail "legacy AGENTS.md symlink was not repointed"
 
 rm "$agents_link"
@@ -78,7 +78,7 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-ki
   cat "$ROOT/doctor-repoint-kit.out" >&2
   fail "doctor failed to repoint the former kit/ AGENTS.md symlink"
 fi
-[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/ai-kit/AGENTS.md" ]] \
+[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/core/AGENTS.md" ]] \
   || fail "former kit/ AGENTS.md symlink was not repointed"
 
 if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
@@ -172,13 +172,13 @@ if ! env HOME="$APP_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$APP_HOME/.ai-kit"
 fi
 grep -Fq 'ok: codex CLI not found; desktop app detected — fallback symlinks maintained (openai/codex#22078)' \
   "$ROOT/doctor-app.out" || fail "app-only mode was not reported"
-app_skill_count="$(find "$APP_HOME/.ai-kit/plugins/ai-kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+app_skill_count="$(find "$APP_HOME/.ai-kit"/plugins/*/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
 fallback_count=0
-for skill_file in "$APP_HOME/.ai-kit"/plugins/ai-kit/skills/*/SKILL.md; do
+for skill_file in "$APP_HOME/.ai-kit"/plugins/*/skills/*/SKILL.md; do
   [[ -f "$skill_file" ]] || continue
   name="$(basename "$(dirname "$skill_file")")"
   fallback="$APP_HOME/.codex/skills/$name"
-  expected="$APP_HOME/.ai-kit/plugins/ai-kit/skills/$name"
+  expected="$(dirname "$skill_file")"
   [[ -L "$fallback" ]] || fail "app-only fallback missing for $name"
   [[ "$(readlink "$fallback")" == "$expected" ]] || fail "app-only fallback for $name has the wrong target"
   fallback_count=$((fallback_count + 1))
@@ -213,17 +213,23 @@ case "$*" in
     fi
     ;;
   "plugin list")
-    if [[ "${STUB_PLUGIN:-0}" == "1" || -f "$state/plugin" ]]; then
-      echo "ai-kit@ai-kit installed, enabled"
+    if [[ "${STUB_PLUGIN:-0}" == "1" ]]; then
+      echo "core@ai-kit installed, enabled"
+    elif [[ -d "$state/plugins" ]]; then
+      for installed in "$state/plugins"/*; do
+        [[ -f "$installed" ]] && echo "$(basename "$installed")@ai-kit installed, enabled"
+      done
     fi
     ;;
   "plugin marketplace add "*)
     touch "$state/marketplace"
     echo "Added marketplace ai-kit"
     ;;
-  "plugin add ai-kit@ai-kit")
-    touch "$state/plugin"
-    echo "Added plugin ai-kit from marketplace ai-kit."
+  "plugin add "*@ai-kit)
+    mkdir -p "$state/plugins"
+    name="${2%@ai-kit}"
+    touch "$state/plugins/$name"
+    echo "Added plugin $name from marketplace ai-kit."
     ;;
   "plugin marketplace upgrade ai-kit")
     touch "$state/upgrade"
@@ -232,7 +238,7 @@ case "$*" in
   "debug prompt-input list skills")
     count="${STUB_EXPOSED:-0}"
     for ((i = 1; i <= count; i++)); do
-      echo "ai-kit:x$i"
+      echo "core:x$i"
     done
     ;;
   *)
@@ -259,23 +265,35 @@ case "$*" in
     echo '{"name":"ai-kit"}'
     ;;
   "plugin list --json")
-    if [[ -f "$state/claude-plugin" ]]; then
-      echo '[{"id":"ai-kit@ai-kit"}]'
+    if [[ -d "$state/claude-plugins" ]]; then
+      printf '['
+      first=1
+      for installed in "$state/claude-plugins"/*; do
+        [[ -f "$installed" ]] || continue
+        [[ "$first" -eq 0 ]] && printf ','
+        first=0
+        printf '{"id":"%s@ai-kit"}' "$(basename "$installed")"
+      done
+      printf ']\n'
     else
       echo '[]'
     fi
     ;;
-  "plugin install ai-kit@ai-kit --json")
-    touch "$state/claude-plugin"
-    echo '{"id":"ai-kit@ai-kit"}'
+  "plugin install "*@ai-kit" --json")
+    mkdir -p "$state/claude-plugins"
+    name="${3%@ai-kit}"
+    touch "$state/claude-plugins/$name"
+    printf '{"id":"%s@ai-kit"}\n' "$name"
     ;;
   "plugin marketplace update ai-kit --json")
     touch "$state/claude-marketplace-update"
     echo '{"name":"ai-kit"}'
     ;;
-  "plugin update ai-kit@ai-kit --json")
-    touch "$state/claude-plugin-update"
-    echo '{"id":"ai-kit@ai-kit"}'
+  "plugin update "*@ai-kit" --json")
+    mkdir -p "$state/claude-plugin-updates"
+    name="${3%@ai-kit}"
+    touch "$state/claude-plugin-updates/$name"
+    printf '{"id":"%s@ai-kit"}\n' "$name"
     ;;
   *)
     echo "unexpected claude stub arguments: $*" >&2
@@ -295,21 +313,28 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 grep -Fq 'fix: codex marketplace ai-kit registered' "$ROOT/doctor-stub-install.out" \
   || fail "stub marketplace add was not reported"
-grep -Fq 'fix: codex plugin ai-kit@ai-kit installed' "$ROOT/doctor-stub-install.out" \
-  || fail "stub plugin add was not reported"
-grep -Fq 'ok: codex plugin exposes 43 ai-kit skills' "$ROOT/doctor-stub-install.out" \
+codex_fixes="$(grep -c 'fix: codex plugin .*@ai-kit installed' "$ROOT/doctor-stub-install.out" || true)"
+plugin_total="$(find "$STUB_HOME/.ai-kit"/plugins -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+[[ "$codex_fixes" == "$plugin_total" ]] \
+  || fail "$codex_fixes codex plugin installs reported, expected $plugin_total"
+grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-install.out" \
   || fail "stub exposed-skill count was not reported"
 grep -Fq 'fix: claude marketplace ai-kit registered' "$ROOT/doctor-stub-install.out" \
   || fail "Claude marketplace add was not reported"
-grep -Fq 'fix: claude plugin ai-kit@ai-kit installed' "$ROOT/doctor-stub-install.out" \
-  || fail "Claude plugin install was not reported"
-[[ -f "$STUB_STATE/claude-marketplace" && -f "$STUB_STATE/claude-plugin" ]] \
+grep -Fq 'fix: claude bundle all@ai-kit installed' "$ROOT/doctor-stub-install.out" \
+  || fail "Claude bundle install was not reported"
+[[ -f "$STUB_STATE/claude-marketplace" && -f "$STUB_STATE/claude-plugins/all" ]] \
   || fail "Claude stub install markers missing"
-[[ "$(readlink "$STUB_HOME/.claude/CLAUDE.md")" == "$STUB_HOME/.ai-kit/plugins/ai-kit/AGENTS.md" ]] \
+[[ "$(readlink "$STUB_HOME/.claude/CLAUDE.md")" == "$STUB_HOME/.ai-kit/plugins/core/AGENTS.md" ]] \
   || fail "Claude CLAUDE.md symlink has the wrong target"
-for name in java godot spec; do
-  [[ "$(readlink "$STUB_HOME/.claude/rules/ai-kit-$name.md")" == "$STUB_HOME/.ai-kit/plugins/ai-kit/rules/$name.md" ]] \
-    || fail "Claude rule symlink has the wrong target for $name"
+for rule_file in "$STUB_HOME/.ai-kit"/plugins/*/rules/*.md; do
+  [[ -f "$rule_file" ]] || continue
+  plugin_name="$(dirname "$(dirname "$rule_file")")"
+  plugin_name="$(basename "$plugin_name")"
+  rule_name="${rule_file##*/}"
+  rule_name="${rule_name%.md}"
+  [[ "$(readlink "$STUB_HOME/.claude/rules/$plugin_name-$rule_name.md")" == "$rule_file" ]] \
+    || fail "Claude rule symlink has the wrong target for $plugin_name-$rule_name"
 done
 stub_fallback_count=0
 if [[ -d "$STUB_HOME/.codex/skills" ]]; then
@@ -323,7 +348,7 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
   cat "$ROOT/doctor-stub-fallback.out" >&2
   fail "doctor failed to create stub fallback"
 fi
-stub_skill_count="$(find "$STUB_HOME/.ai-kit/plugins/ai-kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+stub_skill_count="$(find "$STUB_HOME/.ai-kit"/plugins/*/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
 stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d ' ')"
 [[ "$stub_fallback_count" == "$stub_skill_count" ]] \
   || fail "$stub_fallback_count stub fallbacks, expected $stub_skill_count"
@@ -336,7 +361,7 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d ' ')"
 [[ "$stub_fallback_count" == "0" ]] || fail "stub fallback remained after plugin exposure"
-grep -Fq 'ok: codex plugin exposes 43 ai-kit skills' "$ROOT/doctor-stub-remove.out" \
+grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-remove.out" \
   || fail "stub re-exposure count was not reported"
 
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
@@ -347,7 +372,7 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 [[ -f "$STUB_STATE/upgrade" ]] || fail "refresh did not upgrade the stub marketplace"
 [[ -f "$STUB_STATE/claude-marketplace-update" ]] || fail "refresh did not update the Claude marketplace"
-[[ -f "$STUB_STATE/claude-plugin-update" ]] || fail "refresh did not update the Claude plugin"
+[[ -f "$STUB_STATE/claude-plugin-updates/all" ]] || fail "refresh did not update the Claude bundle plugin"
 
 FOREIGN_LINK_HOME="$ROOT/foreign-link-home"
 mkdir -p "$FOREIGN_LINK_HOME/.codex"
@@ -361,7 +386,7 @@ grep -q '^FAIL:' "$ROOT/doctor-foreign-link.out" || fail "foreign-symlink failur
 [[ "$(readlink "$FOREIGN_LINK_HOME/.codex/AGENTS.md")" == "/tmp/elsewhere.md" ]] \
   || fail "foreign Codex AGENTS.md symlink changed"
 
-guard_command="$(python3 - "$SOURCE/plugins/ai-kit/hooks/hooks.json" <<'PY'
+guard_command="$(python3 - "$SOURCE/plugins/core/hooks/hooks.json" <<'PY'
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
@@ -394,11 +419,11 @@ expect_validator_failure() {
   grep -Fq "$expected" <<<"$output" || fail "$label did not report: $expected"
 }
 
-cp "$SOURCE/plugins/ai-kit/hooks/hooks.json" "$SOURCE/plugins/ai-kit/hooks.json"
-expect_validator_failure "root hooks.json" "root hooks.json is forbidden"
-rm "$SOURCE/plugins/ai-kit/hooks.json"
+cp "$SOURCE/plugins/core/hooks/hooks.json" "$SOURCE/plugins/core/hooks.json"
+expect_validator_failure "root hooks.json" "hooks.json is forbidden"
+rm "$SOURCE/plugins/core/hooks.json"
 
-skill="$SOURCE/plugins/ai-kit/skills/asset-import/SKILL.md"
+skill="$SOURCE/plugins/dev-godot/skills/asset-import/SKILL.md"
 cp "$skill" "$ROOT/asset-import.before"
 python3 - "$skill" <<'PY'
 from pathlib import Path
@@ -409,7 +434,7 @@ PY
 expect_validator_failure "user-only Claude parity" "user-only parity requires"
 cp "$ROOT/asset-import.before" "$skill"
 
-profile="$SOURCE/plugins/ai-kit/agents/researcher.md"
+profile="$SOURCE/plugins/architect-sdd/agents/researcher.md"
 cp "$profile" "$ROOT/researcher.before"
 python3 - "$profile" <<'PY'
 from pathlib import Path
@@ -427,35 +452,41 @@ import sys
 
 kit = Path(sys.argv[1])
 version = (kit / "VERSION").read_text(encoding="utf-8").strip()
+repo = "https://github.com/ChristianPrzybulinski/agent-rules-kit.git"
 meta = json.loads((kit / ".devin-plugin/plugin.json").read_text(encoding="utf-8"))
 assert meta["name"] == "agent-rules-kit"
 assert meta["version"] == version
 assert meta["requiredPlugins"] == [{
     "source": "git-subdir",
-    "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-    "path": "plugins/ai-kit",
+    "url": repo,
+    "path": "plugins/core",
 }]
-for manifest in (
-        kit / "plugins/ai-kit/.devin-plugin/plugin.json",
-        kit / "plugins/ai-kit/.claude-plugin/plugin.json",
-        kit / "plugins/ai-kit/plugin.json"):
-    assert json.loads(manifest.read_text(encoding="utf-8"))["version"] == version
-claude_plugin = json.loads((kit / "plugins/ai-kit/.claude-plugin/plugin.json").read_text(encoding="utf-8"))
+plugin_dirs = sorted(
+    path for path in (kit / "plugins").iterdir()
+    if (path / ".devin-plugin/plugin.json").is_file()
+)
+assert len(plugin_dirs) == 12
+optional = {entry["path"] for entry in meta["optionalPlugins"]}
+assert optional == {f"plugins/{path.name}" for path in plugin_dirs if path.name != "core"}
+for plugin_dir in plugin_dirs:
+    for manifest in (
+            plugin_dir / ".devin-plugin/plugin.json",
+            plugin_dir / ".claude-plugin/plugin.json",
+            plugin_dir / "plugin.json"):
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        assert data["version"] == version, manifest
+        assert data["name"] == plugin_dir.name, manifest
 claude_marketplace = json.loads((kit / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
-assert claude_plugin["name"] == "ai-kit"
-assert claude_marketplace["plugins"] == [{
-    "name": "ai-kit",
-    "source": "./plugins/ai-kit",
-    "description": claude_plugin["description"],
-    "version": version,
-    "category": "productivity",
-}]
+assert claude_marketplace["renames"] == {"ai-kit": "core"}
+listed = {entry["name"]: entry["source"] for entry in claude_marketplace["plugins"]}
+assert listed == {path.name: f"./plugins/{path.name}" for path in plugin_dirs}
 marketplace = json.loads((kit / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
-assert marketplace["plugins"][0]["source"]["path"] == "./plugins/ai-kit"
+codex_sources = {entry["name"]: entry["source"]["path"] for entry in marketplace["plugins"]}
+assert codex_sources == {path.name: f"./plugins/{path.name}" for path in plugin_dirs}
 PY
 
-skill_count="$(find "$TEST_HOME/.ai-kit/plugins/ai-kit/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
-index_count="$(grep -c "^| \`[a-z0-9-][a-z0-9-]*\` |" "$TEST_HOME/.ai-kit/plugins/ai-kit/skills/INDEX.md")"
-[[ "$skill_count" == "$index_count" ]] || fail "$skill_count skill folders but $index_count index rows"
+skill_count="$(find "$TEST_HOME/.ai-kit"/plugins/*/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+index_count="$(grep -ch "^| \`[a-z0-9-][a-z0-9-]*\` |" "$TEST_HOME/.ai-kit"/plugins/*/INDEX.md | awk '{s+=$1} END {print s+0}')"
+[[ "$index_count" == "$skill_count" ]] || fail "$skill_count skills but $index_count index rows"
 
 printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests)\n' "$skill_count"

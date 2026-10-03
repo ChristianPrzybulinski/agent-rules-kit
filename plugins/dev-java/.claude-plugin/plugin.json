@@ -1,0 +1,11 @@
+{
+  "name": "dev-java",
+  "version": "10.0.0",
+  "description": "ai-kit Java: Java 25, Spring/Quarkus and Maven standards",
+  "author": {
+    "name": "Christian Przybulinski"
+  },
+  "dependencies": [
+    "dev-core"
+  ]
+}

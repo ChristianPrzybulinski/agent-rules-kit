@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
-# Vendors third-party skills into plugins/ai-kit/skills/<name>/ from the pinned lock.
+# Vendors third-party skills into plugins/<plugin>/skills/<name>/ from the pinned lock.
 # Usage: vendor.sh           installs/updates per platforms/kits/third-party/skills.lock
 #        vendor.sh --check   fails if any VENDOR.md diverges from the lock
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LOCK="$KIT_DIR/platforms/kits/third-party/skills.lock"
-VENDOR="$KIT_DIR/plugins/ai-kit/skills"
+PLUGINS_DIR="$KIT_DIR/plugins"
 MODE="install"; [[ "${1:-}" == "--check" ]] && MODE="check"
 FAILED=0
 
-while IFS='|' read -r name repo path sha license verified; do
-  name="$(echo "$name" | xargs)"; repo="$(echo "$repo" | xargs)"; path="$(echo "$path" | xargs)"
-  sha="$(echo "$sha" | xargs)"; license="$(echo "$license" | xargs)"; verified="$(echo "$verified" | xargs)"
+while IFS='|' read -r name plugin repo path sha license verified; do
+  name="$(echo "$name" | xargs)"; plugin="$(echo "$plugin" | xargs)"; repo="$(echo "$repo" | xargs)"
+  path="$(echo "$path" | xargs)"; sha="$(echo "$sha" | xargs)"; license="$(echo "$license" | xargs)"
+  verified="$(echo "$verified" | xargs)"
   [[ -z "$name" || "$name" == \#* ]] && continue
-  dest="$VENDOR/$name"
+  if [[ ! -d "$PLUGINS_DIR/$plugin" ]]; then
+    echo "FAIL: $name targets unknown plugin '$plugin'" >&2; FAILED=1; continue
+  fi
+  dest="$PLUGINS_DIR/$plugin/skills/$name"
 
   if [[ "$MODE" == check ]]; then
     [[ -f "$dest/VENDOR.md" ]] || { echo "FAIL: $name missing VENDOR.md" >&2; FAILED=1; continue; }
@@ -34,7 +38,7 @@ while IFS='|' read -r name repo path sha license verified; do
   fi
   [[ -f "$src/SKILL.md" ]] || { echo "FAIL: SKILL.md missing in $repo:$path" >&2; rm -rf "$tmp"; FAILED=1; continue; }
 
-  mkdir -p "$VENDOR"
+  mkdir -p "$PLUGINS_DIR/$plugin/skills"
   rm -rf "$dest"
   cp -R "$src" "$dest"
   cat > "$dest/VENDOR.md" <<EOF

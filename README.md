@@ -1,6 +1,6 @@
 # agent-rules-kit
 
-A plugin-first source of always-on rules, triggered rules, skills, references and templates for Devin Cloud, Devin CLI/Desktop, Codex and Claude Code. Plugin content lives under [`plugins/ai-kit/`](plugins/ai-kit/INDEX.md); tooling and documentation stay at repository root.
+A plugin-first source of always-on rules, triggered rules, skills, references and templates for Devin Cloud, Devin CLI/Desktop, Codex and Claude Code. Plugin content lives under [`plugins/`](plugins/) — twelve focused plugins with shared manifests; tooling and documentation stay at repository root.
 
 **Repository layout:** [`INDEX.md`](INDEX.md) · **Maintenance:** [`docs/maintenance.md`](docs/maintenance.md)
 
@@ -16,10 +16,10 @@ gh repo clone ChristianPrzybulinski/agent-rules-kit ~/.ai-kit && ~/.ai-kit/platf
 
 | Agent | Always-on | Skills/rules | Refresh |
 |---|---|---|---|
-| Devin Cloud | required plugin `plugins/ai-kit/AGENTS.md` | `plugins/ai-kit/skills/` and `plugins/ai-kit/rules/` | fetches `main` per session |
-| Devin CLI/Desktop | root meta-plugin requires `plugins/ai-kit/` | required plugin contents | app startup; doctor updates stale SHA |
-| Codex | `~/.codex/AGENTS.md` → `~/.ai-kit/plugins/ai-kit/AGENTS.md` | marketplace plugin plus temporary fallback symlinks | launchd every six hours |
-| Claude Code | `~/.claude/CLAUDE.md` → `~/.ai-kit/plugins/ai-kit/AGENTS.md` | marketplace plugin and `~/.claude/rules/ai-kit-*.md` symlinks | launchd every six hours |
+| Devin Cloud | required plugin `plugins/core/AGENTS.md` | `plugins/*/skills/` and `plugins/*/rules/` | fetches `main` per session |
+| Devin CLI/Desktop | root meta-plugin requires `core` | required plugin plus optional satellites | app startup; doctor updates stale SHA |
+| Codex | `~/.codex/AGENTS.md` → `~/.ai-kit/plugins/core/AGENTS.md` | marketplace plugins plus temporary fallback symlinks | launchd every six hours |
+| Claude Code | `~/.claude/CLAUDE.md` → `~/.ai-kit/plugins/core/AGENTS.md` | marketplace plugins and `~/.claude/rules/<plugin>-*.md` symlinks | launchd every six hours |
 
 ## Platform behavior
 
@@ -32,34 +32,35 @@ gh repo clone ChristianPrzybulinski/agent-rules-kit ~/.ai-kit && ~/.ai-kit/platf
 
 ## Devin plugin
 
-The existing repository source remains valid because its content-free root meta-plugin requires the real plugin from `plugins/ai-kit/`:
+The existing repository source remains valid: the content-free root meta-plugin requires `plugins/core/` and offers the satellites plus the `all` bundle as optional:
 
 ```bash
-devin plugins install ChristianPrzybulinski/agent-rules-kit
+devin plugins install ChristianPrzybulinski/agent-rules-kit        # core only
+devin plugins install ChristianPrzybulinski/agent-rules-kit#plugins/all   # everything
 ```
 
-The direct alternative is `devin plugins install ChristianPrzybulinski/agent-rules-kit#plugins/ai-kit`. Existing Customize entries need no source change; Reindex to pick up the new dependency. Run `devin plugins update ai-kit` to force a local refresh.
+Existing Customize entries need no source change; Reindex to pick up the new dependency. The legacy `ai-kit` plugin should be removed (`devin plugins remove ai-kit`) — its path no longer exists. Run `devin plugins update` to force a local refresh.
 
 ## Codex
 
-Bootstrap registers the marketplace and plugin:
+Bootstrap registers the marketplace and every plugin:
 
 ```bash
 codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref main
-codex plugin add ai-kit@ai-kit
+codex plugin add core@ai-kit   # repeat per plugin, or let bootstrap/doctor iterate them
 ```
 
-The root marketplace catalog points to `./plugins/ai-kit`; `~/.codex/AGENTS.md` links to `~/.ai-kit/plugins/ai-kit/AGENTS.md`. While [openai/codex#22078](https://github.com/openai/codex/issues/22078) remains open, doctor maintains fallback skill symlinks to `~/.ai-kit/plugins/ai-kit/skills/` and removes them once `ai-kit:*` skills are exposed.
+The root marketplace catalog lists all twelve plugins; `~/.codex/AGENTS.md` links to `~/.ai-kit/plugins/core/AGENTS.md`. While [openai/codex#22078](https://github.com/openai/codex/issues/22078) remains open, doctor maintains fallback skill symlinks to `~/.ai-kit/plugins/*/skills/` and removes them once plugin skills are exposed.
 
 ## Claude Code
 
 ```bash
 claude plugin marketplace add ChristianPrzybulinski/agent-rules-kit
-claude plugin install ai-kit@ai-kit
+claude plugin install all@ai-kit    # or a single satellite; dependencies resolve automatically
 ~/.ai-kit/platforms/tools/bootstrap.sh
 ```
 
-Bootstrap links the shared AGENTS file to `~/.claude/CLAUDE.md`, links the three path rules under `~/.claude/rules/`, and narrows Devin imports so the same Claude file is not loaded twice.
+Bootstrap links the shared AGENTS file to `~/.claude/CLAUDE.md`, links every plugin path rule under `~/.claude/rules/<plugin>-<rule>.md`, and narrows Devin imports so the same Claude file is not loaded twice. The marketplace `renames` entry migrates installed `ai-kit` to `core`.
 
 ## Refresh and diagnosis
 
@@ -67,4 +68,4 @@ On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours
 
 ## Maintainers
 
-The plugin root is `plugins/ai-kit/`; the repository root is a content-free meta-plugin. Before a PR, run `platforms/tools/check.sh` and `platforms/tools/smoke.sh`. Content changes follow `docs/maintenance.md`. Never add non-rule files to `plugins/ai-kit/rules/`; `plugins/ai-kit/agents/` contains only schema-validated shared profiles.
+Each directory under `plugins/` is a plugin with three manifests; the repository root is a content-free meta-plugin. Before a PR, run `platforms/tools/check.sh` and `platforms/tools/smoke.sh`. Content changes follow `docs/maintenance.md`. Never add non-rule files to any `plugins/*/rules/`; `plugins/*/agents/` contains only schema-validated shared profiles, and only `plugins/core/` carries `AGENTS.md` and `hooks/`.

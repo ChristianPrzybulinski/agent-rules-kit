@@ -4,6 +4,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [10.0.0] - 2026-10-03
+
+### Changed
+- **BREAKING — the single `ai-kit` plugin was split into twelve plugins.** `plugins/ai-kit/` is gone; content now lives in `plugins/core` (always-on rules, hook guard, session and kit-authoring skills), `plugins/dev-core` (code patterns), `plugins/dev-java`, `plugins/dev-godot`, `plugins/architect-core` (Clean Architecture, DDD, contracts), `plugins/architect-sdd` (SDD pipeline and `researcher`), `plugins/quality-core` (`reviewer`, skeptic, verdicts), `plugins/quality-security`, `plugins/infra-core`, `plugins/infra-persistence`, `plugins/infra-github`, plus the manifest-only `plugins/all` bundle that installs everything through dependency resolution.
+- Satellites declare their parent through `requiredPlugins` (Devin) / `dependencies` (Claude): `dev-java`→`dev-core`→`core`. The root meta-plugin requires only `core` and lists the satellites plus `all` as optional — `devin plugins install <repo>` now installs core alone; `…#plugins/all` restores the old everything-installed behavior.
+- The Claude marketplace gained a `renames` entry (`ai-kit`→`core`) and a `category` per plugin; legacy Devin installs should remove the old `ai-kit` plugin (`devin plugins remove ai-kit`) since its path no longer exists.
+- Vendor skills moved to their owning plugins; `skills.lock` gained a `plugin` column and `vendor.sh` routes by it.
+- `check_kit.py` was rewritten for the multi-plugin layout: it discovers plugins by manifest, validates the dependency graph (existence, no cycles, `agent:` reachability), enforces `core`-only `AGENTS.md`/`hooks` and the manifest-only `all`, and keeps the previous schema/parity/link/vendor gates.
+- `doctor.sh`/`bootstrap.sh`/`refresh.sh`/`smoke.sh` iterate `plugins/*`: Claude rule symlinks are now `~/.claude/rules/<plugin>-<rule>.md`, Codex installs each marketplace entry, Claude installs the `all` bundle, and the shared `AGENTS.md` target is `plugins/core/AGENTS.md`.
+
+### Migration
+- Devin: `devin plugins remove ai-kit` then `devin plugins install ChristianPrzybulinski/agent-rules-kit` (core) or `…#plugins/all` (everything). Satellites install individually via `…#plugins/<name>` and pull their dependency chain.
+- Codex/Claude: marketplace re-add picks up the new catalog; Claude installs `all@ai-kit` (or any satellite — dependencies resolve), Codex installs entries individually. `doctor.sh` repairs AGENTS.md/rule/fallback symlinks.
+
 ## [9.0.0] - 2026-10-02
 
 ### Added

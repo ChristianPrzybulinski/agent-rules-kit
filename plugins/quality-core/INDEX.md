@@ -1,0 +1,18 @@
+# quality-core/ — ai-kit quality — review and verification
+
+## `skills/`
+
+| Skill | Description |
+|---|---|
+| `skeptic` | Adversarial check of a claim or proposed fix. Use when the user suggests a solution, a claim is unproven, or confidence <98%. Not for bugs (skill investigate). |
+| `validate-implementation` | Completion verdict against a request or FEAT. Use when asking “is it done?” or preparing a PR. Not for fixing failures (skill sdd-implement). |
+## `agents/`
+
+- `reviewer.md`
+
+## `templates/`
+
+- `doc-review-checklist.md`
+
+
+Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

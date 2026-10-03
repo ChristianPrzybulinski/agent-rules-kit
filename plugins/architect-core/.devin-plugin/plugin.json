@@ -1,0 +1,12 @@
+{
+  "name": "architect-core",
+  "version": "10.0.0",
+  "description": "ai-kit architecture: Clean Architecture, DDD, contracts and idea stress-testing",
+  "requiredPlugins": [
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/core"
+    }
+  ]
+}

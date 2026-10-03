@@ -67,7 +67,7 @@ codex_bin() {
 
 ensure_agents_link() {
   local destination="$HOME/.codex/AGENTS.md"
-  local expected="$KIT/plugins/ai-kit/AGENTS.md"
+  local expected="$KIT/plugins/core/AGENTS.md"
   local current
   local backup
   mkdir -p "$HOME/.codex"
@@ -115,7 +115,7 @@ ensure_agents_link
 
 if command -v devin >/dev/null 2>&1; then
   devin_plugins="$(devin plugins list 2>/dev/null || true)"
-  if [[ "$devin_plugins" == *"ai-kit"* ]]; then
+  if [[ "$devin_plugins" == *"agent-rules-kit"* || "$devin_plugins" == *"core"* ]]; then
     printf 'ok: devin plugin installed\n'
   elif devin plugins install "$REPOSITORY" -y >/dev/null 2>&1; then
     printf 'fix: devin plugin installed\n'
@@ -136,13 +136,17 @@ if [[ -n "$codex" ]]; then
   fi
 
   plugins="$("$codex" plugin list 2>/dev/null || true)"
-  if [[ "$plugins" == *"ai-kit@ai-kit"* ]]; then
-    printf 'ok: codex plugin ai-kit@ai-kit installed\n'
-  elif "$codex" plugin add ai-kit@ai-kit >/dev/null 2>&1; then
-    printf 'fix: codex plugin ai-kit@ai-kit installed\n'
-  else
-    warn "codex plugin ai-kit@ai-kit installation failed; run: codex plugin add ai-kit@ai-kit"
-  fi
+  for plugin_dir in "$KIT"/plugins/*/; do
+    plugin_name="$(basename "$plugin_dir")"
+    [[ -d "$plugin_dir/.devin-plugin" || -d "$plugin_dir/.claude-plugin" || -f "$plugin_dir/plugin.json" ]] || continue
+    if [[ "$plugins" == *"$plugin_name@ai-kit"* ]]; then
+      printf 'ok: codex plugin %s@ai-kit installed\n' "$plugin_name"
+    elif "$codex" plugin add "$plugin_name@ai-kit" >/dev/null 2>&1; then
+      printf 'fix: codex plugin %s@ai-kit installed\n' "$plugin_name"
+    else
+      warn "codex plugin $plugin_name@ai-kit installation failed; run: codex plugin add $plugin_name@ai-kit"
+    fi
+  done
 fi
 
 if command -v claude >/dev/null 2>&1; then
@@ -156,12 +160,12 @@ if command -v claude >/dev/null 2>&1; then
   fi
 
   claude_plugins="$(claude plugin list --json 2>/dev/null || true)"
-  if json_contains "$claude_plugins" "ai-kit@ai-kit"; then
-    printf 'ok: claude plugin ai-kit@ai-kit installed\n'
-  elif claude plugin install ai-kit@ai-kit --json >/dev/null 2>&1; then
-    printf 'fix: claude plugin ai-kit@ai-kit installed\n'
+  if json_contains "$claude_plugins" "all@ai-kit"; then
+    printf 'ok: claude bundle all@ai-kit installed\n'
+  elif claude plugin install all@ai-kit --json >/dev/null 2>&1; then
+    printf 'fix: claude bundle all@ai-kit installed\n'
   else
-    warn "claude plugin ai-kit@ai-kit installation failed; run: claude plugin install ai-kit@ai-kit"
+    warn "claude bundle all@ai-kit installation failed; run: claude plugin install all@ai-kit"
   fi
 fi
 
