@@ -20,7 +20,7 @@ Use `references/living-docs.md` as the closure checklist. Written artifacts are 
 - Build/run/test command changed → update README and repository AGENTS instructions.
 - User-visible behavior changed → add a Keep a Changelog `Unreleased` entry.
 - Public API changed → add concise Javadoc/docstring for purpose and invariants.
-- Rejected alternative/trade-off → create `DEC-nnn` proposed until approved.
+- Rejected alternative/trade-off → create a decision record (`DTEC`/`DGME`/`DPRO-nnn`) proposed until approved.
 - Conscious debt → create `DEBT-nnn` with a payment trigger.
 - Feature progress → update FEAT status/history/frontmatter.
 

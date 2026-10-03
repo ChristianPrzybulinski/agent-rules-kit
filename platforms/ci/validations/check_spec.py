@@ -90,14 +90,14 @@ STRUCT = {
                     "id": r"^REQ-(F|NF)-\d{3,}$"},
     "decision": {"req": ["id", "title", "status", "date"],
                  "enums": {"status": ["proposed", "approved", "rejected", "superseded"]},
-                 "id": r"^DEC-\d{3,}$"},
+                 "id": r"^(DTEC|DGME|DPRO)-\d{3,}$"},
     "debt": {"req": ["id", "title", "status", "severity", "trigger", "created"],
              "enums": {"status": ["open", "paid", "accepted"],
                        "severity": ["low", "medium", "high", "critical"]},
              "id": r"^DEBT-\d{3,}$"},
 }
 
-ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|FEAT|DEC|DEBT)-(\d+)")
+ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|FEAT|DTEC|DGME|DPRO|DEBT)-(\d+)")
 
 
 def main():
@@ -156,6 +156,10 @@ def main():
             if fid in ids:
                 fail(f"{path}: duplicate id {fid} (also in {ids[fid]})")
             ids[fid] = path
+        if kind == "decision" and fid:
+            expected = {"tech": "DTEC", "game": "DGME", "process": "DPRO"}.get(str(data.get("kind")))
+            if expected and not str(fid).startswith(expected + "-"):
+                fail(f"{path}: id {fid} prefix does not match kind {data['kind']!r}")
         if kind == "feature" and fid:
             feats[fid] = data.get("requirements") or []
         if kind == "requirement" and fid:

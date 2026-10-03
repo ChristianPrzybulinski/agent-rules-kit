@@ -1,16 +1,19 @@
 ---
-id: DEC-000
+id: DTEC-000
 title: "[Decision in 1 sentence: Use WebSocket for the game session]"
 status: proposed
 date: "YYYY-MM-DD"
 deciders: "[product | tech]"
+kind: tech
 features: []
 supersedes: null
 ---
 
-# DEC-000 — [Title]
+# DTEC-000 — [Title]
 
-States: `proposed` → `approved` | `rejected` | `superseded` (superseded by `DEC-nnn`).
+States: `proposed` → `approved` | `rejected` | `superseded` (superseded by a later `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn`).
+
+`kind` fixes the id prefix: `tech` → `DTEC`, `game` → `DGME`, `process` → `DPRO`. Number sequentially inside the kind's namespace — parallel sessions cannot collide.
 
 ## Context
 
