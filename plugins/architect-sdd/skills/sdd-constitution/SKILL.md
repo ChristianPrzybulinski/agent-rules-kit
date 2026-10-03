@@ -33,7 +33,7 @@ Create `docs/spec/spec.md` with a three-line vision, explicit out-of-scope, glos
 
 ## 4. Record existing decisions
 
-For an already-approved product decision, create one `DEC-nnn` with `status: approved` and its source. Unknown numeric targets remain hypotheses with a measurement method.
+For an already-approved product decision, create one decision record (`DTEC-nnn`/`DGME-nnn`/`DPRO-nnn` per kind) with `status: approved` and its source. Unknown numeric targets remain hypotheses with a measurement method.
 
 ## 5. Validate
 

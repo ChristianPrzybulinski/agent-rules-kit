@@ -12,7 +12,7 @@
 | `spec.schema.json` | a project's `docs/spec/spec.md` | fixed |
 | `feature.schema.json` | `docs/spec/features/*.md` | `FEAT-nnn-slug.md` |
 | `requirement.schema.json` | `docs/spec/requirements/{functional,non-functional}/*.md` | `REQ-F-nnn-*` / `REQ-NF-nnn-*` |
-| `decision.schema.json` | `docs/spec/decisions/*.md` | `DEC-nnn-slug.md` |
+| `decision.schema.json` | `docs/spec/decisions/*.md` | `DTEC-nnn-slug.md` (or `DGME-`/`DPRO-` per kind) |
 | `debt.schema.json` | `docs/spec/debts/*.md` | `DEBT-nnn-slug.md` |
 
 The five spec schemas (`spec`, `feature`, `requirement`, `decision`, `debt`) go to projects **as a copy**: `platforms/tools/sync-project.sh` installs `check_spec.py` and schemas into the project's `.github/spec-lint/`, and `platforms/kits/github/workflows/spec-lint.yml` runs them locally without a kit checkout or token.

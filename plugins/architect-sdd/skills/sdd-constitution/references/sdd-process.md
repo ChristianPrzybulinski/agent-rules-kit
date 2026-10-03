@@ -38,7 +38,7 @@ Repeat `implement → validate` until READY. Run `to-card` after specify to open
 
 ## Identifiers and status
 
-`FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DEC-nnn` → `decisions/`; `DEBT-nnn` → `debts/`. Number sequentially per type; never reuse.
+`FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn` → `decisions/`; `DEBT-nnn` → `debts/`. Number sequentially per kind namespace (DTEC, DGME, DPRO); never reuse.
 
 Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). `delivered` means merged to `main` with no flag or the flag on.
 
@@ -51,7 +51,7 @@ docs/spec/
 ├── spec.md
 ├── features/FEAT-nnn-slug.md
 ├── requirements/{functional,non-functional}/REQ-*.md
-├── decisions/DEC-nnn-slug.md
+├── decisions/DTEC-nnn-slug.md
 └── debts/DEBT-nnn-slug.md
 ```
 
