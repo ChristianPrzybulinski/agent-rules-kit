@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- `github-cli`: after `gh pr create`, wait for the PR checks (`gh pr checks <n> --watch`) and report each check by name and conclusion, failures first. Local gates do not replace CI-only gates (dependency or secret scans), and a PR is not done while a check is red. Evidence: stratics-server#12 reported a green local `verify` while its CI `dependency-check` job was failing on two CVEs.
+
 ## [10.0.0] - 2026-10-03
 
 ### Changed
