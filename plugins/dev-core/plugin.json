@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dev-core",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "description": "ai-kit dev patterns: clean code, simplicity, testing, docs and investigation skills"
 }

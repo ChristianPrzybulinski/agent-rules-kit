@@ -1,6 +1,6 @@
 {
   "name": "dev-java",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "description": "ai-kit Java: Java 25, Spring/Quarkus and Maven standards",
   "requiredPlugins": [
     {

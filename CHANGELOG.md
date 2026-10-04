@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [10.1.0] - 2026-10-04
+
 ### Changed
 - `reviewer` / `validate-implementation`: review the pushed head on a clean checkout and re-run every proof command the author's report claims. A result not reproduced there is unverified, and one that fails there is a blocker. A proof that cannot fail (zero tests, zero schemas) is not proof. Evidence from the 2026-10-04 Stratics reviews:
   - stratics-server#13 reported `grep … exit=1`, but the fix was never committed and the grep matched 3 lines at the pushed head;

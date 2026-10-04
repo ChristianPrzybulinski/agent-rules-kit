@@ -1,6 +1,6 @@
 {
   "name": "infra-github",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "description": "ai-kit GitHub: gh workflow, branching and versioning policy",
   "author": {
     "name": "Christian Przybulinski"
