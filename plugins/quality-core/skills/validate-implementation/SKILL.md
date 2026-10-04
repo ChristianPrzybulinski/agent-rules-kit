@@ -28,6 +28,8 @@ allowed-tools:
 - Run `git diff <base>...HEAD --stat` and inspect the changed files; report cited files absent from the diff.
 - For each criterion, locate implementation, executable proof and required documentation.
 - A criterion without an executable test or reproducible command is not met.
+- Validate the pushed head on a clean checkout (`git worktree add --detach <tmp> <sha>`); local uncommitted state never counts. Re-run there every proof command the author's report or PR lists. A claimed result that no command reproduces there is unverified; one that fails there makes the verdict `NOT READY`.
+- A proof must be able to fail. A gate that passes on empty input (zero tests, zero schemas) is not proof; show it failing on a broken case.
 
 ## 3. Run canonical gates
 
