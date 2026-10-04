@@ -1,6 +1,6 @@
 {
   "name": "quality-core",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "description": "ai-kit quality: review subagent, adversarial checks and completion verdicts",
   "requiredPlugins": [
     {

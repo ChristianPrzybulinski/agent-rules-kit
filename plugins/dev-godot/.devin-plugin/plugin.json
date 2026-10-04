@@ -1,6 +1,6 @@
 {
   "name": "dev-godot",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "description": "ai-kit Godot: Godot 2D, GDScript and pixel-art pipeline standards",
   "requiredPlugins": [
     {
