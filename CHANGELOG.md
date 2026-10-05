@@ -4,6 +4,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- `sdd-tasks`: a pre-cut checklist (§5) runs before issues are created. It checks test paths in `Files`, cross-feature fields against the owning contract, proofs that run unattended in CI or gates, and neighbour files a task needs. Evidence: in Stratics batch-20261004-141711, 7 of 16 issues had review findings caused by the spec:
+  - a Files cell with no test path (stratics-server#14);
+  - config or CI files outside the cell (stratics-docs#83, #84);
+  - contract fields owned by another feature (#187, stratics-server#18, #196, #125);
+  - a manual-only proof (Mailpit capture).
+
 ## [10.1.0] - 2026-10-04
 
 ### Changed
