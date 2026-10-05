@@ -176,11 +176,16 @@ def main():
         for f in flist:
             if f not in feats:
                 fail(f"{ids[rid]}: features lists {f} which does not exist")
-    # every REQ listed by some FEAT (the reverse is already covered by features[])
-    listed = {r for rl in feats.values() for r in rl}
-    for rid in reqs:
-        if rid not in listed:
-            fail(f"{ids[rid]}: {rid} is not listed in any FEAT's requirements")
+    # both sides agree: a link written on one side only drifts. Together with the non-empty features[]
+    # above, this also guarantees every REQ is listed by some FEAT.
+    for fid, rlist in feats.items():
+        for r in rlist:
+            if r in reqs and fid not in reqs[r]:
+                fail(f"{ids[fid]}: requirements lists {r}, but {r} features does not list {fid}")
+    for rid, flist in reqs.items():
+        for f in flist:
+            if f in feats and rid not in feats[f]:
+                fail(f"{ids[rid]}: features lists {f}, but {f} requirements does not list {rid}")
 
     if failures:
         sys.exit(1)
