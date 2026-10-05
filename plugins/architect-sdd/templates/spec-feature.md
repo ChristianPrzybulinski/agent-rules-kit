@@ -4,6 +4,7 @@ title: "[Short infinitive title: Authenticate player]"
 status: proposed
 requirements: []
 depends_on: []
+scope: []
 milestone: null
 evidence: []
 flag: null
