@@ -24,6 +24,8 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: check kit
         run: platforms/tools/check.sh
+      - name: check_spec self-test
+        run: python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"  # -B: no __pycache__ for check_kit
       - name: smoke
         run: platforms/tools/smoke.sh
       - name: links

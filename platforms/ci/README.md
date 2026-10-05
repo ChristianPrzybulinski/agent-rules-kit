@@ -20,6 +20,6 @@ The five spec schemas (`spec`, `feature`, `requirement`, `decision`, `debt`) go 
 | Validation | Scope |
 |---|---|
 | `validations/check_kit.py` | multi-plugin layout, manifests and dependency graph, frontmatters, description budget, indexes, links, vendor lock, duplication (`--links` includes `~/.ai-kit/...`) |
-| `validations/check_spec.py` | a project's `docs/spec`: schema + id=prefix + FEAT↔REQ cross-check + unique IDs |
+| `validations/check_spec.py` | a project's `docs/spec`: schema + id=prefix + FEAT↔REQ cross-check (ids exist, both frontmatters list each link) + unique IDs; self-test `validations/test_check_spec.py` |
 
 Without `pyyaml`/`jsonschema`: structural validation with a WARN; with `CI=1`, their absence is an error.
