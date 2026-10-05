@@ -41,4 +41,12 @@ States: `todo`, `doing`, `done`, `blocked`.
 
 Every acceptance criterion appears in at least one task; every task covers a criterion or is explicitly infrastructure. Run `sdd-analyze` A8 and remove vague “implement the rest” rows.
 
-Done when: tasks are dependency ordered, independently provable, mapped both ways to criteria and ready for one-at-a-time execution.
+## 5. Pre-cut checklist (before issues are created)
+
+Check every row. A row that fails one of these items is fixed before its issue is cut:
+- **Tests in scope.** `Files` includes the test paths for any new code. A row that adds code without a test path is incomplete.
+- **Cross-feature fields.** Every field the task reads from or writes to another feature's contract (message, schema, table) exists in that feature's artifact. Fix the contract first, never inside the implementing PR.
+- **Executable proof.** Every proof line runs unattended in CI or the review gates, as a deterministic command. A manual check (UI, mail capture) is labelled as such and paired with an automated one.
+- **Neighbour files.** If the work needs a file outside the row's `Files` (a config key, a shared CI workflow), that file joins the cell, or the row names the task that owns it.
+
+Done when: tasks are dependency ordered, independently provable, mapped both ways to criteria, pass the pre-cut checklist and are ready for one-at-a-time execution.
