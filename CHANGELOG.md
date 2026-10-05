@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- `feature.schema.json` and the `spec-feature.md` template: optional `scope` field, a unique list drawn from `server`, `client` and `docs`, naming the repositories a FEAT touches. Evidence: all 52 Stratics FEATs carry `scope`, and stratics-docs' synced `.github/spec-lint/schemas/feature.schema.json` already accepts it, because it was synced from a kit checkout that had this change uncommitted (`git log -S'"scope"'` finds nothing on kit main). Syncing from kit main would reject every FEAT with "Additional properties are not allowed ('scope' was unexpected)".
+
 ### Changed
 - `sdd-tasks`: a pre-cut checklist (§5) runs before issues are created. It checks test paths in `Files`, cross-feature fields against the owning contract, proofs that run unattended in CI or gates, and neighbour files a task needs. Evidence: in Stratics batch-20261004-141711, 7 of 16 issues had review findings caused by the spec:
   - a Files cell with no test path (stratics-server#14);

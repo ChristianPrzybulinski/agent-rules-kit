@@ -22,6 +22,11 @@
       "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
       "uniqueItems": true
     },
+    "scope": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["server", "client", "docs"] },
+      "uniqueItems": true
+    },
     "milestone": { "type": ["string", "null"], "pattern": "^M[0-9]{1,2}$" },
     "evidence": {
       "type": "array",
