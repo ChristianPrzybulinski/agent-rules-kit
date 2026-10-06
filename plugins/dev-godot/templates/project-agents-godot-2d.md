@@ -5,7 +5,7 @@ Replace the passages between [brackets]. The AI Kit's global rules already apply
 ## Stack
 
 - Godot [4.x] (confirm in `project.godot` → `config/features`). Statically typed GDScript required.
-- Tests: [GUT | gdUnit4] in `tests/`. Renderer: [Forward+ | Mobile | Compatibility]. Movement model: [A physics bodies | B grid/tile-step] (see "Movement model").
+- Tests: [gdUnit4 | GUT] in `tests/`. Renderer: [Forward+ | Mobile | Compatibility]. Movement model: [A physics bodies | B grid/tile-step] (see "Movement model").
 - Pixel art: `rendering/textures/canvas_textures/default_texture_filter = Nearest` (see `project.godot`).
 
 ## Structure
@@ -29,7 +29,8 @@ res://
 godot --path . --editor                         # open editor
 godot --headless --path . --import                                # import assets, build the script-class cache (CI)
 ! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'   # boot proof: --quit exits 0 after a script error
-godot --path . --headless -s addons/gut/gut_cmdln.gd   # run GUT (adjust to the framework)
+godot --path . --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode   # run gdUnit4 (default)
+godot --path . --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit             # run GUT (alternative); delete the runner not used
 godot --path . --headless --export-release "[preset]" build/[name]   # export
 ```
 
@@ -95,6 +96,7 @@ Never mix the two models in one entity; presentation never changes the authorita
 - `.tscn`/`.tres` are text: review the diff; UID conflicts → reimport, do not hand-edit.
 - Commit `.godot/` **never**; commit `*.import` **always**.
 - Conventional Commits; PR with a GIF/screenshot when the change is visual.
+- CI runs the suite headless and fails when the runner is missing or zero tests execute; never skip tests to get a green run (see the kit `ci-godot.yml`).
 
 ## Boundaries
 

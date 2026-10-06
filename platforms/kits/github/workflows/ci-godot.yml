@@ -144,3 +144,13 @@ jobs:
               exit 1
               ;;
           esac
+      - name: Upload test reports (JUnit XML and runner log)
+        # gdUnit4 tees the run to test-run.log and writes reports/report_<n>/results.xml; the GUT branch leaves neither
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: godot-test-reports
+          path: |
+            test-run.log
+            reports/
+          if-no-files-found: warn
