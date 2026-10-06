@@ -1,6 +1,6 @@
 {
   "name": "infra-core",
-  "version": "10.2.0",
+  "version": "10.3.0",
   "description": "ai-kit infra: Docker, Git LFS and twelve-factor configuration",
   "author": {
     "name": "Christian Przybulinski"

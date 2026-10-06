@@ -36,6 +36,12 @@ kit_files() { # prints "src rel-dest"
   for s in $SCHEMAS; do
     echo "$KIT_DIR/platforms/ci/schemas/$s.schema.json schemas/$s.schema.json"
   done
+  # Journeys are opt-in: only a project with docs/spec/journeys gets the journey schema and the
+  # traceability validator.
+  if [[ -d "$REPO/docs/spec/journeys" ]]; then
+    echo "$KIT_DIR/platforms/ci/schemas/journey.schema.json schemas/journey.schema.json"
+    echo "$KIT_DIR/platforms/ci/validations/spec_trace.py spec_trace.py"
+  fi
 }
 
 has_check_spec_workflow() { # any project workflow that runs check_spec.py

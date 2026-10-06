@@ -1,0 +1,89 @@
+name: pr-contract
+
+# The no-model PR gates (platforms/ci/validations/pr_gates.py) as a reusable CI check. The report
+# reads the PR, its `Closes <owner>/<backlog_repo>#N` issue and the head's checks through the REST
+# API with GATES_TOKEN — a PR repo's GITHUB_TOKEN cannot read the backlog's issues, and the token is
+# also the checkout credential when the gates repository is private. The proof commands are only
+# extracted here — each caller's own `proof` job runs them with its toolchain. The human merge gate
+# (a commit status such as the config's `review_context`) stays in place until the owner trusts this
+# check.
+
+on:
+  workflow_call:
+    inputs:
+      repo:
+        description: "the PR's repository name — a key of the gates config's `repos`"
+        required: true
+        type: string
+      gates-repo:
+        description: >-
+          owner/name of the repository holding pr_gates.py and the gates config — usually the
+          spec/backlog repo. Checked out at `gates-ref`.
+        required: true
+        type: string
+      gates-ref:
+        description: >-
+          ref to run pr_gates.py from. Keep a protected ref: the job holds GATES_TOKEN, so it must
+          never run code from an unreviewed PR head.
+        required: false
+        default: "main"
+        type: string
+      script:
+        description: "path of the pr_gates.py copy inside gates-repo"
+        required: false
+        default: ".github/spec-lint/pr_gates.py"
+        type: string
+      config:
+        description: "path of the gates config JSON inside gates-repo (see pr_gates.py's docstring)"
+        required: false
+        default: ".github/spec-lint/pr-gates.json"
+        type: string
+    secrets:
+      GATES_TOKEN:
+        required: true
+    outputs:
+      proof-commands:
+        description: "the PR's allowlisted proof commands, one per line (empty on no-task or no proof block)"
+        value: ${{ jobs.contract.outputs.proof-commands }}
+
+jobs:
+  contract:
+    # GITHUB_TOKEN gets nothing: checkout and every API read go through GATES_TOKEN.
+    permissions: {}
+    if: github.event.pull_request.number != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      proof-commands: ${{ steps.commands.outputs.value }}
+    steps:
+      - name: Check out the gates repository (pr_gates.py + config)
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ inputs.gates-repo }}
+          ref: ${{ inputs.gates-ref }}
+          path: .gates
+          token: ${{ secrets.GATES_TOKEN }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Gate report (step summary + job result)
+        env:
+          GH_TOKEN: ${{ secrets.GATES_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 ".gates/${{ inputs.script }}" --config ".gates/${{ inputs.config }}" \
+            --repo "${{ inputs.repo }}" --pr "$PR_NUMBER" | tee "$GITHUB_STEP_SUMMARY"
+      - name: Extract the proof commands for the caller's `proof` job
+        id: commands
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GATES_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          eof="proof-commands-$RANDOM$RANDOM"
+          python3 ".gates/${{ inputs.script }}" --config ".gates/${{ inputs.config }}" \
+            proof-commands --repo "${{ inputs.repo }}" --pr "$PR_NUMBER" > .proof-commands
+          { echo "value<<$eof"; cat .proof-commands; echo "$eof"; } >> "$GITHUB_OUTPUT"
