@@ -18,13 +18,12 @@ Repeat `implement → validate` per issue until READY. Run `to-card` after `task
 | 0 | `sdd-constitution` | product/stack | project rules + spec index |
 | 1 | `sdd-specify` | feature description | proposed FEAT + REQs |
 | 2 | `sdd-clarify` | FEAT questions | clarified FEAT |
-| 3 | `sdd-analyze` | related artifacts | consistency report |
-| 4 | `sdd-audit` | clarified FEAT | quality checklist/gaps |
-| 5 | `sdd-plan` | audited FEAT | Plan + DECs; planned |
-| 6 | `sdd-tasks` | Plan | ordered task rows |
-| 7 | `sdd-implement` | one task issue | code/tests/docs; PR per issue |
-| 8 | `validate-implementation` | FEAT + delivery | READY/PARTIAL/NOT READY |
-| 9 | `sdd-to-card` | task rows + FEAT | one issue per task, FEAT card |
+| 3 | `sdd-check` | clarified FEAT + artifacts | validator, consistency and quality report |
+| 4 | `sdd-plan` | checked FEAT | Plan + DECs; planned |
+| 5 | `sdd-tasks` | Plan | ordered task rows |
+| 6 | `sdd-implement` | one task issue | code/tests/docs; PR per issue |
+| 7 | `validate-implementation` | FEAT + delivery | READY/PARTIAL/NOT READY |
+| 8 | `sdd-to-card` | task rows + FEAT | one issue per task, FEAT card |
 
 ## Identifiers and status
 
