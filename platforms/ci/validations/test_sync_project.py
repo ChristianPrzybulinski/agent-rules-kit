@@ -6,7 +6,8 @@ import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent.parent.parent / "tools" / "sync-project.sh"
-VERSION = (SCRIPT.parents[2] / "VERSION").read_text(encoding="utf-8").strip()
+KIT = SCRIPT.parents[2]
+VERSION = (KIT / "VERSION").read_text(encoding="utf-8").strip()
 DOCS_PLUGINS = {"core", "architect-core", "architect-sdd", "quality-core", "infra-github"}
 
 STALE = "- agent-rules-kit `kits/java-maven/pom-parent.xml` requires [25,26)"
@@ -107,6 +108,95 @@ class SyncProjectCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("is not generated", result.stdout + result.stderr)
             self.assertEqual((repo / "CLAUDE.md").read_text(), "# mine\n")
+            self.assertFalse((repo / ".claude" / "settings.json").exists())
+            self.assertFalse((repo / ".github" / "spec-lint").exists())
+
+    def kit_skills(self, plugins):
+        return [(plugin, skill.name) for plugin in sorted(plugins)
+                for skill in sorted((KIT / "plugins" / plugin / "skills").iterdir())
+                if (skill / "SKILL.md").is_file()]
+
+    def vendor_install(self, *args):
+        result = self.run_sync("--vendor-skills", *args)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result
+
+    def test_vendor_skills_install(self):
+        skills = self.kit_skills(DOCS_PLUGINS)
+        own = self.repo / ".claude" / "skills" / "review-loop"
+        own.mkdir(parents=True)
+        (own / "SKILL.md").write_text("mine\n")
+        result = self.vendor_install()
+        self.assertIn("sync: skills=vendored", result.stdout)
+        root = self.repo / ".claude" / "skills"
+        self.assertEqual(len(list(root.glob("*/.agent-rules-kit"))), len(skills))
+        manifest = json.loads((root / "KIT_MANIFEST.json").read_text())
+        kit_files = sum(f.is_file() for plugin, name in skills
+                        for f in (KIT / "plugins" / plugin / "skills" / name).rglob("*"))
+        self.assertEqual((manifest["KIT_VERSION"], manifest["profile"]), (VERSION, "docs"))
+        self.assertEqual(len(manifest["skills"]), len(skills))
+        self.assertEqual(sum(len(s["files"]) for s in manifest["skills"].values()),
+                         kit_files + len(skills))
+        for plugin, name in skills:
+            kit_dir = KIT / "plugins" / plugin / "skills" / name
+            want = {f.relative_to(kit_dir) for f in kit_dir.rglob("*") if f.is_file()}
+            got = {f.relative_to(root / name) for f in (root / name).rglob("*") if f.is_file()}
+            self.assertEqual(got - want, {Path(".agent-rules-kit")}, name)
+            self.assertEqual(want - got, set(), name)
+        self.assertEqual((own / "SKILL.md").read_text(), "mine\n")
+        settings = json.loads((self.repo / ".claude" / "settings.json").read_text())
+        self.assertEqual({k for k in settings["enabledPlugins"] if k.endswith("@ai-kit")},
+                         {"core@ai-kit"})
+
+    def test_vendor_skills_idempotent_and_check_passes(self):
+        self.vendor_install()
+        def state():
+            return {f: f.read_bytes() for f in (self.repo / ".claude").rglob("*") if f.is_file()}
+        before = state()
+        second = self.run_sync()  # no flag: the manifest keeps the vendored mode
+        self.assertIn("sync: skills=vendored", second.stdout)
+        self.assertEqual(before, state())
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_vendor_skills_check_detects_drift(self):
+        self.vendor_install()
+        with (self.repo / ".claude" / "skills" / "tokens" / "SKILL.md").open("a") as fh:
+            fh.write("x")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("diverges from the manifest", result.stdout)
+        self.assertEqual(self.run_sync().returncode, 0)  # resync restores the copy
+        (self.repo / ".claude" / "skills" / "tokens" / "extra.txt").write_text("x\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("not in manifest", result.stdout)
+
+    def test_vendor_skills_profile_switch(self):
+        self.vendor_install()
+        root = self.repo / ".claude" / "skills"
+        (root / "tokens" / "extra.txt").write_text("x\n")
+        (root / "review-loop").mkdir()
+        (root / "review-loop" / "SKILL.md").write_text("mine\n")
+        result = self.run_sync("--profile", "godot")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse((root / "sdd-tasks").exists())
+        self.assertTrue((root / "godot-standards" / "SKILL.md").is_file())
+        self.assertFalse((root / "tokens" / "extra.txt").exists())
+        self.assertEqual((root / "review-loop" / "SKILL.md").read_text(), "mine\n")
+        check = self.run_sync("--check", "--profile", "godot")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    def test_vendor_skills_collision_refusal(self):
+        with tempfile.TemporaryDirectory() as other:
+            repo = Path(other)
+            (repo / "AGENTS.md").write_text("# x\n")
+            (repo / "project.godot").write_text("")
+            (repo / ".claude" / "skills" / "tokens").mkdir(parents=True)
+            result = self.run_sync("--vendor-skills", repo=repo)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("is not generated", result.stdout + result.stderr)
+            self.assertFalse((repo / ".claude" / "skills" / "KIT_MANIFEST.json").exists())
             self.assertFalse((repo / ".claude" / "settings.json").exists())
             self.assertFalse((repo / ".github" / "spec-lint").exists())
 
