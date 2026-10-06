@@ -336,6 +336,36 @@ for rule_file in "$STUB_HOME/.ai-kit"/plugins/*/rules/*.md; do
   [[ "$(readlink "$STUB_HOME/.claude/rules/$plugin_name-$rule_name.md")" == "$rule_file" ]] \
     || fail "Claude rule symlink has the wrong target for $plugin_name-$rule_name"
 done
+
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    AI_KIT_USER_RULES=0 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-no-user-rules.out" 2>&1; then
+  cat "$ROOT/doctor-stub-no-user-rules.out" >&2
+  fail "doctor failed with AI_KIT_USER_RULES=0"
+fi
+grep -Fq 'ok: user-level claude rules disabled (AI_KIT_USER_RULES=0); repos carry .claude/rules via sync-project.sh' \
+  "$ROOT/doctor-stub-no-user-rules.out" || fail "AI_KIT_USER_RULES=0 switch was not reported"
+[[ "$(find "$STUB_HOME/.claude/rules" -type l | wc -l | tr -d ' ')" == "0" ]] \
+  || fail "user-level rule symlinks remained under AI_KIT_USER_RULES=0"
+
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    AI_KIT_USER_RULES=1 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-user-rules.out" 2>&1; then
+  cat "$ROOT/doctor-stub-user-rules.out" >&2
+  fail "doctor failed to restore user-level rule symlinks"
+fi
+for rule_file in "$STUB_HOME/.ai-kit"/plugins/*/rules/*.md; do
+  [[ -f "$rule_file" ]] || continue
+  plugin_name="$(dirname "$(dirname "$rule_file")")"
+  plugin_name="$(basename "$plugin_name")"
+  rule_name="${rule_file##*/}"
+  rule_name="${rule_name%.md}"
+  [[ "$(readlink "$STUB_HOME/.claude/rules/$plugin_name-$rule_name.md")" == "$rule_file" ]] \
+    || fail "user-level rule symlink was not restored for $plugin_name-$rule_name"
+done
+
 stub_fallback_count=0
 if [[ -d "$STUB_HOME/.codex/skills" ]]; then
   stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d ' ')"
@@ -544,4 +574,55 @@ set -e
 [[ ! -e "$ROOT/proj2/.claude/settings.json" ]] || fail "settings.json was written despite the refusal"
 [[ ! -e "$ROOT/proj2/.github/spec-lint" ]] || fail "spec-lint was written despite the refusal"
 
-printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project)\n' "$skill_count"
+# sync-project.sh also renders the profile's path rules into .claude/rules/
+# (restricted PATH like bootstrap/doctor above; still the $SOURCE fixture).
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --profile godot "$ROOT/proj" \
+    >"$ROOT/sync-rules.out" 2>&1; then
+  cat "$ROOT/sync-rules.out" >&2
+  fail "sync-project rules install failed"
+fi
+[[ -f "$ROOT/proj/.claude/rules/dev-godot-godot.md" ]] \
+  || fail "sync-project did not write .claude/rules/dev-godot-godot.md"
+grep -Fq '<!-- agent-rules-kit: generated from plugins/dev-godot/rules/godot.md' \
+  "$ROOT/proj/.claude/rules/dev-godot-godot.md" || fail "generated rule marker missing"
+first_claude_hashes="$(find "$ROOT/proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --profile godot "$ROOT/proj" \
+    >"$ROOT/sync-rules-second.out" 2>&1; then
+  cat "$ROOT/sync-rules-second.out" >&2
+  fail "second sync-project rules install failed"
+fi
+second_claude_hashes="$(find "$ROOT/proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
+[[ "$first_claude_hashes" == "$second_claude_hashes" ]] \
+  || fail "sync-project rules install is not idempotent"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --check --profile godot "$ROOT/proj" \
+    >"$ROOT/sync-rules-check.out" 2>&1; then
+  cat "$ROOT/sync-rules-check.out" >&2
+  fail "sync-project --check failed on generated .claude/rules"
+fi
+printf 'x\n' >> "$ROOT/proj/.claude/rules/dev-godot-godot.md"
+set +e
+sync_rules_drift_out="$(env PATH="$RESTRICTED_PATH" \
+  "$SOURCE/platforms/tools/sync-project.sh" --check --profile godot "$ROOT/proj" 2>&1)"
+sync_rules_drift_status=$?
+set -e
+[[ "$sync_rules_drift_status" -eq 1 ]] || fail "sync-project --check accepted an edited rule copy"
+[[ "$sync_rules_drift_out" == *"diverges from the kit"* ]] \
+  || fail "sync-project --check did not report the rule drift"
+printf 'mine\n' > "$ROOT/proj/.claude/rules/my-own.md"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --profile docs "$ROOT/proj" \
+    >"$ROOT/sync-rules-docs.out" 2>&1; then
+  cat "$ROOT/sync-rules-docs.out" >&2
+  fail "sync-project --profile docs failed"
+fi
+[[ ! -e "$ROOT/proj/.claude/rules/dev-godot-godot.md" ]] \
+  || fail "stale generated rule survived the profile switch"
+[[ -f "$ROOT/proj/.claude/rules/architect-sdd-spec.md" ]] \
+  || fail "sync-project did not write .claude/rules/architect-sdd-spec.md"
+[[ "$(cat "$ROOT/proj/.claude/rules/my-own.md")" == "mine" ]] \
+  || fail "hand-written .claude/rules file was touched"
+
+printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy)\n' "$skill_count"

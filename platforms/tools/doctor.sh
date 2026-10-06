@@ -154,6 +154,21 @@ ensure_claude_links() {
 
   local rule_file
   local plugin
+  # Default flips to 0 once P2-15 lands .claude/rules in the consumer repos.
+  if [[ "${AI_KIT_USER_RULES:-1}" == "0" ]]; then
+    for destination in "$HOME/.claude/rules/"*.md; do
+      [[ -L "$destination" ]] || continue
+      current="$(readlink "$destination")"
+      case "$current" in
+        "$KIT"/plugins/*/rules/*)
+          rm "$destination"
+          fix "removed user-level claude rule symlink ${destination##*/} (AI_KIT_USER_RULES=0)"
+          ;;
+      esac
+    done
+    ok "user-level claude rules disabled (AI_KIT_USER_RULES=0); repos carry .claude/rules via sync-project.sh"
+    return
+  fi
   for rule_file in "$KIT"/plugins/*/rules/*.md; do
     [[ -f "$rule_file" ]] || continue
     plugin="$(basename "$(dirname "$(dirname "$rule_file")")")"
