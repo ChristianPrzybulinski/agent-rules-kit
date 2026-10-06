@@ -1,6 +1,6 @@
 # kit java-maven
 
-Parent POM with the kit's quality gates. Versions verified on Maven Central on 2026-09-29.
+Parent POM with the kit's quality gates on the Spring Boot 4.1.x BOM (3.5.x left OSS support on 2026-06-30). Versions verified on Maven Central on 2026-10-06; properties marked "verify" in the POM were not.
 
 ## How to use
 
@@ -17,6 +17,7 @@ Parent POM with the kit's quality gates. Versions verified on Maven Central on 2
 - **`domain-gate`** (automatic): a module with the `src/main/java/.domain` marker (empty file) gets JaCoCo `check` 100% line+branch and PITest `mutationCoverage` (threshold 80, JUnit 5). Chosen for being declarative — alternative: declare both plugins in the domain module's `pom.xml`.
 - **`fast`**: `-Pfast` skips PITest and dependency-check. Tests are **not** skipped (`skipTests` is untouched).
 - **`release`**: `-Prelease` adds `requireReleaseDeps` (no SNAPSHOT).
+- **Tomcat override**: Boot 4.1.1 manages Tomcat 11.0.24, which fails dependency-check; see the comment above `<dependencyManagement>` in the parent POM.
 
 ## CI
 

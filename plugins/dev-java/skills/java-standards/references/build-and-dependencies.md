@@ -10,7 +10,7 @@ kind: detail
 - **Maven** with wrapper (`./mvnw`). Gradle is not an option in this kit.
 - Fixed Java **LTS** in `pom.xml` (`<maven.compiler.release>25</maven.compiler.release>`) and in `.java-version`/`toolchains.xml`. Never "whatever is installed".
 - Dependency versions centralized in the parent POM's `<dependencyManagement>`; modules do not declare versions.
-- Framework BOM (`spring-boot-dependencies`) instead of loose versions.
+- Framework BOM (`spring-boot-dependencies`, the 4.1.x line pinned in the parent POM; never 3.5.x, out of OSS support) instead of loose versions.
 
 ## Multi-module structure (by context)
 
@@ -21,7 +21,7 @@ server/
 ├── application/            # use cases, ports; depends only on domain
 ├── adapter-in-http/        # controllers, DTOs
 ├── adapter-in-ws/          # game session (if any)
-├── adapter-out-jpa/        # repositories, JPA entities, Flyway
+├── adapter-out-persistence/ # repositories (JdbcClient or JPA, the declared choice), Flyway
 └── bootstrap/              # main, Spring config, wiring
 ```
 
