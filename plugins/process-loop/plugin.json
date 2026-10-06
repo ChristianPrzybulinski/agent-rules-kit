@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "process-loop",
-  "version": "10.3.0",
+  "version": "11.0.0",
   "description": "ai-kit process loop: orchestrated implement-review-merge batches with gates and verdicts"
 }
