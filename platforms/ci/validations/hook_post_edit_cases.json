@@ -1,0 +1,93 @@
+{
+  "_format": "cases[]: name (str), file (path relative to a throwaway repo), tools (stub executables placed first on PATH, exiting with that code; the key 'check_spec.py' instead writes .github/spec-lint/check_spec.py with a plain-Python body), exit (expected exit code), stdout/stderr (optional substring assertions; \"\" means the stream must be empty)",
+  "cases": [
+    {
+      "name": "gd lint findings",
+      "file": "src/player.gd",
+      "tools": {"gdformat": 0, "gdlint": 1},
+      "exit": 2,
+      "stderr": "gdlint reported problems after editing src/player.gd"
+    },
+    {
+      "name": "gd clean",
+      "file": "src/player.gd",
+      "tools": {"gdformat": 0, "gdlint": 0},
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "gd tools missing",
+      "file": "src/player.gd",
+      "exit": 0,
+      "stdout": "gdformat/gdlint not available",
+      "stderr": ""
+    },
+    {
+      "name": "gd gdlint missing",
+      "file": "src/player.gd",
+      "tools": {"gdformat": 0},
+      "exit": 0,
+      "stdout": "not available",
+      "stderr": ""
+    },
+    {
+      "name": "java format findings",
+      "file": "src/main/java/App.java",
+      "tools": {"google-java-format": 1},
+      "exit": 2,
+      "stderr": "google-java-format reported problems"
+    },
+    {
+      "name": "java clean",
+      "file": "src/main/java/App.java",
+      "tools": {"google-java-format": 0},
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "java tool missing",
+      "file": "src/main/java/App.java",
+      "exit": 0,
+      "stdout": "google-java-format not available",
+      "stderr": ""
+    },
+    {
+      "name": "spec findings",
+      "file": "docs/spec/features/FEAT-001.md",
+      "tools": {"check_spec.py": 1},
+      "exit": 2,
+      "stderr": "check_spec.py reported problems"
+    },
+    {
+      "name": "spec clean",
+      "file": "docs/spec/features/FEAT-001.md",
+      "tools": {"check_spec.py": 0},
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "spec validator missing",
+      "file": "docs/spec/features/FEAT-001.md",
+      "exit": 0,
+      "stdout": "check_spec.py not available",
+      "stderr": ""
+    },
+    {
+      "name": "plain markdown",
+      "file": "README.md",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "docs outside spec",
+      "file": "docs/notes/x.md",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

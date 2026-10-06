@@ -46,7 +46,7 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 | Content | Location |
 |---|---|
 | always-on global behavior | `plugins/core/AGENTS.md` |
-| hook guard | `plugins/core/hooks/hooks.json` |
+| hook guard and format/lint hooks | `plugins/core/hooks/hooks.json` |
 | triggered rule | `plugins/<plugin>/rules/<name>.md` in the owning plugin |
 | procedure/reference | `plugins/<plugin>/skills/<name>/` |
 | subagent profile | `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it |

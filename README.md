@@ -28,9 +28,9 @@ A rule present in both user-level `~/.claude/rules/` and the repo's `.claude/rul
 | Agent | Hooks | Path rules | Subagents | User-only skills |
 |---|---|---|---|---|
 | Devin Cloud | no | `globs` | managed Devins | `triggers: [user]` |
-| Devin CLI/Desktop | PreToolUse, best effort | `globs` | shared profiles | `triggers: [user]` |
+| Devin CLI/Desktop | PreToolUse guard and PostToolUse format/lint, best effort | `globs` | shared profiles | `triggers: [user]` |
 | Codex | no | description routing | no | `agents/openai.yaml` policy |
-| Claude Code | PreToolUse, best effort | `paths` | shared profiles | `disable-model-invocation: true` |
+| Claude Code | PreToolUse guard and PostToolUse format/lint, best effort | `paths` | shared profiles | `disable-model-invocation: true` |
 
 ## Devin plugin
 
