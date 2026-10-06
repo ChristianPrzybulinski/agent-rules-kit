@@ -119,7 +119,7 @@ Give the kit its first measurement layer: a `claude plugin eval` suite (24 cases
 - INDEX.md or README.md of every touched folder lists every entry by name: the six plugin `INDEX.md` (cases), `.github/workflows/INDEX.md` and `.github/README.md` (`evals.yml`), `platforms/tools/INDEX.md` (`kpi.py`), `platforms/ci/validations/INDEX.md` (`test_kpi.py`); a folder never has both files.
 - No skill description, SKILL.md, reference, rule, template or `plugins/core/AGENTS.md` changes; if a case forces a wording fix, stop and report it instead (budget today 6,803 of 7,200 chars).
 - Every `fixture.sh` is executable, passes shellcheck and parses under bash 3.2 (it runs on the eval machine as the user; no `rm -rf`, no network).
-- No `[text](path)` markdown links in `prompt.md` or grader bodies (`check_kit.py:811` resolves every link in every `.md`, and a scaffolded fixture does not exist at check time); write paths in backticks instead.
+- No markdown links (square-bracket text immediately followed by a parenthesised path) in `prompt.md` or grader bodies (`check_kit.py:811` resolves every link in every `.md`, and a scaffolded fixture does not exist at check time); write paths in backticks instead.
 - `kpi.py` and `test_kpi.py`: python3 stdlib only, `-B` safe, no absolute machine paths; tests run under `unittest discover` from `platforms/ci/validations`.
 - Conventional Commits with Refs (`feat(evals): ...`, `Refs: P3-09, assessment N5`); PR body = What / Why / How I tested (literal output of the gates and of the two `claude plugin eval` runs) / Refs.
 

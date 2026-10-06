@@ -47,7 +47,7 @@ Declare the agent-rules-kit 10.x layout frozen (no path or install-destination c
 2. kit `docs/maintenance.md`: replace line 7 with:
 
 ```markdown
-The 10.x layout is frozen until at least 2027-01-01 (principle "Layout stability" in [design.md](design.md)). A layout or installation-destination change is a SemVer MAJOR change and ships with a deprecation note in the release notes plus a migration in `bootstrap.sh` and `doctor.sh`. A content change is MINOR when it adds a rule, skill, reference, template, validator gate or document, and PATCH when it corrects one without changing routing. There is no separate layout version.
+The 10.x layout is frozen until at least 2027-01-01 (principle "Layout stability" in [design.md]\(design.md)). A layout or installation-destination change is a SemVer MAJOR change and ships with a deprecation note in the release notes plus a migration in `bootstrap.sh` and `doctor.sh`. A content change is MINOR when it adds a rule, skill, reference, template, validator gate or document, and PATCH when it corrects one without changing routing. There is no separate layout version.
 ```
 
 3. kit `docs/projects.md`: replace line 3 with exactly "Rules, skills, references and templates stay **in the kit** under `plugins/` and reach the agent through the plugin marketplaces or `bootstrap.sh`. The project only receives its own artifacts. Real example: `~/Documents/GitHub/stratics-docs`." (no `platforms/install/`, no "knowledge"; the "Real example" clause stays unchanged because P2-01 owns machine paths). Rewrite line 23 to "Skills, rules and references (under `plugins/*/`): consumed through the agent's plugin install, the project does not copy them." Run `grep -n 'platforms/install\|knowledge' docs/projects.md` and expect 0 lines.
@@ -112,6 +112,7 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
 
 ## Conventions
 
+- Markdown links quoted from existing files in this prompt are written with an escaped parenthesis (`]\(`) so the kit link check does not resolve them from this folder; in the real files they are plain `](`. Match and write them without the backslash.
 - Everything committed is in English; plain ASCII punctuation in new lines.
 - No layout or path change: the 10.x layout is frozen; `plugins/`, `platforms/`, `docs/`, manifests and install destinations keep their paths. This task is the one that writes that rule down.
 - `VERSION` untouched (no release in this task).

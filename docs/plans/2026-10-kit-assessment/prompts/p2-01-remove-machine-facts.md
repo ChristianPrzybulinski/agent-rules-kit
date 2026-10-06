@@ -4,7 +4,7 @@ Phase: 2 · Repos: kit · Branch to create: docs/p2-01-remove-machine-facts from
 
 ## Goal
 
-Three `kind: fact` references and one kit doc state what is installed on the kit owner's laptop (Godot 4.7.2 binary, OpenJDK 25.0.4.1 under `/opt/homebrew`, Docker Compose v5.5.1, Claude Code 2.1.287, Node, gh, DBeaver, Krita). Replace every machine statement with the project-level pin that actually governs a build (`project.godot`, `AGENTS.md`, `.java-version`, `pom.xml`, the CI images) and keep only dated external facts with sources. Measurable result: `grep -rn -i 'this machine\|installed on\|keg-only\|Claude Code 2.1\|Devin Desktop with' plugins docs platforms/kits --exclude-dir=plans` returns 0 lines (5 today on main with P1-01 merged; 7 before P1-01, because `docs/projects.md:3` and `:23` are P1-01's), `grep -rn '/opt/homebrew' plugins docs platforms --exclude-dir=plans` returns exactly 2 lines, the launchd plist PATH and the example-path XML comment in `toolchains.xml.example` (4 today), and every gate stays green.
+Three `kind: fact` references, one SKILL.md sentence, one kit doc, one example file and one doc clause state or point to what is installed on the kit owner's laptop (Godot 4.7.2 binary, OpenJDK 25.0.4.1 under `/opt/homebrew`, Docker Compose v5.5.1, Claude Code 2.1.287, Node, gh, DBeaver, Krita). Replace every machine statement with the project-level pin that actually governs a build (`project.godot`, `AGENTS.md`, `.java-version`, `pom.xml`, the CI images) and keep only dated external facts with sources. Measurable result: `grep -rn -i 'this machine\|installed on\|keg-only\|Claude Code 2.1\|Devin Desktop with' plugins docs platforms/kits --exclude-dir=plans` returns 0 lines (5 today on main with P1-01 merged; 7 before P1-01, because `docs/projects.md:3` and `:23` are P1-01's), `grep -rn '/opt/homebrew' plugins docs platforms --exclude-dir=plans` returns exactly 2 lines, the launchd plist PATH and the example-path XML comment in `toolchains.xml.example` (4 today), and every gate stays green.
 
 ## Why
 
@@ -12,7 +12,7 @@ Three `kind: fact` references and one kit doc state what is installed on the kit
 - assessment §6 item A2: the kit must stop saying "installed on this machine"; fixed versions belong in the consuming repo's `AGENTS.md` (already true: `stratics-client/AGENTS.md:1` says `Godot 4.7.2`, `stratics-server/AGENTS.md:7` says `Java 25 LTS (maven.compiler.release=25)`) and in the Devin `environment.yaml` (P3-03).
 - `plugins/dev-godot/skills/godot-standards/references/godot-4-versions.md:12` and `plugins/dev-java/skills/java-standards/references/java-25-lts.md:13` are the two lines a skill reads first when it "verifies" the toolchain; they report a laptop, not the project.
 - `plugins/infra-core/skills/docker/references/compose-v2-vs-v5.md:13` records `v5.5.1` from `docker compose version` on the same laptop; the kit's own CI never runs that binary.
-- `docs/maintenance.md:67` lists 13 desktop tools with versions dated 2026-10-01; `platforms/tools/doctor.sh` already produces that information on demand for the one machine where it is true.
+- `docs/maintenance.md:67` lists 13 desktop tools with versions dated 2026-10-01; any agent can get that information from the tools themselves (`godot --version`, `java -version`, `mvn -v`, `docker compose version`, `gh --version`), and `platforms/tools/doctor.sh` only checks kit/plugin state, not toolchains.
 - The kit's own rule already says the right thing: `plugins/dev-java/skills/java-standards/references/build-and-dependencies.md:11` ends with `Never "whatever is installed".`
 
 ## Current state
@@ -52,7 +52,7 @@ Reference rules: `platforms/ci/schemas/reference.schema.json` (description at mo
    ```
    Replace lines 12-13 with these two bullets (project pins instead of a binary on a laptop):
    ```markdown
-   - The project pins its engine: `project.godot` `config/features` (for example `PackedStringArray("4.7", "Mobile")`) and the first line of the repo `AGENTS.md`. Never read the version from a local `godot --version`; a kit skill that needs the version reads those two files.
+   - The project pins its engine: `project.godot` `config/features` (for example `PackedStringArray("4.7", "Mobile")`, minor only) and the project `AGENTS.md` (the stratics-client one states `Godot 4.7.2` on its first line). Never read the version from a local `godot --version`; read those two files.
    - CI image: `barichello/godot-ci:<project version>`; the kit workflow `platforms/kits/github/workflows/ci-godot.yml` ships `4.7.2`. The tag must exist on Docker Hub for the pinned version: verify against https://hub.docker.com/r/barichello/godot-ci/tags before bumping it.
    ```
    Keep lines 14-16 unchanged. Keep `kind: fact`; keep `verified: "2026-09-29"` unless you re-open both URLs in `sources` during this task, in which case set `verified` to today's date.
@@ -62,7 +62,7 @@ Reference rules: `platforms/ci/schemas/reference.schema.json` (description at mo
    ```
    Replace line 13 with:
    ```markdown
-   - The project pins its JDK, not the machine: `.java-version` (`25`), `pom.xml` `<maven.compiler.release>25</maven.compiler.release>` and `~/.m2/toolchains.xml` copied from `platforms/kits/java-maven/toolchains.xml.example` (the enforcer requires `[25,26)`). CI: `actions/setup-java` with `distribution: temurin`, `java-version: '25'` (`platforms/kits/github/workflows/ci-java.yml`). Containers: `maven:3.9-eclipse-temurin-25` build, `eclipse-temurin:25-jre` runtime (`platforms/kits/docker/README.md`). Where the JDK lives on a developer's disk is `platforms/tools/doctor.sh` output, never a kit fact.
+   - The project pins its JDK, not the machine: `.java-version` (`25`), `pom.xml` `<maven.compiler.release>25</maven.compiler.release>` and `~/.m2/toolchains.xml` copied from `platforms/kits/java-maven/toolchains.xml.example` (the enforcer requires `[25,26)`). CI: `actions/setup-java` with `distribution: temurin`, `java-version: '25'` (`platforms/kits/github/workflows/ci-java.yml`). Containers: `maven:3.9-eclipse-temurin-25` build, `eclipse-temurin:25-jre` runtime (`platforms/kits/docker/README.md`). Where the JDK lives on a developer's disk is local state (`java -version`, `mvn -v`), never a kit fact.
    ```
    Lines 1, 3-12 and 14-31 stay as they are. P2-12 owns any update of the Java/Spring facts themselves (JEP table, support dates); do not touch them here.
 3. Edit `plugins/infra-core/skills/docker/references/compose-v2-vs-v5.md` (kit). Replace line 2 with:
@@ -71,27 +71,27 @@ Reference rules: `platforms/ci/schemas/reference.schema.json` (description at mo
    ```
    Replace line 13 with:
    ```markdown
-   - Requirement: Compose v2 or later as the `docker compose` CLI plugin; `docker compose version` must print `v2` or higher. The locally installed release is not recorded here; `platforms/tools/doctor.sh` reports it.
+   - Requirement: Compose v2 or later as the `docker compose` CLI plugin; `docker compose version` must print `v2` or higher. The locally installed release is not recorded here; run `docker compose version` to see it.
    ```
 4. Edit `plugins/infra-core/skills/docker/SKILL.md:17` (kit): change `for the installed Compose behavior` to `for the Compose v2+ CLI behavior`. The line count (43) does not change.
 5. Edit `docs/maintenance.md` (kit): delete line 67 and the blank line 66 that precedes it, so the file ends with the `## After merging to main` bullet list. Then append one bullet to that list, after line 65:
    ```markdown
-   - Local tool versions (Godot, JDK, Maven, Docker, gh, Claude Code, Devin, Codex) are not documented in the kit; run `platforms/tools/doctor.sh` and read its output.
+   - Local tool versions (Godot, JDK, Maven, Docker, gh, Claude Code, Devin, Codex) are not documented in the kit; ask each tool (`godot --version`, `java -version`, `docker compose version`, `gh --version`); `platforms/tools/doctor.sh` checks only the kit and plugin state.
    ```
    `docs/INDEX.md` already lists `maintenance.md`; no index change.
 6. Edit `platforms/kits/java-maven/toolchains.xml.example:13` (kit): replace the Homebrew path with a placeholder and give the two common layouts in an XML comment on the line above:
    ```xml
-       <!-- Example paths: macOS Homebrew /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home ; Linux /usr/lib/jvm/temurin-25-jdk -->
+       <!-- Example paths: macOS Homebrew /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home ; Linux (Adoptium package) /usr/lib/jvm/temurin-25-jdk-amd64 -->
        <jdkHome>/path/to/jdk-25</jdkHome>
    ```
    Line 2 already says the file is local and not versioned; keep it. `platforms/kits/java-maven/README.md:11` needs no change.
 7. Edit `CHANGELOG.md` (kit): add a bullet under `## [Unreleased]` / `### Changed` (line 11 today) using the proposed entry in Report back, with the before/after grep counts as proof.
-8. Do not touch `VERSION`, any path, any plugin manifest, `platforms/kits/launchd/ai-kit.refresh.plist` (a macOS launchd file; `/opt/homebrew/bin` on its PATH is the platform convention, not a machine fact) or `platforms/tools/bootstrap.sh:2` ("Installs the plugin-first kit on this machine" describes the installer's job).
-9. Edit `docs/projects.md:3` (kit): replace `Real example: `~/Documents/GitHub/stratics-docs`.` with `Real example: the `stratics-docs` repository.` Touch nothing else in that file (the rest is P1-01 / P2-04-06).
+8. Edit `docs/projects.md:3` (kit): replace `Real example: `~/Documents/GitHub/stratics-docs`.` with `Real example: the `stratics-docs` repository.` P1-01 step 3 rewrites the rest of line 3 but keeps the `Real example: `~/Documents/GitHub/stratics-docs`.` clause verbatim, so this replacement applies before or after P1-01. Touch nothing else in that file (the rest is P1-01 / P2-04-06).
+9. Do not touch `VERSION`, any path, any plugin manifest, `platforms/kits/launchd/ai-kit.refresh.plist` (a macOS launchd file; `/opt/homebrew/bin` on its PATH is the platform convention, not a machine fact) or `platforms/tools/bootstrap.sh:2` ("Installs the plugin-first kit on this machine" describes the installer's job).
 
 ## Out of scope
 
-- The distribution-model text of `docs/projects.md`: the stale paths and the two "installed on" sentences (`:3`, `:23`) are rewritten by P1-01 step 3, and the distribution model itself (per-repo `CLAUDE.md`, `.claude/settings.json`, `.claude/rules`, vendored skills) belongs to P2-04, P2-05 and P2-06. This task edits only the "Real example" clause of line 3 (step 9).
+- The distribution-model text of `docs/projects.md`: the stale paths and the two "installed on" sentences (`:3`, `:23`) are rewritten by P1-01 step 3, and the distribution model itself (per-repo `CLAUDE.md`, `.claude/settings.json`, `.claude/rules`, vendored skills) belongs to P2-04, P2-05 and P2-06. This task edits only the "Real example" clause of line 3 (step 8).
 - Absolute home-directory paths in stratics-docs (`.devin/config.json`, `docs/spec/ARCHITECT.md`, `ops/review-loop/config.json`, `ops/review-loop/README.md`, `ops/review-loop/prompts/*.md`, `docs/collab/next-session-plan.md`, `docs/legacy/**`) and the Homebrew `jdkHome` in `stratics-server/toolchains.xml.example:13` are stratics project files: P3-03 for `.devin/` and `environment.yaml`, a separate stratics-docs chore for the rest (as P2-15 Out of scope states). Mention them in Report back; do not edit the stratics repos.
 - Java and Spring fact updates (JEP table, Boot 4.1.x): P2-12. JdbcClient, Flyway, ArchUnit: P2-13. Testcontainers and offline Maven: P2-14.
 - Godot online references, gdtoolkit CI and the Godot boot proof: P3-01, P3-02, P1-06.
@@ -110,7 +110,7 @@ Reference rules: `platforms/ci/schemas/reference.schema.json` (description at mo
 - [ ] `platforms/tools/smoke.sh` exits 0.
 - [ ] `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` reports `OK`.
 - [ ] `python3 platforms/ci/validations/check_kit.py --links` exits 0 (reference schema, 60-line cap, SKILL.md linkage, backtick paths).
-- [ ] `grep -n 'p2-01\|machine-specific' CHANGELOG.md` finds the new Unreleased bullet above the `## [10.1.0]` heading.
+- [ ] `grep -n -i 'p2-01\|machine-specific' CHANGELOG.md` finds the new Unreleased bullet above the `## [10.1.0]` heading.
 - [ ] `git diff --stat main` lists only: the three reference files, `plugins/infra-core/skills/docker/SKILL.md`, `docs/maintenance.md`, `docs/projects.md`, `platforms/kits/java-maven/toolchains.xml.example`, `CHANGELOG.md`.
 
 ## Conventions
@@ -122,7 +122,7 @@ Reference rules: `platforms/ci/schemas/reference.schema.json` (description at mo
 - References stay at 60 lines or fewer with frontmatter; `kind: fact` needs `verified` + `sources` (`platforms/ci/schemas/reference.schema.json`); description at most 160 chars; the owning `SKILL.md` must still name each reference file by name.
 - `SKILL.md` at 80 lines or fewer (docker `SKILL.md` is 43 today); the skill `description:` lines are not touched, so the 7,200-char budget (6,803 today) does not move.
 - `INDEX.md` or `README.md` of every touched folder lists every entry by name: no file is added or removed, so `docs/INDEX.md` and `platforms/kits/INDEX.md` stay as they are.
-- Gates when the kit is touched: `platforms/tools/check.sh`; `platforms/tools/smoke.sh`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`; `python3 platforms/ci/validations/check_kit.py --links`.
+- Gates when the kit is touched: `platforms/tools/check.sh`; `platforms/tools/smoke.sh`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`; `python3 platforms/ci/validations/check_kit.py --links`. If `check_kit.py --links` reports failures only under `docs/plans/`, they belong to the assessment folder, not this task; report them under unverified and do not fix them here.
 - Conventional Commits with Refs, for example `docs(references): replace machine-installed versions with project pins\n\nRefs: P2-01, assessment §4.2, §6 A2`.
 - PR body = What / Why / How I tested (literal output of the four gates and the two acceptance greps) / Refs.
 - Nothing here is Claude-specific; Devin or Claude Code can execute it with read, grep, edit and shell only.
@@ -135,4 +135,4 @@ Final message format:
 - unverified: anything not reproduced (for example a Docker Hub tag or a `sources` URL you could not open; then `verified` was left at `2026-09-29` and say so).
 - next step: the follow-ups outside this task: absolute home-directory paths in stratics-docs (`.devin/config.json`, `docs/spec/ARCHITECT.md`, `ops/review-loop/config.json`, `ops/review-loop/README.md`, `ops/review-loop/prompts/*.md`, `docs/collab/next-session-plan.md`, `docs/legacy/**`) and the Homebrew `jdkHome` in `stratics-server/toolchains.xml.example:13`: P3-03 for `.devin/` and `environment.yaml`, a separate stratics-docs chore for the rest (as P2-15 Out of scope states); per-repo distribution (P2-04, P2-05, P2-06); Java fact refresh (P2-12).
 - Proposed CHANGELOG line (under `### Changed`):
-  `- References and docs no longer describe the kit owner's machine: godot-4-versions.md, java-25-lts.md and compose-v2-vs-v5.md point to the project pins (project.godot, AGENTS.md, .java-version, pom.xml, toolchains, CI images) instead of "installed on this machine"; the machine prerequisites paragraph left docs/maintenance.md (doctor.sh reports local state); toolchains.xml.example uses a placeholder jdkHome; docs/projects.md no longer cites the owner's home directory as the real example. Evidence: grep for 'this machine|installed on|keg-only|Claude Code 2.1|Devin Desktop with' over plugins, docs and platforms/kits (excluding docs/plans) went from 5 lines to 0 on main with P1-01 merged; the /opt/homebrew grep over plugins, docs and platforms (excluding docs/plans) went from 4 lines to 2 (P2-01, assessment §4.2 and §6 A2).`
+  `- Machine-specific facts removed: references and docs no longer describe the kit owner's machine: godot-4-versions.md, java-25-lts.md and compose-v2-vs-v5.md point to the project pins (project.godot, AGENTS.md, .java-version, pom.xml, toolchains, CI images) instead of "installed on this machine"; the machine prerequisites paragraph left docs/maintenance.md (local state comes from the tools themselves); toolchains.xml.example uses a placeholder jdkHome; docs/projects.md no longer cites the owner's home directory as the real example. Evidence: grep for 'this machine|installed on|keg-only|Claude Code 2.1|Devin Desktop with' over plugins, docs and platforms/kits (excluding docs/plans) went from 5 lines to 0 on main with P1-01 merged; the /opt/homebrew grep over plugins, docs and platforms (excluding docs/plans) went from 4 lines to 2 (P2-01, assessment §4.2 and §6 A2).`
