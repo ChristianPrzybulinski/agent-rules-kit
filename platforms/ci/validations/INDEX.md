@@ -9,3 +9,4 @@
 | `spec_trace.py` | a project's `docs/spec/journeys/` traceability (journeys↔REQ↔FEAT↔tests) and `traceability.md` | project CI, copied by `sync-project.sh` when `docs/spec/journeys` exists |
 | `test_spec_trace.py` | `spec_trace.py` (unittest) | the kit's CI |
 | `pr_gates.py` | the no-model PR gates against the GitHub REST API | `platforms/kits/github/workflows/pr-contract.yml`, a project's review loop |
+| `test_sync_project.py` | `sync-project.sh --check` stale-kit-path scan on a throwaway repo (unittest) | the kit's CI |
