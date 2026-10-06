@@ -1,5 +1,5 @@
 ---
-description: SDD flow, entry points, step outputs, identifiers, statuses and project specification layout.
+description: SDD flow, entry points, step outputs, identifiers, statuses, journeys and project specification layout.
 kind: detail
 ---
 
@@ -7,19 +7,9 @@ kind: detail
 
 Adapted from [github/spec-kit](https://github.com/github/spec-kit) as repository skills; project artifacts live under `docs/spec/`, never in the kit.
 
-## Entry points
-
-- Vague idea → `/grilling` first, then `sdd-specify` when problem/value is describable.
-- Described feature → `sdd-specify`; new project/principles → `sdd-constitution`.
+Entry points: vague idea → `/grilling` first, then `sdd-specify` when problem/value is describable; described feature → `sdd-specify`; new project/principles → `sdd-constitution`; one user-visible flow → `sdd-journey`.
 
 ## Flow
-
-```text
-constitution (once/project) → AGENTS.md + docs/spec/spec.md
-        │
-   specify → clarify → analyze → audit → plan → tasks → implement → validate → to-card
-   FEAT/REQ  answers   gaps      quality  design  order   code/tests  verdict    issue
-```
 
 Repeat `implement → validate` until READY. Run `to-card` after specify to open and after delivery to close.
 
@@ -38,9 +28,9 @@ Repeat `implement → validate` until READY. Run `to-card` after specify to open
 
 ## Identifiers and status
 
-`FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn` → `decisions/`; `DEBT-nnn` → `debts/`. Number sequentially per kind namespace (DTEC, DGME, DPRO); never reuse.
+`FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `J-nn` → `journeys/`. Number sequentially per kind namespace (DTEC, DGME, DPRO); never reuse.
 
-Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). `delivered` means merged to `main` with no flag or the flag on.
+Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). `delivered` means merged to `main` with no flag or the flag on. Journeys: `proposed → approved` (or `retired`).
 
 Every spec/decision classifies claims as `[FACT]`, `[DECISION]`, `[PROPOSAL]`, `[HYPOTHESIS]` or `[BLOCKER]`.
 
@@ -52,7 +42,16 @@ docs/spec/
 ├── features/FEAT-nnn-slug.md
 ├── requirements/{functional,non-functional}/REQ-*.md
 ├── decisions/DTEC-nnn-slug.md
-└── debts/DEBT-nnn-slug.md
+├── debts/DEBT-nnn-slug.md
+└── journeys/J-nn.md
 ```
 
 Templates: `../../../templates/spec-*.md`. Bootstrap: `platforms/kits/sdd/init-spec.sh <repo>`.
+
+## Variant: one issue per task with a review loop
+
+A documented alternative to step 9's per-FEAT card, for parallel agents or a second implementer on one
+backlog: after `sdd-tasks`, extend each row with `Complexity` (Low|Med|High), `model` and `Wave` (shared
+only when file sets are disjoint), then open one issue per task — title `[FEAT-NNN Tn] <task>`, body
+the row verbatim. Every executor runs the same no-model gates before review (skill `review-gates`); a
+PR that fails one stays a draft.

@@ -1,6 +1,6 @@
 {
   "name": "infra-persistence",
-  "version": "10.2.0",
+  "version": "10.3.0",
   "description": "ai-kit persistence: PostgreSQL, Redis and DBeaver",
   "author": {
     "name": "Christian Przybulinski"
