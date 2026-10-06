@@ -16,7 +16,7 @@ allowed-tools:
 
 Names, functions and the smallest change: read skill `code-standards`. Test gates and coverage: read skill `testing`.
 
-References: `references/godot-4-versions.md` for supported versions and `references/networking-transports.md` when a project DEC compares transports.
+References: `references/godot-4-versions.md` (versions), `references/networking-transports.md` (transport DEC), `references/authority-and-prediction.md`, `references/network-codec.md`, `references/testable-game-logic.md`, `references/gdscript-4-pitfalls.md`, `references/scenes-and-generated-files.md`, `references/performance-budget.md` (online 2D client; read the one your task touches).
 
 ## 1. Inspect the project
 
