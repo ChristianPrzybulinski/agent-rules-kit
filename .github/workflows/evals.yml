@@ -1,8 +1,7 @@
 name: evals
+# Manual only: the runs bill the Anthropic API and need the ANTHROPIC_API_KEY secret, which is not set.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 6 * * 1"
 jobs:
   eval:
     runs-on: ubuntu-latest
