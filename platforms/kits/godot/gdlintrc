@@ -1,0 +1,7 @@
+# gdlint config (gdtoolkit 4.x). Copy to the project root as `.gdlintrc`.
+# Only overrides are listed; every other rule keeps the gdlint default
+# (snake_case functions/variables, PascalCase classes, UPPER_CASE constants,
+# Godot style-guide definition order: signals, enums, consts, exports, vars).
+max-line-length: 120
+# Validators with guard clauses (one return per rejected field) exceed the default 6.
+max-returns: 10
