@@ -4,6 +4,7 @@
 
 | Skill | Description |
 |---|---|
+| `collab-two-humans` | Condition → action rules for two people plus agents on one backlog. Use when a second human joins. Not for solo work. |
 | `find-skills` | Helps users discover and install agent skills when they ask questions like "how do I do X", "find a skill for X", "is there a skill that can...", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill. |
 | `parallelize` | Parallel planning for tool calls, long commands and [P] tasks. Use when work has independent steps. Not for product concurrency (skill testing). |
 | `session-handoff` | Session handoff record with evidence and next action. Use when switching agent/session or leaving pending work. Not for session summary (skill session-review). |

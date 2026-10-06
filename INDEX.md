@@ -20,17 +20,17 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 
 | Plugin | Requires | Content |
 |---|---|---|
-| [`plugins/core/`](plugins/core/INDEX.md) | — | always-on rules, hook guard, session and kit-authoring skills |
+| [`plugins/core/`](plugins/core/INDEX.md) | — | always-on rules, hook guard, session, collaboration and kit-authoring skills |
 | [`plugins/dev-core/`](plugins/dev-core/INDEX.md) | `core` | code patterns: clean code, simplicity, testing, docs, investigation |
 | [`plugins/dev-java/`](plugins/dev-java/INDEX.md) | `dev-core` | `rules/java.md`, Java 25/Spring standards |
 | [`plugins/dev-godot/`](plugins/dev-godot/INDEX.md) | `dev-core` | `rules/godot.md`, Godot 2D, asset import, Krita |
 | [`plugins/architect-core/`](plugins/architect-core/INDEX.md) | `core` | Clean Architecture, DDD, protocol contracts, grilling |
-| [`plugins/architect-sdd/`](plugins/architect-sdd/INDEX.md) | `architect-core`, `infra-github` | `rules/spec.md`, `researcher` profile, the sdd-* pipeline, spec templates |
+| [`plugins/architect-sdd/`](plugins/architect-sdd/INDEX.md) | `architect-core`, `infra-github` | `rules/spec.md`, `researcher` profile, the sdd-* pipeline + journey layer, spec templates |
 | [`plugins/quality-core/`](plugins/quality-core/INDEX.md) | `core` | `reviewer` profile, skeptic, validate-implementation |
 | [`plugins/quality-security/`](plugins/quality-security/INDEX.md) | `quality-core` | secure development, vulnerability scanning |
 | [`plugins/infra-core/`](plugins/infra-core/INDEX.md) | `core` | Docker, Git LFS, twelve-factor |
 | [`plugins/infra-persistence/`](plugins/infra-persistence/INDEX.md) | `infra-core` | PostgreSQL, Redis, DBeaver |
-| [`plugins/infra-github/`](plugins/infra-github/INDEX.md) | `infra-core` | gh workflow, branching and versioning |
+| [`plugins/infra-github/`](plugins/infra-github/INDEX.md) | `infra-core` | gh workflow, branching and versioning, review gates |
 | [`plugins/all/`](plugins/all/INDEX.md) | all above | manifest-only bundle: install everything |
 
 ## Plugin rules
