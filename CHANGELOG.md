@@ -4,6 +4,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- The journey layer: `journey.schema.json` (`platforms/ci/schemas/`), the `spec-journey.md` template and the `sdd-journey` skill. `docs/spec/journeys/J-NN.md` files hold one user-visible flow whose steps cite REQ ids, task rows and test paths; a rule a journey exercises is promoted to a REQ-F. Evidence: stratics-docs DPRO-013; seven journeys on main since 2026-10-05.
+- `platforms/ci/validations/spec_trace.py`: journey↔REQ↔FEAT↔test traceability checker (`check`, `generate`, `impact`, `mark-done`, `status`), a generic copy of stratics-docs' `tools/spec-trace/spec_trace.py` — the spec directory is an argument, test paths root at the spec's own repository name, any sibling clone directory or a `--repo` extra, and journeys require `owner`. Self-test: `platforms/ci/validations/test_spec_trace.py`. Verified green on the real stratics-docs corpus: 7 journeys, 83 steps, 40 REQs.
+- `platforms/ci/validations/pr_gates.py`, `platforms/kits/github/workflows/pr-contract.yml` and the `review-gates` skill (infra-github): the no-model PR gates as a reusable `workflow_call` check. A JSON config drives the Closes/proof-block/owned-areas/protected-paths/overlap/fragment/allowlist/CI gates — nothing project-specific is hardcoded; `proof-commands` is an output for the caller's `proof` job, which runs them with its own toolchain. Evidence: stratics-docs R-07 (`ops/review-loop/gates.py` + `reusable-pr-contract.yml`, merged as #342).
+- `collab-two-humans` skill (core): the ten rules of the road for one backlog shared by two humans and their agents, as condition → action lines. Evidence: stratics-docs CONTRIBUTING.md §9 (R-10).
+- `sdd-process.md` § "Variant: one issue per task with a review loop": per-task issues with `Complexity`, `model` and `Wave` fields and the same gates before review — a documented alternative to the per-FEAT card, not a new default. Evidence: stratics-docs `docs/spec/ARCHITECT.md` deltas 1–2.
+
 ### Changed
 - `dev-java` template `project-agents-java-spring.md`: Java 25 / Spring Boot 4.x with explicit choice blocks — `Persistence: JdbcClient + Flyway (default) | JPA` and `Errors: project protocol catalog | RFC 7807`.
 - `platforms/kits/github/workflows/ci-godot.yml`: reusable `workflow_call` workflow with `godot-version`/`test-runner` inputs — gdUnit4 by default, GUT optional, missing runner or zero suites fails; change-aware `changes` job and LFS cache.
@@ -11,6 +18,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `platforms/kits/docker/compose.yml`: `postgres:18` (data dir under `/var/lib/postgresql`) and Mailpit; Redis replaced by a commented optional Valkey service.
 - `postgresql` skill: `postgres-17.md` renamed to `postgres-18.md` with the PG 18 facts and data-dir change.
 - Machine facts moved out of shared docs (`docs/maintenance.md`, `godot-4-versions.md`, `java-25-lts.md`) into git-ignored `docs/machine.local.md` — template at `docs/machine.local.md.example`; `.env` is now git-ignored.
+- `sync-project.sh`: a project with `docs/spec/journeys/` now also receives `journey.schema.json` and `spec_trace.py` in its `.github/spec-lint/`; projects without journeys are unchanged.
 
 ## [10.2.0] - 2026-10-06
 

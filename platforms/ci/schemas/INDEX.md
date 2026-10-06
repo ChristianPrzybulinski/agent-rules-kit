@@ -13,5 +13,6 @@
 | `requirement.schema.json` | `docs/spec/requirements/**` |
 | `decision.schema.json` | `docs/spec/decisions/*.md` |
 | `debt.schema.json` | `docs/spec/debts/*.md` |
+| `journey.schema.json` | `docs/spec/journeys/*.md` |
 
 Consumed by `../validations/check_kit.py` and `check_spec.py`. Details: `../README.md`.
