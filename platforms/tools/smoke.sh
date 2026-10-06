@@ -307,6 +307,7 @@ git clone "$SOURCE" "$STUB_HOME/.ai-kit" >/dev/null 2>&1
 stub_path="$STUB_BIN:$RESTRICTED_PATH"
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
     AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    AI_KIT_USER_RULES=1 \
     "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-install.out" 2>&1; then
   cat "$ROOT/doctor-stub-install.out" >&2
   fail "doctor failed to install stub marketplace/plugin"
@@ -339,10 +340,9 @@ done
 
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
     AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
-    AI_KIT_USER_RULES=0 \
     "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-no-user-rules.out" 2>&1; then
   cat "$ROOT/doctor-stub-no-user-rules.out" >&2
-  fail "doctor failed with AI_KIT_USER_RULES=0"
+  fail "doctor failed with the default AI_KIT_USER_RULES (0)"
 fi
 grep -Fq 'ok: user-level claude rules disabled (AI_KIT_USER_RULES=0); repos carry .claude/rules via sync-project.sh' \
   "$ROOT/doctor-stub-no-user-rules.out" || fail "AI_KIT_USER_RULES=0 switch was not reported"
@@ -739,4 +739,22 @@ set -e
 [[ ! -e "$ROOT/vendor-proj2/.claude/settings.json" ]] \
   || fail "settings.json was written despite the refusal"
 
-printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy, vendored skills)\n' "$skill_count"
+# sync-project.sh copies the spec validator only into repos with docs/spec: a
+# Java repo without it gets no .github/spec-lint and --check still passes.
+mkdir -p "$ROOT/nospec-proj"
+: > "$ROOT/nospec-proj/AGENTS.md"
+: > "$ROOT/nospec-proj/pom.xml"
+if ! "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/nospec-proj" >"$ROOT/sync-nospec.out" 2>&1; then
+  cat "$ROOT/sync-nospec.out" >&2
+  fail "sync-project install failed on a repo without docs/spec"
+fi
+grep -Fq 'sync: no docs/spec, spec-lint skipped' "$ROOT/sync-nospec.out" \
+  || fail "sync-project did not report the skipped spec-lint"
+[[ ! -e "$ROOT/nospec-proj/.github/spec-lint" ]] \
+  || fail "sync-project wrote .github/spec-lint without docs/spec"
+if ! "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/nospec-proj" >"$ROOT/sync-nospec-check.out" 2>&1; then
+  cat "$ROOT/sync-nospec-check.out" >&2
+  fail "sync-project --check failed on a repo without docs/spec"
+fi
+
+printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy, vendored skills, no-spec repo)\n' "$skill_count"
