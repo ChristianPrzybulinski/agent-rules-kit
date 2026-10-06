@@ -55,7 +55,23 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 - `check.sh` runs `claude plugin validate` on the plugin and marketplace when Claude Code is installed.
 - `check_kit.py` also gates allowed tools, three-way user-only/subagent/rule parity, reference kinds/sources, hooks, backtick paths and exact skill-index descriptions.
 - `.github/workflows/gitleaks.yml`: secret scan on pushes and pull requests.
+- `.github/workflows/evals.yml`: weekly and on-demand `claude plugin eval` per plugin; needs the `ANTHROPIC_API_KEY` repository secret.
 - `.github/workflows/release.yml`: tag/version validation and release creation.
+
+## Evals
+
+- Cases live in `plugins/<plugin>/evals/<case>/` (`prompt.md` plus `graders/*.md`, `case.yaml` and `fixture.sh` when the case needs a repository); a case without a grader fails to load, and `check_kit.py` rejects a case folder without `prompt.md` or `case.yaml`, or without `graders/*.md`.
+- A new or changed skill ships with 3 or more cases; the cases never name the skill (a `skill-fired` grader checks that it fired), except the user-only `sdd-tasks`.
+- Locally: `claude plugin eval plugins/<p> --case '<name>' --runs 1 --ablation none --no-publish --trust-plugin` (add `--scaffold --allow-tools Bash Edit Write` for cases with a fixture). The evals workflow runs only cases tagged `ready`, with a pinned model and judge.
+
+## KPIs
+
+`platforms/tools/kpi.py <ledger.csv>` prints one line per review-loop batch. The loop's `note` column carries space-separated tokens on `kind=review` rows: `verdict=<approved|flagged|needs-product|needs-human>`, `findings=<n>`, `spec=<n>` (findings owned by `spec`); without them only rounds per PR is available.
+
+- first-pass approval >= 60% (39% on the 33 PRs reviewed up to 2026-10-05, stratics-docs DPRO-011)
+- spec-owned findings <= 25%
+
+After every kit rule change compare two batches, one before and one after, on these numbers: if they do not move, the hypothesis that contradictions cost review rounds is refuted.
 
 ## After merging to main
 

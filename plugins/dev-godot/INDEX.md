@@ -16,4 +16,10 @@
 - `project-agents-godot-2d.md`
 
 
+## `evals/`
+
+- `godot-standards-boot-exit-code`
+- `godot-standards-rules-outside-nodes`
+- `godot-standards-typed-rewrite`
+
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

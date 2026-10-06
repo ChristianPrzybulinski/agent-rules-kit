@@ -12,4 +12,10 @@
 - `doc-contract-message.md`
 
 
+## `evals/`
+
+- `protocol-contract-field-owned-by-other-feat`
+- `protocol-contract-no-transport-dec`
+- `protocol-contract-required-field-bumps-version`
+
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

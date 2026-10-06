@@ -16,4 +16,10 @@
 - `doc-recovery-report.md`
 
 
+## `evals/`
+
+- `investigate-no-fix-without-repro`
+- `investigate-perf-needs-number`
+- `investigate-report-is-hypothesis`
+
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).
