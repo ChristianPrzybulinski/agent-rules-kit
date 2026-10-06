@@ -3,7 +3,9 @@
 
 With pyyaml+jsonschema: full validation. Without them: minimal YAML parser
 (flat frontmatter) + structural checks (required, enums, id pattern).
+Also validates docs/spec/progress/*.json (executor progress) when the folder exists.
 """
+import json
 import os
 import re
 import sys
@@ -100,6 +102,68 @@ STRUCT = {
 ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|FEAT|DTEC|DGME|DPRO|DEBT)-(\d+)")
 
 
+PROGRESS_TASK_KEYS = ("id", "title", "files", "proof", "passes", "notes")
+
+
+def check_progress_structure(path, data):
+    """No-jsonschema fallback: required keys, FEAT id shape, task keys and boolean passes."""
+    if not isinstance(data, dict):
+        fail(f"{path}: progress must be a JSON object")
+        return
+    for k in ("feat", "generated", "tasks"):
+        if k not in data:
+            fail(f"{path}: required field missing: {k}")
+    if "feat" in data and not re.match(r"^FEAT-\d{3,}$", str(data["feat"])):
+        fail(f"{path}: feat {data['feat']!r} does not match ^FEAT-\\d{{3,}}$")
+    tasks = data.get("tasks")
+    if "tasks" in data and (not isinstance(tasks, list) or not tasks):
+        fail(f"{path}: tasks must be a non-empty list")
+    for task in tasks if isinstance(tasks, list) else []:
+        if not isinstance(task, dict):
+            fail(f"{path}: every task must be an object")
+            continue
+        for k in PROGRESS_TASK_KEYS:
+            if k not in task:
+                fail(f"{path}: task {task.get('id', '?')}: required field missing: {k}")
+        if "passes" in task and not isinstance(task["passes"], bool):
+            fail(f"{path}: task {task.get('id', '?')}: passes must be a boolean")
+
+
+def check_progress(pdir, schema, feats):
+    """Validates every docs/spec/progress/*.json; returns how many files were read."""
+    if not pdir.is_dir():
+        return 0
+    count = 0
+    for path in sorted(pdir.glob("*.json")):
+        count += 1
+        try:
+            data = json.loads(path.read_text())
+        except ValueError as e:
+            fail(f"{path}: invalid JSON: {e}")
+            continue
+        if schema is not None:
+            try:
+                js_validate(data, schema, format_checker=FormatChecker())
+            except Exception as e:
+                fail(f"{path}: schema progress: {getattr(e, 'message', e)}")
+        else:
+            check_progress_structure(path, data)
+        if not isinstance(data, dict) or not isinstance(data.get("feat"), str):
+            continue
+        if path.stem != data["feat"]:
+            fail(f"{path}: feat {data['feat']} != file name")
+        if data["feat"] not in feats:
+            fail(f"{path}: feat {data['feat']} does not exist in features/")
+        seen = set()
+        for task in data.get("tasks") if isinstance(data.get("tasks"), list) else []:
+            tid = task.get("id") if isinstance(task, dict) else None
+            if isinstance(tid, str):
+                if tid in seen:
+                    fail(f"{path}: duplicate task id {tid}")
+                seen.add(tid)
+    return count
+
+
 def main():
     spec_dir, schemas_dir = Path(sys.argv[1]), Path(sys.argv[2])
     if not spec_dir.is_dir():
@@ -113,8 +177,11 @@ def main():
     for name in STRUCT:
         p = schemas_dir / f"{name}.schema.json"
         if FULL and p.exists():
-            import json
             schemas[name] = json.loads(p.read_text())
+    progress_schema = None
+    p = schemas_dir / "progress.schema.json"
+    if FULL and p.exists():
+        progress_schema = json.loads(p.read_text())
 
     targets = []  # (path, kind)
     if (spec_dir / "spec.md").exists():
@@ -165,6 +232,8 @@ def main():
         if kind == "requirement" and fid:
             reqs[fid] = data.get("features") or []
 
+    progress_files = check_progress(spec_dir / "progress", progress_schema, feats)
+
     # cross-references FEAT <-> REQ
     for fid, rlist in feats.items():
         for r in rlist:
@@ -190,6 +259,8 @@ def main():
     if failures:
         sys.exit(1)
     print(f"spec: OK ({len(ids)} artifacts)")
+    if progress_files:
+        print(f"progress: OK ({progress_files} files)")
 
 
 if __name__ == "__main__":

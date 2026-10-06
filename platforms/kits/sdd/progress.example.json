@@ -1,0 +1,10 @@
+{
+  "feat": "FEAT-009",
+  "generated": "2026-10-06",
+  "updated": "2026-10-06",
+  "tasks": [
+    {"id": "T1", "title": "Character-entry contract", "files": ["stratics-docs/protocol/schemas/**", "stratics-docs/protocol/errors.json", "stratics-docs/protocol/examples/**"], "proof": "each example validates or fails against the schemas as intended", "passes": false, "notes": ""},
+    {"id": "T2", "title": "`V3__characters.sql`", "files": ["stratics-server/src/main/resources/db/migration/V3__characters.sql"], "proof": "`flyway migrate` green on postgres:18 on top of V1 and V2; constraint names per DTEC-013", "passes": true, "notes": "proof output in PR #21 How I tested"},
+    {"id": "T3", "title": "Client `CharacterCreate` (E1; narrowed 2026-10-05, owner re-plan)", "files": ["stratics-client/ui/character/**", "stratics-client/autoload/session.gd", "stratics-client/autoload/network.gd", "stratics-client/tests/network/**", "stratics-client/resources/i18n/**", "stratics-client/tests/character/**", "stratics-client/tests/i18n/errors.json"], "proof": "gdUnit4 scene tests: the appearance picker offers exactly `defchar_head1`, the starter picker exactly the three starters", "passes": false, "notes": ""}
+  ]
+}

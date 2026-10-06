@@ -29,7 +29,7 @@ Repeat `implement → validate` per issue until READY. Run `to-card` after `task
 
 `FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `J-nn` → `journeys/`. Number sequentially per kind namespace (DTEC, DGME, DPRO); never reuse.
 
-Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). From `in-progress` on the value is derived (see Regimes). `delivered` means merged to `main` with no flag or the flag on. Journeys: `proposed → approved` (or `retired`).
+Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). From `in-progress` on the value is derived (see Regimes). During implementation the executor's state is `docs/spec/progress/FEAT-nnn.json` (`passes` per task, set only after the literal proof output); after merge the task row and FEAT status derived from GitHub are the source of truth and the progress file is advisory. `delivered` means merged to `main` with no flag or the flag on. Journeys: `proposed → approved` (or `retired`).
 
 Every spec/decision classifies claims as `[FACT]`, `[DECISION]`, `[PROPOSAL]`, `[HYPOTHESIS]` or `[BLOCKER]`.
 
@@ -48,6 +48,7 @@ docs/spec/
 ├── requirements/{functional,non-functional}/REQ-*.md
 ├── decisions/DTEC-nnn-slug.md
 ├── debts/DEBT-nnn-slug.md
+├── progress/FEAT-nnn.json
 └── journeys/J-nn.md
 ```
 
