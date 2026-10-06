@@ -531,7 +531,7 @@ else:
                         output = json.loads(result.stdout)
                     except json.JSONDecodeError:
                         output = None
-                    if result.returncode != 2 or not isinstance(output, dict) or output.get("decision") != "block":
+                    if result.returncode != 2 or not isinstance(output, dict) or (output.get("hookSpecificOutput") or {}).get("permissionDecision") != "deny":
                         fail(rel(hook_cases_path), f"blocked case not blocked: {case}")
                 elif result.returncode != 0 or result.stdout != "":
                     fail(rel(hook_cases_path), f"allowed case not allowed cleanly: {case}")
