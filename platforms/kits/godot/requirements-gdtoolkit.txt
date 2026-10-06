@@ -1,0 +1,2 @@
+# Copy to the project root; the CI lint job installs from this file; the PostToolUse hook uses the gdtoolkit on PATH; Devin environments add pip install -r requirements-gdtoolkit.txt to the Godot environment setup.
+gdtoolkit==4.5.0

@@ -154,3 +154,25 @@ jobs:
             test-run.log
             reports/
           if-no-files-found: warn
+
+  lint:
+    # outside the Godot container: the image has no pinned Python. gdformat has no exclusion flag
+    # (only `excluded_directories` in gdformatrc, which this kit does not ship), so find skips addons/ and .godot/
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements-gdtoolkit.txt
+      - name: gdformat --check and gdlint (project scripts; addons/ and .godot/ excluded)
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -name '*.gd' -not -path './addons/*' -not -path './.godot/*' -print0 > scripts.lst
+          test -s scripts.lst
+          xargs -0 gdformat --check < scripts.lst
+          xargs -0 gdlint < scripts.lst

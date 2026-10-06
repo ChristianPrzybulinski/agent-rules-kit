@@ -33,4 +33,4 @@ sources:
 - The three most common tells: a method that exists on a different class, `await` on a non-signal non-coroutine, a signal name the node does not declare.
 - Proof still required: the boot check (`--import` then the `SCRIPT ERROR` grep, skill section 5) catches parser errors but not wrong runtime calls, so a unit test is still required.
 
-godot-guard (github.com/brocolriri/godot-guard, MIT, scripts/api_guard.py): evaluated 2026-10-06, not a gate. Free CLI scans for Godot 3 idioms (92 rules) but flags gdUnit4 fluent chains continued on a line starting with "." as the Godot 3 "._ready()" call; blocking hooks are a paid tier. Use it manually on suspicious generated code; gdlint plus the import proof are the gates.
+godot-guard (github.com/brocolriri/godot-guard, MIT, scripts/api_guard.py): evaluated 2026-10-06, not a gate. Free CLI scans for Godot 3 idioms (92 rules) but flags gdUnit4 fluent chains continued on a line starting with "." as the Godot 3 "._ready()" call (2 false positives, 0 true findings on stratics-client); blocking hooks are a paid tier. Use it manually on suspicious generated code; gdlint plus the import proof are the gates.
