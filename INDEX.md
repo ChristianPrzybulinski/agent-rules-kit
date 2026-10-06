@@ -37,9 +37,9 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 
 | File | Trigger | Globs | Loads |
 |---|---|---|---|
-| [`plugins/dev-java/rules/java.md`](plugins/dev-java/rules/java.md) | `glob` | `**/*.java`, `**/pom.xml` | `java-standards`, `clean-code`, `testing` |
-| [`plugins/dev-godot/rules/godot.md`](plugins/dev-godot/rules/godot.md) | `glob` | `**/*.gd`, `**/*.tscn`, `**/project.godot` | `godot-standards`, `clean-code`, `testing` |
-| [`plugins/architect-sdd/rules/spec.md`](plugins/architect-sdd/rules/spec.md) | `glob` | `docs/spec/**/*.md` | SDD skills and spec templates |
+| [`plugins/dev-java/rules/java.md`](plugins/dev-java/rules/java.md) | `glob` | `**/*.java`, `**/pom.xml` | inline always/never; procedures in `java-standards`, `clean-code`, `testing` |
+| [`plugins/dev-godot/rules/godot.md`](plugins/dev-godot/rules/godot.md) | `glob` | `**/*.gd`, `**/*.tscn`, `**/project.godot` | inline always/never; procedures in `godot-standards`, `clean-code`, `testing` |
+| [`plugins/architect-sdd/rules/spec.md`](plugins/architect-sdd/rules/spec.md) | `glob` | `docs/spec/**/*.md` | inline always/never; procedures in the `sdd-*` skills and spec templates |
 
 ## What goes where
 
