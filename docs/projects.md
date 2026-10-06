@@ -1,6 +1,6 @@
 # What lives in a project that uses the kit
 
-Rules, skills, references and templates stay **in the kit** under `plugins/` and reach the agent through the plugin marketplaces or `bootstrap.sh`. The project only receives its own artifacts. Real example: `~/Documents/GitHub/stratics-docs`.
+Rules, skills, references and templates stay **in the kit** under `plugins/` and reach the agent through the plugin marketplaces or `bootstrap.sh`. The project only receives its own artifacts. Real example: the `stratics-docs` repository.
 
 ## In the project
 
