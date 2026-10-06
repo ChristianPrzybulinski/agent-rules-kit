@@ -57,8 +57,8 @@ updated: "YYYY-MM-DD"
 ## Tasks
 <!-- filled by sdd-tasks -->
 
-| ID | Task | Files | Proof of completion | Covers | Depends on | State |
-|---|---|---|---|---|---|---|
+| ID | Task | Files | Proof of completion | Covers | Depends on | State | Complexity | Model | Wave |
+|---|---|---|---|---|---|---|---|---|---|
 
 ## Audit
 <!-- filled by sdd-audit (or a FEAT-000.checklist.md file) -->

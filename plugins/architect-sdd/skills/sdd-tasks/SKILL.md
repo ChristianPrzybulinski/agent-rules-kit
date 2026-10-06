@@ -27,15 +27,16 @@ Require `status: planned` and a Plan section with files, boundaries and test str
 
 ## 3. Write task rows
 
-Each row contains `T-nn`, imperative title, exact files, proof, covered acceptance criteria, dependencies and state. Mark dependency-independent rows `[P]`.
+Each row contains `T-nn`, imperative title, exact rooted files (tests included), proof, covered criteria, dependencies, state, and the three cut fields `Complexity` (Low|Med|High), `Model` (tier, see `references/waves-and-models.md`) and `Wave`. Mark dependency-independent rows `[P]`.
 
 ```markdown
-| ID | Task | Files | Proof | Covers | Depends on | State |
-|---|---|---|---|---|---|---|
-| T-01 | Define MoveRequest contract | protocol/... | example validates | CA-1 | — | todo |
+| ID | Task | Files | Proof of completion | Covers | Depends on | State | Complexity | Model | Wave |
+|---|---|---|---|---|---|---|---|---|---|
+| T-01 | Define MoveRequest contract | protocol/... , tests/... | example validates | CA-1 | — | todo | Low | small | 0 |
 ```
 
 States: `todo`, `doing`, `done`, `blocked`.
+Waves: contracts, schemas and DECs go to wave 0, sequential; two tasks share a wave only when their file sets are disjoint and neither reads the other's output; wave numbers are FEAT-local and a cross-FEAT dependency points to a task cut earlier.
 
 ## 4. Check coverage
 
@@ -48,5 +49,10 @@ Check every row. A row that fails one of these items is fixed before its issue i
 - **Cross-feature fields.** Every field the task reads from or writes to another feature's contract (message, schema, table) exists in that feature's artifact. Fix the contract first, never inside the implementing PR.
 - **Executable proof.** Every proof line runs unattended in CI or the review gates, as a deterministic command. A manual check (UI, mail capture) is labelled as such and paired with an automated one.
 - **Neighbour files.** If the work needs a file outside the row's `Files` (a config key, a shared CI workflow), that file joins the cell, or the row names the task that owns it.
+- **Generated and build files.** `*.import`, `*.uid`, `*.translation`, `pom.xml`, `application.yml` or the project's equivalents join `Files`.
+- **Value domains.** Every contract field or table column names its value domain and the public identifier of any entity it names.
+- **Proof wording.** A proof line contains none of the words the project's gates refuse (the issue's `Notes` field, filled by `sdd-to-card`, names the project's allowlist location; never hard-code it here).
+
+The architect reviews every PR of these tasks against FEAT/REQ/DEC; an executor's "done" report is not evidence, the diff and the re-run proofs are.
 
 Done when: tasks are dependency ordered, independently provable, mapped both ways to criteria, pass the pre-cut checklist and are ready for one-at-a-time execution.
