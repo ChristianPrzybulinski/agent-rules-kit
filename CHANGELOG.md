@@ -7,6 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Added
 - `docs/plans/2026-10-kit-assessment/`: assessment of v10.1.0 against current Anthropic, Cognition and market guidance for the Stratics Godot 2D client + Java server, plus 34 self-contained execution prompts in three phases (freeze layout and fix contradictions; distribute by repository commit and consolidate skills; Godot online 2D references, Devin environment, process-loop plugin, evals and KPIs). Evidence: review-loop first-pass rejection rate 20 of 33 PRs (stratics-docs DPRO-011); 24 of 25 destructive commands pass the hook guard; stale kit paths cited in stratics-docs; FEAT task tables with 128 `todo` rows after ~35 merged PRs.
 
+### Changed
+- `godot-standards` section 3, the `project-agents-godot-2d.md` template and `editor_settings_hints.md` no longer prescribe `_physics_process` + `move_and_slide()`; the movement model is declared per project in `AGENTS.md` (option A physics bodies, option B grid/tile-step with a server-authoritative position, prediction of at most one step and tween/lerp presentation in `_process`), never mixed in one entity (assessment §4.4, §6 D1; stratics-docs DGME-002; stratics-client `AGENTS.md:41`). Proof: `grep -rn 'Move a body' plugins/` prints nothing, `SKILL.md` shows 2 `Option A`/`Option B` lines, and `wc -l` of `SKILL.md` is 51 (limit 80).
+
 ## [10.3.0] - 2026-10-06
 
 ### Added
