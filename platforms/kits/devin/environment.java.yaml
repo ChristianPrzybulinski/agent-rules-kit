@@ -1,0 +1,25 @@
+# keys verified 2026-10-06 against docs.devin.ai/onboard-devin/environment-yaml (initialize and maintenance: block scalar or step list; knowledge: list of name/contents)
+# Copy to environment.yaml at the project root. Keep the JDK feature release equal to .java-version and the CI JDK.
+initialize: |
+  sudo apt-get update
+  sudo apt-get install -y wget
+  wget -q -O jdk.tar.gz "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jdk/hotspot/normal/eclipse"
+  sudo mkdir -p /opt/jdk-25
+  sudo tar -xzf jdk.tar.gz -C /opt/jdk-25 --strip-components=1
+  echo 'export JAVA_HOME=/opt/jdk-25' >> ~/.bashrc
+  echo 'export PATH=$JAVA_HOME/bin:$PATH' >> ~/.bashrc
+  export JAVA_HOME=/opt/jdk-25 PATH=/opt/jdk-25/bin:$PATH
+  ./mvnw -v
+  docker --version
+
+# go-offline alone misses the Spotless formatter, the Surefire/Failsafe providers, the PITest plugin and the Testcontainers images
+maintenance: |
+  ./mvnw -q dependency:go-offline && ./mvnw -q -Pfast spotless:check verify
+
+knowledge:
+  - name: verify
+    contents: ./mvnw spotless:check verify
+  - name: verify-offline
+    contents: ./mvnw -o -q spotless:check verify
+  - name: scope
+    contents: Change only the paths in the issue's Files cell; a needed path outside it is a blocker, not a widening.

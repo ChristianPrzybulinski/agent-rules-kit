@@ -32,7 +32,7 @@ Plugin skills remain installed but may be absent from the model input while [ope
 - **A second skills copy in `.agents/skills` was left out:** Devin also scans `.claude/skills`, so one directory serves Claude Code and Devin; generating both would load every skill twice.
 - **Knowledge notes as `model_decision` rules were left out:** each rule description would tax every message. Notes now live as references owned by the skill that needs them.
 - **A built `devin-plugin` branch was left out:** `main` itself is the release and the plugin source.
-- **Playbooks were left out:** user-invoked plugin skills cover the same procedures while staying version-controlled and portable across surfaces.
+- **Playbooks are kept only for Devin Cloud children:** plugin hooks and subagents do not load in Devin Cloud, so the review-loop child prompts ship as `platforms/kits/devin/playbooks/*.devin.md`; user-invoked skills cover the same procedures on every other surface.
 - **Knowledge was left out:** Cognition deprecated it; references now live under the skill that owns and loads them.
 - **MCP servers were left out:** tool schemas cost context on every turn, while `gh` covers the GitHub operations this kit needs.
 - **Stop and UserPromptSubmit hooks were left out:** Stop can loop, and UserPromptSubmit spends tokens on every turn.
