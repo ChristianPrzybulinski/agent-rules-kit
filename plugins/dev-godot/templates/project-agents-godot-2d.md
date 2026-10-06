@@ -27,7 +27,8 @@ res://
 
 ```bash
 godot --path . --editor                         # open editor
-godot --path . --headless --quit                # import assets/validate project (CI)
+godot --headless --path . --import                                # import assets, build the script-class cache (CI)
+! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'   # boot proof: --quit exits 0 after a script error
 godot --path . --headless -s addons/gut/gut_cmdln.gd   # run GUT (adjust to the framework)
 godot --path . --headless --export-release "[preset]" build/[name]   # export
 ```
@@ -97,7 +98,7 @@ Never mix the two models in one entity; presentation never changes the authorita
 
 ## Boundaries
 
-- Always: run `--headless --quit` after touching assets; test a scene in isolation (F6) before the whole stage.
+- Always: run the two boot-proof commands from Commands after touching assets or scripts; test a scene in isolation (F6) before the whole stage.
 - Ask first: change `project.godot` (renderer, physics, input map); add an addon; change the save format.
 - Never: mix the two movement models in one entity, or let presentation change the authoritative position; `get_parent()` for game logic; editing `.godot/`.
 
