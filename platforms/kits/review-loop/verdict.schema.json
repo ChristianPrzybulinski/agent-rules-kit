@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verdict.schema.json",
+  "title": "Review-loop verdict (DPRO-011)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "pr", "issue", "head_sha", "verdict", "risk", "round", "findings"],
+  "properties": {
+    "schema": { "type": "string", "pattern": "^[a-z0-9-]+-verdict/v1$" },
+    "pr": { "type": "string", "pattern": "^[a-z0-9-]+#[0-9]+$" },
+    "issue": { "type": "integer", "minimum": 1 },
+    "head_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "verdict": { "enum": ["approved", "flagged", "needs-product", "needs-human"] },
+    "risk": { "enum": ["light", "standard", "full"] },
+    "round": { "type": "integer", "minimum": 1 },
+    "summary": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "owner", "claim", "close_when"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z][0-9]+$" },
+          "severity": { "enum": ["blocking", "required", "info"] },
+          "owner": { "enum": ["spec", "apply", "judgment"] },
+          "claim": { "type": "string", "minLength": 1 },
+          "fix": { "type": "string" },
+          "patch": { "type": "string", "description": "unified diff or exact replacement text, when the fix is mechanical" },
+          "close_when": { "type": "string", "description": "one allowlisted shell command that exits 0 when the finding is closed; empty only for info" },
+          "resolved_in": { "type": "string", "description": "for findings the architect fixed (spec anywhere; apply on backlog-repo PRs): the PR or commit that fixed it" }
+        }
+      }
+    },
+    "unblocks_on_merge": { "type": "array", "items": { "type": "integer" } },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": { "type": "string" },
+        "usd": { "type": "number", "minimum": 0 },
+        "duration_s": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

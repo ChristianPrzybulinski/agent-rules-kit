@@ -1,0 +1,170 @@
+{
+  "owner": "<github-owner>",
+  "backlog_repo": "<backlog-repo>",
+  "batch_log_issue": 0,
+  "repos": {
+    "<repo>": {
+      "clone": "${WORKSPACE_ROOT}/<repo>",
+      "require_fragment": true
+    }
+  },
+  "poll_interval_seconds": 30,
+  "max_wait_seconds": 5400,
+  "proof_timeout_seconds": 1800,
+  "max_flagged_rounds": 2,
+  "stalled_dispatch_hours": 6,
+  "devin_models": {
+    "swe": "<executor-model>",
+    "sonnet": "<executor-model>",
+    "opus": "<executor-model>",
+    "apply": "<executor-model>"
+  },
+  "proof_allowlist": [
+    "./mvnw",
+    "mvn",
+    "godot",
+    "python3",
+    "grep",
+    "git",
+    "test",
+    "[",
+    "!",
+    "jq",
+    "diff",
+    "cmp",
+    "ls",
+    "cat",
+    "head",
+    "tail",
+    "wc",
+    "sort",
+    "uniq",
+    "find",
+    "shasum",
+    "sha256sum",
+    "echo",
+    "docker",
+    "true",
+    "false"
+  ],
+  "full_risk_paths": [
+    "db/migration/**",
+    "src/main/resources/db/migration/**",
+    "pom.xml",
+    "protocol/**",
+    ".github/workflows/**",
+    "docs/spec/**",
+    "ops/review-loop/**",
+    ".claude/**"
+  ],
+  "generated_neighbours": [
+    ".uid",
+    ".import",
+    ".translation"
+  ],
+  "protected_paths": {
+    "contract": [
+      "protocol/**"
+    ],
+    "migration": [
+      "**/db/migration/**"
+    ],
+    "build": [
+      "pom.xml",
+      "project.godot",
+      "export_presets.cfg",
+      ".github/workflows/**"
+    ],
+    "spec": [
+      "docs/spec/**"
+    ],
+    "loop": [
+      "ops/**",
+      ".claude/**"
+    ]
+  },
+  "expected_red_checks": {},
+  "stalled_handoff_minutes": 45,
+  "widen_test_patterns": [
+    "tests/**",
+    "src/test/**",
+    "**/tests/**"
+  ],
+  "pr_suite": {
+    "<repo>": [
+      "<smoke command that exits 0 on a clean checkout of a PR merge result>"
+    ]
+  },
+  "batch_suite": {
+    "<repo>": [
+      "<full suite command that exits 0 on a clean checkout of main>"
+    ]
+  },
+  "affected_tests": {
+    "<repo>": {
+      "python_suites": false,
+      "commands": [
+        "<test command for the tests a diff touches>"
+      ],
+      "generated": []
+    }
+  },
+  "proof_in_loop": [
+    "<repo>"
+  ],
+  "full_run_workflows": {
+    "<repo>": [
+      "<workflow-file>.yml"
+    ]
+  },
+  "verify_main_max_wait_seconds": 2700,
+  "labels": {
+    "review:pending": "fbca04",
+    "review:approved": "0e8a16",
+    "review:flagged": "d93f0b",
+    "gate:failed": "b60205",
+    "risk:light": "c2e0c6",
+    "risk:standard": "fef2c0",
+    "risk:full": "f9d0c4",
+    "needs-human": "b60205",
+    "needs-product": "5319e7",
+    "loop:paused": "cccccc",
+    "kind:spec": "1d76db",
+    "overlap-ok": "8b949e",
+    "contract": "79b8ff",
+    "migration": "d4c5f9",
+    "build": "bfd4f2",
+    "spec": "1d76db",
+    "loop": "5319e7"
+  },
+  "spec_issue_defaults": {
+    "tasks": {
+      "model": "sonnet",
+      "complexity": "Med"
+    },
+    "cut": {
+      "model": "swe",
+      "complexity": "Low"
+    }
+  },
+  "owner_merge_paths": [
+    "ops/review-loop/**",
+    ".claude/**"
+  ],
+  "max_poll_failures": 12,
+  "stale_handed_hours": 3,
+  "max_rehands": 2,
+  "dispatch": {
+    "enabled": true,
+    "file_lock": true,
+    "max_children": 3,
+    "max_heavy": 2,
+    "heavy_repos": [
+      "<repo>"
+    ],
+    "permission_mode": "smart",
+    "stalled_hours": 4,
+    "devin_bin": "devin"
+  },
+  "proof_env": {}
+}

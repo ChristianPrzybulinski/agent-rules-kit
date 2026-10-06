@@ -32,6 +32,7 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 | [`plugins/infra-persistence/`](plugins/infra-persistence/INDEX.md) | `infra-core` | PostgreSQL, Redis |
 | [`plugins/infra-github/`](plugins/infra-github/INDEX.md) | `infra-core` | gh workflow, branching and versioning, review gates |
 | [`plugins/extras/`](plugins/extras/INDEX.md) | `core` | opt-in: frontend-design, krita, dbeaver, find-skills, skill-creator (not in `all`) |
+| [`plugins/process-loop/`](plugins/process-loop/INDEX.md) | `core`, `infra-github`, `quality-core` | loop orchestrator, verdict reviewer, child implement/fix skills, verdict and batch-report templates |
 | [`plugins/all/`](plugins/all/INDEX.md) | all above except `extras` | manifest-only bundle: install everything except `extras` |
 
 ## Plugin rules
