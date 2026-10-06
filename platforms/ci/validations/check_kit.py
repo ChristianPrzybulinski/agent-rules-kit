@@ -199,7 +199,7 @@ REQUIRED_PLUGIN_PATHS = [
 ]
 ALLOWED_PLUGIN_ENTRIES = {
     "AGENTS.md", "INDEX.md", ".devin-plugin", ".claude-plugin", "plugin.json", "agents", "hooks",
-    "rules", "skills", "templates",
+    "rules", "skills", "templates", "evals",
 }
 for required_path in REQUIRED_ROOT_PATHS:
     if not (KIT / required_path).exists():
@@ -871,13 +871,19 @@ if not (KIT / "INDEX.md").exists() or not (KIT / "README.md").exists():
 for name, plugin_dir in plugins.items():
     plugin_index = plugin_dir / "INDEX.md"
     index_text = plugin_index.read_text(encoding="utf-8") if plugin_index.exists() else ""
-    for subdir in ("skills", "rules", "templates", "agents"):
+    for subdir in ("skills", "rules", "templates", "agents", "evals"):
         sub_root = plugin_dir / subdir
         if not sub_root.exists():
             continue
         for entry in sorted(sub_root.iterdir()):
-            if entry.name.startswith(".") or entry.name in ("INDEX.md", "README.md"):
+            if entry.name.startswith(".") or entry.name in ("INDEX.md", "README.md") \
+                    or (subdir == "evals" and entry.name in ("results", "mocks")):
                 continue
+            if subdir == "evals" and entry.is_dir():
+                if not ((entry / "prompt.md").exists() or (entry / "case.yaml").exists()):
+                    fail(rel(entry), "eval case without prompt.md or case.yaml")
+                if not any((entry / "graders").glob("*.md")):
+                    fail(rel(entry), "eval case without graders/*.md")
             if subdir == "rules" and entry.is_file():
                 if f"rules/{entry.name}" not in index_text and entry.name not in index_text:
                     fail(rel(plugin_index), f"rule '{entry.name}' missing from plugin index")

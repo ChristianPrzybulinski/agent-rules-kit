@@ -34,4 +34,10 @@
 - `spec-requirement-non-functional.md`
 
 
+## `evals/`
+
+- `sdd-tasks-field-owned-by-other-feat`
+- `sdd-tasks-files-cell-has-test-path`
+- `sdd-tasks-proof-is-executable`
+
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

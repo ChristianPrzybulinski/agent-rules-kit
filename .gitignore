@@ -2,3 +2,4 @@
 .env
 *.local.md
 __pycache__/
+plugins/*/evals/results/
