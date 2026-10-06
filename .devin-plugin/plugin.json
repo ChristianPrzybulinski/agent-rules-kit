@@ -43,6 +43,11 @@
     {
       "source": "git-subdir",
       "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/extras"
+    },
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
       "path": "plugins/infra-core"
     },
     {

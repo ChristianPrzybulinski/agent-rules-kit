@@ -1,6 +1,6 @@
 # agent-rules-kit
 
-A plugin-first source of always-on rules, triggered rules, skills, references and templates for Devin Cloud, Devin CLI/Desktop, Codex and Claude Code. Plugin content lives under [`plugins/`](plugins/) — twelve focused plugins with shared manifests; tooling and documentation stay at repository root.
+A plugin-first source of always-on rules, triggered rules, skills, references and templates for Devin Cloud, Devin CLI/Desktop, Codex and Claude Code. Plugin content lives under [`plugins/`](plugins/) — thirteen plugins (twelve in the default `all` bundle plus the opt-in `extras`) with shared manifests; tooling and documentation stay at repository root.
 
 **Repository layout:** [`INDEX.md`](INDEX.md) · **Maintenance:** [`docs/maintenance.md`](docs/maintenance.md)
 
@@ -39,6 +39,7 @@ The existing repository source remains valid: the content-free root meta-plugin 
 ```bash
 devin plugins install ChristianPrzybulinski/agent-rules-kit                # everything (via all)
 devin plugins install ChristianPrzybulinski/agent-rules-kit#plugins/dev-java  # one satellite + its chain
+devin plugins install ChristianPrzybulinski/agent-rules-kit#plugins/extras   # opt-in extras (not in all)
 ```
 
 Existing Customize entries need no source change; Reindex to pick up the new dependency. The legacy `ai-kit` plugin should be removed (`devin plugins remove ai-kit`) — its path no longer exists. Run `devin plugins update` to force a local refresh.
@@ -52,13 +53,14 @@ codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref main
 codex plugin add core@ai-kit   # repeat per plugin, or let bootstrap/doctor iterate them
 ```
 
-The root marketplace catalog lists all twelve plugins; `~/.codex/AGENTS.md` links to `~/.ai-kit/plugins/core/AGENTS.md`. While [openai/codex#22078](https://github.com/openai/codex/issues/22078) remains open, doctor maintains fallback skill symlinks to `~/.ai-kit/plugins/*/skills/` and removes them once plugin skills are exposed.
+The root marketplace catalog lists all thirteen plugins; `~/.codex/AGENTS.md` links to `~/.ai-kit/plugins/core/AGENTS.md`. While [openai/codex#22078](https://github.com/openai/codex/issues/22078) remains open, doctor maintains fallback skill symlinks to `~/.ai-kit/plugins/*/skills/` and removes them once plugin skills are exposed. On Codex, bootstrap installs every catalog entry including `extras`; remove it afterwards with the Codex CLI's plugin removal command if unwanted (not verified here: no Codex CLI on the maintainer's machine).
 
 ## Claude Code
 
 ```bash
 claude plugin marketplace add ChristianPrzybulinski/agent-rules-kit
 claude plugin install all@ai-kit    # or a single satellite; dependencies resolve automatically
+claude plugin install extras@ai-kit  # opt-in: frontend-design, krita, dbeaver, find-skills, skill-creator
 ~/.ai-kit/platforms/tools/bootstrap.sh
 ```
 

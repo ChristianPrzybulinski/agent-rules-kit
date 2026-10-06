@@ -1,6 +1,7 @@
 # all/ — ai-kit bundle
 
-Manifest-only plugin: installs every ai-kit plugin through dependency resolution. No content of its own.
+Manifest-only plugin: installs every ai-kit plugin except the opt-in `extras` through dependency resolution. No content of its own.
+Not included: `extras` (opt-in; install it explicitly).
 
 | Depends on |
 |---|

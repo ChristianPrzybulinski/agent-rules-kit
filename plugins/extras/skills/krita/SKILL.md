@@ -22,7 +22,7 @@ Use exact sprite dimensions, 8-bit RGBA, Pixel Art brush with no antialiasing, o
 
 Export PNG with alpha preserved and no rescaling. Name `<entity>_<animation>_<direction>_<frame>.png`; keep editable `.kra` in LFS and exclude `.kra~` backups.
 
-Place source under `assets/`; Godot import targets `res://resources/sprites/` with nearest filtering as described by `../../templates/project-agents-godot-2d.md`.
+Place source under `assets/`; Godot import targets `res://resources/sprites/` with nearest filtering as the project's Godot `AGENTS.md` describes (dev-godot template project-agents-godot-2d).
 
 ## 3. Build sprite sheets reproducibly
 

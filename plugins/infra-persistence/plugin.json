@@ -2,5 +2,5 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "infra-persistence",
   "version": "10.3.0",
-  "description": "ai-kit persistence: PostgreSQL, Redis and DBeaver"
+  "description": "ai-kit persistence: PostgreSQL and Redis"
 }

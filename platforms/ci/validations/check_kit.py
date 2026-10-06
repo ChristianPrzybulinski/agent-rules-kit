@@ -31,6 +31,7 @@ RULE_BODY_MAX_LINES = 40
 
 CORE_PLUGIN = "core"
 BUNDLE_PLUGIN = "all"
+OPTIONAL_PLUGINS = {"extras"}  # opt-in content plugins that the 'all' bundle does not require
 REPO_URL = "https://github.com/ChristianPrzybulinski/agent-rules-kit.git"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:[-.][a-z0-9]+)*$")
 
@@ -217,6 +218,8 @@ if PLUGINS_ROOT.exists():
         counts["plugins"] += 1
 
 content_plugins = {name: path for name, path in plugins.items() if name != BUNDLE_PLUGIN}
+for optional in sorted(OPTIONAL_PLUGINS - plugins.keys()):
+    fail("plugins", f"OPTIONAL_PLUGINS names '{optional}', which is not a plugin directory")
 
 for name, plugin_dir in plugins.items():
     if not NAME_RE.match(name):
@@ -296,9 +299,10 @@ for name, plugin_dir in plugins.items():
     if name == BUNDLE_PLUGIN and devin_manifest is not None:
         if devin_manifest.get("skills") != []:
             fail(rel(plugin_dir / ".devin-plugin/plugin.json"), "'all' must set \"skills\": []")
-        if dep_graph[name] != sorted(content_plugins):
+        expected = sorted(set(content_plugins) - OPTIONAL_PLUGINS)
+        if dep_graph[name] != expected:
             fail(rel(plugin_dir / ".devin-plugin/plugin.json"),
-                 "'all' must require every content plugin")
+                 f"'all' must require every content plugin except opt-in {sorted(OPTIONAL_PLUGINS)}")
     if name != BUNDLE_PLUGIN and BUNDLE_PLUGIN in dep_graph[name]:
         fail(rel(plugin_dir), f"content plugin may not require '{BUNDLE_PLUGIN}'")
 

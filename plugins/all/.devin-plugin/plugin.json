@@ -1,7 +1,7 @@
 {
   "name": "all",
   "version": "10.3.0",
-  "description": "ai-kit bundle: installs every ai-kit plugin",
+  "description": "ai-kit bundle: installs every ai-kit plugin except the opt-in extras",
   "skills": [],
   "requiredPlugins": [
     {
