@@ -16,7 +16,7 @@ allowed-tools:
 
 Names and functions: read skill `clean-code`. Test gates and coverage: read skill `testing`.
 
-Read `references/build-and-dependencies.md` for Maven/module gates and `references/java-25-lts.md` for verified Java 25 facts.
+Read `references/build-and-dependencies.md` for Maven/module gates and `references/java-25-lts.md` for verified Java 25 and Spring Boot 4.1 facts.
 
 ## 1. Confirm the baseline
 
@@ -40,7 +40,7 @@ Inspect `pom.xml`, `.java-version`, Maven wrapper and toolchains. This kit uses 
 
 - Spring/Quarkus use constructor injection; no field injection.
 - Spring configuration uses `@ConfigurationProperties`; Quarkus services use the appropriate CDI scope.
-- Persistence/JPA entities stay in the outer adapter when the domain model carries behavior.
+- Persistence stays in the outer adapter (JPA entities or JdbcClient row mappings, the project's declared choice); the domain model carries behavior and no framework annotations.
 
 ## 5. Write JUnit tests
 
