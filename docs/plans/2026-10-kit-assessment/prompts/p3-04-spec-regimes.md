@@ -85,7 +85,7 @@ Two regimes, after Böckeler/Thoughtworks (2025-10: spec-first, spec-anchored, s
 3. Edit `plugins/architect-sdd/templates/spec-index.md`: after line 11 insert a blank line and these two lines verbatim:
 
 ```
-Regimes: spec-anchored (maintained and validated for the life of the product) = protocol schemas and examples, content schemas, decisions, requirements, journeys and this index.
+Regimes: spec-anchored (maintained and validated for the life of the product) = protocol schemas and examples, content schemas, decisions, requirements, journeys (where the project has them) and this index.
 Spec-first (written to cut the work, then frozen as history) = FEAT bodies and task tables; their status is derived by tooling from merged PRs, never edited by hand.
 ```
 
@@ -113,7 +113,7 @@ Stratics-docs (branch docs/p3-04-spec-regimes in stratics-docs). Steps 6-9 run i
 ## Out of scope
 
 - Deriving status from GitHub, rewriting FEAT frontmatter, `spec.md:13` and `:62` prose, and the PR checklist line "FEAT status updated" (P2-08).
-- `sdd-implement` and `sdd-tasks` flow text (`sdd-implement/SKILL.md:22`, `:43`; `sdd-tasks/SKILL.md:38`): P1-08 rewrites the flow; P2-08 removes the manual status setting.
+- `sdd-implement/SKILL.md:22` and `:43` are replaced by P1-08 step 8 (§1 and §4); P2-08 does not touch the kit (p2-08-derived-spec-status.md:130). Residual after P1-08: `sdd-implement` says `mark `done` when the PR merges` and `sdd-tasks/SKILL.md:38` lists hand states (`todo`, `doing`, `done`, `blocked`); this prompt leaves them and names them in `next step` as the last hand-typed status in the kit.
 - Merging `sdd-analyze` and `sdd-audit` (P3-06); the spike lane (P3-05); stale kit paths in stratics-docs (P1-02).
 - Other edits of `sdd-process.md`: P1-08 (line 24, step rows 7/9), P3-06 (steps 3-4, renumbering), P3-05 (`sdd-spike` entry), P3-10 (precedence sentence on the status line). Whichever lands second re-anchors on the quoted text; this prompt keeps a merged P3-05 lane in the folded Entry line (step 1).
 - Editing any approved DEC (DPRO-009 included), the journeys, `traceability.md`, the spec-lint schemas or `spec_trace.py`.
