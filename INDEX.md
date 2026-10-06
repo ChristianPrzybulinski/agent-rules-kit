@@ -15,6 +15,8 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 | [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) | Codex marketplace catalog pointing to `./plugins/*` |
 | [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Claude Code marketplace catalog pointing to `./plugins/*` |
 | [`.github/`](.github/README.md) | CI, release and security automation |
+| [`LICENSE`](LICENSE) | proprietary, all rights reserved; vendored third-party skills keep their own licenses |
+| [`SECURITY.md`](SECURITY.md) | how to report a vulnerability privately; supported versions and scope |
 
 ## Plugins
 
