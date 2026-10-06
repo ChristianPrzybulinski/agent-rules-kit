@@ -10,7 +10,8 @@
       <vendor>openjdk</vendor>
     </provides>
     <configuration>
-      <jdkHome>/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home</jdkHome>
+      <!-- Example paths: macOS Homebrew /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home ; Linux (Adoptium package) /usr/lib/jvm/temurin-25-jdk-amd64 -->
+      <jdkHome>/path/to/jdk-25</jdkHome>
     </configuration>
   </toolchain>
 </toolchains>

@@ -10,7 +10,7 @@ sources:
 
 - Java 25 is an OpenJDK **LTS** release, GA on 2025-09-16. LTS in the Oracle/OpenJDK model: every 2 years (21 → 25 → next expected 29). Source: https://openjdk.org/projects/jdk/25/ and Oracle Java SE Support Roadmap.
 - Oracle: Premier Support until Sep/2030, Extended until Sep/2033. Other vendors (Temurin, Amazon Corretto) keep free builds on their own timelines.
-- The kit's pinned JDK: OpenJDK **25** — locally via Homebrew `openjdk@25` (keg-only); the machine's exact build and path belong in `docs/machine.local.md`.
+- The project pins its JDK, not the machine: `.java-version` (`25`), `pom.xml` `<maven.compiler.release>25</maven.compiler.release>` and `~/.m2/toolchains.xml` copied from `platforms/kits/java-maven/toolchains.xml.example` (the enforcer requires `[25,26)`). CI: `actions/setup-java` with `distribution: temurin` and the `java-version` input of `platforms/kits/github/workflows/ci-java.yml` (default `'25'`). Containers: `maven:3.9-eclipse-temurin-25` build, `eclipse-temurin:25-jre` runtime (`platforms/kits/docker/README.md`). The machine's exact build and path are local state (`java -version`, `mvn -v`) and belong in `docs/machine.local.md`, never a kit fact.
 
 ## Finalized (GA) features present in 25
 
