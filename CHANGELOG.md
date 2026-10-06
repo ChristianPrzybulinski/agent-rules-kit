@@ -35,6 +35,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
   - sessions -> session start
   - session-review -> session review
   - session-handoff -> session handoff <topic>
+- tokens skill: the lite/full/ultra compression levels and the "keep the chosen level for the session" rule are removed; §1 now states that a register sets density, never language or format. Output compression does not reduce input tokens, where the cost is, and a session-wide level contradicted the pt-BR conversation rule (AGENTS.md) and "do not compress" for governed documents in the same skill (assessment §4.7, §6 F3). Proof: grep -rnw -e ultra -e lite plugins prints nothing; SKILL.md 51 -> 50 lines; description and INDEX.md row unchanged; all four kit gates green (P2-11).
 - `check_kit.py` accepts `PostToolUse` hook events (matcher must `re.fullmatch` `Edit` and `Write`, `type: command`, timeout at most 30; the PreToolUse guard keeps its 10 s ceiling) and runs `hook_post_edit_cases.json` in a throwaway repo per case with stub tools first on `PATH` and a `python3` symlink to the real interpreter. `docs/design.md` gains the "Formatting runs in a hook, not in instructions" principle, `docs/maintenance.md` extends the fail-open statement to the new hook, and the README platform table and root INDEX row name it. Proof: negative runs fail with `timeout must be at most 30` (timeout 31) and `matcher must match Edit and Write` (matcher `^Edit$`); `grep -c 'PostToolUse' platforms/ci/validations/check_kit.py` prints 8 (P2-07).
 
 ## [10.3.0] - 2026-10-06
