@@ -7,7 +7,7 @@ kind: detail
 
 Adapted from [github/spec-kit](https://github.com/github/spec-kit) as repository skills; project artifacts live under `docs/spec/`, never in the kit.
 
-Entry points: vague idea → `/grilling` first, then `sdd-specify` when problem/value is describable; described feature → `sdd-specify`; new project/principles → `sdd-constitution`; one user-visible flow → `sdd-journey`.
+Entry points: vague idea → `/grilling` first, then `sdd-specify` when problem/value is describable; described feature → `sdd-specify`; new project/principles → `sdd-constitution`; one user-visible flow → `sdd-journey`; vague feel question (movement, camera, battle feedback, UI) → `sdd-spike`, whose report feeds `sdd-specify` and whose branch never merges.
 
 ## Flow
 
