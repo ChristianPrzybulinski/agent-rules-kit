@@ -14,7 +14,7 @@ allowed-tools:
 
 # Docker and Compose
 
-Use `platforms/kits/docker/compose.yml`; read `references/compose-v2-vs-v5.md` for the installed Compose behavior and `../twelve-factor/SKILL.md` for application configuration.
+Use `platforms/kits/docker/compose.yml`; read `references/compose-v2-vs-v5.md` for the Compose v2+ CLI behavior and `../twelve-factor/SKILL.md` for application configuration.
 
 ## 1. Define Compose services
 
