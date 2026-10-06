@@ -46,6 +46,7 @@ Read `project.godot`, scene ownership and neighboring scripts before editing. Co
 
 ## 5. Verify
 
-Run `godot --path . --headless --quit` and the project test command. Treat parser/import errors as failures and report the literal output.
+Boot proof, two commands in this order: `godot --headless --path . --import` (imports every resource, builds the script-class cache, quits; `--headless` is mandatory without a GPU), then `! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'` (the exit code of `--quit` is 0 after a script error, so a match is the failure). Then run the project test command.
+Report the literal output of all three; a `SCRIPT ERROR`, `Parser Error` or import error is a failure even when the exit code is 0.
 
 Done when: changed scripts are typed, scene dependencies use composition/signals, rules are testable without nodes, and headless import plus tests pass, and movement code follows the declared movement model.

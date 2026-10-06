@@ -38,7 +38,7 @@ Read the repository's `AGENTS.md` and README for commands. Kit fallbacks:
 | Stack | Gate |
 |---|---|
 | Java/Maven | `./mvnw -q spotless:check verify` |
-| Godot | `godot --path . --headless --quit` plus the project test runner |
+| Godot | `godot --headless --path . --import`, then the boot-proof grep of the `--quit` log from skill `godot-standards` section 5 (`--quit` exits 0 after a `SCRIPT ERROR`), plus the project test runner |
 | Docs/spec | `platforms/tools/check.sh` or project spec lint |
 
 Capture the literal failing excerpt; never replace it with “some tests failed.”

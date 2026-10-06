@@ -97,6 +97,11 @@ jobs:
         # `--quit` skips the import scan, so class_name scripts such as gdUnit4's GdUnitTestCIRunner
         # stay unregistered on a fresh checkout and the runner fails to load
         run: godot --headless --path . --import
+      - name: Boot proof (the exit code of --quit is 0 after a script error, so the log is the gate)
+        shell: bash
+        run: |
+          godot --headless --path . --quit 2>&1 | tee boot.log
+          ! grep -Eq 'SCRIPT ERROR|Parser Error' boot.log
       - name: Unit tests (missing runner or zero suites fails the build)
         # container jobs default to `sh -e`; dash rejects `set -o pipefail` (exit 2)
         shell: bash
