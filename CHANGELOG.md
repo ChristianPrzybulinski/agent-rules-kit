@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [10.3.0] - 2026-10-06
+
 ### Added
 - The journey layer: `journey.schema.json` (`platforms/ci/schemas/`), the `spec-journey.md` template and the `sdd-journey` skill. `docs/spec/journeys/J-NN.md` files hold one user-visible flow whose steps cite REQ ids, task rows and test paths; a rule a journey exercises is promoted to a REQ-F. Evidence: stratics-docs DPRO-013; seven journeys on main since 2026-10-05.
 - `platforms/ci/validations/spec_trace.py`: journey↔REQ↔FEAT↔test traceability checker (`check`, `generate`, `impact`, `mark-done`, `status`), a generic copy of stratics-docs' `tools/spec-trace/spec_trace.py` — the spec directory is an argument, test paths root at the spec's own repository name, any sibling clone directory or a `--repo` extra, and journeys require `owner`. Self-test: `platforms/ci/validations/test_spec_trace.py`. Verified green on the real stratics-docs corpus: 7 journeys, 83 steps, 40 REQs.
