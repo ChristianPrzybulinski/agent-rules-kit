@@ -495,7 +495,7 @@ plugin_dirs = sorted(
     path for path in (kit / "plugins").iterdir()
     if (path / ".devin-plugin/plugin.json").is_file()
 )
-assert len(plugin_dirs) == 13
+assert len(plugin_dirs) == 14
 optional = {entry["path"] for entry in meta["optionalPlugins"]}
 assert optional == {f"plugins/{path.name}" for path in plugin_dirs if path.name != "all"}
 for plugin_dir in plugin_dirs:

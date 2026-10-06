@@ -16,6 +16,7 @@
     "quality-security",
     "infra-core",
     "infra-persistence",
-    "infra-github"
+    "infra-github",
+    "process-loop"
   ]
 }

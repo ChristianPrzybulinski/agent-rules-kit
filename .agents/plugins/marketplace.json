@@ -149,6 +149,18 @@
       "category": "Engineering"
     },
     {
+      "name": "process-loop",
+      "source": {
+        "source": "local",
+        "path": "./plugins/process-loop"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Engineering"
+    },
+    {
       "name": "all",
       "source": {
         "source": "local",
