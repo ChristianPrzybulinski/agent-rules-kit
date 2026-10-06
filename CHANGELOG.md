@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- `docs/plans/2026-10-kit-assessment/`: assessment of v10.1.0 against current Anthropic, Cognition and market guidance for the Stratics Godot 2D client + Java server, plus 34 self-contained execution prompts in three phases (freeze layout and fix contradictions; distribute by repository commit and consolidate skills; Godot online 2D references, Devin environment, process-loop plugin, evals and KPIs). Evidence: review-loop first-pass rejection rate 20 of 33 PRs (stratics-docs DPRO-011); 24 of 25 destructive commands pass the hook guard; stale kit paths cited in stratics-docs; FEAT task tables with 128 `todo` rows after ~35 merged PRs.
+
 ## [10.3.0] - 2026-10-06
 
 ### Added
