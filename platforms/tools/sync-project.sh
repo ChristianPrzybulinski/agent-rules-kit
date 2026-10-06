@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Syncs the spec validator with a project (a copy, no link to the kit).
 # Usage: sync-project.sh [--workflow <file>] <repo-dir>           installs/updates .github/spec-lint/
-#        sync-project.sh --check [--workflow <file>] <repo-dir>   compares with the kit; exit 1 if it diverges
+#        sync-project.sh --check [--workflow <file>] <repo-dir>   compares with the kit and scans the
+#                                                                repo's *.md for obsolete kit paths;
+#                                                                exit 1 on any divergence or stale citation
 # --workflow names the CI file that must run check_spec.py. Without it, --check
 # accepts any file under .github/workflows/ containing check_spec.py, and install
 # copies the kit workflow (as spec-lint.yml) only if the project has none.
@@ -52,6 +54,26 @@ has_check_spec_workflow() { # any project workflow that runs check_spec.py
   return 1
 }
 
+# Obsolete kit paths (layouts 1.x to 9.x). A consumer line that must keep one
+# (historical citation) appends the marker "<!-- kit-path-ok -->".
+# .claude/ is skipped: generated kit copies there are verified by their own
+# manifest and repo-owned content under .claude/ is not a kit citation.
+STALE_KIT_PATHS='agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|rules/git/|kits/java-maven/|kits/github/|platforms/install/|knowledge/|processes/sdd/|plugins/ai-kit/'
+STALE_OPT_OUT='<!-- kit-path-ok -->'
+
+scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; returns 1 if any
+  local hits
+  hits="$(grep -rnE --include='*.md' --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.claude \
+      "(^|[^/A-Za-z0-9_.-])($STALE_KIT_PATHS)" "$1" 2>/dev/null \
+    | sed "s|^${1%/}/||" \
+    | grep -vE '^([^:]*/)?(legacy|docs/sessions)/' \
+    | grep -vF -- "$STALE_OPT_OUT" || true)"
+  [[ -n "$hits" ]] || return 0
+  printf '%s\n' "$hits" | sed 's|^|sync: stale kit path: |'
+  echo "sync: the 10.x layout is frozen (docs/design.md, Layout stability); fix the citation or append $STALE_OPT_OUT"
+  return 1
+}
+
 if [[ "$MODE" == check ]]; then
   FAILED=0
   expected="$(cat "$KIT_DIR/VERSION")"
@@ -72,6 +94,7 @@ if [[ "$MODE" == check ]]; then
   elif ! has_check_spec_workflow; then
     echo "sync: no workflow under .github/workflows runs check_spec.py"; FAILED=1
   fi
+  scan_stale_kit_paths "$REPO" || FAILED=1
   if [[ $FAILED -eq 0 ]]; then echo "sync: $REPO consistent with kit $expected"; else exit 1; fi
   exit 0
 fi

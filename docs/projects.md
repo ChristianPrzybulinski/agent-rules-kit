@@ -1,6 +1,6 @@
 # What lives in a project that uses the kit
 
-Rules, skills and knowledge stay **in the kit** and are installed on the machine (`platforms/install/`). The project only receives its own artifacts. Real example: `~/Documents/GitHub/stratics-docs`.
+Rules, skills, references and templates stay **in the kit** under `plugins/` and reach the agent through the plugin marketplaces or `bootstrap.sh`. The project only receives its own artifacts. Real example: `~/Documents/GitHub/stratics-docs`.
 
 ## In the project
 
@@ -20,6 +20,6 @@ IDs in `docs/spec/`: `FEAT-nnn`, `REQ-F-nnn`, `REQ-NF-nnn`, `DTEC-nnn`/`DGME-nnn
 
 ## What does NOT go to the project
 
-- Skills (including the normative rules, now under `plugins/*/skills/`) and knowledge: installed on the agent's machine — the project does not copy them.
+- Skills, rules and references (under `plugins/*/`): consumed through the agent's plugin install, the project does not copy them.
 - Spec schemas and validators reach the project as a **deliberate copy** in `.github/spec-lint/` (no link to the kit in CI — the kit repo may not even exist at CI time). Update: `sync-project.sh <repo>`; divergence detectable with `sync-project.sh --check`. Reusable workflows **between repos of the same product** (e.g.: `stratics-client` → `stratics-docs/.github/workflows/reusable-ci-*.yml`) are allowed — what is avoided is depending on the kit.
 - Legacy archive originals: only reports/manifests enter the repo (project rule, see stratics-docs' `docs/legacy/README.md`).

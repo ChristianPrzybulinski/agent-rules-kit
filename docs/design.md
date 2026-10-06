@@ -18,6 +18,7 @@ The validated layout and routing test live in [`../INDEX.md`](../INDEX.md). Thes
 - **Description budget is a hard gate.** Codex budgets about 8,000 characters for the initial skill list, so the kit reserves at most 7,200 for all skill descriptions.
 - **One owner per detail.** A rule routes, a skill executes, a reference holds facts or normative depth, and a template supplies shape. Cross-links replace copied paragraphs.
 - **Everything validatable.** Layout, manifests, frontmatter, budgets, indexes, links and vendor locks are mechanical CI gates.
+- **Layout stability.** The 10.x layout is frozen until at least 2027-01-01: `plugins/`, `platforms/`, `docs/`, the plugin and marketplace manifests (`.devin-plugin/`, `.claude-plugin/`, `plugin.json`, `.agents/plugins/`) and the install destinations (`~/.ai-kit`, `~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md`, the marketplace plugin caches) keep their paths. A path or destination change is a SemVer MAJOR release and ships with a deprecation note in `CHANGELOG.md` and a `doctor.sh` migration; content changes are MINOR or PATCH. Consumer repositories cite kit paths, so `sync-project.sh --check` fails on citations of removed layouts.
 
 ## Codex compatibility fallback
 
