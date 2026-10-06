@@ -5,7 +5,7 @@ Replace the passages between [brackets]. The AI Kit's global rules already apply
 ## Stack
 
 - Godot [4.x] (confirm in `project.godot` → `config/features`). Statically typed GDScript required.
-- Tests: [GUT | gdUnit4] in `tests/`. Renderer: [Forward+ | Mobile | Compatibility].
+- Tests: [GUT | gdUnit4] in `tests/`. Renderer: [Forward+ | Mobile | Compatibility]. Movement model: [A physics bodies | B grid/tile-step] (see "Movement model").
 - Pixel art: `rendering/textures/canvas_textures/default_texture_filter = Nearest` (see `project.godot`).
 
 ## Structure
@@ -37,13 +37,13 @@ godot --path . --headless --export-release "[preset]" build/[name]   # export
 - Declare a variable/parameter/return → always typed (`var speed: float = 120.0`, `func hit(dmg: int) -> void`).
 - Reference a child node → `@onready var sprite: Sprite2D = $Sprite2D`; never `get_node` inside `_process`.
 - Communicate between non-parent nodes → signal (or an `EventBus` autoload). `get_parent()` for game logic is forbidden.
-- Move a body → `_physics_process(delta)`; `CharacterBody2D.move_and_slide()`. Visual/animation → `_process(delta)`.
+- Move an entity → follow the "Movement model" section below; never mix physics bodies and tile steps in one entity.
 - Override `_ready`/`_process` in a child class → call `super()`.
 - Tuning parameter → `@export` with a range and a one-line comment above.
 - Shared behavior (health, damage, state) → a component in `common/` composed into the scene; not deep inheritance.
 - Instantiate a scene repeatedly → `preload` into a constant; consider pooling if >50 instances/frame.
 - Map → `TileMapLayer` (4.3+); separate layers for floor/collision/decoration.
-- Collision → name layers/masks in `project.godot` (`layer_names/2d_physics`); never use magic numbers.
+- Collision → option A: name layers/masks in `project.godot` (`layer_names/2d_physics`), never magic numbers; option B: read collision from the same map data the rules validate; no physics layers for grid entities.
 - Save → versioned pure data (Dictionary/Resource) with `save_version`; never a Node reference.
 - Feature touches `.gd` + `.tscn` + `.tres` + `project.godot` → read all before changing one.
 
@@ -70,6 +70,25 @@ func take_damage(amount: int) -> void:
         died.emit()
 ```
 
+## Movement model
+
+Declared choice: [A | B]. Decision record: [docs/spec/decisions/DGME-nnn-*.md | docs/adr/nnnn-*.md]. Delete the option not chosen.
+
+### Option A, physics bodies
+
+- Velocity is set on the body and `move_and_slide()` is called in `_physics_process(delta)`.
+- Animation and visuals run in `_process(delta)`.
+- Never move a physics body from `_process`.
+
+### Option B, grid/tile-step (server-authoritative when online)
+
+- Authoritative position: integer tile `[Vector2i]` owned by `[server | GameState]`.
+- Input -> `[move_intent]` with a direction only; the client predicts at most one step and reconciles on `[entity_moved | move_rejected]` (a rejection snaps back).
+- Presentation tweens/lerps the sprite toward the confirmed tile in `_process(delta)`; the camera follows the displayed position.
+- `CharacterBody2D`/`move_and_slide()` are not used for grid entities; collision comes from the map data the rules validate.
+
+Never mix the two models in one entity; presentation never changes the authoritative position.
+
 ## Git & PR
 
 - `.tscn`/`.tres` are text: review the diff; UID conflicts → reimport, do not hand-edit.
@@ -80,7 +99,7 @@ func take_damage(amount: int) -> void:
 
 - Always: run `--headless --quit` after touching assets; test a scene in isolation (F6) before the whole stage.
 - Ask first: change `project.godot` (renderer, physics, input map); add an addon; change the save format.
-- Never: logic in `_process` that belongs in `_physics_process`; `get_parent()` for game logic; editing `.godot/`.
+- Never: mix the two movement models in one entity, or let presentation change the authoritative position; `get_parent()` for game logic; editing `.godot/`.
 
 ## More
 

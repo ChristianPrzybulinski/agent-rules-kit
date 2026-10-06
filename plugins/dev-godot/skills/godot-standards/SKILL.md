@@ -28,11 +28,15 @@ Read `project.godot`, scene ownership and neighboring scripts before editing. Co
 - Cache node references in `_ready`; move substantial initialization into named functions.
 - Use `@export` only for editor-tunable values and document the reason/range above it.
 
-## 3. Separate scene responsibilities
+## 3. Separate scene responsibilities and respect the movement model
 
 - Prefer scene composition and signals over deep inheritance or parent traversal for game rules.
-- Use `_physics_process` for physics/movement and `_process` for visuals; defer mutations that would invalidate a physics iteration.
 - Keep visuals, physics and rules separate; domain state stays in pure classes/autoload services that tests can instantiate without a scene.
+- The movement model is a project decision, declared in the repository `AGENTS.md` (a "Movement model" section or a movement pattern line) and its decision record. Read it before writing or reviewing movement code; if it is missing, ask, do not assume physics.
+  - Option A, physics bodies: `CharacterBody2D`/`RigidBody2D`, velocity set and `move_and_slide()` called in `_physics_process(delta)`; collision via named layers/masks; visuals and animation in `_process`.
+  - Option B, grid/tile-step: the authoritative position is an integer tile coordinate owned by the game rules (the server when online); input becomes a step intent, the client predicts at most one step and reconciles on confirm/reject; presentation tweens or lerps the sprite toward the confirmed tile in `_process`; no `CharacterBody2D`, no `move_and_slide()`, collision read from the same map data the rules validate.
+  - Never mix the two in one entity, and never let presentation (tween, lerp, camera) change the authoritative position.
+- Defer mutations that would invalidate a physics iteration (`call_deferred`, `set_deferred`) whenever physics bodies are in use.
 
 ## 4. Manage resources and state
 
@@ -44,4 +48,4 @@ Read `project.godot`, scene ownership and neighboring scripts before editing. Co
 
 Run `godot --path . --headless --quit` and the project test command. Treat parser/import errors as failures and report the literal output.
 
-Done when: changed scripts are typed, scene dependencies use composition/signals, rules are testable without nodes, and headless import plus tests pass.
+Done when: changed scripts are typed, scene dependencies use composition/signals, rules are testable without nodes, and headless import plus tests pass, and movement code follows the declared movement model.
