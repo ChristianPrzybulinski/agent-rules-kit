@@ -1,5 +1,5 @@
 ---
-description: Java 25 LTS (GA 2025-09-16, Oracle support until 2030/2033, openjdk@25 keg-only installed, Maven toolchains). Load when configuring a Java project or pom.
+description: Java 25 LTS (GA 2025-09-16, Oracle support until 2030/2033, kit-pinned JDK, Maven toolchains). Load when configuring a Java project or pom.
 kind: fact
 verified: "2026-09-29"
 sources:
@@ -10,7 +10,7 @@ sources:
 
 - Java 25 is an OpenJDK **LTS** release, GA on 2025-09-16. LTS in the Oracle/OpenJDK model: every 2 years (21 → 25 → next expected 29). Source: https://openjdk.org/projects/jdk/25/ and Oracle Java SE Support Roadmap.
 - Oracle: Premier Support until Sep/2030, Extended until Sep/2033. Other vendors (Temurin, Amazon Corretto) keep free builds on their own timelines.
-- Installed on this machine: OpenJDK **25.0.4.1** via Homebrew (`brew install openjdk@25`, keg-only, `/opt/homebrew/opt/openjdk@25`).
+- The kit's pinned JDK: OpenJDK **25** — locally via Homebrew `openjdk@25` (keg-only); the machine's exact build and path belong in `docs/machine.local.md`.
 
 ## Finalized (GA) features present in 25
 

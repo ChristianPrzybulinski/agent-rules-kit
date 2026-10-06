@@ -4,9 +4,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- `dev-java` template `project-agents-java-spring.md`: Java 25 / Spring Boot 4.x with explicit choice blocks — `Persistence: JdbcClient + Flyway (default) | JPA` and `Errors: project protocol catalog | RFC 7807`.
+- `platforms/kits/github/workflows/ci-godot.yml`: reusable `workflow_call` workflow with `godot-version`/`test-runner` inputs — gdUnit4 by default, GUT optional, missing runner or zero suites fails; change-aware `changes` job and LFS cache.
+- `platforms/kits/github/workflows/ci-java.yml`: reusable workflow with a `changes` job, required `NVD_API_KEY` secret, pinned `dependency-check-maven:13.0.0` and NVD cache saved even on failure.
+- `platforms/kits/docker/compose.yml`: `postgres:18` (data dir under `/var/lib/postgresql`) and Mailpit; Redis replaced by a commented optional Valkey service.
+- `postgresql` skill: `postgres-17.md` renamed to `postgres-18.md` with the PG 18 facts and data-dir change.
+- Machine facts moved out of shared docs (`docs/maintenance.md`, `godot-4-versions.md`, `java-25-lts.md`) into git-ignored `docs/machine.local.md` — template at `docs/machine.local.md.example`; `.env` is now git-ignored.
+
+## [10.2.0] - 2026-10-06
+
 ### Added
 - `docs/plans/2026-10-kit-assessment/`: assessment of v10.1.0 against current Anthropic, Cognition and market guidance for the Stratics Godot 2D client + Java server, plus 34 self-contained execution prompts in three phases (freeze layout and fix contradictions; distribute by repository commit and consolidate skills; Godot online 2D references, Devin environment, process-loop plugin, evals and KPIs). Evidence: review-loop first-pass rejection rate 20 of 33 PRs (stratics-docs DPRO-011); 24 of 25 destructive commands pass the hook guard; stale kit paths cited in stratics-docs; FEAT task tables with 128 `todo` rows after ~35 merged PRs.
 - `feature.schema.json` and the `spec-feature.md` template: optional `scope` field, a unique list drawn from `server`, `client` and `docs`, naming the repositories a FEAT touches. Evidence: all 52 Stratics FEATs carry `scope`, and stratics-docs' synced `.github/spec-lint/schemas/feature.schema.json` already accepts it, because it was synced from a kit checkout that had this change uncommitted (`git log -S'"scope"'` finds nothing on kit main). Syncing from kit main would reject every FEAT with "Additional properties are not allowed ('scope' was unexpected)".
+- `sync-project.sh`: `--workflow <file>` names the project CI file that runs `check_spec.py` (default `spec-lint.yml` when install copies the kit workflow). Without the option, `--check` accepts any file under `.github/workflows/` containing `check_spec.py`, and install copies the kit workflow only when the project has none. Evidence: stratics-docs folded the validator into `docs-checks.yml`, so `--check` failed with "sync: spec-lint.yml missing" on a correctly synced project.
 
 ### Changed
 - `check_spec.py`: FEAT `requirements:` and REQ `features:` must now agree. A link listed on one side only fails, in either direction. This replaces the one-way "REQ not listed in any FEAT" check, which the new rule covers. Evidence: on stratics-docs main `9c94767d7` (2026-10-05), FEAT-052 listed REQ-F-001 and REQ-F-003, but neither REQ listed FEAT-052, and the previous check passed (fixed in stratics-docs#280). Self-test: `platforms/ci/validations/test_check_spec.py`, run by the kit's CI. Migration: a project whose links disagree fails spec-lint after its next `sync-project.sh`; fix the side that is missing the link.

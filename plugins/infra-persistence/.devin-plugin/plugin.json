@@ -1,6 +1,6 @@
 {
   "name": "infra-persistence",
-  "version": "10.1.0",
+  "version": "10.2.0",
   "description": "ai-kit persistence: PostgreSQL, Redis and DBeaver",
   "requiredPlugins": [
     {
