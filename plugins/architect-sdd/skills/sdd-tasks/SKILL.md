@@ -55,4 +55,8 @@ Check every row. A row that fails one of these items is fixed before its issue i
 
 The architect reviews every PR of these tasks against FEAT/REQ/DEC; an executor's "done" report is not evidence, the diff and the re-run proofs are.
 
-Done when: tasks are dependency ordered, independently provable, mapped both ways to criteria, pass the pre-cut checklist and are ready for one-at-a-time execution.
+## 6. Write the progress file
+
+Create `docs/spec/progress/FEAT-nnn.json` from the table: one entry per row with `id`, `title` (the Task cell up to its first `: ` or `. `, max 200 chars), `files` (the Files cell as a list, backticks removed), `proof` (the Proof cell), `passes: false`, `notes: ""`, and `issue` when the task issue already exists; `generated` is today. Schema: `platforms/ci/schemas/progress.schema.json`; example: `platforms/kits/sdd/progress.example.json`. Validate with `check.sh --spec docs/spec` (kit) or `.github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas` (project). Commit it with the task table.
+
+Done when: tasks are dependency ordered, independently provable, mapped both ways to criteria, pass the pre-cut checklist, are ready for one-at-a-time execution and the progress file validates.

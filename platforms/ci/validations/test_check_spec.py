@@ -1,4 +1,6 @@
-"""check_spec.py FEAT<->REQ cross-check: both frontmatters must agree on every link."""
+"""check_spec.py FEAT<->REQ cross-check (both frontmatters must agree on every link) and progress files."""
+import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -83,6 +85,84 @@ class FeatReqCrossCheckTest(unittest.TestCase):
         result = self.run_check()
         self.assertEqual(result.returncode, 1)
         self.assertIn("FEAT-001 requirements does not list REQ-F-001", result.stderr)
+
+
+PROGRESS_TASK = {"id": "T1", "title": "Define the contract", "files": ["protocol/a.json"],
+                 "proof": "example validates", "passes": False, "notes": ""}
+
+
+class ProgressTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.spec = Path(self.tmp.name)
+        (self.spec / "features").mkdir()
+        (self.spec / "progress").mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def feat(self, fid):
+        (self.spec / "features" / f"{fid}.md").write_text(FEAT.format(fid=fid, reqs=""))
+
+    def progress(self, name, data):
+        text = data if isinstance(data, str) else json.dumps(data)
+        (self.spec / "progress" / f"{name}.json").write_text(text)
+
+    def doc(self, feat, *tasks):
+        return {"feat": feat, "generated": "2026-10-06", "tasks": list(tasks) or [dict(PROGRESS_TASK)]}
+
+    def run_check(self):
+        return subprocess.run([sys.executable, str(CHECK_SPEC), str(self.spec), str(SCHEMAS)],
+                              capture_output=True, text=True, check=False)
+
+    def test_valid_progress_file_passes(self):
+        self.feat("FEAT-001")
+        self.progress("FEAT-001", self.doc("FEAT-001"))
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("progress: OK (1 files)", result.stdout)
+
+    def test_feat_without_a_feat_file_fails(self):
+        self.feat("FEAT-001")
+        self.progress("FEAT-002", self.doc("FEAT-002"))
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("does not exist in features/", result.stderr)
+
+    def test_file_name_must_equal_feat(self):
+        self.feat("FEAT-001")
+        self.feat("FEAT-002")
+        self.progress("FEAT-002", self.doc("FEAT-001"))
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("!= file name", result.stderr)
+
+    def test_passes_must_be_a_boolean(self):
+        self.feat("FEAT-001")
+        self.progress("FEAT-001", self.doc("FEAT-001", dict(PROGRESS_TASK, passes="yes")))
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+
+    def test_duplicate_task_id_fails(self):
+        self.feat("FEAT-001")
+        self.progress("FEAT-001", self.doc("FEAT-001", dict(PROGRESS_TASK), dict(PROGRESS_TASK)))
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("duplicate task id", result.stderr)
+
+    def test_invalid_json_fails(self):
+        self.feat("FEAT-001")
+        self.progress("FEAT-001", "{not json")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("invalid JSON", result.stderr)
+
+    def test_kit_example_validates(self):
+        self.feat("FEAT-009")
+        example = VALIDATIONS.parent.parent / "kits" / "sdd" / "progress.example.json"
+        shutil.copy(example, self.spec / "progress" / "FEAT-009.json")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":

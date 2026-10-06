@@ -9,6 +9,7 @@ kind: detail
 
 - Run `git status --short` and the relevant base-to-HEAD log/diff in every touched repository.
 - Read changed specs/status/history, literal verification outputs and user decisions.
+- For a FEAT in implementation, read `docs/spec/progress/FEAT-nnn.json`; the record links it and names the tasks with `passes: false`.
 - Classify claims as fact, decision, proposal, hypothesis or blocker; never infer from memory.
 
 ## Name one continuation action

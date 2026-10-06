@@ -15,13 +15,14 @@
 | `decision.schema.json` | `docs/spec/decisions/*.md` | `DTEC-nnn-slug.md` (or `DGME-`/`DPRO-` per kind) |
 | `debt.schema.json` | `docs/spec/debts/*.md` | `DEBT-nnn-slug.md` |
 | `journey.schema.json` | `docs/spec/journeys/*.md` | `J-NN[-slug].md` |
+| `progress.schema.json` | `docs/spec/progress/FEAT-nnn.json` | `FEAT-nnn.json`, equal to its `feat` |
 
-The six spec schemas (`spec`, `feature`, `requirement`, `decision`, `debt`, `journey`) go to projects **as a copy**: `platforms/tools/sync-project.sh` installs `check_spec.py` and schemas into the project's `.github/spec-lint/`, and `platforms/kits/github/workflows/spec-lint.yml` runs them locally without a kit checkout or token. `journey.schema.json` and `spec_trace.py` are installed only when the project has `docs/spec/journeys/`.
+The seven spec schemas (`spec`, `feature`, `requirement`, `decision`, `debt`, `journey`, `progress`) go to projects **as a copy**: `platforms/tools/sync-project.sh` installs `check_spec.py` and schemas into the project's `.github/spec-lint/`, and `platforms/kits/github/workflows/spec-lint.yml` runs them locally without a kit checkout or token. `journey.schema.json` and `spec_trace.py` are installed only when the project has `docs/spec/journeys/`.
 
 | Validation | Scope |
 |---|---|
 | `validations/check_kit.py` | multi-plugin layout, manifests and dependency graph, frontmatters, description budget, indexes, links, vendor lock, duplication (`--links` includes `~/.ai-kit/...`) |
-| `validations/check_spec.py` | a project's `docs/spec`: schema + id=prefix + FEAT↔REQ cross-check (ids exist, both frontmatters list each link) + unique IDs; self-test `validations/test_check_spec.py` |
+| `validations/check_spec.py` | a project's `docs/spec`: schema + id=prefix + FEAT↔REQ cross-check (ids exist, both frontmatters list each link) + unique IDs + `progress/*.json` (schema, feat exists, name = feat, unique task ids); self-test `validations/test_check_spec.py` |
 | `validations/spec_trace.py` | a project's `docs/spec/journeys/`: step-table link checks, FEAT↔REQ symmetry, `traceability.md` generation/staleness, `impact`/`mark-done`/`status`; self-test `validations/test_spec_trace.py` |
 | `validations/pr_gates.py` | the no-model PR gates against the GitHub REST API, driven by a project JSON config; served by `platforms/kits/github/workflows/pr-contract.yml` |
 

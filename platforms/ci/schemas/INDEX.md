@@ -14,5 +14,6 @@
 | `decision.schema.json` | `docs/spec/decisions/*.md` |
 | `debt.schema.json` | `docs/spec/debts/*.md` |
 | `journey.schema.json` | `docs/spec/journeys/*.md` |
+| `progress.schema.json` | `docs/spec/progress/FEAT-nnn.json` (executor progress) |
 
 Consumed by `../validations/check_kit.py` and `check_spec.py`. Details: `../README.md`.
