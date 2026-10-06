@@ -1,6 +1,6 @@
 # P2-10 — Move non-core skills to an optional extras plugin
 
-Phase: 2 · Repos: kit (agent-rules-kit) · Branch to create: feat/p2-10-extras-plugin from main · Depends on: P2-09 (it rewrites `plugins/core/INDEX.md`, `plugins/dev-core/INDEX.md` and root `INDEX.md:24`; apply this prompt on top of its result so the two edits do not collide) · Effort: ~3 h
+Phase: 2 · Repos: kit (agent-rules-kit) · Branch to create: feat/p2-10-extras-plugin from main · Depends on: P2-09 (it rewrites `plugins/core/INDEX.md`, `plugins/dev-core/INDEX.md` and root `INDEX.md:24`; apply this prompt on top of its result so the two edits do not collide), P2-07 (same `check_kit.py`; P2-07 adds imports and blocks above and below the lines edited here) · Effort: ~3 h
 
 ## Goal
 
@@ -44,6 +44,8 @@ Manifests and docs that gain or lose a line:
 - New files: `plugins/extras/INDEX.md`, `plugins/extras/plugin.json`, `plugins/extras/.devin-plugin/plugin.json`, `plugins/extras/.claude-plugin/plugin.json` (new files; the plugin is listed by root `INDEX.md` Plugins table and by the three root catalogs above).
 
 ## Change
+
+Order inside phase 2: this prompt runs after P2-02, P2-05, P2-06 and P2-07, which edit `check_kit.py`, `smoke.sh`, `README.md` and `INDEX.md` too, so every line number below may have drifted: always match by the quoted content.
 
 Decision, taken here and to be recorded in CHANGELOG and docs: `extras` stays OUT of `all`. `all` is the default install (README.md:35-38 and :59) and the point of the move is to take the five descriptions out of what the model sees by default; keeping `extras` in `all` would move folders and change nothing. The validator rule at `check_kit.py:296-298` is relaxed by a named exception, not removed.
 

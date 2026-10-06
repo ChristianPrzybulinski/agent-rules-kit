@@ -1,6 +1,6 @@
 # P2-14 — Testcontainers, offline Maven and fast profile guidance
 
-Phase: 2 · Repos: kit (agent-rules-kit), stratics-server · Branch to create: docs/p2-14-testcontainers-offline-fast from main (same name in both repos, one PR each) · Depends on: P2-12 · Effort: ~3 h
+Phase: 2 · Repos: kit (agent-rules-kit), stratics-server · Branch to create: docs/p2-14-testcontainers-offline-fast from main (same name in both repos, one PR each) · Depends on: P2-12, P2-13 (same `SKILL.md`; P2-13 inserts its reference line first so the three reference lines stay together) · Effort: ~3 h
 
 ## Goal
 

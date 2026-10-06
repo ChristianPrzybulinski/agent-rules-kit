@@ -1,6 +1,6 @@
 # P2-09 — Consolidate overlapping skills (code-standards, architecture, session)
 
-Phase: 2 · Repos: kit (agent-rules-kit) · Branch to create: feat/p2-09-consolidate-skills from main · Depends on: P2-03 (the two `plugins/core/AGENTS.md` pointer lines are edited after P2-03 has reordered the file) · Effort: ~4 h
+Phase: 2 · Repos: kit (agent-rules-kit) · Branch to create: feat/p2-09-consolidate-skills from main · Depends on: P2-03 (the two `plugins/core/AGENTS.md` pointer lines are edited after P2-03 has reordered the file), P2-02 (rule bodies and the root `INDEX.md` Loads cells; this prompt then only swaps the skill name inside them) · Effort: ~4 h
 
 ## Goal
 
@@ -118,6 +118,7 @@ Gates that define the constraints (do not edit): `check_kit.py:24` `DESCRIPTION_
 - Vendoring skills into `.claude/skills`: P2-06 (independent of this prompt; it reads plugin lists, never skill names, so nothing there changes). Applying the result to the Stratics repos: P2-15.
 - `plugins/core/AGENTS.md` section order and the Boundaries/Session lines added by P2-03, and the 98% rule (P1-03): edit only the two pointer bullets named in step 6.
 - Skill evals that would measure the hit rate before and after: P3-09.
+- Line budget of `plugins/core/AGENTS.md`: P1-03 leaves 57 lines, P2-03 adds two (59), this prompt rewrites two bullets in place and adds no line; the file stays at 60 or fewer and P2-03's count wins if the numbers disagree.
 
 ## Acceptance criteria
 

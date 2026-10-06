@@ -1,6 +1,6 @@
 # P3-09 — Skill evals with claude plugin eval and a KPI tool over the review ledger
 
-Phase: 3 · Repos: kit · Branch to create: feat/p3-09-evals-and-kpis from main · Depends on: P2-09, P3-06 (final skill names; both keep `godot-standards`, `java-standards`, `sdd-tasks`, `validate-implementation`, `protocol-contract`, `investigate`, `skeptic` and the `reviewer` agent, and P3-06 renames the `sdd-analyze` that `sdd-tasks` §4 cites to `sdd-check`); phase 1 must be merged, because two cases grade the P1-06 boot proof and P1-03 confidence wording · Effort: ~8 h
+Phase: 3 · Repos: kit · Branch to create: feat/p3-09-evals-and-kpis from main · Depends on: P2-09, P3-06 (final skill names; both keep `godot-standards`, `java-standards`, `sdd-tasks`, `validate-implementation`, `protocol-contract`, `investigate`, `skeptic` and the `reviewer` agent, and P3-06 renames the `sdd-analyze` that `sdd-tasks` §4 cites to `sdd-check`); phase 1 must be merged, because two cases grade the P1-06 boot proof and P1-03 confidence wording; P2-07 and P2-10 (same `check_kit.py`), P3-05 (same `plugins/architect-sdd/INDEX.md`) · Effort: ~8 h
 
 ## Goal
 
@@ -15,6 +15,8 @@ Give the kit its first measurement layer: a `claude plugin eval` suite (24 cases
 - The ledger exists but nothing reads it: stratics-docs `ops/review-loop/loop.py:1229-1239` appends rows, `ops/review-loop/prompts/claude-orchestrator.md:138` tells the orchestrator to report "the ledger totals" by hand.
 
 ## Current state
+
+Line numbers of `check_kit.py` below are from v10.1.0; P2-07 and P2-10 add lines above and below them, so locate every edit by the quoted content.
 
 - `platforms/ci/validations/check_kit.py:196-199`: `ALLOWED_PLUGIN_ENTRIES = {` / `    "AGENTS.md", "INDEX.md", ".devin-plugin", ".claude-plugin", "plugin.json", "agents", "hooks",` / `    "rules", "skills", "templates",` / `}`; `:225-226`: `        if entry.name not in ALLOWED_PLUGIN_ENTRIES:` / `            fail(rel(entry), f"reserved/unknown plugin-root entry: {entry.name}")`. An `evals/` folder fails today.
 - `check_kit.py:771`: `    for subdir in ("skills", "rules", "templates", "agents"):` and `:776`: `            if entry.name.startswith(".") or entry.name in ("INDEX.md", "README.md"):`; `:782`: `                fail(rel(plugin_index), f"entry '{entry.name}' missing from plugin index")`. Plugin roots are not in `index_roots` (`:737-738`), so this loop is the only index rule that can cover `evals/`.

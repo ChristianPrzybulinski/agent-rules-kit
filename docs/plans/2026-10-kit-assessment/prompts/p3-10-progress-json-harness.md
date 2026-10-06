@@ -1,6 +1,6 @@
 # P3-10 — progress.json harness for long implementations
 
-Phase: 3 · Repos: kit · Branch to create: feat/p3-10-progress-json-harness from main · Depends on: P1-08 (issue per task, ten-column rows; it rewrites `sdd-tasks` and `sdd-implement`, so anchor on sentences, never on step numbers), P2-08 (derived status is the post-merge source of truth this prompt defers to) · Effort: ~4 h
+Phase: 3 · Repos: kit · Branch to create: feat/p3-10-progress-json-harness from main · Depends on: P1-08 (issue per task, ten-column rows; it rewrites `sdd-tasks` and `sdd-implement`, so anchor on sentences, never on step numbers), P2-08 (derived status is the post-merge source of truth this prompt defers to), P2-15 (same `sync-project.sh`; its kit step is the last earlier edit), P3-04, P3-06 and P3-07 (same `sdd-process.md`, `sdd-tasks` and `sdd-implement` files; run them first) · Effort: ~4 h
 
 ## Goal
 

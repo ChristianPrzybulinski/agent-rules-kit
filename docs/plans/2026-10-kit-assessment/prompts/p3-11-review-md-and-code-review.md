@@ -85,7 +85,7 @@ Give every project repository a ready-to-copy `REVIEW.md` with the kit's review 
 
    ## Docs
    - CHANGELOG `Unreleased` entry; README when a command changed; doc comment on new public API.
-   - Spec status updated when the repository keeps one (`docs/spec/`); incomplete work recorded as DEBT or behind a flag.
+   - Spec status follows the repository's rule (derived by tooling where the repository has it, never typed by hand); incomplete work recorded as DEBT or behind a flag.
 
    ## Do not report
    - Anything CI already enforces: formatting, lint, type errors, secret scanning.
@@ -120,7 +120,7 @@ Give every project repository a ready-to-copy `REVIEW.md` with the kit's review 
 - The clean-checkout worktree cleanup bullet in §2 of `validate-implementation`: P3-07.
 - `sync-project.sh` copying `CLAUDE.md`, settings, rules or vendored skills: P2-04/P2-05/P2-06. No prompt makes it copy `REVIEW.md`; this task ships the template and documents the copy by hand.
 - Copying `REVIEW.md` into stratics-client, stratics-server or stratics-docs: not covered by any current prompt (P2-15 syncs agent config only); this task ships the template and documents the copy by hand.
-- No hook (the validator accepts only `PreToolUse`), no new skill, no description change, no `skillOverrides` or settings file.
+- No hook (the validator accepts `PreToolUse`, plus `PostToolUse` since P2-07), no new skill, no description change, no `skillOverrides` or settings file.
 
 ## Acceptance criteria
 
@@ -134,7 +134,7 @@ Give every project repository a ready-to-copy `REVIEW.md` with the kit's review 
 - [ ] `sed -n 1,16p plugins/quality-core/skills/validate-implementation/SKILL.md | diff - <(git show main:plugins/quality-core/skills/validate-implementation/SKILL.md | sed -n 1,16p)` → no output (frontmatter unchanged); `git diff --stat main -- plugins/quality-core/INDEX.md plugins/quality-core/agents plugins/quality-core/templates` → empty.
 - [ ] `grep -c '^## \[Unreleased\]' CHANGELOG.md` → `1`; `grep -c 'REVIEW.md' CHANGELOG.md` → at least `1`.
 - [ ] `git diff main -- platforms/kits/github/REVIEW.md plugins/quality-core/skills/validate-implementation/SKILL.md | grep -c '/Users/\|/home/'` → `0`.
-- [ ] `platforms/tools/check.sh` → contains the line `check: OK (12 plugins, 43 skills, 3 rules, 18 templates, 19 indexes, <n> links)` followed by the `claude plugin validate` output or `check: claude plugin validate skipped (claude not in PATH)`. Pass = `check: OK (...)`, or `check: failed (...)` where every `FAIL:` line names a path under `docs/plans/2026-10-kit-assessment/` other than this prompt (pre-existing on 2026-10-06: `broken link` lines in `README.md`, `assessment.md`, p1-01, p2-02, p2-08, p2-09, p2-10, p3-09, and `docs/plans/2026-10-kit-assessment/prompts: no INDEX.md or README.md` until that folder gets its README). Paste all `FAIL:` lines in the PR body; any `FAIL:` naming a path outside that folder, or this prompt, blocks the PR. When the line is `check: failed (...)`, check.sh stops there (`set -e`) and prints no `claude plugin validate` line; run `claude plugin validate plugins/quality-core` by hand when `claude` is on PATH, otherwise list it under Unverified.
+- [ ] `platforms/tools/check.sh` → contains a line starting `check: OK (` (the counts depend on the prompts merged before this one; on main on 2026-10-06 it reads `12 plugins, 43 skills, 3 rules, 18 templates, 19 indexes`) followed by the `claude plugin validate` output or `check: claude plugin validate skipped (claude not in PATH)`. Pass = `check: OK (...)`, or `check: failed (...)` where every `FAIL:` line names a path under `docs/plans/2026-10-kit-assessment/` other than this prompt (pre-existing on 2026-10-06: `broken link` lines in `README.md`, `assessment.md`, p1-01, p2-02, p2-08, p2-09, p2-10, p3-09, and `docs/plans/2026-10-kit-assessment/prompts: no INDEX.md or README.md` until that folder gets its README). Paste all `FAIL:` lines in the PR body; any `FAIL:` naming a path outside that folder, or this prompt, blocks the PR. When the line is `check: failed (...)`, check.sh stops there (`set -e`) and prints no `claude plugin validate` line; run `claude plugin validate plugins/quality-core` by hand when `claude` is on PATH, otherwise list it under Unverified.
 - [ ] `platforms/tools/smoke.sh` → exit 0.
 - [ ] `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` → `OK`.
 - [ ] `python3 platforms/ci/validations/check_kit.py --links` → last line starts with `check: OK (`, or `check: failed (` where every `FAIL:` line names a path under `docs/plans/2026-10-kit-assessment/` other than this prompt (the same pre-existing set as the `check.sh` criterion, including the `prompts: no INDEX.md or README.md` line). Paste all `FAIL:` lines in the PR body; any `FAIL:` naming a path outside that folder, or this prompt, blocks the PR.
@@ -147,7 +147,7 @@ Give every project repository a ready-to-copy `REVIEW.md` with the kit's review 
 - `SKILL.md` at most 80 lines; `validate-implementation` keeps `triggers: [user, model]`, `agent: reviewer`, `context: fork`, `background: false` and lowercase `allowed-tools` (read, grep, glob, exec).
 - `REVIEW.md` is not a plugin template, so the `^(spec|doc|project|kit)-` name rule does not apply; do not move it into `plugins/*/templates/`.
 - Backticked paths in `SKILL.md` are resolved by `check_kit.py` (`platforms/` and `plugins/` prefixes): the new paragraph cites `platforms/kits/github/REVIEW.md`, so create the file in the same commit.
-- Hooks validator accepts only `PreToolUse` with timeout at most 10: this task adds no hook.
+- Hooks validator accepts `PreToolUse` (timeout at most 10) and, since P2-07, `PostToolUse` (timeout at most 30): this task adds no hook.
 - Conventional Commits with `Refs`: `feat(quality-core): REVIEW.md template and /code-review step in validate-implementation` with `Refs: P3-11, assessment N7`.
 - PR body = What / Why / How I tested (literal output of the four gates and of step 7) / Refs.
 - Gates: `platforms/tools/check.sh`; `platforms/tools/smoke.sh`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`; `python3 platforms/ci/validations/check_kit.py --links`.

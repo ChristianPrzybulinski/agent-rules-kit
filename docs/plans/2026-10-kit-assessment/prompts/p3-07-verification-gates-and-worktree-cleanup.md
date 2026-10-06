@@ -1,6 +1,6 @@
 # P3-07 — Verification gates in sdd-implement and worktree cleanup in reviewer
 
-Phase: 3 · Repos: kit · Branch to create: feat/p3-07-verification-gates-and-worktree-cleanup from main · Depends on: P1-08 (P1-08 replaces §1, §4 and the commit step of §2 of `sdd-implement`; it keeps the sentence `Run the task's proof literally and summarize output in History.` verbatim, which is this prompt's only anchor, never a step number). Execute before P3-11 (it inserts two lines into §3 of `validate-implementation`) · Effort: ~2 h
+Phase: 3 · Repos: kit · Branch to create: feat/p3-07-verification-gates-and-worktree-cleanup from main · Depends on: P3-06 (same `sdd-implement/SKILL.md`; it only changes that file's `SDD step N` description and H1), P1-08 (P1-08 replaces §1, §4 and the commit step of §2 of `sdd-implement`; it keeps the sentence `Run the task's proof literally and summarize output in History.` verbatim, which is this prompt's only anchor, never a step number). Execute before P3-11 (it inserts two lines into §3 of `validate-implementation`) · Effort: ~2 h
 
 ## Goal
 
@@ -43,7 +43,7 @@ Make every `sdd-implement` task end at a verification gate instead of at a claim
   ```
   `:52-61` is the verdict block; it stays unchanged.
 - `CHANGELOG.md:5` is `## [Unreleased]` with `### Added` and `### Changed` subsections already present; add under `### Changed`.
-- Measured on 2026-10-06: 43 skills, descriptions total 6,803 chars (budget 7,200, `platforms/ci/validations/check_kit.py:25`); `SKILL_MAX_LINES = 80` at `:26`; the hooks validator at `:452` rejects any event other than `PreToolUse`.
+- Measured on 2026-10-06: 43 skills, descriptions total 6,803 chars (budget 7,200, `platforms/ci/validations/check_kit.py:25`); `SKILL_MAX_LINES = 80` at `:26`; the hooks validator at `:452` rejects any event other than `PreToolUse` (until P2-07, which also accepts `PostToolUse`).
 
 ## Change
 
@@ -81,7 +81,7 @@ Make every `sdd-implement` task end at a verification gate instead of at a claim
 
 ## Out of scope
 
-- No hook of any kind: no Stop hook, no PostToolUse hook, no change to `plugins/core/hooks/hooks.json` (the validator accepts only `PreToolUse`; hooks are owned by P1-07 and P2-07).
+- No hook of any kind: no Stop hook, no PostToolUse hook, no change to `plugins/core/hooks/hooks.json` (the validator accepts `PreToolUse`, plus `PostToolUse` since P2-07; hooks are owned by P1-07 and P2-07).
 - The Godot gate on `reviewer.md:22` and in the `validate-implementation` §3 table (line 41 on main, 42 after your bullet) is owned by P1-06; leave whatever P1-06 put there byte-identical.
 - `platforms/kits/github/PULL_REQUEST_TEMPLATE.md` has no Proof section today (26 lines: What / Why / How I tested / Checklist / Refs); do not add one here, name it under Next step as a follow-up.
 - The issue-per-task flow, waves, model directive and task template in `sdd-implement` and `sdd-tasks` are owned by P1-08; do not restructure §1, §3 or §4 of `sdd-implement`.
@@ -112,7 +112,7 @@ Make every `sdd-implement` task end at a verification gate instead of at a claim
 - `INDEX.md` of every touched folder lists every entry by name: nothing is added or renamed here, so both plugin indexes stay unchanged, and the skill descriptions in `plugins/architect-sdd/INDEX.md` and `plugins/quality-core/INDEX.md` must still match the frontmatter verbatim.
 - `SKILL.md` at most 80 lines; the agent profile keeps `allowed-tools` lowercase (read, grep, glob, exec) and `tools` as the same Claude names in order (Read, Grep, Glob, Bash).
 - `sdd-implement` stays user-only (`triggers: [user]`, `disable-model-invocation: true`); `validate-implementation` keeps `agent: reviewer`, `context: fork`, `background: false`.
-- Hooks validator accepts only `PreToolUse` with timeout at most 10: this task adds no hook.
+- Hooks validator accepts `PreToolUse` (timeout at most 10) and, since P2-07, `PostToolUse` (timeout at most 30): this task adds no hook.
 - Backticked paths in skill and agent files are resolved by `check_kit.py` (`platforms/`, `plugins/`, `references/`, `templates/`, `./`, `../` prefixes); the new text cites no such path.
 - Conventional Commits with `Refs`: `feat(sdd-implement,reviewer): proof gate per task and worktree cleanup after clean checkout` with `Refs: P3-07` (the kit scopes by skill or component, as in `feat(sdd-tasks): …` and `feat(check_spec): …`).
 - PR body = What / Why / How I tested (literal output of the four gates and the cleanup proof) / Refs.

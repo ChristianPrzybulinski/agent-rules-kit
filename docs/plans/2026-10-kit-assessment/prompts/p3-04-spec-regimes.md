@@ -1,6 +1,6 @@
 # P3-04 — Two spec regimes: spec-anchored contracts, spec-first features
 
-Phase: 3 · Repos: kit (agent-rules-kit), stratics-docs · Branch to create: docs/p3-04-spec-regimes from main (one branch per repo, same name) · Depends on: P2-08 (stratics-docs steps 6-9 only; kit steps 1-5 may run before it) · Effort: ~3 h
+Phase: 3 · Repos: kit (agent-rules-kit), stratics-docs · Branch to create: docs/p3-04-spec-regimes from main (one branch per repo, same name) · Depends on: P3-06 (same `sdd-process.md`; P3-06 renumbers its step table first), P2-08 (stratics-docs steps 6-9 only; kit steps 1-5 may run before it) · Effort: ~3 h
 
 ## Goal
 

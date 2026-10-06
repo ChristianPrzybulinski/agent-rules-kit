@@ -1,6 +1,6 @@
 # P3-05 — sdd-spike: a prototype lane for game feel
 
-Phase: 3 · Repos: kit · Branch to create: feat/p3-05-sdd-spike-lane from main · Depends on: none (touches `sdd-process.md` only in the entry-point sentence and never a step number; coordinate with P3-04 (entry-point rewrite of `sdd-process.md`) and P3-06 (step-table renumbering), which edit the same file) · Effort: ~3 h
+Phase: 3 · Repos: kit · Branch to create: feat/p3-05-sdd-spike-lane from main · Depends on: P3-06 (step-table renumbering of `sdd-process.md` and the `plugins/architect-sdd/INDEX.md` rows), P3-04 (entry-point rewrite of the same `sdd-process.md` sentence); this prompt touches `sdd-process.md` only in the entry-point sentence and never a step number · Effort: ~3 h
 
 ## Goal
 

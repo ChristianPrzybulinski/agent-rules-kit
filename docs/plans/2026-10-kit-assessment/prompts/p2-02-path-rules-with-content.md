@@ -1,6 +1,6 @@
 # P2-02 — Path-scoped rules carry real constraints, not pointers
 
-Phase: 2 · Repos: kit (agent-rules-kit) · Branch to create: feat/p2-02-path-rules-with-content from main · Depends on: P1-04, P1-05, P1-06 · Effort: ~3 h
+Phase: 2 · Repos: kit (agent-rules-kit) · Branch to create: feat/p2-02-path-rules-with-content from main · Depends on: P1-04, P1-05, P1-06, P1-07 (same `check_kit.py`; P1-07 keeps its line count, so line 28 below holds) · Effort: ~3 h
 
 ## Goal
 

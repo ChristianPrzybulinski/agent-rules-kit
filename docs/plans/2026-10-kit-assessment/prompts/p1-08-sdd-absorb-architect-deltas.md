@@ -116,6 +116,7 @@ Make the kit's SDD steps 6, 7 and 9 describe the flow the Stratics project actua
 - Editing stratics-docs (`ARCHITECT.md`, `CONTRIBUTING.md`, `task.md`): read-only sources here; their simplification is a follow-up stratics-docs prompt (not yet written in this plan) that deletes ARCHITECT.md deltas 1 to 5 and the Issue body section, and points `CONTRIBUTING.md` §5 and `docs/collab/README.md` § Issue cutting at the kit text. Do not use the number P2-15 for it: `p2-15-apply-sync-to-stratics-repos.md` regenerates the Stratics agent configuration and explicitly leaves the ARCHITECT.md deltas to a separate PR.
 - `plugins/infra-github/skills/branching-and-versioning/SKILL.md:18` (`feature/FEAT-nnn-name`) stays; the per-task branch name in step 8 is a refinement of it, not a replacement.
 - `platforms/kits/github/labels.json`: no new labels (`wave-n`, `model:*` stay project labels).
+- Step numbers: every `SDD step N` and table row number in this prompt (tasks 6, implement 7, to-card 9) is the numbering before P3-06. P3-06 runs after this prompt and renumbers the pipeline to 0..8 (tasks 5, implement 6, to-card 8); P3-06 wins, so do not renumber anything here.
 
 ## Acceptance criteria
 

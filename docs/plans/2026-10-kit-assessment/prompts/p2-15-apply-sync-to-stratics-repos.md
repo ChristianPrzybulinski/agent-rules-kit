@@ -1,6 +1,6 @@
 # P2-15 — Apply the generated agent configuration to the three Stratics repos
 
-Phase: 2 · Repos: stratics-docs, stratics-client, stratics-server (plus one small fix in the kit) · Branch to create: chore/p2-15-agent-kit-sync from main in each Stratics repo; fix/p2-15-sync-spec-lint-conditional from main in the kit · Depends on: P2-04, P2-05, P2-06 merged to kit main; P1-02 merged in stratics-docs (same `AGENTS.md`); P1-06 merged in the kit for step 7 · Effort: ~8 h
+Phase: 2 · Repos: stratics-docs, stratics-client, stratics-server (plus one small fix in the kit) · Branch to create: chore/p2-15-agent-kit-sync from main in each Stratics repo; fix/p2-15-sync-spec-lint-conditional from main in the kit · Depends on: P2-04, P2-05, P2-06 merged to kit main; P1-02 merged in stratics-docs (same `AGENTS.md`); P2-08 merged in stratics-docs (same `.github/workflows/docs-checks.yml`); P1-06 merged in the kit for step 7 · Effort: ~8 h
 
 ## Goal
 
@@ -13,7 +13,7 @@ Run the extended `platforms/tools/sync-project.sh` (profiles `docs`, `godot`, `j
 - stratics-docs `CONTRIBUTING.md:32-33` still says "the bootstrap links your agent's global rules file (for example `~/.claude/CLAUDE.md`) to the kit", and `:36` clones the kit to `~/.ai-kit`; stratics-docs `AGENTS.md:6` validates specs with `~/.ai-kit/platforms/tools/check.sh --spec docs/spec`, a path that exists only on the owner's machine.
 - Verified today in the kit (read-only): `platforms/tools/sync-project.sh --check <stratics-docs>` prints `sync: spec-lint.yml missing` and exits 1, because stratics-docs `.github/workflows/docs-checks.yml:3` replaced `spec-lint.yml`; install mode (`sync-project.sh:39-49`) would recreate `spec-lint.yml` there and create `.github/spec-lint/` in stratics-client and stratics-server, which have no `docs/spec`. The sync needs a 10-line fix before it can be applied.
 - kit `docs/projects.md:24`: the consumer CI never checks out the kit, so drift against the kit stays a local check (`sync-project.sh --check`, `doctor.sh`); the CI job added here verifies the repo against its own manifest only.
-- Duplicate-skill risk (P2-06, Claude Code docs read 2026-10-06): a plugin skill and a project skill with the same name both load (`/core:sessions` and `/sessions`); the preference decided in P2-06 is the vendored copy, with `enabledPlugins` reduced to `core@ai-kit` for the guard hook.
+- Duplicate-skill risk (P2-06, Claude Code docs read 2026-10-06): a plugin skill and a project skill with the same name both load (`/core:tokens` and `/tokens`); the preference decided in P2-06 is the vendored copy, with `enabledPlugins` reduced to `core@ai-kit` for the guard hook.
 
 ## Current state
 

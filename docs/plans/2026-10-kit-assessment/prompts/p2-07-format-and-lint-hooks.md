@@ -1,6 +1,6 @@
 # P2-07 — Format and lint hooks (PostToolUse) for GDScript, Java and spec
 
-Phase: 2 · Repos: kit · Branch to create: feat/p2-07-format-and-lint-hooks from main · Depends on: P1-07 · Effort: ~5 h
+Phase: 2 · Repos: kit · Branch to create: feat/p2-07-format-and-lint-hooks from main · Depends on: P1-07, P2-02 (same `check_kit.py`; P2-02 changes one constant on line 28 and no line count) · Effort: ~5 h
 
 ## Goal
 

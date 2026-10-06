@@ -1,6 +1,6 @@
 # P1-05 — Godot tests: gdUnit4 by default, CI never skips silently, GDScript test policy
 
-Phase: 1 · Repos: kit · Branch to create: fix/p1-05-godot-tests-gdunit4-never-skip from main (the `docs/plans/` folder is not on main yet: the Refs path in Conventions exists once the plan is merged; until then cite the kit commit SHA that carries the plan) · Depends on: none (coordinate `ci-godot.yml` with P1-06, see Change step 1) · Effort: ~3 h
+Phase: 1 · Repos: kit · Branch to create: fix/p1-05-godot-tests-gdunit4-never-skip from main (the `docs/plans/` folder is not on main yet: the Refs path in Conventions exists once the plan is merged; until then cite the kit commit SHA that carries the plan) · Depends on: P1-06 (both edit `ci-godot.yml`, `godot-standards/SKILL.md`, the Godot template and two READMEs; P1-06 merges first, and every anchor in Change step 1 still works if the order is reversed) · Effort: ~3 h
 
 ## Goal
 

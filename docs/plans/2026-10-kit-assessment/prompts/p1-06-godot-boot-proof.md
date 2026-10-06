@@ -103,7 +103,7 @@ No file is created or deleted. No manifest, rule, reference, `INDEX.md` or `VERS
 - `ci-godot.yml:19-25` (test job: gdUnit4 default, no silent skip, zero-test failure), `project-agents-godot-2d.md:8` and `:31`, and the GUT sentence in `platforms/kits/github/README.md:19`: P1-05. If P1-05 merges first, rebase and keep its test step untouched.
 - P1-05 rewrites the rest of the `platforms/kits/godot/README.md:11` Use cell; when it rebases on this PR it must keep `boot proof` in the cell.
 - Movement lines in `godot-standards` §3 and the template (`project-agents-godot-2d.md:40`, `:83`): P1-04.
-- `plugins/dev-godot/rules/godot.md` content: P2-02 writes the rule's boot-proof line; it must use the same two commands and the same regex `grep -Eq 'SCRIPT ERROR|Parser Error'` as this task (P2-02 currently says `grep -q 'SCRIPT ERROR'`).
+- `plugins/dev-godot/rules/godot.md` content: P2-02 writes the rule's boot-proof line; it must use the same two commands and the same regex `grep -Eq 'SCRIPT ERROR|Parser Error'` as this task (P2-02 writes the same `grep -Eq 'SCRIPT ERROR|Parser Error'` form).
 - stratics-client `AGENTS.md:31` and `:59` (still `--headless --quit`): P2-15 regenerates it from the template (p3-03 attributes these lines to P1-06; that is stale, the owner is P2-15). Do not edit the Stratics repositories.
 - gdtoolkit lint/format steps in `ci-godot.yml` and the client CI: P3-02.
 - Adding the boot-proof grep to stratics-docs `.github/workflows/reusable-ci-godot.yml` (it has `--import` at line 92 but no `SCRIPT ERROR` grep): no prompt owns it; name it in the PR body as a follow-up for the spec repository.
