@@ -625,4 +625,118 @@ fi
 [[ "$(cat "$ROOT/proj/.claude/rules/my-own.md")" == "mine" ]] \
   || fail "hand-written .claude/rules file was touched"
 
-printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy)\n' "$skill_count"
+# sync-project.sh --vendor-skills: the profile's skill directories are copied
+# whole into .claude/skills/ with .agent-rules-kit markers and a hashed
+# KIT_MANIFEST.json. Counts come from the $SOURCE fixture at test time (its
+# rewritten SKILL.md descriptions differ from the live kit).
+godot_plugins="core dev-core dev-godot quality-core infra-github" # mirrors profile_plugins godot in sync-project.sh
+expected_skills="$(for p in $godot_plugins; do ls "$SOURCE/plugins/$p/skills"; done | wc -l | tr -d ' ')"
+expected_files=$(( $(for p in $godot_plugins; do find "$SOURCE/plugins/$p/skills" -type f; done | wc -l) + expected_skills ))
+mkdir -p "$ROOT/vendor-proj/.claude/skills/review-loop"
+printf '# proj\n' > "$ROOT/vendor-proj/AGENTS.md"
+touch "$ROOT/vendor-proj/project.godot"
+printf 'mine\n' > "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --vendor-skills "$ROOT/vendor-proj" \
+    >"$ROOT/sync-vendor.out" 2>&1; then
+  cat "$ROOT/sync-vendor.out" >&2
+  fail "sync-project --vendor-skills install failed"
+fi
+grep -Fq 'sync: skills=vendored' "$ROOT/sync-vendor.out" \
+  || fail "sync-project did not report the vendored mode"
+[[ "$(find "$ROOT/vendor-proj/.claude/skills" -name .agent-rules-kit | wc -l | tr -d ' ')" == "$expected_skills" ]] \
+  || fail "vendored marker count differs from $expected_skills"
+manifest_files="$(python3 -c 'import json,sys; print(sum(len(s["files"]) for s in json.load(open(sys.argv[1]))["skills"].values()))' \
+  "$ROOT/vendor-proj/.claude/skills/KIT_MANIFEST.json")"
+[[ "$manifest_files" == "$expected_files" ]] \
+  || fail "manifest lists $manifest_files files, expected $expected_files"
+for p in $godot_plugins; do
+  for s in "$SOURCE/plugins/$p/skills"/*/; do
+    [[ -f "$s/SKILL.md" ]] || continue
+    n="${s%/}"
+    n="${n##*/}"
+    vendor_diff="$(diff -r -q "$s" "$ROOT/vendor-proj/.claude/skills/$n" || true)"
+    [[ "$vendor_diff" == "Only in $ROOT/vendor-proj/.claude/skills/$n: .agent-rules-kit" ]] \
+      || fail "vendored $n differs from the kit copy: $vendor_diff"
+  done
+done
+[[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
+  || fail "hand-written review-loop skill was touched"
+[[ "$(grep -c '@ai-kit' "$ROOT/vendor-proj/.claude/settings.json")" == "1" ]] \
+  || fail "vendored settings.json does not keep exactly core@ai-kit"
+first_vendor_hashes="$(find "$ROOT/vendor-proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/vendor-proj" \
+    >"$ROOT/sync-vendor-second.out" 2>&1; then
+  cat "$ROOT/sync-vendor-second.out" >&2
+  fail "second vendored sync-project install failed"
+fi
+grep -Fq 'sync: skills=vendored' "$ROOT/sync-vendor-second.out" \
+  || fail "the manifest did not keep the vendored mode"
+second_vendor_hashes="$(find "$ROOT/vendor-proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
+[[ "$first_vendor_hashes" == "$second_vendor_hashes" ]] \
+  || fail "vendored sync-project is not idempotent"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" \
+    >"$ROOT/sync-vendor-check.out" 2>&1; then
+  cat "$ROOT/sync-vendor-check.out" >&2
+  fail "sync-project --check failed on a vendored repo"
+fi
+printf x >> "$ROOT/vendor-proj/.claude/skills/godot-standards/SKILL.md"
+set +e
+sync_vendor_drift_out="$(env PATH="$RESTRICTED_PATH" \
+  "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" 2>&1)"
+sync_vendor_drift_status=$?
+set -e
+[[ "$sync_vendor_drift_status" -eq 1 ]] \
+  || fail "sync-project --check accepted an edited vendored skill"
+[[ "$sync_vendor_drift_out" == *"diverges from the manifest"* ]] \
+  || fail "sync-project --check did not report the skill drift"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/vendor-proj" \
+    >"$ROOT/sync-vendor-resync.out" 2>&1; then
+  cat "$ROOT/sync-vendor-resync.out" >&2
+  fail "vendored resync after the edit failed"
+fi
+printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/tokens/extra.txt"
+set +e
+sync_vendor_extra_out="$(env PATH="$RESTRICTED_PATH" \
+  "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" 2>&1)"
+sync_vendor_extra_status=$?
+set -e
+[[ "$sync_vendor_extra_status" -eq 1 ]] \
+  || fail "sync-project --check accepted an extra vendored file"
+[[ "$sync_vendor_extra_out" == *"not in manifest"* ]] \
+  || fail "sync-project --check did not report the extra file"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --profile docs "$ROOT/vendor-proj" \
+    >"$ROOT/sync-vendor-docs.out" 2>&1; then
+  cat "$ROOT/sync-vendor-docs.out" >&2
+  fail "vendored sync-project --profile docs failed"
+fi
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/godot-standards" ]] \
+  || fail "godot-standards survived the profile switch"
+[[ -f "$ROOT/vendor-proj/.claude/skills/sdd-tasks/SKILL.md" ]] \
+  || fail "sdd-tasks missing after the profile switch"
+[[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
+  || fail "hand-written review-loop skill was touched by the profile switch"
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/tokens/extra.txt" ]] \
+  || fail "extra file survived the tokens regeneration"
+mkdir -p "$ROOT/vendor-proj2/.claude/skills/tokens"
+printf '# mine\n' > "$ROOT/vendor-proj2/AGENTS.md"
+touch "$ROOT/vendor-proj2/project.godot"
+set +e
+sync_vendor_refuse_out="$(env PATH="$RESTRICTED_PATH" \
+  "$SOURCE/platforms/tools/sync-project.sh" --vendor-skills "$ROOT/vendor-proj2" 2>&1)"
+sync_vendor_refuse_status=$?
+set -e
+[[ "$sync_vendor_refuse_status" -eq 1 ]] \
+  || fail "sync-project did not refuse an unmarked .claude/skills/tokens"
+[[ "$sync_vendor_refuse_out" == *"is not generated"* ]] \
+  || fail "sync-project refusal did not report 'is not generated'"
+[[ ! -e "$ROOT/vendor-proj2/.claude/skills/KIT_MANIFEST.json" ]] \
+  || fail "manifest was written despite the refusal"
+[[ ! -e "$ROOT/vendor-proj2/.claude/settings.json" ]] \
+  || fail "settings.json was written despite the refusal"
+
+printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy, vendored skills)\n' "$skill_count"
