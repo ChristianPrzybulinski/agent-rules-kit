@@ -8,6 +8,7 @@ CI, PR and label governance templates for GitHub Actions.
 |---|---|
 | `workflows/*.yml` | `.github/workflows/` |
 | `PULL_REQUEST_TEMPLATE.md` | `.github/PULL_REQUEST_TEMPLATE.md` |
+| `REVIEW.md` | `REVIEW.md` at the repository root (read by hosted Claude Code Review; also the checklist for any reviewer) |
 | `ISSUE_TEMPLATE/task.md` | `.github/ISSUE_TEMPLATE/task.md` (one issue per task row, filled verbatim by `sdd-to-card`) |
 | `CODEOWNERS` | `.github/CODEOWNERS` (edit the user) |
 | `dependabot.yml` | `.github/dependabot.yml` |
@@ -42,3 +43,4 @@ jobs:
 - `pr-contract.yml` is a **reusable** workflow running the no-model PR gates (`platforms/ci/validations/pr_gates.py`). It checks out the gates repository at a protected ref (`gates-ref`, never the PR head — the job holds the secret) and needs a `GATES_TOKEN` able to read the backlog repo's issues; `repo`, `gates-repo`, `script` and `config` are inputs, and `proof-commands` is the output the caller's `proof` job runs.
 - `gitleaks.yml` needs `fetch-depth: 0` to scan the whole PR diff.
 - `ISSUE_TEMPLATE/task.md` is the body contract `sdd-to-card` fills; the `Directive` tiers map to vendor models in the project, never in the kit.
+- `REVIEW.md` holds the five review criteria of `plugins/quality-core/templates/doc-review-checklist.md` without project-specific gates; a project adds its own gates (coverage, mutation score, contract version field) under the matching heading. Hosted Claude Code Review (Team/Enterprise) reads it from the repository root; the local `/code-review` command does not (it reads `CLAUDE.md`); both facts checked against code.claude.com/docs/en/code-review on 2026-10-06.

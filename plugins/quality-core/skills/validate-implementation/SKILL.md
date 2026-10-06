@@ -44,6 +44,8 @@ Read the repository's `AGENTS.md` and README for commands. Kit fallbacks:
 
 Capture the literal failing excerpt; never replace it with “some tests failed.”
 
+In Claude Code (Claude-specific) the calling session also runs `/code-review <base>...HEAD` on the pushed head before the verdict (when this skill runs forked without the Skill tool, run it from the parent session and hand its findings to the verdict); it runs as a background subagent and reports correctness bugs, so continue with §4 while it runs and wait for its findings before §5. Confirm each finding at `path:line` on the clean checkout; a confirmed finding becomes a `missing` or `partial` row of the criterion table (or a `Gates:` line `code-review → FAILED (<finding>)` when it belongs to no criterion); an unconfirmed one goes under `Unverified`. In Devin or any other executor, apply the repository `REVIEW.md` (kit copy: `platforms/kits/github/REVIEW.md`) by hand instead. `/code-review` reads `CLAUDE.md`, not `REVIEW.md` (checked against code.claude.com/docs/en/code-review on 2026-10-06).
+
 ## 4. Check closure records
 
 Read the `living-docs` reference in skill `update-docs`. Check CHANGELOG, command-facing README changes, public API docs, FEAT status, DEC/DEBT, and an incomplete feature's flag.
