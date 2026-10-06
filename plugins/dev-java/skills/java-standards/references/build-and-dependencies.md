@@ -39,6 +39,13 @@ Inter-module dependency rule verified at build time (`maven-enforcer` `bannedDep
 | `versions-maven-plugin` | update report | informational |
 | `flyway-maven-plugin` | migrations | — |
 
+## Sandboxed agents (no network at build time)
+
+- Snapshot or maintenance step, online, once: `./mvnw -q dependency:go-offline && ./mvnw -q -Pfast spotless:check verify`. The second command caches what `go-offline` misses (Spotless formatter, Surefire/Failsafe providers, PITest JUnit 5 plugin) and pulls the Testcontainers images; `-o` covers Maven artifacts only, never Docker images.
+- Task step, offline: `./mvnw -o -q spotless:check verify`. Add `-Pfast` when the budget is tight: it skips PITest and Dependency-Check and never skips tests; CI runs everything.
+- Budget: lint and tests at most 5 minutes each. Over budget locally: `-Pfast` plus `-Dtest=<Class>` (unit) or `-Dit.test=<Class>IT` (integration) with `-Dsurefire.failIfNoSpecifiedTests=false`; never `-DskipTests` in a gate.
+- Integration tests on real services: read `testcontainers.md` in this folder.
+
 ## Condition → action
 
 - Add a dependency → (1) already there transitively? (`mvn dependency:tree`), (2) version published ≥7 days, (3) local `dependency-check`, (4) entry in `dependencyManagement`.

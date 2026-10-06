@@ -18,6 +18,7 @@ Names and functions: read skill `clean-code`. Test gates and coverage: read skil
 
 Read `references/build-and-dependencies.md` for Maven/module gates and `references/java-25-lts.md` for verified Java 25 and Spring Boot 4.1 facts.
 Persisting without JPA: read `references/jdbcclient-flyway.md`. Architecture gate: read `references/archunit-rules.md`.
+Integration tests on a real database or broker: read `references/testcontainers.md` (Spring Boot container beans, reuse, sandbox caching).
 
 ## 1. Confirm the baseline
 
