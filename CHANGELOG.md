@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Added
+- `docs/plans/2026-10-kit-assessment/`: assessment of v10.1.0 against current Anthropic, Cognition and market guidance for the Stratics Godot 2D client + Java server, plus 34 self-contained execution prompts in three phases (freeze layout and fix contradictions; distribute by repository commit and consolidate skills; Godot online 2D references, Devin environment, process-loop plugin, evals and KPIs). Evidence: review-loop first-pass rejection rate 20 of 33 PRs (stratics-docs DPRO-011); 24 of 25 destructive commands pass the hook guard; stale kit paths cited in stratics-docs; FEAT task tables with 128 `todo` rows after ~35 merged PRs.
+
+### Changed
+- `godot-standards` section 3, the `project-agents-godot-2d.md` template and `editor_settings_hints.md` no longer prescribe `_physics_process` + `move_and_slide()`; the movement model is declared per project in `AGENTS.md` (option A physics bodies, option B grid/tile-step with a server-authoritative position, prediction of at most one step and tween/lerp presentation in `_process`), never mixed in one entity (assessment §4.4, §6 D1; stratics-docs DGME-002; stratics-client `AGENTS.md:41`). Proof: `grep -rn 'Move a body' plugins/` prints nothing, `SKILL.md` shows 2 `Option A`/`Option B` lines, and `wc -l` of `SKILL.md` is 51 (limit 80).
+
+## [10.3.0] - 2026-10-06
+
+### Added
 - The journey layer: `journey.schema.json` (`platforms/ci/schemas/`), the `spec-journey.md` template and the `sdd-journey` skill. `docs/spec/journeys/J-NN.md` files hold one user-visible flow whose steps cite REQ ids, task rows and test paths; a rule a journey exercises is promoted to a REQ-F. Evidence: stratics-docs DPRO-013; seven journeys on main since 2026-10-05.
 - `platforms/ci/validations/spec_trace.py`: journey↔REQ↔FEAT↔test traceability checker (`check`, `generate`, `impact`, `mark-done`, `status`), a generic copy of stratics-docs' `tools/spec-trace/spec_trace.py` — the spec directory is an argument, test paths root at the spec's own repository name, any sibling clone directory or a `--repo` extra, and journeys require `owner`. Self-test: `platforms/ci/validations/test_spec_trace.py`. Verified green on the real stratics-docs corpus: 7 journeys, 83 steps, 40 REQs.
 - `platforms/ci/validations/pr_gates.py`, `platforms/kits/github/workflows/pr-contract.yml` and the `review-gates` skill (infra-github): the no-model PR gates as a reusable `workflow_call` check. A JSON config drives the Closes/proof-block/owned-areas/protected-paths/overlap/fragment/allowlist/CI gates — nothing project-specific is hardcoded; `proof-commands` is an output for the caller's `proof` job, which runs them with its own toolchain. Evidence: stratics-docs R-07 (`ops/review-loop/gates.py` + `reusable-pr-contract.yml`, merged as #342).
