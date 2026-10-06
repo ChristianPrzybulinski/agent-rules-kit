@@ -25,11 +25,14 @@ Read the README, repository structure and stack manifests. If `AGENTS.md` or `do
 
 - Select the closest project template and replace placeholders only with verified versions, commands and paths.
 - Keep repository `AGENTS.md` within 150 lines: Stack, Commands, Structure, condition→action Patterns, Always/Ask/Never boundaries, Sessions and pointers to detail.
+- Add one line to `AGENTS.md` naming the spec regimes: which `docs/spec` artifacts are spec-anchored (maintained) and that FEAT/task status is derived, never typed.
 - Do not copy the kit's global rules into the project.
 
 ## 3. Initialize the spec
 
 Create `docs/spec/spec.md` with a three-line vision, explicit out-of-scope, glossary and empty FEAT/REQ/DEC/DEBT indexes. Create `features/`, `requirements/{functional,non-functional}/`, `decisions/` and `debts/`.
+
+Declare the two regimes in `spec.md` (see `references/sdd-process.md`, Regimes): spec-anchored for contracts, decisions, requirements, journeys and the index; spec-first for FEAT bodies and task tables.
 
 ## 4. Record existing decisions
 
