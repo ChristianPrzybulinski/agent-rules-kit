@@ -4,8 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [10.2.0] - 2026-10-06
+
 ### Added
 - `feature.schema.json` and the `spec-feature.md` template: optional `scope` field, a unique list drawn from `server`, `client` and `docs`, naming the repositories a FEAT touches. Evidence: all 52 Stratics FEATs carry `scope`, and stratics-docs' synced `.github/spec-lint/schemas/feature.schema.json` already accepts it, because it was synced from a kit checkout that had this change uncommitted (`git log -S'"scope"'` finds nothing on kit main). Syncing from kit main would reject every FEAT with "Additional properties are not allowed ('scope' was unexpected)".
+- `sync-project.sh`: `--workflow <file>` names the project CI file that runs `check_spec.py` (default `spec-lint.yml` when install copies the kit workflow). Without the option, `--check` accepts any file under `.github/workflows/` containing `check_spec.py`, and install copies the kit workflow only when the project has none. Evidence: stratics-docs folded the validator into `docs-checks.yml`, so `--check` failed with "sync: spec-lint.yml missing" on a correctly synced project.
 
 ### Changed
 - `check_spec.py`: FEAT `requirements:` and REQ `features:` must now agree. A link listed on one side only fails, in either direction. This replaces the one-way "REQ not listed in any FEAT" check, which the new rule covers. Evidence: on stratics-docs main `9c94767d7` (2026-10-05), FEAT-052 listed REQ-F-001 and REQ-F-003, but neither REQ listed FEAT-052, and the previous check passed (fixed in stratics-docs#280). Self-test: `platforms/ci/validations/test_check_spec.py`, run by the kit's CI. Migration: a project whose links disagree fails spec-lint after its next `sync-project.sh`; fix the side that is missing the link.
