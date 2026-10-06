@@ -489,4 +489,59 @@ skill_count="$(find "$TEST_HOME/.ai-kit"/plugins/*/skills -mindepth 1 -maxdepth 
 index_count="$(grep -ch "^| \`[a-z0-9-][a-z0-9-]*\` |" "$TEST_HOME/.ai-kit"/plugins/*/INDEX.md | awk '{s+=$1} END {print s+0}')"
 [[ "$index_count" == "$skill_count" ]] || fail "$skill_count skills but $index_count index rows"
 
-printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests)\n' "$skill_count"
+# sync-project.sh: profile inference plus the generated CLAUDE.md and
+# .claude/settings.json (run from the $SOURCE fixture copy, not the live kit).
+mkdir -p "$ROOT/proj"
+printf '# proj\n' > "$ROOT/proj/AGENTS.md"
+touch "$ROOT/proj/project.godot"
+if ! "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/proj" >"$ROOT/sync-install.out" 2>&1; then
+  cat "$ROOT/sync-install.out" >&2
+  fail "sync-project install failed"
+fi
+grep -Fq 'sync: profile=godot (inferred)' "$ROOT/sync-install.out" \
+  || fail "sync-project did not infer the godot profile"
+first_hashes="$(shasum -a 256 "$ROOT/proj/CLAUDE.md" "$ROOT/proj/.claude/settings.json")"
+if ! "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/proj" >"$ROOT/sync-reinstall.out" 2>&1; then
+  cat "$ROOT/sync-reinstall.out" >&2
+  fail "second sync-project install failed"
+fi
+[[ "$(shasum -a 256 "$ROOT/proj/CLAUDE.md" "$ROOT/proj/.claude/settings.json")" == "$first_hashes" ]] \
+  || fail "sync-project is not idempotent"
+[[ "$(grep -c '@ai-kit' "$ROOT/proj/.claude/settings.json")" == "5" ]] \
+  || fail "godot settings.json does not list exactly 5 @ai-kit plugins"
+if ! "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/proj" >"$ROOT/sync-check.out" 2>&1; then
+  cat "$ROOT/sync-check.out" >&2
+  fail "sync-project --check failed on a generated repo"
+fi
+python3 - "$ROOT/proj/.claude/settings.json" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+data["enabledPlugins"]["dev-java@ai-kit"] = True
+with open(path, "w", encoding="utf-8") as fh:
+    fh.write(json.dumps(data, indent=2) + "\n")
+PY
+set +e
+sync_check_out="$("$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/proj" 2>&1)"
+sync_check_status=$?
+set -e
+[[ "$sync_check_status" -eq 1 ]] || fail "sync-project --check accepted an edited enabledPlugins"
+[[ "$sync_check_out" == *"diverges for profile godot"* ]] \
+  || fail "sync-project --check did not report the godot divergence"
+mkdir -p "$ROOT/proj2"
+printf '# mine\n' > "$ROOT/proj2/CLAUDE.md"
+touch "$ROOT/proj2/AGENTS.md" "$ROOT/proj2/pom.xml"
+set +e
+sync_refuse_out="$("$SOURCE/platforms/tools/sync-project.sh" "$ROOT/proj2" 2>&1)"
+sync_refuse_status=$?
+set -e
+[[ "$sync_refuse_status" -eq 1 ]] || fail "sync-project did not refuse a hand-written CLAUDE.md"
+[[ "$sync_refuse_out" == *"is not generated"* ]] \
+  || fail "sync-project refusal did not report 'is not generated'"
+[[ "$(grep -c '^# mine$' "$ROOT/proj2/CLAUDE.md")" == "1" ]] \
+  || fail "hand-written CLAUDE.md changed"
+[[ ! -e "$ROOT/proj2/.claude/settings.json" ]] || fail "settings.json was written despite the refusal"
+[[ ! -e "$ROOT/proj2/.github/spec-lint" ]] || fail "spec-lint was written despite the refusal"
+
+printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project)\n' "$skill_count"
