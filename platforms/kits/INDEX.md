@@ -4,7 +4,7 @@ Scope: configuration and infra templates a project copies (not read by the agent
 
 | Kit | Contents | When to use |
 |---|---|---|
-| `docker/` | PostgreSQL+Redis compose, multi-stage Dockerfile.java, init SQL, .env.example | project local infra |
+| `docker/` | PostgreSQL + Mailpit compose (an optional Valkey service commented out), multi-stage Dockerfile.java, init SQL, .env.example | project local infra |
 | `git-lfs/` | ready `.gitattributes` | before the first binary in the repo |
 | `github/` | workflows (spec-lint, gitleaks, pr-contract, ci-java, ci-godot), PR template, CODEOWNERS, labels + sync, dependabot | every new repo |
 | `godot/` | Godot `.gitignore`, editor hints, `make_spritesheet.py` | Godot project |

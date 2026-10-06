@@ -41,6 +41,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `check_kit.py` accepts `PostToolUse` hook events (matcher must `re.fullmatch` `Edit` and `Write`, `type: command`, timeout at most 30; the PreToolUse guard keeps its 10 s ceiling) and runs `hook_post_edit_cases.json` in a throwaway repo per case with stub tools first on `PATH` and a `python3` symlink to the real interpreter. `docs/design.md` gains the "Formatting runs in a hook, not in instructions" principle, `docs/maintenance.md` extends the fail-open statement to the new hook, and the README platform table and root INDEX row name it. Proof: negative runs fail with `timeout must be at most 30` (timeout 31) and `matcher must match Edit and Write` (matcher `^Edit$`); `grep -c 'PostToolUse' platforms/ci/validations/check_kit.py` prints 8 (P2-07).
 - The `docs/design.md` copy principle is now "zero content copies on the machine, one versioned copy per repository" (skills join path rules and spec validators as allowed generated copies), a second `.agents/skills` copy is recorded as left out because Devin also scans `.claude/skills`, and `sync-project.sh --check` extends to the vendored manifest: `KIT_VERSION`, profile and skill-set equality, sha256 per listed file, unlisted files in marked directories and generated-but-unlisted skills are all reported, while a `--vendor-skills --check` without a manifest fails pointing at the resync command. Proof: the drift, extra-file and profile-switch cases in `smoke.sh` and `test_sync_project.py`.
 
+### Fixed
+- `platforms/kits/INDEX.md`: the `docker/` row described a PostgreSQL+Redis compose; the compose ships PostgreSQL + Mailpit with an optional Valkey service commented out (Redis was replaced earlier). Found in the Stratics architect review of P2-01.
+
 ## [10.3.0] - 2026-10-06
 
 ### Added
