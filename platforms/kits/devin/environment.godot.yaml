@@ -1,0 +1,27 @@
+# keys verified 2026-10-06 against docs.devin.ai/onboard-devin/environment-yaml (initialize and maintenance: block scalar or step list; knowledge: list of name/contents)
+# Copy to environment.yaml at the project root. Keep GODOT_VERSION equal to the CI container tag and project.godot.
+initialize: |
+  GODOT_VERSION=4.7.2
+  sudo apt-get update
+  sudo apt-get install -y git-lfs unzip wget python3-pip
+  git lfs install
+  wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+  wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+  unzip -q Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+  sudo mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 /usr/local/bin/godot
+  mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+  unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+  mv templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+  test ! -f requirements-gdtoolkit.txt || pip install -r requirements-gdtoolkit.txt
+
+maintenance: |
+  git lfs pull
+  godot --headless --path . --import
+
+knowledge:
+  - name: import
+    contents: godot --headless --path . --import
+  - name: test
+    contents: godot --headless --path . -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode
+  - name: scope
+    contents: Change only the paths in the issue's Files cell; a needed path outside it is a blocker, not a widening.

@@ -1,0 +1,18 @@
+# keys verified 2026-10-06 against docs.devin.ai/onboard-devin/environment-yaml (initialize and maintenance: block scalar or step list; knowledge: list of name/contents)
+# Copy to environment.yaml at the project root. Keep the pins equal to the docs checks workflow.
+initialize: |
+  sudo apt-get update
+  sudo apt-get install -y git-lfs python3-pip
+  git lfs install
+  pip install pyyaml jsonschema==4.25.1 referencing==0.36.2
+
+maintenance: |
+  git lfs pull
+
+knowledge:
+  - name: spec-lint
+    contents: CI=1 python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas
+  - name: spec-trace
+    contents: python3 tools/spec-trace/spec_trace.py check
+  - name: scope
+    contents: Change only the paths in the issue's Files cell; a needed path outside it is a blocker, not a widening.
