@@ -399,7 +399,7 @@ guard_output="$(printf '%s\n' '{"tool_name":"Bash","tool_input":{"command":"git 
 guard_status=$?
 set -e
 [[ "$guard_status" -eq 2 ]] || fail "hook guard blocked command exited $guard_status"
-[[ "$guard_output" == *'"decision": "block"'* ]] || fail "hook guard block JSON missing"
+[[ "$guard_output" == *'"permissionDecision": "deny"'* ]] || fail "hook guard deny JSON missing"
 grep -Fq 'ai-kit guard: git push --force is destructive' "$ROOT/hook-blocked.err" \
   || fail "hook guard stderr reason missing"
 allowed_output="$(printf '%s\n' '{"tool_name":"Bash","tool_input":{"command":"git push origin feature/x"}}' \
