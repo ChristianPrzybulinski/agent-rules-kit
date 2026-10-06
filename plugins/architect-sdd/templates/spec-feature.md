@@ -13,6 +13,7 @@ owner: "[product]"
 created: "YYYY-MM-DD"
 updated: "YYYY-MM-DD"
 ---
+<!-- status: proposed, clarified and planned are set by the SDD steps; in-progress, validated and delivered are derived from GitHub by tooling. Never edit status by hand. -->
 
 # FEAT-000 — [Title]
 
@@ -55,7 +56,7 @@ updated: "YYYY-MM-DD"
 <!-- filled by sdd-plan -->
 
 ## Tasks
-<!-- filled by sdd-tasks -->
+<!-- filled by sdd-tasks; State is derived from the task issue (merged PR = done) and never edited by hand -->
 
 | ID | Task | Files | Proof of completion | Covers | Depends on | State | Complexity | Model | Wave |
 |---|---|---|---|---|---|---|---|---|---|

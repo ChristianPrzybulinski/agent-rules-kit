@@ -29,9 +29,15 @@ Repeat `implement → validate` per issue until READY. Run `to-card` after `task
 
 `FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `J-nn` → `journeys/`. Number sequentially per kind namespace (DTEC, DGME, DPRO); never reuse.
 
-Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). `delivered` means merged to `main` with no flag or the flag on. Journeys: `proposed → approved` (or `retired`).
+Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). From `in-progress` on the value is derived (see Regimes). `delivered` means merged to `main` with no flag or the flag on. Journeys: `proposed → approved` (or `retired`).
 
 Every spec/decision classifies claims as `[FACT]`, `[DECISION]`, `[PROPOSAL]`, `[HYPOTHESIS]` or `[BLOCKER]`.
+
+## Regimes
+
+Two regimes, after Böckeler/Thoughtworks (2025-10: spec-first, spec-anchored, spec-as-source; the kit has no spec-as-source):
+- spec-anchored: maintained and validated for the life of the product: `protocol/` schemas and examples, content schemas, decisions (DTEC/DGME/DPRO), requirements (REQ-F/REQ-NF), journeys (where the project has them) and the `spec.md` index. Every change is a reviewed PR.
+- spec-first: FEAT bodies and task tables. Written to cut the work, frozen as history once delivered; FEAT `status` and task `State` are derived by tooling from GitHub, never edited by hand.
 
 ## Project layout
 
