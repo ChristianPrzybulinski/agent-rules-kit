@@ -1,6 +1,6 @@
 ---
 name: sdd-plan
-description: SDD step 5 — technical FEAT plan and decisions. Use when clarification and audit are complete. Not for task breakdown (skill sdd-tasks).
+description: SDD step 4 — technical FEAT plan and decisions. Use when clarification and check are complete. Not for task breakdown (skill sdd-tasks).
 argument-hint: "FEAT-nnn [technical constraints]"
 triggers:
   - user
@@ -13,13 +13,13 @@ allowed-tools:
   - exec
 ---
 
-# SDD 5 — Plan
+# SDD 4 — Plan
 
 Process: `../sdd-constitution/references/sdd-process.md`.
 
 ## 1. Confirm readiness
 
-Require `status: clarified` and an audit without a security/integrity failure. Read the actual modules/files plus repository rules; do not infer structure from the desired design.
+Require `status: clarified` and an `sdd-check` report without a security/integrity failure. Read the actual modules/files plus repository rules; do not infer structure from the desired design.
 
 ## 2. Write the FEAT Plan
 
@@ -39,6 +39,6 @@ A choice with a rejected reasonable alternative gets `DTEC-nnn-slug.md` (or `DGM
 
 ## 4. Check restraint and consistency
 
-Do not add queue/cache/service/layer without demonstrated need. Ensure every criterion has a planned proof, then set `status: planned`, update History and run `sdd-analyze` with no critical/high findings.
+Do not add queue/cache/service/layer without demonstrated need. Ensure every criterion has a planned proof, then set `status: planned`, update History and run `sdd-check` with no critical/high findings.
 
-Done when: the Plan names real files/boundaries, every criterion has a test, decisions have DEC or justification, and consistency analysis is unblocked.
+Done when: the Plan names real files/boundaries, every criterion has a test, decisions have DEC or justification, and the check is unblocked.

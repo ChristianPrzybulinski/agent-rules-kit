@@ -61,7 +61,7 @@ updated: "YYYY-MM-DD"
 |---|---|---|---|---|---|---|---|---|---|
 
 ## Audit
-<!-- filled by sdd-audit (or a FEAT-000.checklist.md file) -->
+<!-- filled by the calling session from the sdd-check report (or a FEAT-000.checklist.md file) -->
 
 ## History
 

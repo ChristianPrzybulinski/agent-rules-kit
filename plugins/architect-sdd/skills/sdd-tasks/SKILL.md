@@ -1,6 +1,6 @@
 ---
 name: sdd-tasks
-description: SDD step 6 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement).
+description: SDD step 5 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement).
 argument-hint: "FEAT-nnn"
 triggers:
   - user
@@ -10,7 +10,7 @@ allowed-tools:
   - edit
 ---
 
-# SDD 6 — Tasks
+# SDD 5 — Tasks
 
 Process: `../sdd-constitution/references/sdd-process.md`.
 
@@ -40,7 +40,7 @@ Waves: contracts, schemas and DECs go to wave 0, sequential; two tasks share a w
 
 ## 4. Check coverage
 
-Every acceptance criterion appears in at least one task; every task covers a criterion or is explicitly infrastructure. Run `sdd-analyze` A8 and remove vague “implement the rest” rows.
+Every acceptance criterion appears in at least one task; every task covers a criterion or is explicitly infrastructure. Run `sdd-check` row C8 (criterion without task or task without criterion) and remove vague “implement the rest” rows.
 
 ## 5. Pre-cut checklist (before issues are created)
 
