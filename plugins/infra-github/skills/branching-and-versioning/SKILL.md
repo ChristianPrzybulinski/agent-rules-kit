@@ -15,7 +15,7 @@ allowed-tools:
 
 ## 1. Start from releasable main
 
-`main` is the only long-lived branch and stays green. Update it, then create `feature/FEAT-nnn-name` (`fix/`, `docs/`, `chore/` for non-features). Do not create develop or release branches.
+`main` is the only long-lived branch and stays green. Update it, then create `feature/FEAT-nnn-name` (`fix/`, `docs/`, `chore/` for non-features). Do not create develop or release branches. `spike/<topic>` is the only exception: it is time-boxed (skill sdd-spike), never merged to `main`, and deleted after its report.
 
 ## 2. Keep incomplete work safe
 
@@ -29,7 +29,7 @@ Use `<type>(<scope>): <imperative description>` with `Refs: FEAT-nnn`, `Closes #
 
 ## 4. Integrate without rewriting history
 
-Rebase the feature onto current `main`, run gates, then use a squash PR so one feature becomes one main commit. Ask before any force-push and use `--force-with-lease` only on the feature branch; never rewrite public `main` history.
+Except for `spike/` branches, rebase the feature onto current `main`, run gates, then use a squash PR so one feature becomes one main commit. Ask before any force-push and use `--force-with-lease` only on the feature branch; never rewrite public `main` history.
 
 ## 5. Select versions
 
