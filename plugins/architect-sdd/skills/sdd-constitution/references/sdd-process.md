@@ -11,7 +11,7 @@ Entry points: vague idea → `/grilling` first, then `sdd-specify` when problem/
 
 ## Flow
 
-Repeat `implement → validate` until READY. Run `to-card` after specify to open and after delivery to close.
+Repeat `implement → validate` per issue until READY. Run `to-card` after `tasks` to cut one issue per task row (wave order) and after delivery to close; `implement` runs in one worktree per issue and opens one PR per issue, which the architect reviews before merge.
 
 | Step | Skill | Input | Output |
 |---|---|---|---|
@@ -22,9 +22,9 @@ Repeat `implement → validate` until READY. Run `to-card` after specify to open
 | 4 | `sdd-audit` | clarified FEAT | quality checklist/gaps |
 | 5 | `sdd-plan` | audited FEAT | Plan + DECs; planned |
 | 6 | `sdd-tasks` | Plan | ordered task rows |
-| 7 | `sdd-implement` | Tasks | code/tests/docs; in-progress |
+| 7 | `sdd-implement` | one task issue | code/tests/docs; PR per issue |
 | 8 | `validate-implementation` | FEAT + delivery | READY/PARTIAL/NOT READY |
-| 9 | `sdd-to-card` | FEAT | synchronized GitHub issue |
+| 9 | `sdd-to-card` | task rows + FEAT | one issue per task, FEAT card |
 
 ## Identifiers and status
 
@@ -48,10 +48,3 @@ docs/spec/
 
 Templates: `../../../templates/spec-*.md`. Bootstrap: `platforms/kits/sdd/init-spec.sh <repo>`.
 
-## Variant: one issue per task with a review loop
-
-A documented alternative to step 9's per-FEAT card, for parallel agents or a second implementer on one
-backlog: after `sdd-tasks`, extend each row with `Complexity` (Low|Med|High), `model` and `Wave` (shared
-only when file sets are disjoint), then open one issue per task — title `[FEAT-NNN Tn] <task>`, body
-the row verbatim. Every executor runs the same no-model gates before review (skill `review-gates`); a
-PR that fails one stays a draft.
