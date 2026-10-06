@@ -1,6 +1,6 @@
 ---
 name: skeptic
-description: Adversarial check of a claim or proposed fix. Use when the user suggests a solution, a claim is unproven, or confidence <98%. Not for bugs (skill investigate).
+description: Adversarial check of a claim or proposed fix. Use when the user suggests a solution or a claim has no source yet. Not for bugs (skill investigate).
 argument-hint: "[claim to verify — default: last relevant claim]"
 triggers:
   - user
@@ -17,7 +17,7 @@ allowed-tools:
 ## Policy
 
 - Treat every claim, including the user's and your own, as a hypothesis until a source or observation supports it.
-- Require more than 98% confidence to proceed without a caveat; below that, state what is missing and the next test.
+- Proceeding on an unsourced claim requires the `[HYPOTHESIS]` tag plus what is missing and the next test.
 - Never invent a source, command output, API, version, file or behavior.
 - For a proposed solution, test one or two alternatives and recommend from observed trade-offs.
 - When new evidence overturns an earlier conclusion, state the correction explicitly.
@@ -57,7 +57,7 @@ Confidence: NN%
 Against: <evidence and source>
 For: <evidence and source>
 Alternatives: <option and trade-off, when applicable>
-Recommendation: <action; below 98%, missing evidence and next test>
+Recommendation: <action; for PARTIAL or UNDETERMINED, missing evidence and next test>
 ```
 
 ## 6. Respect the boundary
@@ -66,4 +66,4 @@ Recommendation: <action; below 98%, missing evidence and next test>
 - Ask before destructive verification.
 - Reasonable effort without a deciding observation ends as `UNDETERMINED`, not a guess.
 
-Done when: contrary and favorable evidence are sourced, the verdict names confidence, and any sub-98% gap has a concrete next test.
+Done when: contrary and favorable evidence are sourced, the verdict names confidence, and any verdict other than CONFIRMED or REFUTED has a concrete next test.

@@ -11,6 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `platforms/kits/docker/compose.yml`: `postgres:18` (data dir under `/var/lib/postgresql`) and Mailpit; Redis replaced by a commented optional Valkey service.
 - `postgresql` skill: `postgres-17.md` renamed to `postgres-18.md` with the PG 18 facts and data-dir change.
 - Machine facts moved out of shared docs (`docs/maintenance.md`, `godot-4-versions.md`, `java-25-lts.md`) into git-ignored `docs/machine.local.md` — template at `docs/machine.local.md.example`; `.env` is now git-ignored.
+- `plugins/core/AGENTS.md` section Skepticism rewritten as verifiable rules (an unsourced claim is tagged `[HYPOTHESIS]`; unblocked ambiguity -> decide and state the assumption in one line; a real blocker -> one question with 2-4 options and a recommendation), the numeric 98% confidence threshold removed from the global rules and from the `skeptic` policy and description, and the duplicate ambiguity lines in Work loop and Communication folded into Skepticism. Evidence: `AGENTS.md:15` ("Confidence < 98% -> do not proceed") contradicted `AGENTS.md:29` ("Ambiguous but unblocked -> decide, state the assumption, proceed"), so the agent picked one at random (assessment §4.4, item B1). Proof: `grep -n '98' plugins/core/AGENTS.md plugins/quality-core/skills/skeptic/SKILL.md plugins/quality-core/INDEX.md` prints nothing, `grep -c 'Ambigu' plugins/core/AGENTS.md` prints 1 and the file stays at 57 lines (limit 60).
 
 ## [10.2.0] - 2026-10-06
 
