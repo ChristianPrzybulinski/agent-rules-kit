@@ -4,11 +4,11 @@ Phase: 3 · Repos: kit · Branch to create: feat/p3-07-verification-gates-and-wo
 
 ## Goal
 
-Make every `sdd-implement` task end at a verification gate instead of at a claim, and make every clean-checkout review leave the repository as it found it. After this change, `sdd-implement` §2 tells the executor how the proof becomes a gate (in Claude Code `/goal` keeps the session running until the proof exits 0; in Devin the `proof` block of the PR body is re-run by the reviewer), and demands a screenshot or GIF for a visual change; `reviewer` and `validate-implementation` always run `git worktree remove --force` plus `git worktree prune` after the clean checkout, even when a proof fails. Measurable result: `git worktree list` in a reviewed repository has the same number of lines before and after a review (Stratics had 53 leftover worktrees after one batch), the three files stay at or under 80 lines, no skill description or index changes, and all four kit gates pass.
+Make every `sdd-implement` task end at a verification gate instead of at a claim, and make every clean-checkout review leave the repository as it found it. After this change, `sdd-implement` §2 tells the executor how the proof becomes a gate (in Claude Code a user-set `/goal` condition keeps the session running until the proof output shows exit 0; in Devin the `proof` block of the PR body is re-run by the reviewer), and demands a screenshot or GIF for a visual change; `reviewer` and `validate-implementation` always run `git worktree remove --force` plus `git worktree prune` after the clean checkout, even when a proof fails. Measurable result: `git worktree list` in a reviewed repository has the same number of lines before and after a review (Stratics had 53 leftover worktrees after one batch), the three files stay at or under 80 lines, no skill description or index changes, and all four kit gates pass.
 
 ## Why
 
-- assessment §5, verification row: Anthropic's `best-practices` prescribes "if you cannot verify, do not ship" with `/goal`, a Stop-hook gate and an adversarial reviewer; verdict "correct; `/goal` and Stop-gate are missing in `sdd-implement`". The skill stops at "run the proof and summarize" (`plugins/architect-sdd/skills/sdd-implement/SKILL.md:29`), so a session can end with a failing proof recorded as prose.
+- assessment §5, verification row: Anthropic's `best-practices` prescribes "if you cannot verify, do not ship" with `/goal`, a Stop-hook gate and an adversarial reviewer; verdict "correct; `/goal` and Stop-gate are missing in `sdd-implement`". The skill stops at `Run the task's proof literally and summarize output in History.` (`plugins/architect-sdd/skills/sdd-implement/SKILL.md:29`), so a session can end with a failing proof recorded as prose.
 - assessment §6 item C3: "End each task with `/goal "<task proof> passes"` (or a Stop-hook that runs the proof) and, for a visual change, require a screenshot/GIF. Include worktree cleanup in `reviewer`/`validate-implementation` (`git worktree remove`; `git worktree prune`)".
 - assessment §4.10: "`reviewer` creates worktrees (`git worktree add --detach`) and does not remove them; the project accumulated 53 worktrees and 61 orphan branches." Source fact: stratics-docs `docs/spec/decisions/DPRO-011-orchestrated-review-loop.md:122`: "[FACT] After batch-20261004-141711, 61 merged branches and 53 worktrees were left behind."
 - Both review procedures create the worktree and never mention removal: `plugins/quality-core/agents/reviewer.md:21` and `plugins/quality-core/skills/validate-implementation/SKILL.md:31` (grep `worktree remove` over `plugins/quality-core/` returns 0 lines on 2026-10-06). The kit already documents the commands in `plugins/core/skills/parallelize/references/worktrees.md:19-20`, but nothing in the review path uses them.
@@ -17,6 +17,7 @@ Make every `sdd-implement` task end at a verification gate instead of at a claim
 
 ## Current state
 
+- Line numbers below are those of `main` on 2026-10-06, before P1-08; after P1-08 anchor on the quoted sentences only (P1-08 replaces §1 and §4 of `sdd-implement`, so `:45` and the exact line counts no longer hold).
 - `plugins/architect-sdd/skills/sdd-implement/SKILL.md` (45 lines; description at `:3` stays unchanged, so `plugins/architect-sdd/INDEX.md:11` stays unchanged). Lines 24-33:
   ```text
   ## 2. Execute each task
@@ -48,12 +49,16 @@ Make every `sdd-implement` task end at a verification gate instead of at a claim
 
 1. kit: edit `plugins/architect-sdd/skills/sdd-implement/SKILL.md` §2. Keep steps 1-4 as they are. Insert one new step directly after the step that reads `Run the task's proof literally and summarize output in History.` and renumber the two steps that follow it (conformance review, atomic commit). New step, verbatim:
    ```text
-   5. Gate on the proof before moving on. In Claude Code (Claude-specific) run `/goal "<proof command> exits 0"` so the session cannot stop until the proof passes; verify the exact `/goal` syntax against code.claude.com/docs/en/best-practices before relying on it. In Devin or any other executor, the `proof` block of the PR body is the gate: the reviewer re-runs every line on a clean checkout and a failing line blocks. For a visual change (scene, UI, shader, animation) the PR carries a screenshot or GIF; `--headless` renders nothing, so capture from the editor or run the capture under `xvfb-run` in CI (verify against the Godot command-line docs before relying on it).
+   5. Gate on the proof before moving on. In Claude Code (Claude-specific) the user sets `/goal <proof command> exits 0` before the task starts (the agent cannot invoke the built-in command itself); the goal evaluator re-checks the transcript after every turn until the proof output shows exit 0, so paste the literal proof output. Verify the syntax against code.claude.com/docs/en/goal before relying on it. In Devin or any other executor, the `proof` block of the PR body is the gate: the reviewer re-runs every line on a clean checkout and a failing line blocks. For a visual change (scene, UI, shader, animation) the PR carries a screenshot or GIF; `--headless` renders nothing, so capture from the editor or run the capture under `xvfb-run` in CI (verify against the Godot command-line docs before relying on it).
    ```
-   Then change `:45` so the done-condition names the gate: replace `all tasks and proofs are recorded` with `all tasks and proofs are recorded and gated`. Result: 46 lines; nothing else in the file changes. Do not add a `/goal` line anywhere else and do not mention Stop hooks in the skill.
-2. kit: edit `plugins/quality-core/agents/reviewer.md:21`. Keep the text up to and including the parenthesis that ends with `<sha>`)` and insert, immediately after it, this text (same line):
+   Then, on the line that starts with `Done when:`, append `and gated` after the word `recorded` (or, if P1-08 reworded that line, insert `each proof gated,` as the first clause after `Done when:`). Result: one line more than before the change, at most 80; nothing else in the file changes. Do not add a `/goal` line anywhere else and do not mention Stop hooks in the skill.
+2. kit: edit `plugins/quality-core/agents/reviewer.md:21`. Replace, on that line, the fragment that reads
    ```text
-   Create `<tmp>` with `mktemp -d`, and always finish with `git worktree remove --force <tmp> && git worktree prune`, even when a proof fails or the review aborts (`trap` it on exit in a shell); before you start, `git worktree list` and remove leftovers from earlier reviews. A review that leaves a worktree behind is not finished.
+   <sha>`). The author's report
+   ```
+   with this fragment (same line, so the new text sits between the closing parenthesis and `The author's report`):
+   ```text
+   <sha>`). Create `<tmp>` with `mktemp -d`, and always finish with `git worktree remove --force <tmp> && git worktree prune`, even when a proof fails or the review aborts (`trap` it on exit in a shell); before you start, `git worktree list` and remove leftovers from earlier reviews. A review that leaves a worktree behind is not finished. The author's report
    ```
    The rest of step 2 (claims, re-runs, proofs that cannot fail) stays verbatim. The file stays at 31 lines; `allowed-tools`, `tools` and the `## Report` section do not change.
 3. kit: edit `plugins/quality-core/skills/validate-implementation/SKILL.md`. Leave line 31 byte-identical and add one new bullet directly after it (new line 32), verbatim:
@@ -71,7 +76,7 @@ Make every `sdd-implement` task end at a verification gate instead of at a claim
    git worktree add --detach "$tmp" HEAD
    (cd "$tmp" && false) || echo "proof failed, cleanup still runs"
    ```
-   Run it as one `bash -c '...'` invocation so the trap fires at exit, then `git worktree list | wc -l` must print the same number as `$before`. Paste both numbers in the PR body.
+   Run it as one script fed on stdin (`bash -s <<'EOF' … EOF`; a `bash -c '...'` wrapper breaks the single quotes of the `trap` line) so the EXIT trap fires when the script ends, then `git worktree list | wc -l` must print the same number as `$before`. Paste both numbers in the PR body.
 
 ## Out of scope
 
@@ -85,15 +90,15 @@ Make every `sdd-implement` task end at a verification gate instead of at a claim
 ## Acceptance criteria
 
 - [ ] `git diff --stat main` lists exactly four files: `plugins/architect-sdd/skills/sdd-implement/SKILL.md`, `plugins/quality-core/agents/reviewer.md`, `plugins/quality-core/skills/validate-implementation/SKILL.md`, `CHANGELOG.md`.
-- [ ] `grep -c '/goal "<proof command> exits 0"' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`; `grep -c 'Claude-specific' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`; `grep -c 'screenshot or GIF' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`; `grep -c 'xvfb-run' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`.
-- [ ] `grep -c 'Run the task.s proof literally' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1` (the anchor sentence survives); `grep -c 'recorded and gated' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`.
+- [ ] `grep -c '/goal <proof command> exits 0' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`; `grep -c 'Claude-specific' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`; `grep -c 'screenshot or GIF' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`; `grep -c 'xvfb-run' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`.
+- [ ] `grep -c 'Run the task.s proof literally' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1` (the anchor sentence survives); `grep -c 'recorded and gated\|each proof gated' plugins/architect-sdd/skills/sdd-implement/SKILL.md` → `1`.
 - [ ] `grep -c 'git worktree remove --force <tmp> && git worktree prune' plugins/quality-core/agents/reviewer.md plugins/quality-core/skills/validate-implementation/SKILL.md` → `1` for each file; `grep -c 'mktemp -d' ...` → `1` for each file.
 - [ ] `grep -rc 'Stop' plugins/core/hooks/hooks.json` → `0`; `git diff --stat main -- plugins/core/hooks plugins/architect-sdd/INDEX.md plugins/quality-core/INDEX.md` → empty.
-- [ ] `wc -l plugins/architect-sdd/skills/sdd-implement/SKILL.md plugins/quality-core/agents/reviewer.md plugins/quality-core/skills/validate-implementation/SKILL.md` → `46`, `31`, `69` (each at most 80).
+- [ ] `wc -l plugins/architect-sdd/skills/sdd-implement/SKILL.md plugins/quality-core/agents/reviewer.md plugins/quality-core/skills/validate-implementation/SKILL.md` → `reviewer.md` unchanged in count, the two `SKILL.md` files exactly one line longer than on `main` (`git show main:<path> | wc -l`), each at most 80.
 - [ ] `sed -n 25,31p plugins/quality-core/agents/reviewer.md | diff - <(git show main:plugins/quality-core/agents/reviewer.md | sed -n 25,31p)` → no output (report format unchanged); `sed -n 51,67p plugins/quality-core/skills/validate-implementation/SKILL.md | diff - <(git show main:plugins/quality-core/skills/validate-implementation/SKILL.md | sed -n 50,66p)` → no output (verdict block unchanged, shifted by the one new bullet).
 - [ ] `grep -c '^## \[Unreleased\]' CHANGELOG.md` → `1` and `grep -c 'worktree remove' CHANGELOG.md` → `1`.
 - [ ] The cleanup proof from Change step 6: `git worktree list | wc -l` prints the same number before and after; the literal output is in the PR body.
-- [ ] `platforms/tools/check.sh` → ends with `check: ok (12 plugins, 43 skills, ...)`; the skill description total stays 6,803.
+- [ ] `platforms/tools/check.sh` → prints one line starting with `check: OK (12 plugins, 43 skills, 3 rules, 18 templates,` (the index and link counts depend on what `docs/plans` holds on `main`: 17 indexes, 44 links before the assessment folder; a later `check: claude plugin validate skipped (claude not in PATH)` line is allowed); a `FAIL:` line that names a file outside your diff is reported under Unverified, not fixed; the skill description total stays 6,803.
 - [ ] `platforms/tools/smoke.sh` → exit 0.
 - [ ] `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` → `OK`.
 - [ ] `python3 platforms/ci/validations/check_kit.py --links` → `check: ok`.
@@ -107,7 +112,7 @@ Make every `sdd-implement` task end at a verification gate instead of at a claim
 - `sdd-implement` stays user-only (`triggers: [user]`, `disable-model-invocation: true`); `validate-implementation` keeps `agent: reviewer`, `context: fork`, `background: false`.
 - Hooks validator accepts only `PreToolUse` with timeout at most 10: this task adds no hook.
 - Backticked paths in skill and agent files are resolved by `check_kit.py` (`platforms/`, `plugins/`, `references/`, `templates/`, `./`, `../` prefixes); the new text cites no such path.
-- Conventional Commits with `Refs`: `feat(quality-core): verification gate in sdd-implement and worktree cleanup in reviewer` with `Refs: P3-07`.
+- Conventional Commits with `Refs`: `feat(sdd-implement,reviewer): proof gate per task and worktree cleanup after clean checkout` with `Refs: P3-07` (the kit scopes by skill or component, as in `feat(sdd-tasks): …` and `feat(check_spec): …`).
 - PR body = What / Why / How I tested (literal output of the four gates and the cleanup proof) / Refs.
 - Gates: `platforms/tools/check.sh`; `platforms/tools/smoke.sh`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`; `python3 platforms/ci/validations/check_kit.py --links`.
 
@@ -116,6 +121,6 @@ Make every `sdd-implement` task end at a verification gate instead of at a claim
 Final message, in this order:
 
 1. Done: the four touched paths, each with its final line count; every acceptance command with its literal result (not "passed"); the `git worktree list | wc -l` pair from the cleanup proof.
-2. Unverified: anything you could not run (for example `claude plugin validate` when `claude` is not on PATH, which `check.sh` reports as skipped) and the exact `/goal` and `xvfb-run` syntax if you could not reach the docs.
+2. Unverified: anything you could not run (for example `claude plugin validate` when `claude` is not on PATH, which `check.sh` reports as skipped) and the exact `/goal` syntax (code.claude.com/docs/en/goal) and `xvfb-run` syntax if you could not reach the docs.
 3. Next step: the PR URL, or the smallest blocker that stops the PR.
-4. Proposed CHANGELOG line (one bullet under `### Changed`): `sdd-implement` §2 gates each task on its proof (`/goal "<proof> exits 0"` in Claude Code; the PR `proof` block re-run by the reviewer in Devin) and requires a screenshot or GIF for a visual change; `reviewer` and `validate-implementation` now always run `git worktree remove --force` plus `git worktree prune` after the clean checkout, even on failure. Evidence: stratics-docs DPRO-011 records 53 worktrees and 61 branches left behind after batch-20261004-141711; assessment §5 verification row and §6 C3.
+4. Proposed CHANGELOG line (one bullet under `### Changed`): `sdd-implement` §2 gates each task on its proof (`/goal <proof> exits 0` set by the user in Claude Code; the PR `proof` block re-run by the reviewer in Devin) and requires a screenshot or GIF for a visual change; `reviewer` and `validate-implementation` now always run `git worktree remove --force` plus `git worktree prune` after the clean checkout, even on failure. Evidence: stratics-docs DPRO-011 records 53 worktrees and 61 branches left behind after batch-20261004-141711; assessment §5 verification row and §6 C3.

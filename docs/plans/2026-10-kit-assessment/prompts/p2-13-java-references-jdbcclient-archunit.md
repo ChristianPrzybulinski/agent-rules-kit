@@ -18,7 +18,7 @@ Add two `kind: detail` references to the `java-standards` skill in the kit: `ref
 
 All kit paths are relative to the agent-rules-kit repo (v10.1.0, branch to create from `main`). The skill folder holds `SKILL.md` (53 lines) and `references/build-and-dependencies.md` (47 lines) and `references/java-25-lts.md` (31 lines). There is no `references/jdbcclient-flyway.md` and no `references/archunit-rules.md` (both are new files). The folder's index is `plugins/dev-java/INDEX.md`; it lists skills, rules and templates only, references are not listed there (skills folders are exempt), so it does not change.
 
-`plugins/dev-java/skills/java-standards/SKILL.md:17-19`:
+`plugins/dev-java/skills/java-standards/SKILL.md:17-19` (pre-P2-12 text; P2-12 rewrites line 19 and line 43, see Change step 3):
 
 ```
 Names and functions: read skill `clean-code`. Test gates and coverage: read skill `testing`.
@@ -45,8 +45,8 @@ Source material to de-project (read-only, stratics-server repo, package `br.com.
 - `src/main/java/br/com/pos/adapters/outbound/persistence/SpringTransactionRunner.java:19-22`: `inTransaction(Supplier<T> work)` is `template.execute(status -> work.get())` on a `TransactionTemplate`; the port `TransactionRunner` lives in `application/command/`.
 - `src/main/java/br/com/pos/adapters/outbound/persistence/Timestamps.java:13-20`: `Instant` to `OffsetDateTime` (UTC) on write and back on read.
 - `src/main/java/br/com/pos/application/command/CommandExecutor.java:36-57` (quoted in Why): find receipt, compare `type` and `payloadHash` (mismatch throws), else run effects, `saveIfAbsent` with `clock.instant()`, and throw when the insert did not store a row (lost race) so the transaction rolls the effects back.
-- `src/test/java/br/com/pos/adapters/outbound/persistence/CommandTransactionIT.java:28-35`: `@Testcontainers` class with `@Container static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18")`; `:63-66` migrates with `Flyway.configure().dataSource(dataSource).load().migrate()` in `@BeforeAll`; wiring uses `JdbcClient.create(ds)` and `Clock.fixed(NOW, ZoneOffset.UTC)`.
-- `src/test/java/br/com/pos/ArchitectureTest.java:45-52` (`importsOnlyJdkAndDomain`: domain classes `onlyDependOnClassesThat` reside in `java..`, `javax..` or the domain package), `:54-69` (`noFrameworkOrLegacyImports`: `resideOutsideOfPackages("org.springframework..", "com.fasterxml.jackson..", "tools.jackson..", "java.sql..", "javax.sql..", "jakarta.websocket..", "jakarta.servlet..", "org.postgresql..", ...)`), `:72-78` and `:97-116` (`noNondeterminism`: no call to `Math.random`, `System.currentTimeMillis/nanoTime`, any `java.time.*.now`, `ThreadLocalRandom`, `UUID.randomUUID`, `Clock.system*`, `SecureRandom.getInstance*`, and no `new Random()`), `:139-162` (`layeredArchitecture().consideringOnlyDependenciesInLayers()` with layers Domain, Application, Adapters, Infra, Content and `mayOnlyBeAccessedByLayers(...)` pointing inwards), `:175-215` (negative fixtures `Bad*` and `GoodPure` that prove each rule fires). `pom.xml:94-96` uses `com.tngtech.archunit:archunit-junit5:1.5.1`.
+- `src/test/java/br/com/pos/adapters/outbound/persistence/CommandTransactionIT.java:28-35`: `@Testcontainers` class with `@Container static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18")`; `:60-64` migrates with `Flyway.configure().dataSource(dataSource).load().migrate()` in `@BeforeAll`; `:66-69` truncates (`TRUNCATE accounts RESTART IDENTITY CASCADE`) in `@BeforeEach`; wiring uses `JdbcClient.create(ds)` and `Clock.fixed(NOW, ZoneOffset.UTC)`.
+- `src/test/java/br/com/pos/ArchitectureTest.java:45-52` (`importsOnlyJdkAndDomain`: domain classes `onlyDependOnClassesThat` reside in `java..`, `javax..` or the domain package), `:54-69` (`noFrameworkOrLegacyImports`: `resideOutsideOfPackages("org.springframework..", "com.fasterxml.jackson..", "tools.jackson..", "java.sql..", "javax.sql..", "jakarta.websocket..", "jakarta.servlet..", "org.postgresql..", ...)`), `:72-78` and `:97-116` (`noNondeterminism`: no call to `Math.random`, `System.currentTimeMillis/nanoTime`, any `java.time.*.now`, `ThreadLocalRandom`, `UUID.randomUUID`, `Clock.system*`, `SecureRandom.getInstance*`, and no `new Random()`), `:139-162` (`layeredArchitecture().consideringOnlyDependenciesInLayers()` with layers Domain, Application, Adapters, Infra, Content and `mayOnlyBeAccessedByLayers(...)` pointing inwards), `:175-215` (the four negative tests) and `:218-284` (nested fixtures `BadSpring`, `BadLegacy`, `BadClock`, `BadRandom`, `BadMath`, `BadNow`, `BadUuid`, `BadClockFactory`, `BadSecureRandom`, `GoodPure` that prove each rule fires). `pom.xml:94-96` uses `com.tngtech.archunit:archunit-junit5:1.5.1`.
 
 ## Change
 
@@ -54,7 +54,7 @@ Source material to de-project (read-only, stratics-server repo, package `br.com.
 
 ```
 ---
-description: JdbcClient persistence without JPA: explicit RowMapper, named parameters, transaction boundary, receipt-based idempotency, Flyway, Testcontainers.
+description: JdbcClient persistence without JPA - explicit RowMapper, named parameters, transaction boundary, receipt-based idempotency, Flyway, Testcontainers.
 kind: detail
 ---
 ```
@@ -85,19 +85,18 @@ kind: detail
    - Rule 1, domain depends only on the JDK and itself: `classes().that(resideInAPackage("<root>.domain..")).should().onlyDependOnClassesThat(resideInAPackage("java..").or(resideInAPackage("javax..")).or(resideInAPackage("<root>.domain..")))`.
    - Rule 2, no framework or infrastructure imports in domain (and application, if the project chooses): `resideOutsideOfPackages("org.springframework..", "com.fasterxml.jackson..", "tools.jackson..", "java.sql..", "javax.sql..", "jakarta.servlet..", "jakarta.websocket..", "org.postgresql..")`.
    - Rule 3, no nondeterminism: a `DescribedPredicate<JavaMethodCall>` that rejects `Math.random`, `System.currentTimeMillis`, `System.nanoTime`, any `java.time.*` `now`, `ThreadLocalRandom`, `UUID.randomUUID`, `Clock.system*`, `SecureRandom.getInstance*`, plus `callConstructorWhere` the target is assignable to `java.util.Random`; give the predicate body as one fenced snippet of at most 12 lines.
-   - Rule 4, layers point inwards: `layeredArchitecture().consideringOnlyDependenciesInLayers()` with layers `Domain`, `Application`, `Adapters`, `Infra` and `whereLayer("Domain").mayOnlyBeAccessedByLayers("Application", "Adapters", "Infra")`, `whereLayer("Application").mayOnlyBeAccessedByLayers("Adapters", "Infra")`, `whereLayer("Adapters").mayOnlyBeAccessedByLayers("Infra")`, `whereLayer("Infra").mayNotBeAccessedByAnyLayer()`; `.allowEmptyShould(true)` on every rule so an empty module does not pass vacuously by accident but a not-yet-populated layer does not fail the build.
+   - Rule 4, layers point inwards: `layeredArchitecture().consideringOnlyDependenciesInLayers()` with layers `Domain`, `Application`, `Adapters`, `Infra` and `whereLayer("Domain").mayOnlyBeAccessedByLayers("Application", "Adapters", "Infra")`, `whereLayer("Application").mayOnlyBeAccessedByLayers("Adapters", "Infra")`, `whereLayer("Adapters").mayOnlyBeAccessedByLayers("Infra")`, `whereLayer("Infra").mayNotBeAccessedByAnyLayer()`; `.allowEmptyShould(true)` on every rule, because ArchUnit 1.x fails a rule whose selection matches no class (`archRule.failOnEmptyShould=true` by default) and a not-yet-populated layer must not break the build; say explicitly that an empty selection then passes vacuously, which is why the negative fixtures below are mandatory.
    - Negative fixtures: nested `static final class Bad*` violators plus one `GoodPure` class, and tests asserting `assertThatThrownBy(() -> rule.check(withFixtures)).isInstanceOf(AssertionError.class).hasMessageContaining("Bad...")`; state that a rule without a failing fixture is not a gate.
    - Alternative, Spring Modulith: `ApplicationModules.of(Application.class).verify()` in one test enforces module boundaries from the package layout (`spring-modulith-starter-test`); write "verify against https://docs.spring.io/spring-modulith/reference/ before relying on it" next to the artifact name. Use it when the project is one Spring Boot application split into modules by package; keep ArchUnit when the rules go beyond module dependencies (nondeterminism, banned packages).
    - Policy line: never `@Disabled` or delete an architecture test to make a build pass; fix the dependency or change the rule in the same PR with the reason.
 
-3. Edit `plugins/dev-java/skills/java-standards/SKILL.md` (kit). Replace line 19 with the two lines below, verbatim, so the file names of both references appear (check_kit.py matches the file name as a substring):
+3. Edit `plugins/dev-java/skills/java-standards/SKILL.md` (kit). Line 19: keep its current text (after P2-12 it ends with `for verified Java 25 and Spring Boot 4.1 facts.`; before P2-12 with `for verified Java 25 facts.`) and insert directly after it, as line 20, the line below verbatim, so the file names of both references appear (check_kit.py matches the file name as a substring):
 
 ```
-Read `references/build-and-dependencies.md` for Maven/module gates and `references/java-25-lts.md` for verified Java 25 facts.
 Persisting without JPA: read `references/jdbcclient-flyway.md`. Architecture gate: read `references/archunit-rules.md`.
 ```
 
-   Then replace line 43 ("Persistence/JPA entities stay in the outer adapter when the domain model carries behavior.") with:
+   Then replace line 44 (line 43 before the insertion; whatever it reads: the pre-P2-12 `- Persistence/JPA entities stay in the outer adapter when the domain model carries behavior.` or the post-P2-12 `- Persistence stays in the outer adapter (JPA entities or JdbcClient row mappings, the project's declared choice); the domain model carries behavior and no framework annotations.`) with:
 
 ```
 - Persistence lives in the outbound adapter; with JPA the entity never leaves it, without JPA follow `references/jdbcclient-flyway.md`.
@@ -127,7 +126,7 @@ No change to `plugins/dev-java/INDEX.md`, `plugin.json`, `VERSION`, `rules/java.
 - [ ] `grep -rn 'br\.com\.pos\|DTEC-\|REQ-\|FEAT-\|Stratics' plugins/dev-java/` prints nothing.
 - [ ] `grep -c 'RowMapper' plugins/dev-java/skills/java-standards/references/jdbcclient-flyway.md` prints at least `1`; `grep -c 'ON CONFLICT' ...jdbcclient-flyway.md` prints at least `1`; `grep -c 'RandomGenerator' ...jdbcclient-flyway.md` prints at least `1`; `grep -c 'V<n>__' ...jdbcclient-flyway.md` prints at least `1`.
 - [ ] `grep -c 'layeredArchitecture\|onlyDependOnClassesThat\|ApplicationModules' plugins/dev-java/skills/java-standards/references/archunit-rules.md` prints `3` or more; `grep -c 'randomUUID' ...archunit-rules.md` prints at least `1`.
-- [ ] `grep -c 'JPA' plugins/dev-java/skills/java-standards/SKILL.md` prints `1` (the rewritten line 43 only).
+- [ ] `grep -c 'JPA' plugins/dev-java/skills/java-standards/SKILL.md` prints `2` (the new line after line 19 and the rewritten persistence bullet), and `grep -c 'Persistence/JPA entities' plugins/dev-java/skills/java-standards/SKILL.md` prints `0`.
 - [ ] `git diff --stat main -- plugins/dev-java/INDEX.md VERSION plugins/dev-java/plugin.json` prints nothing.
 - [ ] `grep -n 'jdbcclient-flyway\|archunit-rules' CHANGELOG.md` finds the new bullet under `## [Unreleased]`.
 - [ ] Gates: `platforms/tools/check.sh` exits 0; `platforms/tools/smoke.sh` exits 0; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` prints `OK`; `python3 platforms/ci/validations/check_kit.py --links` exits 0 with no `not referenced in` and no `broken link` line.
@@ -146,6 +145,6 @@ No change to `plugins/dev-java/INDEX.md`, `plugin.json`, `VERSION`, `rules/java.
 
 ## Report back
 
-Final message in three parts: done (the three edited or created kit paths, the branch name, and each gate command with its literal last line), unverified (anything not run, for example the Spring Modulith artifact name or the ArchUnit version if the network was unavailable), next step (P2-14 for `@ServiceConnection` and offline Maven; P2-02 for the path-scoped rule lines). Close with the proposed one-line CHANGELOG entry:
+Final message in three parts: done (the four edited or created kit paths, the branch name, and each gate command with its literal last line), unverified (anything not run, for example the Spring Modulith artifact name or the ArchUnit version if the network was unavailable), next step (P2-14 for `@ServiceConnection` and offline Maven; P2-02 for the path-scoped rule lines). Close with the proposed one-line CHANGELOG entry:
 
-`- dev-java/java-standards: references/jdbcclient-flyway.md (JdbcClient without JPA, receipt-based idempotency, injected Clock/RandomGenerator, forward-only Flyway, Testcontainers) and references/archunit-rules.md (domain purity, no nondeterminism, inward layers, Spring Modulith alternative), linked from SKILL.md. Evidence: assessment §6 G2; the skill mentioned JPA only while the Stratics server forbids JPA and kept its ArchUnit rule set outside the kit.`
+`- dev-java/java-standards: references/jdbcclient-flyway.md (JdbcClient without JPA, receipt-based idempotency, injected Clock/RandomGenerator, forward-only Flyway, Testcontainers) and references/archunit-rules.md (domain purity, no nondeterminism, inward layers, Spring Modulith alternative), linked from SKILL.md. Evidence: assessment §6 G2; the skill mentioned JPA only while the Stratics server forbids JPA and kept its ArchUnit rule set outside the kit. Proof: check.sh, smoke.sh, unittest and check_kit.py --links green; both references at <n> and <m> lines.`

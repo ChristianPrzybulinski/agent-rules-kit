@@ -4,7 +4,7 @@ Phase: 1 · Repos: kit · Branch to create: fix/p1-06-godot-boot-proof from main
 
 ## Goal
 
-Replace every kit occurrence of the single command `godot --path . --headless --quit` (or `godot --headless --path . --quit`) used as the Godot boot/import proof with two commands, in this order: `godot --headless --path . --import`, which imports every resource, builds the script-class cache and quits, and `! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'`, which turns a script error printed at boot into a failing exit code. Measurable result: `grep -rn -- '--headless --quit' plugins platforms` prints nothing; every remaining `--quit` in `plugins/` and `platforms/` sits on a line that also contains `SCRIPT ERROR|Parser Error`; the `ci-godot.yml` import step fails on a project whose autoload script has a syntax error (today it passes with exit 0).
+Replace every kit occurrence of the single command `godot --path . --headless --quit` (or `godot --headless --path . --quit`) used as the Godot boot/import proof with two commands, in this order: `godot --headless --path . --import`, which imports every resource, builds the script-class cache and quits, and `! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'`, which turns a script error printed at boot into a failing exit code. Measurable result: `grep -rn -- '--headless --quit' plugins platforms` prints nothing; every remaining `--headless --path . --quit` in `plugins/` and `platforms/` is either the `| grep -Eq 'SCRIPT ERROR|Parser Error'` form or the `tee boot.log` line of `ci-godot.yml`; the `ci-godot.yml` import step fails on a project whose autoload script has a syntax error (today it passes with exit 0).
 
 ## Why
 
@@ -37,12 +37,14 @@ Replace every kit occurrence of the single command `godot --path . --headless --
   `project-agents-godot-2d.md:81` `- Always: run `--headless --quit` after touching assets; test a scene in isolation (F6) before the whole stage.`
 - kit `platforms/kits/godot/README.md:11` `| `../github/workflows/ci-godot.yml` | headless CI (import + GUT + manual export) |`
 - kit `platforms/kits/github/README.md:19` `- `ci-godot.yml` uses `barichello/godot-ci:4.7.2` (tag verified on Docker Hub on 2026-09-29). GUT tests only run if `addons/gut` exists. Windows/macOS export only via `workflow_dispatch` and requires `export_presets.cfg` committed to the repo.`
-- kit `CHANGELOG.md`: `## [Unreleased]` with `### Added` and `### Changed` (`### Changed` is main line 10); append to `### Changed`.
+- kit `CHANGELOG.md`: `### Changed` already exists under `## [Unreleased]`; append the bullet there.
 - kit `plugins/dev-godot/INDEX.md:8` and `plugins/quality-core/INDEX.md:8` repeat the two skill descriptions verbatim; neither description changes, so neither index changes.
 
 ## Change
 
 Use the flag order `--headless --path .` everywhere (the assessment, ARCHITECT.md delta 6 and both Stratics workflows use it), so one grep finds every occurrence.
+
+Line numbers below are those of `main` before this task; edit each file bottom-up or match the quoted content, because the earlier edit in a file shifts the later lines (+5 in `ci-godot.yml`, +1 in the template).
 
 1. kit `platforms/kits/github/workflows/ci-godot.yml`: replace lines 17-18 with this block, verbatim (same 6-space indentation as the neighbouring steps):
 
@@ -56,7 +58,7 @@ Use the flag order `--headless --path .` everywhere (the assessment, ARCHITECT.m
           ! grep -Eq 'SCRIPT ERROR|Parser Error' boot.log
 ```
 
-   Why two commands instead of the one-line `! godot ... | grep` form: `shell: bash` on GitHub Actions runs `bash -eo pipefail`, and under `pipefail` a Godot crash (non-zero exit) would make the negated pipeline succeed even when the log contains `SCRIPT ERROR`. Line one keeps the crash as a failure (the status quo of the old step; a non-zero exit here is a real boot failure; the Godot 4.7.2 shutdown segfault noted in stratics-client `ci.yml:52-54` affects editor-mode exports, not `--quit` without `--editor`); line two adds the log check. Replace line 34 (export job) with `        run: godot --headless --path . --import` and keep its `- name: Import` line; the export job needs no grep because `import-and-test` also runs on `workflow_dispatch`; the job keeps its own explicit `--import` step (the docs state `Implies --import` only for `--export-debug` and `--export-pack`). Lines 19-25 stay byte-identical (P1-05 rewrites them).
+   Why two commands instead of the one-line `! godot ... | grep` form: `shell: bash` on GitHub Actions runs `bash -eo pipefail`, and under `pipefail` a Godot crash (non-zero exit) would make the negated pipeline succeed even when the log contains `SCRIPT ERROR`. Line one keeps the crash as a failure (the status quo of the old step; a non-zero exit here is a real boot failure; the Godot 4.7.2 shutdown segfault noted in stratics-client `ci.yml:52-54` affects editor-mode exports, not `--quit` without `--editor`); line two adds the log check. The `! grep` line must stay the last line of the step: under `bash -e` a negated command never aborts the script, only its status as the final command fails the step (a line appended after it later, for example by P3-02 or a project, would silently mask the failure). Replace the export job's `run: godot --headless --path . --quit` line (main line 34; line 39 after the step-1 block) with `        run: godot --headless --path . --import` and keep its `- name: Import` line; the export job needs no grep because `import-and-test` also runs on `workflow_dispatch`; the job keeps its own explicit `--import` step (the docs state `Implies --import` only for `--export-debug` and `--export-pack`). Lines 19-25 stay byte-identical (P1-05 rewrites them).
 
 2. kit `plugins/dev-godot/skills/godot-standards/SKILL.md`: replace line 45 with these two lines, verbatim:
 
@@ -85,7 +87,7 @@ godot --headless --path . --import                                # import asset
 ! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'   # boot proof: --quit exits 0 after a script error
 ```
 
-   b. Replace line 81 with: `- Always: run the two boot-proof commands from Commands after touching assets or scripts; test a scene in isolation (F6) before the whole stage.`
+   b. Replace main line 81 (line 82 after 5a) with: `- Always: run the two boot-proof commands from Commands after touching assets or scripts; test a scene in isolation (F6) before the whole stage.`
    c. Lines 29, 31-32 and every other line stay unchanged.
 
 6. kit `platforms/kits/godot/README.md:11`: if the Use cell still reads `headless CI (import + GUT + manual export)`, replace it with `headless CI (import + boot proof + GUT + manual export)`. If P1-05 merged first and the cell starts with `headless CI (import, `, insert `boot proof, ` immediately after `import, ` and change nothing else; either way `grep -c 'boot proof' platforms/kits/godot/README.md` must print `1`.
@@ -102,7 +104,7 @@ No file is created or deleted. No manifest, rule, reference, `INDEX.md` or `VERS
 - P1-05 rewrites the rest of the `platforms/kits/godot/README.md:11` Use cell; when it rebases on this PR it must keep `boot proof` in the cell.
 - Movement lines in `godot-standards` §3 and the template (`project-agents-godot-2d.md:40`, `:83`): P1-04.
 - `plugins/dev-godot/rules/godot.md` content: P2-02 writes the rule's boot-proof line; it must use the same two commands and the same regex `grep -Eq 'SCRIPT ERROR|Parser Error'` as this task (P2-02 currently says `grep -q 'SCRIPT ERROR'`).
-- stratics-client `AGENTS.md:31` and `:59` (still `--headless --quit`): P2-15 regenerates it from the template. Do not edit the Stratics repositories.
+- stratics-client `AGENTS.md:31` and `:59` (still `--headless --quit`): P2-15 regenerates it from the template (p3-03 attributes these lines to P1-06; that is stale, the owner is P2-15). Do not edit the Stratics repositories.
 - gdtoolkit lint/format steps in `ci-godot.yml` and the client CI: P3-02.
 - Adding the boot-proof grep to stratics-docs `.github/workflows/reusable-ci-godot.yml` (it has `--import` at line 92 but no `SCRIPT ERROR` grep): no prompt owns it; name it in the PR body as a follow-up for the spec repository.
 - Online 2D references and generated-file rules (`*.uid`, `*.import`): P3-01 and D4.
@@ -115,15 +117,15 @@ No file is created or deleted. No manifest, rule, reference, `INDEX.md` or `VERS
 - [ ] `grep -rl -- '--headless --path . --import' plugins platforms | sort` prints exactly these five paths: `platforms/kits/github/workflows/ci-godot.yml`, `plugins/dev-godot/skills/godot-standards/SKILL.md`, `plugins/dev-godot/templates/project-agents-godot-2d.md`, `plugins/quality-core/agents/reviewer.md`, `plugins/quality-core/skills/validate-implementation/SKILL.md`.
 - [ ] `grep -c -- '--headless --path . --import' platforms/kits/github/workflows/ci-godot.yml` prints `2`; `grep -c "grep -Eq 'SCRIPT ERROR|Parser Error' boot.log" platforms/kits/github/workflows/ci-godot.yml` prints `1`; `grep -c 'shell: bash' platforms/kits/github/workflows/ci-godot.yml` prints `1` (`2` if P1-05 merged first).
 - [ ] `python3 -c "import yaml,sys; d=yaml.safe_load(open('platforms/kits/github/workflows/ci-godot.yml')); print(len(d['jobs']['import-and-test']['steps']), len(d['jobs']['export']['steps']))"` prints `4 5` (`5 5` if P1-05 merged first; pyyaml is a kit CI dependency; if missing locally, `pip3 install --user pyyaml`).
-- [ ] The GUT test step (main lines 19-25, now lines 24-30 after the five inserted lines) is byte-identical to main: `diff <(sed -n 24,30p platforms/kits/github/workflows/ci-godot.yml) <(git show main:platforms/kits/github/workflows/ci-godot.yml | sed -n 19,25p)` prints nothing. If P1-05 merged first, compare the test step by name instead of fixed lines: `diff <(sed -n "$(grep -n 'name:.*[Tt]ests' platforms/kits/github/workflows/ci-godot.yml | head -1 | cut -d: -f1),\$p" platforms/kits/github/workflows/ci-godot.yml) <(git show main:platforms/kits/github/workflows/ci-godot.yml | sed -n "$(git show main:platforms/kits/github/workflows/ci-godot.yml | grep -n 'name:.*[Tt]ests' | head -1 | cut -d: -f1),\$p")` prints nothing.
-- [ ] `wc -l < plugins/dev-godot/skills/godot-standards/SKILL.md` prints a number <= 80 (expected 48; 54 if P1-04 merged first; 50 or 56 if P1-05 (and P1-04) merged first); `sed -n 3p plugins/dev-godot/skills/godot-standards/SKILL.md` is byte-identical to main.
+- [ ] The GUT test step (main lines 19-25, now lines 24-30 after the five inserted lines) is byte-identical to main: `diff <(sed -n 24,30p platforms/kits/github/workflows/ci-godot.yml) <(git show main:platforms/kits/github/workflows/ci-godot.yml | sed -n 19,25p)` prints nothing. If P1-05 merged first, drop this check: the test step is P1-05's and is covered by its own acceptance criteria (P1-05's Report back says the same). Do not compare from the test step to end of file (`,$p`): that range includes the export job's `- name: Import` step, whose line this task changes from `--quit` to `--import`, so such a diff always prints that line.
+- [ ] `wc -l < plugins/dev-godot/skills/godot-standards/SKILL.md` prints a number <= 80 (expected 48; 52 if P1-04 merged first; 50 if P1-05 merged first; 54 if both merged first); `diff <(sed -n 3p plugins/dev-godot/skills/godot-standards/SKILL.md) <(git show main:plugins/dev-godot/skills/godot-standards/SKILL.md | sed -n 3p)` prints nothing.
 - [ ] `diff <(sed -n 25,31p plugins/quality-core/agents/reviewer.md) <(git show main:plugins/quality-core/agents/reviewer.md | sed -n 25,31p)` prints nothing (report format intact); `wc -l < plugins/quality-core/agents/reviewer.md` prints `31`.
 - [ ] `grep -c '^| Godot |' plugins/quality-core/skills/validate-implementation/SKILL.md` prints `1` and that line contains both `--import` and `SCRIPT ERROR`.
 - [ ] `grep -c 'boot-proof commands' plugins/dev-godot/templates/project-agents-godot-2d.md` prints `1`; `grep -c '^godot --headless --path . --import' plugins/dev-godot/templates/project-agents-godot-2d.md` prints `1`; `grep -c 'HealthComponent' plugins/dev-godot/templates/project-agents-godot-2d.md` prints `2` (unchanged).
 - [ ] `grep -c 'boot proof' platforms/kits/godot/README.md` prints `1`; `grep -c 'boot-proof step' platforms/kits/github/README.md` prints `1`.
 - [ ] `git diff main --stat -- plugins/dev-godot/INDEX.md plugins/quality-core/INDEX.md plugins/dev-godot/rules/ VERSION` prints nothing.
 - [ ] Broken case, run where a Godot 4.x binary is on PATH (the stratics-client checkout or any Godot 4 project with an autoload): append the line `this is not gdscript` to a script loaded at boot (in stratics-client: `autoload/event_bus.gd`, listed under `[autoload]` in `project.godot`), run `godot --headless --path . --import; godot --headless --path . --quit 2>&1 | tee /tmp/boot.log; ! grep -Eq 'SCRIPT ERROR|Parser Error' /tmp/boot.log; echo "exit=$?"`, expect `exit=1` plus a line starting `SCRIPT ERROR: Parse Error:` in the tee output; revert with `git checkout -- autoload/event_bus.gd` and re-run, expect `exit=0` and no such line. Paste both outputs in the PR body. Without a Godot binary, report this item as unverified; do not claim it.
-- [ ] Gates: `platforms/tools/check.sh` exit 0; `platforms/tools/smoke.sh` prints `smoke: OK`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` ends with `OK`; `python3 platforms/ci/validations/check_kit.py --links` exit 0.
+- [ ] Gates: `platforms/tools/check.sh` exit 0; `platforms/tools/smoke.sh` prints `smoke: OK`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` ends with `OK`; `python3 platforms/ci/validations/check_kit.py --links` exit 0. If `check_kit.py` fails only on files under `docs/plans/`, paste the FAIL lines in the PR body as a pre-existing blocker and do not edit those files.
 - [ ] `grep -c 'Parser Error' CHANGELOG.md` prints at least `1`, inside `## [Unreleased]`.
 
 ## Conventions

@@ -16,7 +16,7 @@ Replace the two read-mostly SDD steps `sdd-analyze` (step 3, consistency report)
 
 ## Current state
 
-Line numbers are from kit main at `d7a3eff`; P1-08 edits `sdd-tasks`, `sdd-implement` and `sdd-to-card` first, so re-grep every line below after rebasing on P1-08.
+Line numbers are from kit `claude/modest-mendel-7tq8a4` at `d7a3eff` (= `main` `ddd3ad2` plus one Unreleased CHANGELOG bullet, so `CHANGELOG.md:260` reads `:259` on main until that branch merges); P1-08 edits `sdd-tasks`, `sdd-implement` and `sdd-to-card` first, so re-grep every line below after rebasing on P1-08.
 
 ```
 plugins/architect-sdd/skills/sdd-analyze/SKILL.md:3: description: SDD step 3 — cross-artifact consistency report. Use when FEAT/REQ/DEC/plan/tasks need gap checks. Not for spec quality (skill sdd-audit).
@@ -82,12 +82,12 @@ allowed-tools:
 
 ```
 ---
-description: Spec check: validator result, cross-artifact consistency table and the quality checklist (testability, security, data and ops).
+description: Quality checklist for sdd-check step 2 (testability, security and integrity, data, compatibility and operation) with the grading rule.
 kind: detail
 ---
 ```
 
-   Body: heading `# Check list`, one line on grading (pass / fail / n-a, evidence `path:line`, security or integrity fail = critical), then three sections with the twelve bullets moved verbatim from `sdd-audit/SKILL.md:28-30`, `:34-37` and `:41-44`, numbered `Q1`..`Q12`: `## Testability and completeness` (Q1-Q3), `## Security and integrity` (Q4-Q7), `## Data, compatibility and operation` (Q8-Q12). No `verified`/`sources` (kind detail).
+   Body: heading `# Check list`, one line on grading (pass / fail / n-a, evidence `path:line`, security or integrity fail = critical), then three sections with the eleven bullets moved verbatim from `sdd-audit/SKILL.md:28-30`, `:34-37` and `:41-44`, numbered `Q1`..`Q11`: `## Testability and completeness` (Q1-Q3), `## Security and integrity` (Q4-Q7), `## Data, compatibility and operation` (Q8-Q11). No `verified`/`sources` (kind detail).
 
 3. Delete `plugins/architect-sdd/skills/sdd-analyze/` and `plugins/architect-sdd/skills/sdd-audit/` (kit, both folders, each holds only `SKILL.md`).
 
@@ -102,9 +102,9 @@ kind: detail
    FEAT/REQ  answers   gaps    design  order   code/tests  verdict    issue
 ```
 
-   Replace rows 31-37 of the table with seven rows: `| 3 | `sdd-check` | clarified FEAT + artifacts | validator, consistency and quality report |`, `| 4 | `sdd-plan` | checked FEAT | Plan + DECs; planned |`, `| 5 | `sdd-tasks` | Plan | ordered task rows |`, `| 6 | `sdd-implement` | Tasks | code/tests/docs; in-progress |`, `| 7 | `validate-implementation` | FEAT + delivery | READY/PARTIAL/NOT READY |`, `| 8 | `sdd-to-card` | FEAT | synchronized GitHub issue |`. Keep the file at 60 lines or fewer (58 today; P3-04 may have filled it to 60, and this change removes one line).
+   Replace rows 31-37 of the table with six rows: `| 3 | `sdd-check` | clarified FEAT + artifacts | validator, consistency and quality report |`, `| 4 | `sdd-plan` | checked FEAT | Plan + DECs; planned |`, `| 5 | `sdd-tasks` | Plan | ordered task rows |`, `| 6 | `sdd-implement` | Tasks | code/tests/docs; in-progress |`, `| 7 | `validate-implementation` | FEAT + delivery | READY/PARTIAL/NOT READY |`, `| 8 | `sdd-to-card` | FEAT | synchronized GitHub issue |`. Keep the file at 60 lines or fewer (58 today; P3-04 may have filled it to 60, and this change removes one line).
 
-7. Edit `plugins/architect-sdd/templates/spec-feature.md:64` (kit) → `<!-- filled by the calling session from the sdd-check report (or a FEAT-000.checklist.md file) -->`. Keep the `## Audit` heading: 51 stratics-docs FEATs already carry it.
+7. Edit `plugins/architect-sdd/templates/spec-feature.md:64` (kit) → `<!-- filled by the calling session from the sdd-check report (or a FEAT-000.checklist.md file) -->`. Keep the `## Audit` heading: all 52 stratics-docs FEAT files already carry it.
 
 8. Grep the kit for the old names and fix every hit outside history: `grep -rn "sdd-analyze\|sdd-audit" plugins platforms INDEX.md README.md docs .github | grep -v "^docs/plans/"` must print nothing. Leave `CHANGELOG.md:260` (10.x history) and `docs/plans/` (assessment and prompts, historical) untouched.
 
@@ -115,7 +115,7 @@ kind: detail
 - The task, implement and to-card flow bodies (issue per task, waves, model directive, task template): P1-08. Rebase on it; this prompt changes only the lines quoted above in those files.
 - The `Regimes` section and entry-point rewrite of `sdd-process.md`: P3-04. Verification gates in `sdd-implement` and worktree cleanup: P3-07. `REVIEW.md` and `/code-review` in `validate-implementation`: P3-11. The spike lane: P3-05.
 - Consolidating skills outside `architect-sdd` (P2-09) and the extras plugin (P2-10); the stale-path gate (P1-01).
-- stratics-docs: the 51 FEAT files with `<!-- filled in by sdd-audit ... -->`, `docs/sessions/2026-09-30-feat-002-analyze-audit.md` and any `AGENTS.md` mention of the old names (P1-02 for stale kit citations; P2-15 for the regenerated agent configuration). Report them in `next step`, do not edit them.
+- stratics-docs: the 51 FEAT files with `<!-- filled in by sdd-audit ... -->` and two session notes (`docs/sessions/2026-09-30-feat-002-analyze-audit.md`, `docs/sessions/2026-09-30-pendencias-reconciliacao.md`); its `AGENTS.md` has 0 hits today (P1-02 for stale kit citations; P2-15 for the regenerated agent configuration). Report them in `next step`, do not edit them.
 - `plugins/core/AGENTS.md`, `plugins/quality-core/**`, `platforms/ci/validations/check_spec.py`, `platforms/ci/schemas/**`, `VERSION`, historical `CHANGELOG.md` entries.
 
 ## Acceptance criteria
@@ -126,10 +126,17 @@ kind: detail
 - [ ] `grep -c "| \`sdd-check\` |" plugins/architect-sdd/INDEX.md` prints 1; `grep -c "sdd-check" plugins/architect-sdd/skills/sdd-constitution/references/sdd-process.md` prints 1; `grep -c "| 9 |" ...sdd-process.md` prints 0; `grep -c "| 8 | \`sdd-to-card\`" ...sdd-process.md` prints 1; `wc -l ...sdd-process.md` prints 60 or less.
 - [ ] `grep -c "sdd-check" plugins/architect-sdd/skills/sdd-plan/SKILL.md` prints 2; `grep -c "sdd-check\` row C8" plugins/architect-sdd/skills/sdd-tasks/SKILL.md` prints 1; `grep -c "sdd-check" plugins/architect-sdd/templates/spec-feature.md` prints 1.
 - [ ] `wc -l plugins/architect-sdd/skills/sdd-check/SKILL.md` prints 80 or less; `wc -l plugins/architect-sdd/skills/sdd-check/references/check-list.md` prints 60 or less; `grep -c "^kind: detail$" plugins/architect-sdd/skills/sdd-check/references/check-list.md` prints 1; `grep -c "check-list.md" plugins/architect-sdd/skills/sdd-check/SKILL.md` prints at least 1; `grep -c "^  - exec\|^  - edit" plugins/architect-sdd/skills/sdd-check/SKILL.md` prints 0; `test ! -e plugins/architect-sdd/skills/sdd-check/agents` exits 0.
-- [ ] `python3 - <<'PY'` / `import re,glob;print(sum(len(re.search(r'^description:\s*(.*)$',open(f).read(),re.M).group(1).strip().strip('"')) for f in glob.glob('plugins/*/skills/*/SKILL.md')))` / `PY` prints 7200 or less (6660 when the descriptions above are adopted verbatim).
+- [ ] The description budget check below prints 7200 or less (6660 when the descriptions above are adopted verbatim):
+
+```
+python3 - <<'PY'
+import re,glob;print(sum(len(re.search(r'^description:\s*(.*)$',open(f).read(),re.M).group(1).strip().strip('"')) for f in glob.glob('plugins/*/skills/*/SKILL.md')))
+PY
+```
+
 - [ ] `platforms/tools/check.sh` ends with the OK summary; `platforms/tools/smoke.sh` exits 0; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` prints `OK`; `python3 platforms/ci/validations/check_kit.py --links` exits 0.
 - [ ] `git diff main --stat -- VERSION plugins/core/AGENTS.md plugins/quality-core platforms/ci/schemas platforms/ci/validations/check_spec.py` is empty.
-- [ ] `grep -c "sdd-check" CHANGELOG.md` prints at least 2, all above the `## [10.1.0]` heading.
+- [ ] `sed '/^## \[10.1.0\]/,$d' CHANGELOG.md | grep -c "sdd-check"` prints at least 2.
 
 ## Conventions
 
@@ -144,4 +151,4 @@ kind: detail
 
 ## Report back
 
-Final message in three blocks: `done` (every path created, edited or deleted, each Acceptance criteria command with its literal result, the description budget number, the PR URL), `unverified` (anything not run, for example a `check_spec.py` run against a real project spec, or the P1-08 rebase if P1-08 is not merged), `next step` (stratics-docs still names `sdd-audit` in 51 FEAT `## Audit` comments and one session note: P1-02/P2-15 or a follow-up; P3-07 adds the verification gates to `sdd-implement`). End with the proposed one-line CHANGELOG entry, for example: `- SDD: sdd-check (step 3, researcher fork, read-only) replaces sdd-analyze and sdd-audit: validator verdict + consistency table (C1-C10) + quality checklist (Q1-Q12, references/check-list.md), one report; steps renumbered 0..8 in sdd-process.md, descriptions, headings and INDEX. Evidence: assessment §4.6, §6 E4; two forked steps of 48 and 50 lines before every plan; budget 6,803 → 6,660 chars.`
+Final message in three blocks: `done` (every path created, edited or deleted, each Acceptance criteria command with its literal result, the description budget number, the PR URL), `unverified` (anything not run, for example a `check_spec.py` run against a real project spec, or the P1-08 rebase if P1-08 is not merged), `next step` (stratics-docs still names `sdd-audit` in 51 FEAT `## Audit` comments and two session notes (`docs/sessions/2026-09-30-feat-002-analyze-audit.md`, `docs/sessions/2026-09-30-pendencias-reconciliacao.md`): P1-02/P2-15 or a follow-up; P3-07 adds the verification gates to `sdd-implement`). End with the proposed one-line CHANGELOG entry, for example: `- SDD: sdd-check (step 3, researcher fork, read-only) replaces sdd-analyze and sdd-audit: validator verdict + consistency table (C1-C10) + quality checklist (Q1-Q11, references/check-list.md), one report; steps renumbered 0..8 in sdd-process.md, descriptions, headings and INDEX. Evidence: assessment §4.6, §6 E4; two forked steps of 48 and 50 lines before every plan; budget 6,803 → 6,660 chars.`

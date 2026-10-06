@@ -13,7 +13,7 @@ Replace the unverifiable "Confidence < 98% -> do not proceed" gate in the kit's 
 - assessment §5, table row on instruction files: Claude Code `memory` and `best-practices` pages ask that every line of an instruction file pass the test "would removing it cause an error?"; a threshold the model cannot measure fails that test, and when two lines contradict each other the model follows one arbitrarily (verify the wording against code.claude.com/docs/en/best-practices before quoting it in the PR).
 - The contradiction is in three places today, not one: kit `plugins/core/AGENTS.md:15` (the gate), `:29` (decide and proceed) and `:51` ("Ambiguity -> one focused question", with no blocked/unblocked distinction). Measured with `grep -n 'Ambigu\|98' plugins/core/AGENTS.md`: 4 lines (13 is the section heading `## Skepticism (>98%)`, which step 1 also replaces; 15, 29 and 51 are the three rules).
 - The `skeptic` skill repeats the gate in its description (`plugins/quality-core/skills/skeptic/SKILL.md:3`, copied verbatim into `plugins/quality-core/INDEX.md:7`) and in its policy (`:20`), verdict template (`:60`) and done criterion (`:69`). Measured with `grep -rn '98' plugins/quality-core/`: 5 lines, all in these two files (`grep -rn '98' plugins/` adds `plugins/core/AGENTS.md:13` and `:15`, 7 lines in total; nothing else in `plugins/` contains '98').
-- Budgets measured today: `plugins/core/AGENTS.md` is 57 lines (`check_kit.py` `AGENTS_MAX_LINES = 60`, `platforms/ci/validations/check_kit.py:22`); the `skeptic` description is 159 chars (max 160, `:24`); all 43 skill descriptions sum to 6,803 chars (budget 7,200, `:25`); `SKILL.md` is 69 lines (max 80, `:26`).
+- Budgets measured today: `plugins/core/AGENTS.md` is 57 lines (`check_kit.py` `AGENTS_MAX_LINES = 60`, `platforms/ci/validations/check_kit.py:22`; assessment §5 says 58 in its table and prose, but `wc -l` and `splitlines()` both give 57 on `main` today: trust the command, not the assessment); the `skeptic` description is 159 chars (max 160, `:24`); all 43 skill descriptions sum to 6,803 chars (budget 7,200, `:25`); `SKILL.md` is 69 lines (max 80, `:26`).
 
 ## Current state
 
@@ -39,12 +39,12 @@ Replace the unverifiable "Confidence < 98% -> do not proceed" gate in the kit's 
   `Done when: contrary and favorable evidence are sourced, the verdict names confidence, and any sub-98% gap has a concrete next test.`
 - kit `plugins/quality-core/INDEX.md:7`:
   `| `skeptic` | Adversarial check of a claim or proposed fix. Use when the user suggests a solution, a claim is unproven, or confidence <98%. Not for bugs (skill investigate). |`
-- kit `CHANGELOG.md:5`: `## [Unreleased]` exists with `### Added` (`:7`) and `### Changed` (`:11`) sections; append to `### Changed`.
+- kit `CHANGELOG.md:5`: `## [Unreleased]` exists with `### Added` (`:7`) and `### Changed` (`:11` once the plan branch is merged; `:10` on `main` before that, so locate the section by heading, not by number); append to `### Changed`.
 - kit `CHANGELOG.md:275` mentions "Skepticism (>98%)" inside the 1.0.0 release notes: historical record, do not edit.
 
 ## Change
 
-1. kit `plugins/core/AGENTS.md`: replace lines 13-17 (the whole Skepticism section) with this block. The file uses the arrow character in every condition -> action line; keep it so the section reads like its neighbours:
+1. kit `plugins/core/AGENTS.md`: replace lines 13-17 (the whole Skepticism section) with this block. The file uses the arrow character in every condition -> action line; keep it so the section reads like its neighbours. The result is four bullets, not the three that assessment §6 B1 names: the "User suggests a solution" bullet stays because it is already verifiable (1-2 alternatives listed, a recommendation given) and it is the trigger the `skeptic` description names; the "Disagree with evidence" bullet stays as B1 asks:
 
 ```markdown
 ## Skepticism
@@ -67,10 +67,10 @@ description: Adversarial check of a claim or proposed fix. Use when the user sug
 
    (147 chars; contains the literal `Use when` that `check_kit.py:619` requires and the `Not for` that `:621` warns about when missing; total budget becomes 6,791 chars.)
 
-5. kit `plugins/quality-core/skills/skeptic/SKILL.md`: replace line 20 with:
+5. kit `plugins/quality-core/skills/skeptic/SKILL.md`: replace line 20 with the line below. Line 19 (`- Treat every claim, including the user's and your own, as a hypothesis until a source or observation supports it.`) stays and already states the hypothesis rule, so the new line 20 only adds the tag and the consequence of proceeding:
 
 ```markdown
-- A claim without a source is reported as `[HYPOTHESIS]`, never as fact; proceeding on it requires that tag plus what is missing and the next test.
+- Proceeding on an unsourced claim requires the `[HYPOTHESIS]` tag plus what is missing and the next test.
 ```
 
 6. kit `plugins/quality-core/skills/skeptic/SKILL.md`: keep line 56 `Confidence: NN%` unchanged; replace line 60 with `Recommendation: <action; for PARTIAL or UNDETERMINED, missing evidence and next test>` and line 69 with `Done when: contrary and favorable evidence are sourced, the verdict names confidence, and any verdict other than CONFIRMED or REFUTED has a concrete next test.` The file stays at 69 lines.
@@ -107,7 +107,7 @@ Files edited (all in the kit): `plugins/core/AGENTS.md`, `plugins/quality-core/s
 - [ ] `python3 -c "import re,glob;print(sum(len(re.search(r'^description:\s*(.*)$',open(f).read(),re.M).group(1).strip().strip('\"')) for f in glob.glob('plugins/*/skills/*/SKILL.md')))"` prints `6791` (<= 7200; 6803 today; `check_kit.py` enforces the same budget with `DESCRIPTIONS_BUDGET = 7200` at `:25`, summing `len(description)` of each frontmatter at `:572-577` and `:639`).
 - [ ] `wc -l plugins/quality-core/skills/skeptic/SKILL.md` prints `69` (<= 80).
 - [ ] `grep -c 'Skepticism' CHANGELOG.md` is at least `4` (3 historical lines plus the new Unreleased bullet), and the new bullet sits above `## [10.1.0]`.
-- [ ] Gates: `platforms/tools/check.sh` exit 0; `platforms/tools/smoke.sh` prints `smoke: OK`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` ends with `OK`; `python3 platforms/ci/validations/check_kit.py --links` exit 0.
+- [ ] Gates: `platforms/tools/check.sh` exit 0; `platforms/tools/smoke.sh` exits 0 and its last line starts with `smoke: OK` (the full line is `smoke: OK (43 skills, app fallback, cleanup, symlink safety, manifests)`, `platforms/tools/smoke.sh:492`); `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` ends with `OK`; `python3 platforms/ci/validations/check_kit.py --links` exit 0. If `check.sh` or `check_kit.py --links` fails only on `broken link` lines inside `docs/plans/`, report those lines verbatim as pre-existing and out of scope (the plan prompts link to files that later tasks create; P1-03 does not edit `docs/plans/`); any other failure blocks.
 - [ ] If `claude` is in PATH, `check.sh` also runs `claude plugin validate` on every plugin; it must print no error for `plugins/core` and `plugins/quality-core`.
 
 ## Conventions

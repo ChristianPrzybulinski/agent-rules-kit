@@ -8,10 +8,10 @@ Reorder the sections of `plugins/core/AGENTS.md` so the concrete, incident-preve
 
 ## Why
 
-- assessment §5.1 (IFScale row): IFScale (arXiv:2507.11538) measures that instruction adherence drops with instruction density and that instructions at the top of a file are followed more (primacy bias); the kit file is 57 lines "but the abstract Truth/Skepticism section comes before the concrete Boundaries"; verdict: adjust the order, Boundaries and commands first.
+- assessment §5.1 (IFScale row): IFScale (arXiv:2507.11538) measures that instruction adherence drops with instruction density and that instructions at the top of a file are followed more (primacy bias); the row says "58 lines, but the Truth/Skepticism section (abstract) comes before Boundaries (concrete)" with verdict "adjust the order: Boundaries and Commands first"; the file is 57 lines today (`wc -l`).
 - assessment §6 item B3: put Boundaries (Always/Ask/Never) and Session at the top and Truth/Skepticism after; the concrete sections are the ones that prevent incidents. Add the compaction line and the Files-cell scope line.
 - `plugins/core/AGENTS.md:5` to `:17` (Truth and Skepticism, 13 lines) sit above `plugins/core/AGENTS.md:42` (Boundaries) today; the Ask-first and Never lists are lines 45 and 46 of a 57-line file.
-- The scope rule lives only in the project today: `stratics-docs/CONTRIBUTING.md:60` defines `Files` as "the only paths the PR may change", `:129` and `:144-145` tell the agent to stop and name the exact path, `:165` makes it the first Always rule. It is the rule that saved the most review rounds in the DPRO-011 loop (20 of 33 first-pass rejections in the ledger were scope or spec findings, assessment §4); a kit that is used by three repositories should carry it once.
+- The scope rule lives only in the project today: `stratics-docs/CONTRIBUTING.md:60` defines `Files` as "the only paths the PR may change", `:129` and `:144-145` tell the agent to stop and name the exact path, `:165` makes it the first Always rule. It is the rule that saved the most review rounds in the DPRO-011 loop (the review loop flagged 20 of 33 PRs on the first pass, DPRO-011:132 and assessment §4 table; the assessment's B3 names the Files-cell rule as the one that saved the most rounds); a kit that is used by three repositories should carry it once.
 - The compaction line follows the official Claude Code guidance: the costs page says to "customize compaction behavior in your CLAUDE.md file" with a "Compact instructions" section telling the model what to preserve (verified 2026-10-06 at https://code.claude.com/docs/en/costs; re-read it before relying on exact wording). Devin reads the same file (`README.md:19`, "Devin Cloud | required plugin `plugins/core/AGENTS.md`") and the line is harmless there.
 - `docs/design.md:14`: "A line stays in `AGENTS.md` only if the behavior must hold before any skill could trigger". Both new lines pass that test: compaction happens between turns, and the scope check must hold before any skill loads.
 
@@ -69,7 +69,7 @@ stratics-docs/CONTRIBUTING.md:165:- **Always:** stay within the Files cell; foll
 
 ## Change
 
-1. Confirm P1-03 is merged: `git log --oneline main -- plugins/core/AGENTS.md` shows its commit and `grep -c '98%' plugins/core/AGENTS.md` prints `0`. If not, stop and report; this prompt moves the Truth/Skepticism blocks exactly as P1-03 left them and must not re-edit their text.
+1. Confirm P1-03 is merged: `git log --oneline main -- plugins/core/AGENTS.md` shows its commit and `grep -c '98%' plugins/core/AGENTS.md` prints `0`. If not, stop and report; this prompt moves the Truth/Skepticism blocks exactly as P1-03 left them and must not re-edit their text. Also run the four gates on `main` before editing. If any is red before your change, stop and report the literal failure; do not fix files outside `plugins/core/AGENTS.md` and `CHANGELOG.md`.
 2. Edit `plugins/core/AGENTS.md` (kit). Keep line 1 byte-for-byte (the header contains U+2014; the greps above use `grep -Fx`), keep the blank line 2 and the intro paragraph (line 3) in place. Move whole sections (heading, blank line, bullets) so the order becomes:
    1. `## Boundaries`
    2. `## Session`
@@ -87,10 +87,10 @@ stratics-docs/CONTRIBUTING.md:165:- **Always:** stay within the Files cell; foll
    ```
 4. In `## Session`, append one bullet after the `End:` bullet:
    ```markdown
-   - When compacting or summarizing context, preserve the list of modified files and the test commands verbatim, so the next turn can re-run the proof. Detail: skill `session-handoff`.
+   - When compacting or summarizing context, preserve the list of modified files and the test commands verbatim, so the next turn can re-run the proof.
    ```
    The two new bullets use the arrow and bold markers the file already uses; keep each on one line.
-5. Run `wc -l plugins/core/AGENTS.md`: expected 59 (57 + 2) if P1-03 kept Skepticism at three bullets. If the count exceeds 60, do not trim any existing line: stop and report which line P1-03 added, so the owner decides.
+5. Run `wc -l plugins/core/AGENTS.md`: expected 59. P1-03 leaves the file at 57 lines (four Skepticism bullets, three Work loop bullets; its acceptance criterion prints `57`) and this prompt adds two. If the count exceeds 60, do not trim any existing line: stop and report the `grep -n` of the extra lines so the owner decides.
 6. Edit `CHANGELOG.md` (kit): add one bullet under `## [Unreleased]` / `### Changed` using the proposed entry in Report back, with the `grep '^## '` order and the sorted-diff result as proof.
 7. Do not touch `VERSION`, any script in `platforms/tools/`, `check_kit.py`, `plugins/core/INDEX.md`, any skill, or any path.
 
@@ -100,17 +100,17 @@ stratics-docs/CONTRIBUTING.md:165:- **Always:** stay within the Files cell; foll
 - The `Standards are skills:` line (consolidation of `clean-code`, `clean-architecture`, `simplicity` into fewer skills): P2-09.
 - Generating per-repo `CLAUDE.md` / `.claude/settings.json` from this file: P2-04; `.claude/rules`: P2-05; vendored skills: P2-06.
 - Applying the result to the three Stratics repos and reconciling `stratics-docs/CONTRIBUTING.md` §6 with the new kit line: P2-15. Do not edit the stratics repos.
-- Deriving the `Files` cell from GitHub issues: P2-08. The sdd-tasks task template that produces the cell: P1-08.
+- Deriving task and FEAT status from GitHub: P2-08. The sdd-tasks task template that defines the `Files` column: P1-08.
 - Raising `AGENTS_MAX_LINES` or changing the header string: not allowed by any prompt (layout freeze, P1-01).
 
 ## Acceptance criteria
 
 - [ ] `head -n 1 plugins/core/AGENTS.md` prints `# Global Rules — AI Kit` and `grep -Fxq '# Global Rules — AI Kit' plugins/core/AGENTS.md; echo $?` prints `0`.
 - [ ] `wc -l < plugins/core/AGENTS.md` prints a number of at most 60 (59 expected).
-- [ ] `grep '^## ' plugins/core/AGENTS.md | tr '\n' '|'` prints `## Boundaries|## Session|## Work loop|## Craft|## Security|## Communication|## Truth|## <Skepticism heading as left by P1-03>|`.
+- [ ] `grep '^## ' plugins/core/AGENTS.md | tr '\n' '|'` prints `## Boundaries|## Session|## Work loop|## Craft|## Security|## Communication|## Truth|## Skepticism|`.
 - [ ] `grep -c '^|' plugins/core/AGENTS.md` prints `5` (header, separator, three rows) and `tail -n 1 plugins/core/AGENTS.md` starts with `| legacy or ported code` (routing table unchanged and last).
 - [ ] `diff <(git show main:plugins/core/AGENTS.md | sort) <(sort plugins/core/AGENTS.md)` prints exactly two `>` lines (the Scope bullet and the compaction bullet) and no `<` line.
-- [ ] `grep -c 'the issue'"'"'s `Files` cell' plugins/core/AGENTS.md` prints `1`; `grep -c 'preserve the list of modified files and the test commands' plugins/core/AGENTS.md` prints `1`.
+- [ ] `grep -c "the issue's .Files. cell" plugins/core/AGENTS.md` prints `1`; `grep -c 'preserve the list of modified files and the test commands' plugins/core/AGENTS.md` prints `1`.
 - [ ] `awk '/^## Boundaries/{f=1} /^## Session/{f=0} f && /Scope/' plugins/core/AGENTS.md | wc -l` prints `1` and `awk '/^## Session/{f=1} /^## Work loop/{f=0} f && /compacting/' plugins/core/AGENTS.md | wc -l` prints `1` (each line sits in its section).
 - [ ] `grep -c 'Standards are skills' plugins/core/AGENTS.md` prints `1` and the line equals `git show main:plugins/core/AGENTS.md | grep 'Standards are skills'`.
 - [ ] `platforms/tools/check.sh` exits 0.

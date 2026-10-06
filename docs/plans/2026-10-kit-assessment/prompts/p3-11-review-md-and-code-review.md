@@ -10,13 +10,14 @@ Give every project repository a ready-to-copy `REVIEW.md` with the kit's review 
 
 - assessment §5, verification row: Anthropic's `best-practices` prescribes "if you cannot verify, do not ship" with `/goal`, a Stop-hook gate, an adversarial subagent that sees only the diff and the criteria, and `/code-review`; verdict "correct" for `reviewer` and `validate-implementation`, but neither mentions `/code-review`. `grep -rc 'code-review' plugins/quality-core/` prints 0 for every file on 2026-10-06.
 - assessment §7 item N7: "`REVIEW.md` per repo (if the Team/Enterprise plan with hosted Code Review is used) with the criteria that today are in `doc-review-checklist.md`, and `/code-review` as a step of `validate-implementation` in Claude Code."
-- assessment §5, Code Review row: the hosted review "reads `REVIEW.md`" and is the only review surface that runs without the kit installed on a machine, so the criteria must reach it as a committed file, not as a plugin skill.
+- code.claude.com/docs/en/code-review (read 2026-10-06): the hosted review receives `REVIEW.md` as the repository's review instructions and is the only review surface that runs without the kit installed on a machine, so the criteria must reach it as a committed file, not as a plugin skill; assessment §7 N7 ties this to the kit.
 - The kit's only review criteria are project-bound: `plugins/quality-core/templates/doc-review-checklist.md:11` demands `JaCoCo 100% + PITest ≥80%`, `:12` names `inventory/economy/reward`, `:13` names `protocol_version`, `:26` names `FEAT status`. A Godot-only or docs-only repository cannot use it as written, and no Stratics repository has a `REVIEW.md` today (`ls stratics-client/REVIEW.md stratics-server/REVIEW.md stratics-docs/REVIEW.md` finds nothing on 2026-10-06).
 - Verified on 2026-10-06 against code.claude.com/docs/en/code-review: `REVIEW.md` "is a file at your repository root that tailors Code Review to your repo", "freeform markdown", read by the hosted review (Team and Enterprise, research preview); the local `/code-review` command "runs as a background subagent with its own context window", "follows your `CLAUDE.md` like any Claude Code session, but it doesn't read `REVIEW.md`", and "reports correctness bugs". Re-verify these four facts against that page before relying on them; the page carries no publication date.
 
 ## Current state
 
 - `platforms/kits/github/` holds `CODEOWNERS`, `PULL_REQUEST_TEMPLATE.md`, `README.md`, `dependabot.yml`, `labels.json`, `scripts/`, `workflows/`; no `REVIEW.md`. (new file) `platforms/kits/github/REVIEW.md`, listed by `platforms/kits/github/README.md` (the folder's index; `check_kit.py` fails any entry of `platforms/kits/github/` missing from it).
+- Line numbers are as of main on 2026-10-06; P2-04/05/06 (`docs/projects.md`) and P3-03/P3-08 (`platforms/kits/INDEX.md`) add rows, so locate both lines by the quoted text, never by number.
 - `platforms/kits/github/README.md:7-14` is the destination table; `:13-14`:
   ```text
   | `labels.json` | reference for `scripts/labels-sync.sh` |
@@ -49,7 +50,7 @@ Give every project repository a ready-to-copy `REVIEW.md` with the kit's review 
   §5 verdict block (`:52-61`) has `Gates: <command> → OK | FAILED (<literal excerpt>)` and the criterion table; it stays unchanged.
 - `plugins/quality-core/agents/reviewer.md` (31 lines) stays byte-identical.
 - `CHANGELOG.md:5` is `## [Unreleased]` with `### Added` (`:7`) and `### Changed` (`:11`) already present.
-- Measured on 2026-10-06: 43 skills, description total 6,803 chars (`check.sh` prints the figure; budget 7,200 at `platforms/ci/validations/check_kit.py:25`); `SKILL_MAX_LINES = 80` at `:26`; the plugin template name regex at `:694` applies only to `plugins/*/templates/`, so `REVIEW.md` under `platforms/kits/github/` needs no `doc-` prefix.
+- Measured on 2026-10-06: 43 skills, description total 6,803 chars (`platforms/tools/doctor.sh` prints `skill descriptions 6803 chars (budget 7200)`; `check_kit.py` only fails above the budget at `:639-643`, `DESCRIPTIONS_BUDGET = 7200` at `:25`); `SKILL_MAX_LINES = 80` at `:26`; the plugin template name regex at `:694` applies only to `plugins/*/templates/`, so `REVIEW.md` under `platforms/kits/github/` needs no `doc-` prefix.
 
 ## Change
 
@@ -90,16 +91,23 @@ Give every project repository a ready-to-copy `REVIEW.md` with the kit's review 
    - Anything CI already enforces: formatting, lint, type errors, secret scanning.
    - Generated files (`*.uid`, `*.import`, `.godot/`, lockfiles, `target/`).
    ```
-2. kit: edit `platforms/kits/github/README.md`. Insert one row after the `PULL_REQUEST_TEMPLATE.md` row (`:10`), verbatim: `| `REVIEW.md` | `REVIEW.md` at the repository root (read by hosted Claude Code Review; also the checklist for any reviewer) |`. Append one note after `:21`, verbatim: `- `REVIEW.md` holds the five review criteria of `plugins/quality-core/templates/doc-review-checklist.md` without project-specific gates; a project adds its own gates (coverage, mutation score, contract version field) under the matching heading. Hosted Claude Code Review (Team/Enterprise) reads it from the repository root; the local `/code-review` command does not (it reads `CLAUDE.md`); verify both facts against code.claude.com/docs/en/code-review before relying on them.`
+2. kit: edit `platforms/kits/github/README.md`. Insert one row directly after the `PULL_REQUEST_TEMPLATE.md` row (after P1-08's `ISSUE_TEMPLATE/task.md` row when present), verbatim:
+   ```text
+   | `REVIEW.md` | `REVIEW.md` at the repository root (read by hosted Claude Code Review; also the checklist for any reviewer) |
+   ```
+   Append one note as the last bullet of `## Notes` (`:21` on main 2026-10-06; P1-05, P1-06 and P1-08 edit this section), verbatim:
+   ```text
+   - `REVIEW.md` holds the five review criteria of `plugins/quality-core/templates/doc-review-checklist.md` without project-specific gates; a project adds its own gates (coverage, mutation score, contract version field) under the matching heading. Hosted Claude Code Review (Team/Enterprise) reads it from the repository root; the local `/code-review` command does not (it reads `CLAUDE.md`); verify both facts against code.claude.com/docs/en/code-review before relying on them.
+   ```
 3. kit: edit `docs/projects.md:15`: change the first cell to `| `.github/PULL_REQUEST_TEMPLATE.md`, `CODEOWNERS`, `dependabot.yml`, labels, root `REVIEW.md` |` and the third cell to `| ditto + `scripts/labels-sync.sh`; `REVIEW.md` is copied to the repository root, not to `.github/` |`. The second cell stays `platforms/kits/github/`.
 4. kit: edit `platforms/kits/INDEX.md:9`: in the Contents cell, replace `labels + sync, dependabot` with `labels + sync, dependabot, root REVIEW.md`.
 5. kit: edit `plugins/quality-core/skills/validate-implementation/SKILL.md` §3. Leave the gate table and the sentence `Capture the literal failing excerpt; never replace it with “some tests failed.”` byte-identical, and insert directly after that sentence one blank line and this paragraph, verbatim:
    ```text
    In Claude Code (Claude-specific) also run `/code-review <base>...HEAD` on the pushed head before the verdict; it runs as a background subagent and reports correctness bugs, so wait for it and keep the next step unblocked. Confirm each finding at `path:line` on the clean checkout; a confirmed finding becomes a `missing` or `partial` row of the criterion table (or a `Gates:` line `code-review → FAILED (<finding>)` when it belongs to no criterion); an unconfirmed one goes under `Unverified`. In Devin or any other executor, apply the repository `REVIEW.md` (kit copy: `platforms/kits/github/REVIEW.md`) by hand instead. `/code-review` reads `CLAUDE.md`, not `REVIEW.md`; verify the command syntax against code.claude.com/docs/en/code-review before relying on it.
    ```
-   Result: 71 lines on top of P3-07's 69 (72 if P3-07 is not merged yet, which changes nothing else). Frontmatter, §1, §2, §4, §5 and the `Done when:` line stay unchanged.
+   Result: 71 lines on top of P3-07's 69 (70 if P3-07 is not merged yet, which changes nothing else). Frontmatter, §1, §2, §4, §5 and the `Done when:` line stay unchanged.
 6. kit: `CHANGELOG.md`, under `## [Unreleased]` / `### Added`, add one bullet (text in Report back). No `VERSION` change.
-7. Prove the new step is reachable before committing: in a Claude Code session on the kit branch, run `/code-review main...HEAD` and paste the first three lines of its output in the PR body. If `claude` is not available, paste the literal `command not found` under Unverified.
+7. Prove the new step is reachable before committing: in a Claude Code session on the kit branch, run `/code-review main...HEAD` and paste the first three lines of its output in the PR body. If the executor is not Claude Code, write under Unverified: `/code-review main...HEAD: not run (executor <name>; Claude Code-only command)` and leave the PR body line empty.
 
 ## Out of scope
 
@@ -107,7 +115,7 @@ Give every project repository a ready-to-copy `REVIEW.md` with the kit's review 
 - The Godot gate row `godot --path . --headless --quit` in `validate-implementation/SKILL.md` and `reviewer.md:22`: P1-06.
 - The clean-checkout worktree cleanup bullet in §2 of `validate-implementation`: P3-07.
 - `sync-project.sh` copying `REVIEW.md` or `CLAUDE.md` into a repository: P2-04 (CLAUDE.md and settings) and P2-05/P2-06; this task ships the template only and documents the copy by hand.
-- Applying `REVIEW.md` to stratics-client, stratics-server or stratics-docs: P2-15.
+- Copying `REVIEW.md` into stratics-client, stratics-server or stratics-docs: not covered by any current prompt (P2-15 syncs agent config only); this task ships the template and documents the copy by hand.
 - No hook (the validator accepts only `PreToolUse`), no new skill, no description change, no `skillOverrides` or settings file.
 
 ## Acceptance criteria
@@ -116,16 +124,16 @@ Give every project repository a ready-to-copy `REVIEW.md` with the kit's review 
 - [ ] `wc -l platforms/kits/github/REVIEW.md` → at most `40`; `grep -c '^## ' platforms/kits/github/REVIEW.md` → `7` (Important means, Scope, Correctness, Architecture, Security, Docs, Do not report).
 - [ ] `grep -c 'Flag only gaps that affect correctness or the stated criteria; nits are optional' platforms/kits/github/REVIEW.md` → `1`; `grep -c 'path:line' platforms/kits/github/REVIEW.md` → `1`; `grep -c 'parameterized' platforms/kits/github/REVIEW.md` → `1`.
 - [ ] `grep -cE 'JaCoCo|PITest|protocol_version|inventory|FEAT-|Stratics|stratics' platforms/kits/github/REVIEW.md` → `0` (de-projected).
-- [ ] `grep -c 'REVIEW.md' platforms/kits/github/README.md` → at least `3`; `grep -c 'REVIEW.md' docs/projects.md` → `2`; `grep -c 'REVIEW.md' platforms/kits/INDEX.md` → `1`.
+- [ ] `grep -o 'REVIEW.md' platforms/kits/github/README.md | wc -l` → `3`; `grep -o 'REVIEW.md' docs/projects.md | wc -l` → `2`; `grep -c 'REVIEW.md' platforms/kits/INDEX.md` → `1`.
 - [ ] `grep -c '/code-review <base>...HEAD' plugins/quality-core/skills/validate-implementation/SKILL.md` → `1`; `grep -c 'Claude-specific' plugins/quality-core/skills/validate-implementation/SKILL.md` → `1`; `grep -c 'reads `CLAUDE.md`, not `REVIEW.md`' plugins/quality-core/skills/validate-implementation/SKILL.md` → `1`.
-- [ ] `grep -c 'Capture the literal failing excerpt' plugins/quality-core/skills/validate-implementation/SKILL.md` → `1` (anchor survives); `wc -l plugins/quality-core/skills/validate-implementation/SKILL.md` → `71` (or `72` without P3-07), at most 80.
+- [ ] `grep -c 'Capture the literal failing excerpt' plugins/quality-core/skills/validate-implementation/SKILL.md` → `1` (anchor survives); `wc -l plugins/quality-core/skills/validate-implementation/SKILL.md` → `71` (or `70` without P3-07), at most 80.
 - [ ] `sed -n 1,16p plugins/quality-core/skills/validate-implementation/SKILL.md | diff - <(git show main:plugins/quality-core/skills/validate-implementation/SKILL.md | sed -n 1,16p)` → no output (frontmatter unchanged); `git diff --stat main -- plugins/quality-core/INDEX.md plugins/quality-core/agents plugins/quality-core/templates` → empty.
 - [ ] `grep -c '^## \[Unreleased\]' CHANGELOG.md` → `1`; `grep -c 'REVIEW.md' CHANGELOG.md` → at least `1`.
 - [ ] `git diff main -- platforms/kits/github/REVIEW.md plugins/quality-core/skills/validate-implementation/SKILL.md | grep -c '/Users/\|/home/'` → `0`.
-- [ ] `platforms/tools/check.sh` → ends with `check: ok (12 plugins, 43 skills, ...)`; the description total stays 6,803. A `broken link` failure in a `docs/plans/2026-10-kit-assessment/prompts/*.md` file other than this one is pre-existing: report it, do not fix it.
+- [ ] `platforms/tools/check.sh` → contains the line `check: OK (12 plugins, 43 skills, 3 rules, 18 templates, 19 indexes, <n> links)` followed by the `claude plugin validate` output or `check: claude plugin validate skipped (claude not in PATH)`. Pass = `check: OK (...)`, or `check: failed (...)` where every `FAIL:` line reads `docs/plans/2026-10-kit-assessment/<file other than this prompt>: broken link: ...` (pre-existing on 2026-10-06 in `README.md`, `assessment.md`, p1-01, p2-02, p2-08, p2-09, p2-10, p3-09). Paste all `FAIL:` lines in the PR body; any `FAIL:` naming another path blocks the PR.
 - [ ] `platforms/tools/smoke.sh` → exit 0.
 - [ ] `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` → `OK`.
-- [ ] `python3 platforms/ci/validations/check_kit.py --links` → `check: ok`.
+- [ ] `python3 platforms/ci/validations/check_kit.py --links` → last line starts with `check: OK (`, or `check: failed (` under the same pre-existing-only condition as the `check.sh` criterion.
 
 ## Conventions
 
@@ -146,5 +154,5 @@ Final message, in this order:
 
 1. Done: the six touched paths with final line counts; every acceptance command with its literal result (not "passed"); the first three lines of the `/code-review` output from step 7.
 2. Unverified: anything you could not run (`claude plugin validate` when `claude` is not on PATH, which `check.sh` reports as skipped; `/code-review` when not in Claude Code) and the two Code Review facts (hosted review reads `REVIEW.md`; local `/code-review` does not) if you could not reach code.claude.com/docs/en/code-review.
-3. Next step: the PR URL, or the smallest blocker that stops the PR; then P2-15 to copy `REVIEW.md` into the three Stratics repositories.
+3. Next step: the PR URL, or the smallest blocker that stops the PR; then the smallest follow-up: one extra step in P2-15, or a new prompt, that copies `platforms/kits/github/REVIEW.md` to the root of the three Stratics repositories.
 4. Proposed CHANGELOG line (one bullet under `### Added`): `platforms/kits/github/REVIEW.md`: the five review criteria (scope, correctness, architecture, security, docs) in the repository-root form hosted Claude Code Review reads, de-projected from `doc-review-checklist.md` (no coverage numbers, contract fields or FEAT status), with "flag only gaps that affect correctness or the stated criteria; nits are optional"; `validate-implementation` §3 runs `/code-review` as a background subagent in Claude Code before the verdict and folds confirmed findings into the criterion table. Evidence: `grep -rc code-review plugins/quality-core/` printed 0 on 2026-10-06; no Stratics repository had a `REVIEW.md`; assessment §5 verification row and §7 N7.

@@ -10,7 +10,7 @@ Remove the per-session output compression levels (`lite`, `full`, `ultra`) from 
 
 - assessment §4.7: "`tokens` defines 'ultra' compression levels that conflict with 'governed documents never compressed' and with the required pt-BR communication".
 - assessment §6 F3 (the authoritative shape of this change): "Keep the three registers (technical, human, governed); remove `lite/full/ultra`. Output compression does not reduce input tokens (where the cost is) and conflicts with the pt-BR/governed rule."
-- `plugins/core/skills/tokens/SKILL.md:25` makes a compression level sticky ("Keep the chosen level for the session") while `:41` says "do not compress structural repetition" for governed documents and `:45` requires governed passages "in their final governed format" even inside technical output. A session-wide `ultra` level has no defined behavior when the next passage is a spec or a CHANGELOG entry.
+- `plugins/core/skills/tokens/SKILL.md:25` makes a compression level sticky ("Keep the chosen level for the session") while `:41` says "do not compress structural repetition" for governed documents and `:45` requires governed passages "in its final governed format" even inside technical output. A session-wide `ultra` level has no defined behavior when the next passage is a spec or a CHANGELOG entry.
 - `plugins/core/AGENTS.md:34`: "Only the conversation with the user is in pt-BR." A "fragments" or "code plus one line" level applied to the conversation produces pt-BR fragments or English-only code answers; nothing in the skill says which rule wins.
 - `plugins/core/AGENTS.md:50` already summarizes the skill without any level ("code/diff first, then ≤3 lines ... Governed documents ...: template and schema, never compressed. Detail: skill `tokens`"); the levels exist only in the skill, so no other always-on text changes.
 - Measured: `grep -rnw -e ultra -e lite plugins docs README.md CHANGELOG.md` finds the levels in exactly one kit file outside `docs/plans/` (`plugins/core/skills/tokens/SKILL.md:25`); `grep -rl 'Compression levels on request'` across the three Stratics checkouts finds no vendored copy. The whole change is one file plus the CHANGELOG.
@@ -59,7 +59,7 @@ plugins/core/AGENTS.md:50:- Technical answer: code/diff first, then ≤3 lines; 
 
 ## Change
 
-1. Edit `plugins/core/skills/tokens/SKILL.md` (kit): delete line 25 in full (both sentences, "Compression levels on request: ..." and "Keep the chosen level for the session."). Do not renumber or retitle any section; do not touch lines 1-9 (frontmatter), 27 ("Return to full prose ..." stays verbatim: "full prose" is English, not the removed level), 39-51.
+1. Edit `plugins/core/skills/tokens/SKILL.md` (kit): delete line 25 in full (both sentences, "Compression levels on request: ..." and "Keep the chosen level for the session."). Do not renumber or retitle any section; do not touch any other line: the only edits in this file are the deletion of line 25 and the append on line 15 (step 2); the `diff` criterion below must show exactly those two hunks. Line 27 ("Return to full prose ...") stays verbatim: "full prose" is English, not the removed level.
 2. Same file, line 15 (§1): append one sentence at the end of the paragraph, on the same line, so the paragraph reads:
    ```markdown
    Choose one register: technical, human-facing, or governed. Read only the material needed for the requested outcome; broad reading needs a named hypothesis. A register sets density, never language or format: the conversation stays in the language the repo's `AGENTS.md` sets, and governed passages keep their template (§4), so there is no session-wide compression mode to request or remember.
@@ -93,7 +93,7 @@ plugins/core/AGENTS.md:50:- Technical answer: code/diff first, then ≤3 lines; 
 - [ ] `platforms/tools/check.sh` exits 0.
 - [ ] `platforms/tools/smoke.sh` exits 0.
 - [ ] `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` reports `OK`.
-- [ ] `python3 platforms/ci/validations/check_kit.py --links` exits 0 and its output contains no `description budget` failure (the total stays at today's value when the description is kept; the kit limit is 7,200).
+- [ ] `python3 platforms/ci/validations/check_kit.py --links` exits 0 and its output contains no `description budget` failure (the total stays at today's value when the description is kept; the kit limit is 7,200). A `broken link` failure whose path starts with `docs/plans/` is pre-existing and outside this task: do not edit those files; list the failing lines under unverified.
 - [ ] `grep -n 'P2-11' CHANGELOG.md` finds the new bullet above `## [10.1.0]`.
 - [ ] `git diff --stat main` lists exactly two files, `plugins/core/skills/tokens/SKILL.md` and `CHANGELOG.md` (three if step 3 shortened the description: plus `plugins/core/INDEX.md`).
 
@@ -121,3 +121,4 @@ Final message format:
 - next step: P2-06 (vendor the updated skill into the repos) and P2-15 (apply it to the three Stratics repos); P3-09 if an eval for `tokens` is wanted.
 - Proposed CHANGELOG line (under `### Changed`):
   `- tokens skill: the lite/full/ultra compression levels and the "keep the chosen level for the session" rule are removed; §1 now states that a register sets density, never language or format. Output compression does not reduce input tokens, where the cost is, and a session-wide level contradicted the pt-BR conversation rule (AGENTS.md) and "do not compress" for governed documents in the same skill (assessment §4.7, §6 F3). Proof: grep -rnw -e ultra -e lite plugins prints nothing; SKILL.md 51 -> 50 lines; description and INDEX.md row unchanged; all four kit gates green (P2-11).`
+  If step 3 shortened the description, replace `description and INDEX.md row unchanged` with `description shortened to N chars; INDEX.md row updated`.
