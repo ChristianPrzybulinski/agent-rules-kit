@@ -7,3 +7,4 @@ Scope: architecture and maintenance information for humans changing the kit. Plu
 | [`design.md`](design.md) | understanding the plugin-first architecture, context costs and deliberate exclusions |
 | [`projects.md`](projects.md) | deciding which artifacts belong in a project repository and where their templates originate |
 | [`maintenance.md`](maintenance.md) | changing layout, content, vendors, CI or a release |
+| [`plans/`](plans/README.md) | executing an assessment of the kit: dated reports and one self-contained prompt per plan item |
