@@ -11,7 +11,7 @@ paths:
   - "**/project.godot"
 ---
 
-Always/never for `*.gd`, `*.tscn` and `project.godot`. Procedures: skill `godot-standards` (names: `clean-code`; test gates: `testing`).
+Always/never for `*.gd`, `*.tscn` and `project.godot`. Procedures: skill `godot-standards` (names: `code-standards`; test gates: `testing`).
 
 - Always: Godot 4 syntax only: `@onready`, `@export`, `await`, `instantiate()`, `signal_name.connect(callable)`. Never `onready var`, `export`, `yield`, `instance()`, `connect("name", ...)`.
 - Always: typed GDScript: `var speed: float = 120.0`, `func hit(dmg: int) -> void`; an untyped variable, parameter or return is a defect.

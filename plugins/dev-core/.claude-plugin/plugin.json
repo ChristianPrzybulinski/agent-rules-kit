@@ -1,7 +1,7 @@
 {
   "name": "dev-core",
   "version": "10.3.0",
-  "description": "ai-kit dev patterns: clean code, simplicity, testing, docs and investigation skills",
+  "description": "ai-kit dev patterns: code standards, testing, docs and investigation skills",
   "author": {
     "name": "Christian Przybulinski"
   },

@@ -13,7 +13,7 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 
 - Start: read the repo's `AGENTS.md`; name **the** outcome of this session in one sentence.
 - One session, one outcome; one PR, one concern. Request on another topic → warn and stop: follow-up or new session; never mix silently.
-- End: summary (done · unverified · next step) + at most **one** kit proposal with evidence from this session, asked before written. Detail: skills `sessions`, `session-review`, `session-handoff`.
+- End: summary (done · unverified · next step) + at most **one** kit proposal with evidence from this session, asked before written. Detail: skill `session`.
 - When compacting or summarizing context, preserve the list of modified files and the test commands verbatim, so the next turn can re-run the proof.
 
 ## Work loop
@@ -25,7 +25,7 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 ## Craft
 
 - **Everything written is in English** — code, comments, commits, docs, folder names. Only the conversation with the user is in pt-BR.
-- Standards are skills: `clean-code`, `clean-architecture`, `simplicity`, `ddd-and-patterns`, `testing`, `branching-and-versioning`, `update-docs`, `git-lfs`. Load the one the task touches; `rules/` loads the Java and Godot sets by file glob.
+- Standards are skills: `code-standards`, `architecture`, `testing`, `branching-and-versioning`, `update-docs`, `git-lfs`. Load the one the task touches; `rules/` loads the Java and Godot sets by file glob.
 
 ## Security
 
