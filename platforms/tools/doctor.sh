@@ -154,8 +154,8 @@ ensure_claude_links() {
 
   local rule_file
   local plugin
-  # Default flips to 0 once P2-15 lands .claude/rules in the consumer repos.
-  if [[ "${AI_KIT_USER_RULES:-1}" == "0" ]]; then
+  # Default 0 since P2-15: consumer repos carry .claude/rules; set 1 to keep user-level symlinks.
+  if [[ "${AI_KIT_USER_RULES:-0}" == "0" ]]; then
     for destination in "$HOME/.claude/rules/"*.md; do
       [[ -L "$destination" ]] || continue
       current="$(readlink "$destination")"
