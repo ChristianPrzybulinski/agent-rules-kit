@@ -1,6 +1,6 @@
 # kit docker
 
-Local dev stack: PostgreSQL + Redis, and a multi-stage Dockerfile for the Java service.
+Local dev stack: PostgreSQL + Mailpit (development e-mail), and a multi-stage Dockerfile for the Java service. A Valkey service sits commented in `compose.yml` — uncomment only when a use-case DEC requires a cache.
 
 ## Usage
 
@@ -10,10 +10,10 @@ docker compose -f compose.yml config   # validates
 docker compose -f compose.yml up -d
 ```
 
-- Ports on localhost only (`127.0.0.1:5432`, `127.0.0.1:6379`).
-- `postgres:17.11` — latest 17.x on Docker Hub (verified 2026-09-29); `redis:7.4` — latest 7.x minor.
+- Ports on localhost only (`127.0.0.1:5432`; Mailpit SMTP `127.0.0.1:1025`, UI `127.0.0.1:8025`).
+- `postgres:18` — the PG 18 image keeps its data under `/var/lib/postgresql` (versioned subdir); a `postgres:17` volume mounted at `/var/lib/postgresql/data` is not reused — run `docker compose down -v` once when upgrading. `axllent/mailpit:v1.27`. Tags verified on Docker Hub on 2026-10-06.
 - `init/01-extensions.sql` creates `pg_stat_statements` (enabled via `shared_preload_libraries` in `command`).
-- Named volumes `pgdata`/`redisdata` — data survives `down`; `down -v` deletes it.
+- Named volume `pgdata` — data survives `down`; `down -v` deletes it.
 
 ## Dockerfile.java
 

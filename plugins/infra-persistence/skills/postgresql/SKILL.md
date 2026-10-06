@@ -15,7 +15,7 @@ allowed-tools:
 
 # PostgreSQL
 
-Read `references/postgres-17.md`; apply skill `secure-development` to SQL/personal data and skill `twelve-factor` to configuration. Ask before `DROP`, `TRUNCATE` or unbounded `DELETE`.
+Read `references/postgres-18.md`; apply skill `secure-development` to SQL/personal data and skill `twelve-factor` to configuration. Ask before `DROP`, `TRUNCATE` or unbounded `DELETE`.
 
 ## 1. Create migrations
 

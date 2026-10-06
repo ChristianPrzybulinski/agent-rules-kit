@@ -64,4 +64,4 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 - Codex and Claude Code refresh through launchd and `platforms/tools/refresh.sh`; run `platforms/tools/doctor.sh` to diagnose local state.
 - In Claude Code, use `/doctor prompt-audit` to inspect loaded instructions and `/context` to inspect token cost.
 
-This machine's prerequisites (2026-10-01): Godot 4.7.2 · JDK 25 (`/opt/homebrew/opt/openjdk@25`, keg-only — via `toolchains.xml`) and JDK 27 on PATH · Maven 3.9.16 · Node 26.10.0/npm 11.19.1 · Docker 29 + Compose v5 · gh 2.101 · git-lfs 3.8 · DBeaver · Krita · Devin Desktop with plugins from `main` · Codex desktop app (CLI not on PATH, so doctor uses app-only mode) · Claude Code 2.1.287. System Python 3 has `pyyaml` 6.0.3 and `jsonschema` 4.25.1.
+Machine notes live in `docs/machine.local.md`, git-ignored; see `docs/machine.local.md.example`.

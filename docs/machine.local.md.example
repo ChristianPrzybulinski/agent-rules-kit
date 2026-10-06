@@ -1,0 +1,13 @@
+# machine.local.md — example
+
+Copy to `docs/machine.local.md` and fill in this machine's facts. The file is git-ignored
+(`*.local.md`) — never commit it, and never keep machine facts in the kit's shared docs.
+
+## Prerequisites (YYYY-MM-DD)
+
+- Godot <version> (`godot --version`)
+- JDK <version> (e.g. `openjdk@25` keg-only under `/opt/homebrew/opt/`, wired via `toolchains.xml`)
+- Maven <version> · Node <version>/npm <version> · Docker <version> + Compose <version>
+- gh <version> · git-lfs <version>
+- Python packages the tools need (`pyyaml`, `jsonschema`)
+- GUI/agent tools and versions (DBeaver, Krita, Devin, Codex, Claude Code, …)
