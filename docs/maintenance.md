@@ -15,7 +15,7 @@ The 10.x layout is frozen until at least 2027-01-01 (principle "Layout stability
 | reference | copy [`../plugins/core/templates/kit-reference.md`](../plugins/core/templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
 | subagent profile | add `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it (reachable through the dependency graph) with frontmatter validated by `platforms/ci/schemas/agent.schema.json`; profiles are local-Devin only |
 | template | add `plugins/<plugin>/templates/<prefix>-<name>.md`, then list it in the plugin's `INDEX.md` |
-| plugin | create `plugins/<name>/` with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json` and `INDEX.md`; declare `requiredPlugins`/`dependencies` on the plugins it consumes; register it in the root meta-plugin `optionalPlugins`, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`; add it to `all`'s manifests |
+| plugin | create `plugins/<name>/` with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json` and `INDEX.md`; declare `requiredPlugins`/`dependencies` on the plugins it consumes; register it in the root meta-plugin `optionalPlugins`, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`; add it to `all`'s manifests, unless it is opt-in like `extras`: then add its name to `OPTIONAL_PLUGINS` in `platforms/ci/validations/check_kit.py` instead |
 
 A rule uses this frontmatter shape:
 

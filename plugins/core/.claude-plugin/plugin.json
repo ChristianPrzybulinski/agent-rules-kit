@@ -1,7 +1,7 @@
 {
   "name": "core",
   "version": "10.3.0",
-  "description": "ai-kit core: always-on global rules, session discipline and kit-authoring skills",
+  "description": "ai-kit core: always-on global rules, session discipline and kit templates",
   "author": {
     "name": "Christian Przybulinski"
   }

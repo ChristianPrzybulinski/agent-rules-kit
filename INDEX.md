@@ -9,7 +9,7 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 | Root | Purpose |
 |---|---|
 | [`.devin-plugin/plugin.json`](.devin-plugin/plugin.json) | meta-plugin manifest requiring `plugins/core/` through `git-subdir` |
-| [`plugins/`](plugins/) | plugin family: core, satellites and the `all` bundle |
+| [`plugins/`](plugins/) | plugin family: core, satellites, the `all` bundle and the opt-in `extras` |
 | [`platforms/`](platforms/INDEX.md) | lifecycle tools, validators and ready-to-copy kits |
 | [`docs/`](docs/INDEX.md) | architecture and maintenance documentation |
 | [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) | Codex marketplace catalog pointing to `./plugins/*` |
@@ -20,18 +20,19 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 
 | Plugin | Requires | Content |
 |---|---|---|
-| [`plugins/core/`](plugins/core/INDEX.md) | — | always-on rules, hook guard, session, collaboration and kit-authoring skills |
+| [`plugins/core/`](plugins/core/INDEX.md) | — | always-on rules, hook guard, session and collaboration skills, kit templates |
 | [`plugins/dev-core/`](plugins/dev-core/INDEX.md) | `core` | code patterns: code standards, testing, docs, investigation |
 | [`plugins/dev-java/`](plugins/dev-java/INDEX.md) | `dev-core` | `rules/java.md`, Java 25/Spring standards |
-| [`plugins/dev-godot/`](plugins/dev-godot/INDEX.md) | `dev-core` | `rules/godot.md`, Godot 2D, asset import, Krita |
+| [`plugins/dev-godot/`](plugins/dev-godot/INDEX.md) | `dev-core` | `rules/godot.md`, Godot 2D, asset import |
 | [`plugins/architect-core/`](plugins/architect-core/INDEX.md) | `core` | architecture (layers, ports, DDD), protocol contracts, grilling |
 | [`plugins/architect-sdd/`](plugins/architect-sdd/INDEX.md) | `architect-core`, `infra-github` | `rules/spec.md`, `researcher` profile, the sdd-* pipeline + journey layer, spec templates |
 | [`plugins/quality-core/`](plugins/quality-core/INDEX.md) | `core` | `reviewer` profile, skeptic, validate-implementation |
 | [`plugins/quality-security/`](plugins/quality-security/INDEX.md) | `quality-core` | secure development, vulnerability scanning |
 | [`plugins/infra-core/`](plugins/infra-core/INDEX.md) | `core` | Docker, Git LFS, twelve-factor |
-| [`plugins/infra-persistence/`](plugins/infra-persistence/INDEX.md) | `infra-core` | PostgreSQL, Redis, DBeaver |
+| [`plugins/infra-persistence/`](plugins/infra-persistence/INDEX.md) | `infra-core` | PostgreSQL, Redis |
 | [`plugins/infra-github/`](plugins/infra-github/INDEX.md) | `infra-core` | gh workflow, branching and versioning, review gates |
-| [`plugins/all/`](plugins/all/INDEX.md) | all above | manifest-only bundle: install everything |
+| [`plugins/extras/`](plugins/extras/INDEX.md) | `core` | opt-in: frontend-design, krita, dbeaver, find-skills, skill-creator (not in `all`) |
+| [`plugins/all/`](plugins/all/INDEX.md) | all above except `extras` | manifest-only bundle: install everything except `extras` |
 
 ## Plugin rules
 
@@ -63,3 +64,4 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 - `VERSION`, the meta-plugin manifest and all Devin, Codex and Claude plugin manifests agree.
 - Codex and Claude marketplace source paths are `./plugins/<name>`; plugin content has no managed duplicate.
 - Every skill and template appears in its plugin's `INDEX.md`; every triggered rule appears in this index.
+- `plugins/all/` requires every content plugin except the opt-in `extras`; `check_kit.py` `OPTIONAL_PLUGINS` is the single list of opt-in plugins.

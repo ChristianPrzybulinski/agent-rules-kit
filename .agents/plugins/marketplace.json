@@ -137,6 +137,18 @@
       "category": "Engineering"
     },
     {
+      "name": "extras",
+      "source": {
+        "source": "local",
+        "path": "./plugins/extras"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Engineering"
+    },
+    {
       "name": "all",
       "source": {
         "source": "local",
