@@ -7,6 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Added
 - `LICENSE`: proprietary, all rights reserved (no copying, redistribution or model training without written permission; a contribution grant to the copyright holder); the vendored third-party skills keep their MIT and Apache-2.0 licenses. `SECURITY.md`: private reporting, supported versions (latest release and `main`) and scope. Owner request 2026-10-06.
 
+### Changed
+- `evals.yml` runs only on `workflow_dispatch`. The weekly schedule is removed: the `ANTHROPIC_API_KEY` secret is not set (owner decision 2026-10-06), so each Monday run would fail and spend Actions minutes.
+
 ## [11.0.0] - 2026-10-06
 
 MAJOR: `sdd-analyze` and `sdd-audit` are removed (merged into `sdd-check`, see Migration), and the default install changes (`extras` leaves `all`; `AI_KIT_USER_RULES` defaults to `0`). The 10.x layout is unchanged: no folder, manifest path or install destination moved.

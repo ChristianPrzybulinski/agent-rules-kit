@@ -55,7 +55,7 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 - `check.sh` runs `claude plugin validate` on the plugin and marketplace when Claude Code is installed.
 - `check_kit.py` also gates allowed tools, three-way user-only/subagent/rule parity, reference kinds/sources, hooks, backtick paths and exact skill-index descriptions.
 - `.github/workflows/gitleaks.yml`: secret scan on pushes and pull requests.
-- `.github/workflows/evals.yml`: weekly and on-demand `claude plugin eval` per plugin; needs the `ANTHROPIC_API_KEY` repository secret.
+- `.github/workflows/evals.yml`: on-demand `claude plugin eval` per plugin; needs the `ANTHROPIC_API_KEY` repository secret, which is not set (owner 2026-10-06), so nothing runs it on a schedule.
 - `.github/workflows/release.yml`: tag/version validation and release creation.
 
 ## Evals
