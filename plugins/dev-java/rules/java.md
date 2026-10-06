@@ -9,7 +9,7 @@ paths:
   - "**/pom.xml"
 ---
 
-Always/never for `*.java` and `pom.xml`. Procedures: skill `java-standards` (names: `clean-code`; test gates: `testing`).
+Always/never for `*.java` and `pom.xml`. Procedures: skill `java-standards` (names: `code-standards`; test gates: `testing`).
 
 - Always: build with the Maven wrapper `./mvnw` at the LTS the repo fixes; never global `mvn`, Gradle or a PATH JDK.
 - Never: a framework import (`org.springframework`, `jakarta.persistence`, `java.sql`) in `domain/`; the ArchUnit gate fails it.

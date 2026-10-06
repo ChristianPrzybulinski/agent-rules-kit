@@ -21,10 +21,10 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 | Plugin | Requires | Content |
 |---|---|---|
 | [`plugins/core/`](plugins/core/INDEX.md) | — | always-on rules, hook guard, session, collaboration and kit-authoring skills |
-| [`plugins/dev-core/`](plugins/dev-core/INDEX.md) | `core` | code patterns: clean code, simplicity, testing, docs, investigation |
+| [`plugins/dev-core/`](plugins/dev-core/INDEX.md) | `core` | code patterns: code standards, testing, docs, investigation |
 | [`plugins/dev-java/`](plugins/dev-java/INDEX.md) | `dev-core` | `rules/java.md`, Java 25/Spring standards |
 | [`plugins/dev-godot/`](plugins/dev-godot/INDEX.md) | `dev-core` | `rules/godot.md`, Godot 2D, asset import, Krita |
-| [`plugins/architect-core/`](plugins/architect-core/INDEX.md) | `core` | Clean Architecture, DDD, protocol contracts, grilling |
+| [`plugins/architect-core/`](plugins/architect-core/INDEX.md) | `core` | architecture (layers, ports, DDD), protocol contracts, grilling |
 | [`plugins/architect-sdd/`](plugins/architect-sdd/INDEX.md) | `architect-core`, `infra-github` | `rules/spec.md`, `researcher` profile, the sdd-* pipeline + journey layer, spec templates |
 | [`plugins/quality-core/`](plugins/quality-core/INDEX.md) | `core` | `reviewer` profile, skeptic, validate-implementation |
 | [`plugins/quality-security/`](plugins/quality-security/INDEX.md) | `quality-core` | secure development, vulnerability scanning |
@@ -37,8 +37,8 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 
 | File | Trigger | Globs | Loads |
 |---|---|---|---|
-| [`plugins/dev-java/rules/java.md`](plugins/dev-java/rules/java.md) | `glob` | `**/*.java`, `**/pom.xml` | inline always/never; procedures in `java-standards`, `clean-code`, `testing` |
-| [`plugins/dev-godot/rules/godot.md`](plugins/dev-godot/rules/godot.md) | `glob` | `**/*.gd`, `**/*.tscn`, `**/project.godot` | inline always/never; procedures in `godot-standards`, `clean-code`, `testing` |
+| [`plugins/dev-java/rules/java.md`](plugins/dev-java/rules/java.md) | `glob` | `**/*.java`, `**/pom.xml` | inline always/never; procedures in `java-standards`, `code-standards`, `testing` |
+| [`plugins/dev-godot/rules/godot.md`](plugins/dev-godot/rules/godot.md) | `glob` | `**/*.gd`, `**/*.tscn`, `**/project.godot` | inline always/never; procedures in `godot-standards`, `code-standards`, `testing` |
 | [`plugins/architect-sdd/rules/spec.md`](plugins/architect-sdd/rules/spec.md) | `glob` | `docs/spec/**/*.md` | inline always/never; procedures in the `sdd-*` skills and spec templates |
 
 ## What goes where

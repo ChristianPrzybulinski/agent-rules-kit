@@ -14,7 +14,7 @@ allowed-tools:
 
 # Godot 2D Standards
 
-Names and functions: read skill `clean-code`. Test gates and coverage: read skill `testing`.
+Names, functions and the smallest change: read skill `code-standards`. Test gates and coverage: read skill `testing`.
 
 References: `references/godot-4-versions.md` for supported versions and `references/networking-transports.md` when a project DEC compares transports.
 

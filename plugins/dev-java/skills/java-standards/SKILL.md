@@ -14,7 +14,7 @@ allowed-tools:
 
 # Java Standards
 
-Names and functions: read skill `clean-code`. Test gates and coverage: read skill `testing`.
+Names, functions and the smallest change: read skill `code-standards`. Test gates and coverage: read skill `testing`.
 
 Read `references/build-and-dependencies.md` for Maven/module gates and `references/java-25-lts.md` for verified Java 25 and Spring Boot 4.1 facts.
 Persisting without JPA: read `references/jdbcclient-flyway.md`. Architecture gate: read `references/archunit-rules.md`.

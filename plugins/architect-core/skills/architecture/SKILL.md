@@ -1,6 +1,6 @@
 ---
-name: clean-architecture
-description: Clean Architecture layer and port placement. Use when defining layers, ports or where a class lives. Not for pattern choice (skill ddd-and-patterns).
+name: architecture
+description: Layers, ports, DDD blocks and pattern choice. Use when placing a class, defining an aggregate or picking a pattern. Not for contracts (skill protocol-contract).
 triggers:
   - user
   - model
@@ -11,7 +11,7 @@ allowed-tools:
   - edit
 ---
 
-# Clean Architecture
+# Architecture
 
 ## 1. Map the dependency direction
 
@@ -39,10 +39,18 @@ A single internal policy with no I/O stays concrete. Remove ports with neither a
 - Keep wiring and framework annotations in outer adapters/bootstrap.
 - Reject empty layers that only forward calls; fewer files and inward dependencies win.
 
-## 5. Verify the boundary
+## 5. Name the present problem, then pick the smallest block
+
+State the invariant, lifecycle, variation or coordination problem before selecting a building block or pattern. A non-obvious pattern needs one recorded reason in code or a DEC; popularity and hypothetical reuse are not reasons. Pick the smallest building block or pattern that fits from `references/pattern-catalog.md`. Aggregate boundaries follow transaction invariants, not table or screen boundaries.
+
+## 6. Block accidental patterns and speculative architectures
+
+Reject mutable global singletons, Active Record in the domain, anemic entities, ownerless utility classes and inheritance used only for code reuse. Do not introduce Event Sourcing, CQRS or microservices without a measured need; tactical aggregates, value objects and events do not require those architectures.
+
+## 7. Verify the boundary
 
 - Domain tests run without database, network, UI or framework context.
 - Use fakes at ports; do not mock entities.
 - Inspect imports or run the project's architecture gate before closing.
 
-Done when: every dependency points inward, validation/error translation occurs at the edge, and each port names its I/O, swap or domain-boundary reason.
+Done when: every dependency points inward, validation/error translation occurs at the edge, each port names its I/O, swap or domain-boundary reason, and the chosen building block or pattern solves a named current problem with its rejected simpler option understood and no speculative architecture added.
