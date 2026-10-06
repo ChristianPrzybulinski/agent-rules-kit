@@ -9,8 +9,10 @@ import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 KIT = Path(__file__).resolve().parents[3]
@@ -34,7 +36,8 @@ NAME_RE = re.compile(r"^[a-z0-9]+(?:[-.][a-z0-9]+)*$")
 
 failures = []
 warnings = []
-counts = {"plugins": 0, "skills": 0, "rules": 0, "templates": 0, "indexes": 0, "links": 0}
+counts = {"plugins": 0, "skills": 0, "rules": 0, "templates": 0, "indexes": 0, "links": 0,
+          "hook_cases": 0}
 
 try:
     import yaml
@@ -440,6 +443,7 @@ for name, plugin_dir in plugins.items():
 
 hooks_path = plugins.get(CORE_PLUGIN, PLUGINS_ROOT / CORE_PLUGIN) / "hooks/hooks.json"
 guard_commands = []
+post_edit_commands = []
 if hooks_path.exists():
     hooks_data = read_json(hooks_path)
     if not isinstance(hooks_data, dict) or set(hooks_data) != {"hooks"}:
@@ -449,7 +453,7 @@ if hooks_path.exists():
         if not isinstance(hook_events, dict):
             fail(rel(hooks_path), "hooks must be an object")
             hook_events = {}
-        unknown_events = set(hook_events) - {"PreToolUse"}
+        unknown_events = set(hook_events) - {"PreToolUse", "PostToolUse"}
         if unknown_events:
             fail(rel(hooks_path), f"unsupported hooks: {sorted(unknown_events)}")
         pre_tool_hooks = hook_events.get("PreToolUse", [])
@@ -489,6 +493,43 @@ if hooks_path.exists():
                         fail(rel(hooks_path), f"{location} command missing")
                     elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
                         guard_commands.append((command, timeout))
+        post_tool_hooks = hook_events.get("PostToolUse", [])
+        if not isinstance(post_tool_hooks, list):
+            fail(rel(hooks_path), "hooks.PostToolUse must be an array")
+        else:
+            for group_index, group in enumerate(post_tool_hooks):
+                if not isinstance(group, dict):
+                    fail(rel(hooks_path), f"PostToolUse[{group_index}] must be an object")
+                    continue
+                matcher = group.get("matcher")
+                if not isinstance(matcher, str) or not matcher:
+                    fail(rel(hooks_path), f"PostToolUse[{group_index}] matcher missing")
+                else:
+                    try:
+                        matches_both_tools = all(re.fullmatch(matcher, tool) for tool in ("Edit", "Write"))
+                    except re.error:
+                        matches_both_tools = False
+                    if not matches_both_tools:
+                        fail(rel(hooks_path), f"PostToolUse[{group_index}] matcher must match Edit and Write")
+                hooks = group.get("hooks")
+                if not isinstance(hooks, list):
+                    fail(rel(hooks_path), f"PostToolUse[{group_index}].hooks must be an array")
+                    continue
+                for hook_index, hook in enumerate(hooks):
+                    location = f"PostToolUse[{group_index}].hooks[{hook_index}]"
+                    if not isinstance(hook, dict):
+                        fail(rel(hooks_path), f"{location} must be an object")
+                        continue
+                    if hook.get("type") != "command":
+                        fail(rel(hooks_path), f"{location} type must be 'command'")
+                    timeout = hook.get("timeout")
+                    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout > 30:
+                        fail(rel(hooks_path), f"{location} timeout must be at most 30")
+                    command = hook.get("command")
+                    if not isinstance(command, str) or not command:
+                        fail(rel(hooks_path), f"{location} command missing")
+                    elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 30:
+                        post_edit_commands.append((command, timeout))
 elif CORE_PLUGIN in plugins:
     fail(f"plugins/{CORE_PLUGIN}/hooks/hooks.json", "core plugin requires hooks/hooks.json")
 
@@ -535,6 +576,64 @@ else:
                         fail(rel(hook_cases_path), f"blocked case not blocked: {case}")
                 elif result.returncode != 0 or result.stdout != "":
                     fail(rel(hook_cases_path), f"allowed case not allowed cleanly: {case}")
+
+post_edit_cases_path = KIT / "platforms/ci/validations/hook_post_edit_cases.json"
+post_edit_cases = read_json(post_edit_cases_path) if post_edit_cases_path.exists() else None
+if post_edit_cases is None:
+    if not post_edit_cases_path.exists():
+        fail(rel(post_edit_cases_path), "hook post-edit cases missing")
+elif not isinstance(post_edit_cases, dict):
+    fail(rel(post_edit_cases_path), "top level must be an object")
+else:
+    cases = post_edit_cases.get("cases")
+    if not isinstance(cases, list):
+        fail(rel(post_edit_cases_path), "cases must be an array")
+        cases = []
+    elif len(cases) < 10:
+        fail(rel(post_edit_cases_path), "cases must contain at least 10 cases")
+    for command, timeout in post_edit_commands:
+        for case in cases:
+            if not isinstance(case, dict) or not isinstance(case.get("file"), str):
+                fail(rel(post_edit_cases_path), f"post-edit case must be an object with a file: {case!r}")
+                continue
+            name = case.get("name", case["file"])
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                edited = root / case["file"]
+                edited.parent.mkdir(parents=True, exist_ok=True)
+                edited.touch()
+                bin_dir = root / "bin"
+                bin_dir.mkdir()
+                for tool, code in (case.get("tools") or {}).items():
+                    if tool == "check_spec.py":
+                        stub = root / ".github/spec-lint/check_spec.py"
+                        stub.parent.mkdir(parents=True, exist_ok=True)
+                        stub.write_text(f'import sys\nprint("stub check_spec.py finding")\nsys.exit({code})\n')
+                    else:
+                        stub = bin_dir / tool
+                        stub.write_text(f'#!/bin/sh\necho "stub $0 finding"\nexit {code}\n')
+                        stub.chmod(0o755)
+                (bin_dir / "python3").symlink_to(sys.executable)
+                payload = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": case["file"]}, "cwd": tmp})
+                try:
+                    result = subprocess.run(
+                        [shutil.which("bash"), "-c", command], input=payload, text=True,
+                        capture_output=True, timeout=timeout, cwd=tmp,
+                        env={"PATH": str(bin_dir)}, check=False)
+                except subprocess.TimeoutExpired:
+                    fail(rel(post_edit_cases_path), f"post-edit case '{name}' timed out")
+                    continue
+                counts["hook_cases"] += 1
+                if result.returncode != case.get("exit", 0):
+                    fail(rel(post_edit_cases_path), f"post-edit case '{name}': expected exit {case.get('exit', 0)}, got {result.returncode}")
+                    continue
+                for stream in ("stdout", "stderr"):
+                    want = case.get(stream)
+                    if want is None:
+                        continue
+                    got = getattr(result, stream)
+                    if (want == "" and got != "") or (want and want not in got):
+                        fail(rel(post_edit_cases_path), f"post-edit case '{name}': {stream} expected {want!r}, got {got!r}")
 
 
 # --- 6. Skills ---
@@ -934,5 +1033,6 @@ for markdown_file in sorted(set(duplication_files)):
 
 print(f"check: {'OK' if not failures else 'failed'} ({counts['plugins']} plugins, {counts['skills']} skills, "
       f"{counts['rules']} rules, {counts['templates']} templates, "
-      f"{counts['indexes']} indexes, {counts['links']} links)")
+      f"{counts['indexes']} indexes, {counts['links']} links, "
+      f"{counts['hook_cases']} hook cases)")
 sys.exit(1 if failures else 0)

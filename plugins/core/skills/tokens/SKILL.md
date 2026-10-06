@@ -12,7 +12,7 @@ allowed-tools:
 
 ## 1. Classify before writing
 
-Choose one register: technical, human-facing, or governed. Read only the material needed for the requested outcome; broad reading needs a named hypothesis.
+Choose one register: technical, human-facing, or governed. Read only the material needed for the requested outcome; broad reading needs a named hypothesis. A register sets density, never language or format: the conversation stays in the language the repo's `AGENTS.md` sets, and governed passages keep their template (§4), so there is no session-wide compression mode to request or remember.
 
 ## 2. Use the technical register
 
@@ -22,7 +22,6 @@ For code, debugging, logs, refactors, scripts and CLI work:
 - Put the worst literal failure first.
 - Preserve paths, commands and error text byte-for-byte.
 - Use the smallest useful snippet; do not repeat the request or narrate a feature tour.
-- Compression levels on request: `lite` = concise sentences, `full` = fragments, `ultra` = code plus one line. Keep the chosen level for the session.
 
 Return to full prose for security warnings, irreversible actions, payments, migrations, force-pushes, or multi-step instructions that become ambiguous when compressed.
 

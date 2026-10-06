@@ -11,6 +11,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(edit|write|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c 'import sys,json,os,shutil,subprocess as sp\nd=json.load(sys.stdin);f=(d.get(\"tool_input\") or {}).get(\"file_path\") or \"\";cwd=d.get(\"cwd\") or os.getcwd()\np=f if os.path.isabs(f) else os.path.join(cwd,f);r=os.path.relpath(p,cwd);V=\".github/spec-lint/check_spec.py\"\ndef run(a):\n    try:x=sp.run(a,cwd=cwd,capture_output=True,text=True,timeout=25)\n    except sp.TimeoutExpired:return 0,\"\"\n    return x.returncode,(x.stdout+x.stderr).strip()\ndef skip(t,h):print(\"ai-kit lint: %s not available (%s); skipped for %s\"%(t,h,r))\ntool=c=o=None\nif f.endswith(\".gd\"):\n    if shutil.which(\"gdformat\") and shutil.which(\"gdlint\"):run([\"gdformat\",p]);tool=\"gdlint\";c,o=run([\"gdlint\",p])\n    else:skip(\"gdformat/gdlint\",\"pip install gdtoolkit\")\nelif f.endswith(\".java\"):\n    if shutil.which(\"google-java-format\"):tool=\"google-java-format\";c,o=run([\"google-java-format\",\"--replace\",p])\n    else:skip(\"google-java-format\",\"install the CLI or the all-deps jar\")\nelif r.startswith(\"docs/spec/\") and f.endswith(\".md\"):\n    if os.path.isfile(os.path.join(cwd,V)):tool=\"check_spec.py\";c,o=run([sys.executable,V,\"docs/spec\",\".github/spec-lint/schemas\"])\n    else:skip(V,\"run platforms/tools/sync-project.sh\")\nif c:print(\"ai-kit lint: %s reported problems after editing %s:\\n%s\"%(tool,r,o[:2000]),file=sys.stderr);sys.exit(2)\n'",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }
