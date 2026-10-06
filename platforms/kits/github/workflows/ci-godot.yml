@@ -1,42 +1,141 @@
 name: ci-godot
 
-on:
-  push:
-  pull_request:
-  workflow_dispatch:
+# Reusable Godot CI: the project copies this file to .github/workflows/ and calls it from its own
+# workflow (`uses: ./.github/workflows/ci-godot.yml` — see README.md). The `changes` job decides what
+# the diff needs: a docs-only diff skips import and tests; a diff it cannot compute (schedule,
+# workflow_dispatch, new branch) runs everything (fail-open).
 
-env:
-  GODOT_IMAGE: barichello/godot-ci:4.7.2
+on:
+  workflow_call:
+    inputs:
+      godot-version:
+        type: string
+        default: '4.7.2'
+      test-runner:
+        description: "'gdunit4' (default) or 'gut'"
+        type: string
+        default: 'gdunit4'
+    outputs:
+      code:
+        description: "'true' when the diff touches more than docs"
+        value: ${{ jobs.changes.outputs.code }}
+      export:
+        description: "'true' when the diff touches more than docs and tests/ — the caller's export job reads it"
+        value: ${{ jobs.changes.outputs.export }}
+
+# Git LFS assets would reach Godot as pointer files, so each job checks out without LFS, restores
+# .git/lfs from a cache keyed on the LFS object list and runs `git lfs pull`: unchanged assets cost
+# no LFS bandwidth. barichello/godot-ci ships git-lfs.
 
 jobs:
-  import-and-test:
+  changes:
+    # GitHub counts a skipped job as success for a required check; this job is required itself because
+    # a job skipped after a failed `needs` also reports success.
     runs-on: ubuntu-latest
-    container: barichello/godot-ci:4.7.2
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+      export: ${{ steps.diff.outputs.export }}
     steps:
       - uses: actions/checkout@v7
-      - name: Project import (generates .godot/, validates resources)
-        run: godot --headless --path . --quit
-      - name: GUT tests (if addons/gut exists)
+        with:
+          fetch-depth: 0
+          lfs: false
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
         run: |
-          if [ -d addons/gut ]; then
-            godot --headless --path . -s addons/gut/gut_cmdln.gd -gexit
+          set -uo pipefail
+          range=""
+          if [ "$EVENT" = pull_request ]; then range="$PR_BASE...$PR_HEAD"
+          elif [ "$EVENT" = push ] && [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then range="$BEFORE..$AFTER"
+          fi
+          if [ -n "$range" ] && files=$(git diff --name-only "$range"); then
+            printf '%s\n' "$files"
+            docs='(^|/)[^/]+\.md$|^docs/|^changelog\.d/|^\.github/ISSUE_TEMPLATE/|^\.github/CODEOWNERS$|^LICENSE'
+            # here-strings, not pipes: with pipefail, `grep -q` closing early can SIGPIPE the writer
+            code=false; grep -Evq "$docs" <<< "$files" && code=true
+            export=false; grep -Evq "$docs|^tests/" <<< "$files" && export=true
+            echo "code=$code" >> "$GITHUB_OUTPUT"
+            echo "export=$export" >> "$GITHUB_OUTPUT"
           else
-            echo "addons/gut missing; skipping tests"
+            echo "::notice::no diff range for '$EVENT' — running every job"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "export=true" >> "$GITHUB_OUTPUT"
           fi
 
-  export:
+  import-and-test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    container: barichello/godot-ci:4.7.2
+    timeout-minutes: 30
+    container: barichello/godot-ci:${{ inputs.godot-version }}
     steps:
       - uses: actions/checkout@v7
-      - name: Import
-        run: godot --headless --path . --quit
-      - name: Export Windows Desktop
-        run: godot --headless --path . --export-release "Windows Desktop" build/windows/game.exe
-      - name: Export macOS
-        run: godot --headless --path . --export-release "macOS" build/macos/game.zip
-      - uses: actions/upload-artifact@v7
         with:
-          name: exports
-          path: build/
+          lfs: false
+      - name: List LFS objects (cache key)
+        # the container runs as root but the runner creates the workspace as uid 1001, and checkout trusts it
+        # only in a temporary HOME: without safe.directory, git fails with "detected dubious ownership"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+      - name: Restore LFS cache
+        uses: actions/cache@v6
+        with:
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+      - name: Pull LFS objects
+        run: git lfs pull
+      - name: Project import (generates .godot/ and the script-class cache, validates resources)
+        # `--quit` skips the import scan, so class_name scripts such as gdUnit4's GdUnitTestCIRunner
+        # stay unregistered on a fresh checkout and the runner fails to load
+        run: godot --headless --path . --import
+      - name: Unit tests (missing runner or zero suites fails the build)
+        # container jobs default to `sh -e`; dash rejects `set -o pipefail` (exit 2)
+        shell: bash
+        env:
+          TEST_RUNNER: ${{ inputs.test-runner }}
+        run: |
+          set -euo pipefail
+          case "$TEST_RUNNER" in
+            gdunit4)
+              if [ ! -d addons/gdUnit4 ]; then
+                echo "::error::addons/gdUnit4 missing — tests must not be skipped" >&2
+                exit 1
+              fi
+              if ! find tests -name '*_test.gd' -print -quit 2>/dev/null | grep -q .; then
+                echo "::error::no gdUnit4 test suites (*_test.gd) under tests/ — a green run with zero tests is a failure" >&2
+                exit 1
+              fi
+              godot --headless --path . -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode \
+                | tee test-run.log
+              # a runner that fails to load can still exit 0 with zero suites run: require >= 1 executed test case
+              if ! sed 's/\x1b\[[0-9;]*m//g' test-run.log | grep -Eq 'Overall Summary: [1-9][0-9]* test cases'; then
+                echo "::error::gdUnit4 executed no test case — check the runner and the import step" >&2
+                exit 1
+              fi
+              ;;
+            gut)
+              # GUT defaults to res://test; both common directories are scanned — adjust to the project layout
+              if [ ! -d addons/gut ]; then
+                echo "::error::addons/gut missing — tests must not be skipped" >&2
+                exit 1
+              fi
+              if ! find test tests -name 'test_*.gd' -print -quit 2>/dev/null | grep -q .; then
+                echo "::error::no GUT test suites (test_*.gd) under test/ or tests/ — a green run with zero tests is a failure" >&2
+                exit 1
+              fi
+              godot --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://test,res://tests -gexit
+              ;;
+            *)
+              echo "::error::unknown test-runner '$TEST_RUNNER' — expected 'gdunit4' or 'gut'" >&2
+              exit 1
+              ;;
+          esac

@@ -1,18 +1,73 @@
 name: ci-java
 
+# Reusable Java CI: the project copies this file to .github/workflows/ and calls it from its own
+# workflow (`uses: ./.github/workflows/ci-java.yml` — see README.md). The `changes` job decides what
+# the diff needs: a docs-only diff skips build and tests, and dependency-check runs only when the
+# build files change; a diff it cannot compute (schedule, workflow_dispatch, new branch) runs
+# everything (fail-open).
+
 on:
-  push:
-  pull_request:
+  workflow_call:
+    inputs:
+      java-version:
+        type: string
+        default: '25'
+    secrets:
+      NVD_API_KEY:
+        required: true
 
 jobs:
-  build:
+  changes:
+    # GitHub counts a skipped job as success for a required check; this job is required itself because
+    # a job skipped after a failed `needs` also reports success.
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+      deps: ${{ steps.diff.outputs.deps }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          lfs: false
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+          range=""
+          if [ "$EVENT" = pull_request ]; then range="$PR_BASE...$PR_HEAD"
+          elif [ "$EVENT" = push ] && [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then range="$BEFORE..$AFTER"
+          fi
+          if [ -n "$range" ] && files=$(git diff --name-only "$range"); then
+            printf '%s\n' "$files"
+            docs='(^|/)[^/]+\.md$|^docs/|^changelog\.d/|^\.github/ISSUE_TEMPLATE/|^\.github/CODEOWNERS$|^LICENSE'
+            # here-strings, not pipes: with pipefail, `grep -q` closing early can SIGPIPE the writer
+            code=false; grep -Evq "$docs" <<< "$files" && code=true
+            deps=false; grep -Eq '^pom\.xml$|^\.mvn/|^mvnw(\.cmd)?$|^dependency-check-suppressions\.xml$|^\.github/workflows/' <<< "$files" && deps=true
+            echo "code=$code" >> "$GITHUB_OUTPUT"
+            echo "deps=$deps" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::no diff range for '$EVENT' — running every job"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "deps=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: ${{ inputs.java-version }}
           cache: maven
       - name: Spotless + verify (tests, JaCoCo, PITest in the domain module)
         run: ./mvnw -B -ntp spotless:check verify
@@ -32,19 +87,33 @@ jobs:
           if-no-files-found: ignore
 
   dependency-check:
+    needs: changes
+    if: needs.changes.outputs.deps == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: ${{ inputs.java-version }}
           cache: maven
-      - name: dependency-check NVD data cache
-        uses: actions/cache@v6
+      - name: Restore dependency-check NVD data
+        uses: actions/cache/restore@v6
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: ${{ runner.os }}-dc-nvd-${{ github.run_id }}
           restore-keys: ${{ runner.os }}-dc-nvd-
       - name: OWASP dependency-check (fails on CVSS >= 7)
-        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        # Plugin version pinned: the mojo must support nvdApiKeyEnvironmentVariable.
+        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:13.0.0:check -DfailBuildOnCVSS=7 -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+      - name: Save dependency-check NVD data
+        # Save even when the gate fails on a real CVE: the full NVD sync costs
+        # ~2h on a cold cache and a red run must not throw it away.
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ runner.os }}-dc-nvd-${{ github.run_id }}

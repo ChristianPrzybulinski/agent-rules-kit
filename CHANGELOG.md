@@ -4,6 +4,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- `dev-java` template `project-agents-java-spring.md`: Java 25 / Spring Boot 4.x with explicit choice blocks — `Persistence: JdbcClient + Flyway (default) | JPA` and `Errors: project protocol catalog | RFC 7807`.
+- `platforms/kits/github/workflows/ci-godot.yml`: reusable `workflow_call` workflow with `godot-version`/`test-runner` inputs — gdUnit4 by default, GUT optional, missing runner or zero suites fails; change-aware `changes` job and LFS cache.
+- `platforms/kits/github/workflows/ci-java.yml`: reusable workflow with a `changes` job, required `NVD_API_KEY` secret, pinned `dependency-check-maven:13.0.0` and NVD cache saved even on failure.
+- `platforms/kits/docker/compose.yml`: `postgres:18` (data dir under `/var/lib/postgresql`) and Mailpit; Redis replaced by a commented optional Valkey service.
+- `postgresql` skill: `postgres-17.md` renamed to `postgres-18.md` with the PG 18 facts and data-dir change.
+- Machine facts moved out of shared docs (`docs/maintenance.md`, `godot-4-versions.md`, `java-25-lts.md`) into git-ignored `docs/machine.local.md` — template at `docs/machine.local.md.example`; `.env` is now git-ignored.
+
 ## [10.2.0] - 2026-10-06
 
 ### Added
