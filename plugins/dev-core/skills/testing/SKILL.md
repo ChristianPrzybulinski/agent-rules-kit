@@ -20,6 +20,8 @@ Domain rules involving business logic, money, inventory, rewards, battle or auth
 
 Outside the domain, require one executable test for each non-trivial branch, parser, rule-bearing mapping or translated adapter behavior; trivial getters, records, constructors, one-to-one mappings and framework wiring remain untested.
 
+GDScript (Godot): no line, branch or mutation percentage gate; the tooling does not exist. Instead, every game rule (combat, inventory, movement validation, economy, rewards) lives in a pure `RefCounted` class with `class_name`, built with `.new()` and tested without a `SceneTree` (no `add_child`, no autoload, no `get_node`; inject the clock and the RNG). Scene tests (gdUnit4 scene runner, GUT `add_child_autofree`) are integration tests: few, around a `.tscn` contract. CI fails when the runner is absent or zero tests execute.
+
 ## 2. Define behavior before implementation
 
 - Bug: add a test that reproduces the symptom and fails for the right reason before the fix.
@@ -47,4 +49,4 @@ Do not test getters, framework behavior or that collaborator X was called. Asser
 
 Run the narrow relevant test first, then the repository gate. Investigate unit tests over one second or integration tests over ten seconds instead of normalizing the delay.
 
-Done when: required domain percentages and mutation pass, every non-trivial non-domain change has one proof, integrations have happy/sad coverage, and no test sleeps or asserts implementation calls.
+Done when: required domain percentages and mutation pass (JVM) or every GDScript rule has a scene-free test, every non-trivial non-domain change has one proof, integrations have happy/sad coverage, and no test sleeps or asserts implementation calls.

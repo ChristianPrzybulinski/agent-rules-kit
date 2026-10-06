@@ -1,6 +1,8 @@
 # Godot 4
 .godot/
 build/
+# test reports written by gdUnit4/GUT in CI
+reports/
 
 # *.import is NOT ignored — it is versioned (it describes how the engine imports each asset).
 # export_presets.cfg contains local export paths/certificates — project decision:

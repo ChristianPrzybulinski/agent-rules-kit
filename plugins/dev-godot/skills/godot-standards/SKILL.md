@@ -49,4 +49,6 @@ Read `project.godot`, scene ownership and neighboring scripts before editing. Co
 Boot proof, two commands in this order: `godot --headless --path . --import` (imports every resource, builds the script-class cache, quits; `--headless` is mandatory without a GPU), then `! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'` (the exit code of `--quit` is 0 after a script error, so a match is the failure). Then run the project test command.
 Report the literal output of all three; a `SCRIPT ERROR`, `Parser Error` or import error is a failure even when the exit code is 0.
 
+Test runner: gdUnit4 by default (`-s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode`), GUT only when the project `AGENTS.md` says so (`-s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit`). A run that executes zero tests, or a missing runner, is a failure, never a skip. Game rules live in pure `RefCounted` classes with scene-free tests; scene tests are integration only (skill `testing`, section 1).
+
 Done when: changed scripts are typed, scene dependencies use composition/signals, rules are testable without nodes, and headless import plus tests pass, and movement code follows the declared movement model.
