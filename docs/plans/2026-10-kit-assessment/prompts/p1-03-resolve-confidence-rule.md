@@ -8,12 +8,12 @@ Replace the unverifiable "Confidence < 98% -> do not proceed" gate in the kit's 
 
 ## Why
 
-- assessment §4.4 (Confianca): `AGENTS.md` section Skepticism says "Confidence < 98% -> do not proceed" while section Work loop says "Ambiguous but unblocked -> decide, state the assumption, proceed". The two rules collide; in practice the agent picks one at random. Current Anthropic guidance for autonomous agents is the second.
+- assessment §4.4, bullet Confidence: `AGENTS.md` section Skepticism says "Confidence < 98% -> do not proceed" while section Work loop says "Ambiguous but unblocked -> decide, state the assumption, proceed". The two rules collide; in practice the agent picks one at random. Current Anthropic guidance for autonomous agents is the second.
 - assessment §6 item B1: replace section Skepticism with three verifiable lines (claim without a source is a hypothesis and is tagged as such; ambiguity that does not block -> decide, state the premise in one line, proceed; real blocker -> one question with 2-4 options and a recommendation). The number 98% goes: it is not measurable, and Anthropic recommends instructions the model can verify. assessment §8 puts B1 in week 1.
 - assessment §5, table row on instruction files: Claude Code `memory` and `best-practices` pages ask that every line of an instruction file pass the test "would removing it cause an error?"; a threshold the model cannot measure fails that test, and when two lines contradict each other the model follows one arbitrarily (verify the wording against code.claude.com/docs/en/best-practices before quoting it in the PR).
-- The contradiction is in three places today, not one: kit `plugins/core/AGENTS.md:15` (the gate), `:29` (decide and proceed) and `:51` ("Ambiguity -> one focused question", with no blocked/unblocked distinction). Measured with `grep -n 'Ambigu\|98' plugins/core/AGENTS.md`: 3 lines.
-- The `skeptic` skill repeats the gate in its description (`plugins/quality-core/skills/skeptic/SKILL.md:3`, copied verbatim into `plugins/quality-core/INDEX.md:7`) and in its policy (`:20`), verdict template (`:60`) and done criterion (`:69`). Measured with `grep -rn '98' plugins/` : 5 lines, all in these two files.
-- Budgets measured today: `plugins/core/AGENTS.md` is 57 lines (`check_kit.py` `AGENTS_MAX_LINES = 60`, `platforms/ci/validations/check_kit.py:22`); the `skeptic` description is 159 chars (max 160, `:24`); all 43 skill descriptions sum to 6,805 chars (budget 7,200, `:25`); `SKILL.md` is 69 lines (max 80, `:26`).
+- The contradiction is in three places today, not one: kit `plugins/core/AGENTS.md:15` (the gate), `:29` (decide and proceed) and `:51` ("Ambiguity -> one focused question", with no blocked/unblocked distinction). Measured with `grep -n 'Ambigu\|98' plugins/core/AGENTS.md`: 4 lines (13 is the section heading `## Skepticism (>98%)`, which step 1 also replaces; 15, 29 and 51 are the three rules).
+- The `skeptic` skill repeats the gate in its description (`plugins/quality-core/skills/skeptic/SKILL.md:3`, copied verbatim into `plugins/quality-core/INDEX.md:7`) and in its policy (`:20`), verdict template (`:60`) and done criterion (`:69`). Measured with `grep -rn '98' plugins/quality-core/`: 5 lines, all in these two files (`grep -rn '98' plugins/` adds `plugins/core/AGENTS.md:13` and `:15`, 7 lines in total; nothing else in `plugins/` contains '98').
+- Budgets measured today: `plugins/core/AGENTS.md` is 57 lines (`check_kit.py` `AGENTS_MAX_LINES = 60`, `platforms/ci/validations/check_kit.py:22`); the `skeptic` description is 159 chars (max 160, `:24`); all 43 skill descriptions sum to 6,803 chars (budget 7,200, `:25`); `SKILL.md` is 69 lines (max 80, `:26`).
 
 ## Current state
 
@@ -55,9 +55,9 @@ Replace the unverifiable "Confidence < 98% -> do not proceed" gate in the kit's 
 - Disagree with evidence and hold the position until shown wrong or told "do it anyway". Found you were wrong → say "I was wrong about X" and correct going forward.
 ```
 
-2. kit `plugins/core/AGENTS.md`: delete line 29 (`- Ambiguous but unblocked → ...`). The Skepticism section now carries that rule; a second copy would be the duplicate the best-practices test rejects. Section Work loop keeps its other three bullets.
+2. kit `plugins/core/AGENTS.md`: delete the bullet that begins `- Ambiguous but unblocked → decide, state the assumption, proceed.` (line 29 before step 1, line 30 after it; match by content, not by number). The Skepticism section now carries that rule; a second copy would be the duplicate the best-practices test rejects. Section Work loop keeps its other three bullets.
 
-3. kit `plugins/core/AGENTS.md`: shorten line 51 to `- End with: done · unverified · concrete next step.` The question format ("one question with 2-4 options") now lives in Skepticism; the old sentence said "ask" for every ambiguity, which was the contradiction in miniature.
+3. kit `plugins/core/AGENTS.md`: shorten the bullet that begins `- End with: done · unverified · concrete next step.` (line 51 before step 1; back at line 51 once step 2 is done) to exactly `- End with: done · unverified · concrete next step.` The question format ("one question with 2-4 options") now lives in Skepticism; the old sentence said "ask" for every ambiguity, which was the contradiction in miniature.
 
 4. kit `plugins/quality-core/skills/skeptic/SKILL.md`: replace line 3 with exactly:
 
@@ -65,7 +65,7 @@ Replace the unverifiable "Confidence < 98% -> do not proceed" gate in the kit's 
 description: Adversarial check of a claim or proposed fix. Use when the user suggests a solution or a claim has no source yet. Not for bugs (skill investigate).
 ```
 
-   (147 chars; contains the literal "Use when" and "Not for" that `check_kit.py` requires; total budget becomes 6,793 chars.)
+   (147 chars; contains the literal `Use when` that `check_kit.py:619` requires and the `Not for` that `:621` warns about when missing; total budget becomes 6,791 chars.)
 
 5. kit `plugins/quality-core/skills/skeptic/SKILL.md`: replace line 20 with:
 
@@ -103,8 +103,8 @@ Files edited (all in the kit): `plugins/core/AGENTS.md`, `plugins/quality-core/s
 - [ ] `head -1 plugins/core/AGENTS.md` prints `# Global Rules — AI Kit`; `grep -c '^## Skepticism$' plugins/core/AGENTS.md` prints `1`.
 - [ ] `python3 -c "print(len(open('plugins/core/AGENTS.md').read().splitlines()))"` prints `57` (the validator counts with `splitlines()`, `check_kit.py:398`); any value <= 60 passes the gate but a larger one means a line was added that this task does not ask for.
 - [ ] `grep -c 'Confidence: NN%' plugins/quality-core/skills/skeptic/SKILL.md` prints `1`.
-- [ ] `grep -n '^description:' plugins/quality-core/skills/skeptic/SKILL.md | wc -c` is at most 175 (160 chars plus the `3:description: ` prefix and newline); the same text appears once in `plugins/quality-core/INDEX.md`: `grep -c 'a claim has no source yet' plugins/quality-core/INDEX.md` prints `1`.
-- [ ] `python3 - <<'EOF'` summing `len(description)` over every `plugins/*/skills/*/SKILL.md` frontmatter prints a total <= 7200 (expected 6793) `EOF`; `check_kit.py` enforces the same budget.
+- [ ] `grep -n '^description:' plugins/quality-core/skills/skeptic/SKILL.md | wc -c` prints `163` (147 chars + the 15-char `3:description: ` prefix + newline; the validator's limit of 160 chars corresponds to 176 here); the same text appears once in `plugins/quality-core/INDEX.md`: `grep -c 'a claim has no source yet' plugins/quality-core/INDEX.md` prints `1`.
+- [ ] `python3 -c "import re,glob;print(sum(len(re.search(r'^description:\s*(.*)$',open(f).read(),re.M).group(1).strip().strip('\"')) for f in glob.glob('plugins/*/skills/*/SKILL.md')))"` prints `6791` (<= 7200; 6803 today; `check_kit.py` enforces the same budget with `DESCRIPTIONS_BUDGET = 7200` at `:25`, summing `len(description)` of each frontmatter at `:572-577` and `:639`).
 - [ ] `wc -l plugins/quality-core/skills/skeptic/SKILL.md` prints `69` (<= 80).
 - [ ] `grep -c 'Skepticism' CHANGELOG.md` is at least `4` (3 historical lines plus the new Unreleased bullet), and the new bullet sits above `## [10.1.0]`.
 - [ ] Gates: `platforms/tools/check.sh` exit 0; `platforms/tools/smoke.sh` prints `smoke: OK`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` ends with `OK`; `python3 platforms/ci/validations/check_kit.py --links` exit 0.
@@ -117,7 +117,7 @@ Files edited (all in the kit): `plugins/core/AGENTS.md`, `plugins/quality-core/s
 - `VERSION` untouched (no release in this task).
 - `CHANGELOG.md` gets a `## [Unreleased]` entry written with evidence (what, why, proof).
 - `INDEX.md` or `README.md` of every touched folder lists every entry by name (a folder never has both): `plugins/quality-core/INDEX.md` already lists `skeptic`; only its description cell changes. `plugins/core/` has no index entry for `AGENTS.md` to update.
-- Skill description 40-160 chars in the form "<what>. Use when <trigger>. Not for <neighbor> (skill <x>)." and copied verbatim into the plugin `INDEX.md` table; all skill descriptions together <= 7,200 chars (6,805 today, 6,793 after this task); `SKILL.md` <= 80 lines.
+- Skill description 40-160 chars in the form "<what>. Use when <trigger>. Not for <neighbor> (skill <x>)." and copied verbatim into the plugin `INDEX.md` table; all skill descriptions together <= 7,200 chars (6,803 today, 6,791 after this task); `SKILL.md` <= 80 lines.
 - `plugins/core/AGENTS.md` <= 60 lines and it keeps the header line `# Global Rules — AI Kit`.
 - Conventional Commits with Refs, for example `fix(core): replace the 98% confidence gate with verifiable skepticism rules` and `Refs: docs/plans/2026-10-kit-assessment/prompts/p1-03-resolve-confidence-rule.md`.
 - PR body = What / Why / How I tested (literal output of the grep commands, the line count and the four gates) / Refs; also tick the kit's `.github/PULL_REQUEST_TEMPLATE.md` checklist.

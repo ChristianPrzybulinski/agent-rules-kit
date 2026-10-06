@@ -9,8 +9,8 @@ Every reference from stratics-docs to a file inside agent-rules-kit resolves on 
 ## Why
 
 - assessment §4.1: the kit shipped 10 MAJOR versions between 2026-09-29 and 2026-10-04 with layout changes in 4.0, 6.0, 8.0, 9.0 and 10.0; consumer repos did not follow, so an agent reading a DEC is sent to a path that does not exist.
-- assessment §6 item A3: "freeze the layout, treat a path as a contract, fix the obsolete citations in stratics-docs/AGENTS.md:20, DTEC-001, DTEC-002". P1-01 owns the freeze and the gate; this prompt owns the citations.
-- Measured on stratics-docs main (2026-10-06): `grep -rnE "agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|kits/java-maven/|kits/github/|platforms/install/|processes/sdd/|plugins/ai-kit/" --exclude-dir=legacy --exclude-dir=sessions --exclude-dir=.git .` returns exactly 4 lines in 3 files (listed under Current state). Two further files under `docs/sessions/` also match and are historical records (exempt, see Out of scope).
+- assessment §6 item A3 (assessment.md:248): freeze the 10.x layout and fix the obsolete citations in stratics-docs/AGENTS.md:20, DTEC-001, DTEC-002 (and the kit's docs/projects.md, owned by P1-01). P1-01 owns the freeze and the gate; this prompt owns the citations.
+- Measured on stratics-docs main (2026-10-06): `grep -rnE "agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|(^|[^/])kits/java-maven/|(^|[^/])kits/github/|platforms/install/|processes/sdd/|plugins/ai-kit/" --exclude-dir=legacy --exclude-dir=sessions --exclude-dir=.git .` returns exactly 4 lines in 3 files (listed under Current state). The `(^|[^/])` guard keeps the valid 10.x `platforms/kits/...` paths out of the hit list (plain `grep -E`, no `-P`, so it also works on macOS/BSD grep); without it the replacement paths written in steps 3 and 4 would match again. Two further files under `docs/sessions/` also match and are historical records (exempt, see Out of scope).
 - Measured on kit main (commit `ddd3ad2`, VERSION `10.1.0`): all replacement paths below are tracked files (`git ls-files` lists each one). `platforms/kits/java-maven/pom-parent.xml:117` still carries `<requireJavaVersion><version>[25,26)</version>`, so the DTEC-001 fact stays true once the path is corrected.
 - stratics-docs/AGENTS.md:17 says `Ask first: ... alter an \`approved\` DEC`; both DECs are `status: approved` (DTEC-001:4, DTEC-002:4). The edit is therefore limited to the path strings plus a History line, and the owner approves the PR.
 
@@ -65,12 +65,12 @@ All edits are in the stratics-docs repo. Before step 1, confirm each replacement
 4. Edit `docs/spec/decisions/DTEC-002-stack-cliente-servidor-banco.md`. Line 50 becomes:
 
 ```markdown
-- agent-rules-kit `plugins/dev-godot/skills/godot-standards/SKILL.md`, `plugins/dev-java/rules/java.md` plus `plugins/dev-java/skills/java-standards/`, `plugins/infra-persistence/skills/postgresql/SKILL.md`.
+- agent-rules-kit `plugins/dev-godot/skills/godot-standards/SKILL.md`, `plugins/dev-java/rules/java.md`, `postgresql` skill.
 ```
 
-   Append the same `## History` section with the same editorial line as in step 3. Nothing else in the file changes.
+   Only the two stale path strings change (assessment §4.1 names `rules/godot/godot-2d.md`; `rules/java/*` maps to one file); `postgresql` skill is not a path and stays as written. Append the same `## History` section with the same editorial line as in step 3. Nothing else in the file changes.
 
-5. Re-run the repo-wide grep from Why (same pattern, same exclusions). The expected result is zero lines; if a new hit appears (a file merged after 2026-10-06), map it with the table below and fix it in the same commit. Mapping, old -> new, all verified on kit main `ddd3ad2`:
+5. Re-run the repo-wide grep from Why (same anchored pattern with the `(^|[^/])` guard, same exclusions). The expected result is zero lines and exit status 1; if a new hit appears (a file merged after 2026-10-06), map it with the table below and fix it in the same commit. Mapping, old -> new, all verified on kit main `ddd3ad2`:
    - `agents/skills/process/README.md` -> `plugins/architect-sdd/skills/sdd-constitution/references/sdd-process.md`
    - `agents/skills/<type>/<name>` -> `plugins/<plugin>/skills/<name>/SKILL.md` (find the plugin with `git -C <kit clone> ls-files 'plugins/*/skills/<name>/SKILL.md'`)
    - `agents/rules/*`, `rules/java/*` -> `plugins/dev-java/rules/java.md`; `rules/godot/*` -> `plugins/dev-godot/rules/godot.md` or `plugins/dev-godot/skills/godot-standards/SKILL.md`
@@ -81,7 +81,7 @@ All edits are in the stratics-docs repo. Before step 1, confirm each replacement
 6. Create `changelog.d/p1-02-stale-kit-paths.fixed.md` with exactly:
 
 ```markdown
-- [FACT] `AGENTS.md`, DTEC-001 and DTEC-002 cite agent-rules-kit 10.1.0 paths (`plugins/`, `platforms/kits/`) instead of the pre-8.0 layout (`agents/skills/`, `rules/`, `kits/`); editorial only, DEC status and decision text unchanged (kit assessment §4.1, item A3).
+- [FACT] `AGENTS.md`, DTEC-001 and DTEC-002 cite agent-rules-kit 10.1.0 paths (`plugins/`, `platforms/kits/`) instead of the pre-8.0 layout (old `agents/`, `rules/` and `kits/` roots); editorial only, DEC status and decision text unchanged (kit assessment §4.1, item A3).
 ```
 
 7. Run the gates (Acceptance criteria), commit with Conventional Commits, open the PR with the repo template. Do not open a GitHub issue for this task; if the owner asks for one, run `python3 tools/project-sync/sync.py --issue <N> --repo ChristianPrzybulinski/stratics-docs` afterwards as AGENTS.md:15 requires.
@@ -97,7 +97,7 @@ Refs: agent-rules-kit docs/plans/2026-10-kit-assessment/assessment.md §4.1 (A3)
 PR body (template `.github/PULL_REQUEST_TEMPLATE.md`): What = the 3 files and the 4 lines; Why = assessment §4.1 / A3, paths no longer exist since kit 8.0; How I tested = literal output of the two gates and the grep; Proof block:
 
 ```proof
-! grep -rnE "agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|kits/java-maven/|kits/github/|platforms/install/|processes/sdd/|plugins/ai-kit/" --exclude-dir=legacy --exclude-dir=sessions --exclude-dir=.git .
+! grep -rnE "agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|(^|[^/])kits/java-maven/|(^|[^/])kits/github/|platforms/install/|processes/sdd/|plugins/ai-kit/" --exclude-dir=legacy --exclude-dir=sessions --exclude-dir=.git .
 python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas
 python3 tools/spec-trace/spec_trace.py check
 grep -c "editorial: kit path updated (kit 10.1.0)" docs/spec/decisions/DTEC-001-java-25-lts.md
@@ -109,22 +109,22 @@ Replace the template's `Closes ChristianPrzybulinski/stratics-docs#` line with `
 ## Out of scope
 
 - The kit itself: freezing the 10.x layout, the `check_kit.py` stale-path gate and the stale `platforms/install/` and `knowledge/` mentions in the kit's `docs/projects.md` belong to P1-01. Do not add new kit paths or propose renames: the layout is frozen.
-- `docs/sessions/2026-09-30-kit-v5-english.md` and `docs/sessions/2026-09-30-pendencias-reconciliacao.md` match the obsolete pattern (lines 12, 24, 39 and 13, 42, 43). They are dated session records: do not edit them; list them as exempt in the PR body. The same exemption applies to anything under `docs/collab/` (0 hits today) and `legacy/`.
-- `AGENTS.md:6` (`~/.ai-kit/platforms/tools/check.sh --spec docs/spec`) is a valid 10.x path (`check.sh` accepts `--spec`); leave it. Replacing `~/.ai-kit` by a per-repo copy is P2-04 / P2-15.
+- `docs/sessions/2026-09-30-kit-v5-english.md` and `docs/sessions/2026-09-30-pendencias-reconciliacao.md` match the obsolete pattern (lines 12, 24, 39, 40 and 13, 42, 43 with the anchored pattern). They are dated session records: do not edit them; list them as exempt in the PR body. The same exemption applies to anything under `docs/collab/` (0 hits today) and `legacy/`.
+- `AGENTS.md:6` (`~/.ai-kit/platforms/tools/check.sh --spec docs/spec`) is a valid 10.x path (`check.sh` accepts `--spec`); leave it. Replacing `~/.ai-kit` by a per-repo copy is P2-04 (CLAUDE.md/settings) and P2-06 (vendored skills).
 - The machine-specific sentence in DTEC-001:19 ("installed via Homebrew ...") is a DEC fact; leave it. Removing machine facts from the kit is P2-01.
-- Generating `CLAUDE.md`, `.claude/settings.json` or `.claude/rules` in stratics-docs: P2-04, P2-05, P2-15.
+- Generating `CLAUDE.md`, `.claude/settings.json` or `.claude/rules` in stratics-docs: P2-04, P2-05.
 - Deriving FEAT/task status from GitHub: P2-08.
 
 ## Acceptance criteria
 
 - [ ] `git branch --show-current` prints `docs/p1-02-stale-kit-paths`; `git diff --stat main` lists exactly 4 files: `AGENTS.md`, the two DEC files and `changelog.d/p1-02-stale-kit-paths.fixed.md`.
-- [ ] `grep -rnE "agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|kits/java-maven/|kits/github/|platforms/install/|processes/sdd/|plugins/ai-kit/" --exclude-dir=legacy --exclude-dir=sessions --exclude-dir=.git .` prints nothing and exits 1.
+- [ ] `grep -rnE "agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|(^|[^/])kits/java-maven/|(^|[^/])kits/github/|platforms/install/|processes/sdd/|plugins/ai-kit/" --exclude-dir=legacy --exclude-dir=sessions --exclude-dir=.git .` prints nothing and exits 1.
 - [ ] `grep -c "plugins/architect-sdd/skills/sdd-constitution/references/sdd-process.md" AGENTS.md` prints `1`.
 - [ ] `grep -c "platforms/kits/java-maven/" docs/spec/decisions/DTEC-001-java-25-lts.md` prints `2`.
 - [ ] `grep -c "plugins/dev-godot/skills/godot-standards/SKILL.md" docs/spec/decisions/DTEC-002-stack-cliente-servidor-banco.md` prints `1`.
 - [ ] `grep -c "^## History" docs/spec/decisions/DTEC-001-java-25-lts.md docs/spec/decisions/DTEC-002-stack-cliente-servidor-banco.md` prints `1` for each file, and `grep -c "editorial: kit path updated (kit 10.1.0)"` prints `1` for each.
 - [ ] `grep -n "^status: approved" docs/spec/decisions/DTEC-001-java-25-lts.md docs/spec/decisions/DTEC-002-stack-cliente-servidor-banco.md` prints both files at line 4 (status unchanged); `git diff main -- docs/spec/decisions | grep -E "^[-+]" | grep -vE "^(---|\+\+\+) " | grep -vE "agent-rules-kit|## History|editorial: kit path updated|^[-+]$"` prints nothing (only path lines and the History block changed).
-- [ ] Each replacement path exists on kit main: `git -C <kit clone> ls-files plugins/architect-sdd/skills/sdd-constitution/references/sdd-process.md platforms/kits/java-maven/pom-parent.xml plugins/dev-java/skills/java-standards/references/build-and-dependencies.md plugins/dev-godot/skills/godot-standards/SKILL.md plugins/dev-java/rules/java.md plugins/infra-persistence/skills/postgresql/SKILL.md | wc -l` prints `6`.
+- [ ] Each replacement path exists on kit main: `git -C <kit clone> ls-files plugins/architect-sdd/skills/sdd-constitution/references/sdd-process.md platforms/kits/java-maven/pom-parent.xml plugins/dev-java/skills/java-standards/references/build-and-dependencies.md plugins/dev-godot/skills/godot-standards/SKILL.md plugins/dev-java/rules/java.md | wc -l` prints `5`.
 - [ ] Gate: `pip install pyyaml jsonschema` then `python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas` prints `spec: OK (130 artifacts)` (count may be higher if FEATs were added after 2026-10-06) and exits 0.
 - [ ] Gate: `python3 tools/spec-trace/spec_trace.py check` prints `spec-trace: OK (...)` and exits 0.
 - [ ] `ls changelog.d/p1-02-stale-kit-paths.fixed.md` succeeds and `head -c 9 changelog.d/p1-02-stale-kit-paths.fixed.md` prints `- [FACT] `.
@@ -139,13 +139,14 @@ Replace the template's `Closes ChristianPrzybulinski/stratics-docs#` line with `
 - Approved DEC rule (AGENTS.md:17): only path strings in Context/References plus the History line change; status, date, deciders and decision text are untouched; the owner approves the PR.
 - Conventional Commits with a `Refs:` trailer; PR body = What / Why / How I tested (literal output) / Proof / Refs.
 - Gates for stratics-docs: `python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas`; `python3 tools/spec-trace/spec_trace.py check`; the PR template proof block and the changelog.d fragment.
+- Never write an obsolete prefix literally anywhere in the stratics-docs repo, including `changelog.d/` fragments and PR-related files; describe it instead (for example "old `agents/` root"), otherwise the grep above and the P1-01 kit gate fire on the fix itself and the hit migrates into `CHANGELOG.md`.
 - No Claude-only tooling is needed; the task runs the same on Devin or Claude Code.
 
 ## Report back
 
 Final message, in this order:
 
-1. done: the 4 file paths with the exact lines changed (`path:line` before -> after), the branch name, the PR URL, and the literal output of: the obsolete-path grep (expected empty, exit 1), `check_spec.py`, `spec_trace.py check`, and the kit `git ls-files ... | wc -l` check (expected `6`).
+1. done: the 4 file paths with the exact lines changed (`path:line` before -> after), the branch name, the PR URL, and the literal output of: the obsolete-path grep (expected empty, exit 1), `check_spec.py`, `spec_trace.py check`, and the kit `git ls-files ... | wc -l` check (expected `5`).
 2. unverified: anything not run (for example the kit path check if no kit clone or network was available, or `docs-checks` CI if the PR was not opened), each with the command the owner should run.
 3. next step: owner approves the PR (two approved DECs change editorially); then P1-01 lands the kit-side gate that would have caught these citations.
-4. Proposed one-line CHANGELOG entry (goes into stratics-docs `CHANGELOG.md` under `## [Unreleased]` when the orchestrator moves the fragment): `- [FACT] AGENTS.md, DTEC-001 and DTEC-002 cite agent-rules-kit 10.1.0 paths (plugins/, platforms/kits/) instead of the pre-8.0 layout; editorial only, DEC status and decision text unchanged (kit assessment §4.1, A3).`
+4. Proposed one-line CHANGELOG entry (goes into stratics-docs `CHANGELOG.md` under `## [Unreleased]` when the orchestrator moves the fragment): `- [FACT] AGENTS.md, DTEC-001 and DTEC-002 cite agent-rules-kit 10.1.0 paths (plugins/, platforms/kits/) instead of the pre-8.0 layout (old agents/, rules/ and kits/ roots); editorial only, DEC status and decision text unchanged (kit assessment §4.1, A3).`

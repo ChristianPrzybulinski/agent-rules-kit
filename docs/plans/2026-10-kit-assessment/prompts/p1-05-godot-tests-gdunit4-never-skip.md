@@ -1,6 +1,6 @@
 # P1-05 — Godot tests: gdUnit4 by default, CI never skips silently, GDScript test policy
 
-Phase: 1 · Repos: kit · Branch to create: fix/p1-05-godot-tests-gdunit4-never-skip from main · Depends on: none (coordinate `ci-godot.yml` with P1-06, see Change step 1) · Effort: ~3 h
+Phase: 1 · Repos: kit · Branch to create: fix/p1-05-godot-tests-gdunit4-never-skip from main (the `docs/plans/` folder is not on main yet: the Refs path in Conventions exists once the plan is merged; until then cite the kit commit SHA that carries the plan) · Depends on: none (coordinate `ci-godot.yml` with P1-06, see Change step 1) · Effort: ~3 h
 
 ## Goal
 
@@ -9,10 +9,10 @@ Make the kit's Godot CI template a gate that can fail: `platforms/kits/github/wo
 ## Why
 
 - assessment §4.4 (Tests): the kit and `ci-godot.yml` assume GUT; the project uses gdUnit4 (stratics-docs DTEC-010). The kit's CI template skips the tests silently when `addons/gut` is absent ("skipping tests") and exits green: exactly the "gate that cannot fail" that the same kit's `reviewer` forbids.
-- assessment §4.4 (Coverage): `testing` requires 100% line/branch plus mutation >= 80% in the domain. That exists for Java (JaCoCo/PIT), not for GDScript (no mature mutation tooling); for the client the rule is inapplicable, and the agent either ignores it or invents numbers.
+- assessment §4.4 (Coverage): `testing` requires 100% line/branch plus mutation >= 80% (ASCII paraphrase of its `≥80%`) in the domain. That exists for Java (JaCoCo/PIT), not for GDScript (no mature mutation tooling); for the client the rule is inapplicable, and the agent either ignores it or invents numbers.
 - assessment §6 item D2: gdUnit4 as the default, GUT as the alternative, never skip silently; fail when the runner is absent and require "N test cases" > 0 in the output (the project's `reusable-ci-godot.yml` already does this: promote it to the kit); emit JUnit XML for the PR; GDScript coverage policy "every game rule in a pure class tested without `SceneTree`; no numeric gate".
 - kit `plugins/quality-core/agents/reviewer.md:21`: "A proof that cannot fail (zero tests, zero schemas, an empty input set) proves nothing"; kit `plugins/quality-core/skills/validate-implementation/SKILL.md:32`: "A gate that passes on empty input (zero tests, zero schemas) is not proof". The kit's own CI template violates both.
-- stratics-docs `docs/spec/decisions/DTEC-010-godot-project.md:27`: "**gdUnit4** as the test framework; tests live in `tests/` and must run headless in CI"; stratics-client `AGENTS.md:8`: "CI must run the suite headless and **fail when the runner is absent** (a green CI with zero tests is a bug)"; stratics-client `addons/gdUnit4/plugin.cfg:6` `version="6.2.1"`; 5 suites under `tests/**/*_test.gd` today, all `extends GdUnitTestSuite`.
+- stratics-docs `docs/spec/decisions/DTEC-010-godot-project.md:27`: "**gdUnit4** as the test framework; tests live in `tests/` and must run headless in CI"; stratics-client `AGENTS.md:8`: "CI must run the suite headless and **fail when the runner is absent** (a green CI with zero tests is a bug)"; stratics-client `addons/gdUnit4/plugin.cfg:6` `version="6.2.1"`; 9 suites under `tests/**/*_test.gd` today, all `extends GdUnitTestSuite`.
 - Verified facts (2026-10-06): the gdUnit4 README version table lists Godot 4.5 to 4.7.1; GUT 9.7.1 (`godot_4_7` branch) targets 4.7.x; `barichello/godot-ci:4.7.2` exists on Docker Hub.
 
 ## Current state
@@ -34,16 +34,16 @@ Make the kit's Godot CI template a gate that can fail: `platforms/kits/github/wo
   `SKILL.md:43` `## 5. Verify`
   `SKILL.md:45` `Run `godot --path . --headless --quit` and the project test command. Treat parser/import errors as failures and report the literal output.`
 - kit `plugins/dev-core/skills/testing/SKILL.md` (50 lines; description on line 3 must not change):
-  `SKILL.md:19` `Domain rules involving business logic, money, inventory, rewards, battle or authorization require 100% line and branch coverage plus mutation score >=80%. These gates are never reduced.`
+  `SKILL.md:19` `Domain rules involving business logic, money, inventory, rewards, battle or authorization require 100% line and branch coverage plus mutation score ≥80%. These gates are never reduced.` (the `≥` is U+2265 in the file).
   `SKILL.md:50` `Done when: required domain percentages and mutation pass, every non-trivial non-domain change has one proof, integrations have happy/sad coverage, and no test sleeps or asserts implementation calls.`
 - kit `platforms/kits/godot/README.md:11` `| `../github/workflows/ci-godot.yml` | headless CI (import + GUT + manual export) |`
 - kit `platforms/kits/godot/.gitignore:2-3` `.godot/` and `build/`; no `reports/` entry (listed in `platforms/kits/godot/README.md:7`).
 - kit `platforms/kits/github/README.md:19` `- `ci-godot.yml` uses `barichello/godot-ci:4.7.2` (tag verified on Docker Hub on 2026-09-29). GUT tests only run if `addons/gut` exists. Windows/macOS export only via `workflow_dispatch` and requires `export_presets.cfg` committed to the repo.`
-- kit `CHANGELOG.md:5-16`: `## [Unreleased]` exists with `### Added` and `### Changed`; append to `### Changed`.
+- kit `CHANGELOG.md:5` `## [Unreleased]` with `### Added` and `### Changed` subsections; append the bullet at the end of `### Changed`, before `## [10.1.0]`.
 
 ## Change
 
-1. kit `platforms/kits/github/workflows/ci-godot.yml`: replace lines 17-25 (the import step and the GUT step of job `import-and-test`) with the block below, verbatim. Lines 1-16 and the `export` job (lines 27-42) stay unchanged. Coordination with P1-06: the gdUnit4 runner needs the script-class cache that only `--import` writes (stratics-docs `reusable-ci-godot.yml:90-91`, stratics-docs#84), so this task sets line 18 to `--import`; P1-06 owns the `SCRIPT ERROR` grep and the export job's import line (`:34`). Whichever PR merges second rebases; the merged line 18 is `run: godot --headless --path . --import` either way.
+1. kit `platforms/kits/github/workflows/ci-godot.yml`, job `import-and-test`: anchor by content, not by line number, because P1-06 moves these lines. Replace the step whose name is `GUT tests (if addons/gut exists)` (from its `- name:` line through its closing `fi`; lines 19-25 on main) with the `Unit tests` and `Upload test reports` steps of the block below, verbatim. If P1-06 has not merged, also replace the `Project import` step's two lines (17-18 on main) with the first two lines of the block. If P1-06 merged first, keep its `Project import` and `Boot proof` steps byte-identical and insert the two new steps after `Boot proof`. The `- uses: actions/checkout@v7` line and the `export` job stay unchanged. Coordination with P1-06: the gdUnit4 runner needs the script-class cache that only `--import` writes (stratics-docs `reusable-ci-godot.yml:90-91`, stratics-docs#84), so this task sets the import line to `--import`; P1-06 owns the `SCRIPT ERROR` grep and the export job's import line (`:34`). Whichever PR merges second rebases; the merged import line is `run: godot --headless --path . --import` either way.
 
 ```yaml
       - name: Project import (generates .godot/ and the script-class cache, validates resources)
@@ -90,13 +90,13 @@ Make the kit's Godot CI template a gate that can fail: `platforms/kits/github/wo
           if-no-files-found: warn
 ```
 
-   gdUnit4 writes its JUnit report under `reports/report_<n>/results.xml` by default and GUT accepts `-gjunit_xml_file=`: verify both against the gdUnit4 command-line docs (`https://mikeschulze.github.io/gdUnit4/`) and the GUT wiki page "Command Line" (`https://github.com/bitwes/Gut/wiki`) before relying on them; if the gdUnit4 default differs, add the runner's report-directory option so the artifact step still finds the XML, and keep the gdUnit4 command otherwise identical to stratics-docs `reusable-ci-godot.yml:106` (the proven form).
+   gdUnit4 writes its JUnit report under `reports/report_<n>/results.xml` by default; the proof is in the vendored addon beside the kit, stratics-client `addons/gdUnit4/src/core/runners/GdUnitTestCIRunner.gd:71` ("The default is res://reports/", option `-rd` at `:340`), `addons/gdUnit4/src/GdUnitConstants.gd:10` (`REPORT_DIR_PREFIX = "report_"`) and `addons/gdUnit4/src/reporters/xml/JUnitXmlReportWriter.gd:31` (`"%s/results.xml"`), so no web check is needed for it. GUT is not checked out locally: verify `-gjunit_xml_file=` against the GUT wiki page "Command Line" (`https://github.com/bitwes/Gut/wiki`) before relying on it. Keep the gdUnit4 command identical to stratics-docs `reusable-ci-godot.yml:106` (the proven form).
 
 2. kit `platforms/kits/godot/.gitignore`: insert `reports/` after line 3 (`build/`), with the comment `# test reports written by gdUnit4/GUT in CI` above it. The file is already listed in `platforms/kits/godot/README.md:7`.
 
 3. kit `plugins/dev-godot/templates/project-agents-godot-2d.md`:
    a. Line 8: change only the token `[GUT | gdUnit4]` to `[gdUnit4 | GUT]` (gdUnit4 is the kit default). If P1-04 merged first, the line carries an extra "Movement model" sentence; keep it.
-   b. Replace line 31 with these two lines, gdUnit4 first, keeping the block's comment column:
+   b. Replace the single line containing `addons/gut/gut_cmdln.gd` (line 31 on main; 32 after P1-06, whose step 5 turns line 30 into two lines) with these two lines, gdUnit4 first, keeping the block's comment column:
 
 ```bash
 godot --path . --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode   # run gdUnit4 (default)
@@ -104,15 +104,15 @@ godot --path . --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude
 ```
 
    c. After line 77 (`- Conventional Commits; PR with a GIF/screenshot ...`) insert: `- CI runs the suite headless and fails when the runner is missing or zero tests execute; never skip tests to get a green run (see the kit `ci-godot.yml`).` Write the file name in plain text, not as a backtick path with a directory, so `check_kit.py`'s backtick-path check does not resolve it.
-   d. Do not touch line 30 (`--headless --quit`, P1-06), lines 40-46 and 79-83 (P1-04 and P1-06), or the `HealthComponent` example.
+   d. Do not touch the `--headless --quit` import line (line 30 on main, P1-06), the `## Patterns` bullets about movement/collision and the `## Boundaries` list (lines 40-46 and 79-83 on main; P1-04 and P1-06, and P1-04 shifts them by inserting a `## Movement model` section before `## Git & PR`), or the `HealthComponent` example.
 
-4. kit `plugins/dev-godot/skills/godot-standards/SKILL.md`, section 5: keep line 45 untouched (P1-06 rewrites its boot proof) and insert after it one blank line plus this paragraph, verbatim:
+4. kit `plugins/dev-godot/skills/godot-standards/SKILL.md`, section 5: keep its first paragraph untouched (line 45 on main; P1-06 rewrites it into two lines, the second starting `Report the literal output of all three ...`) and insert after the last line of that paragraph, before the blank line that precedes `Done when:`, one blank line plus this paragraph, verbatim:
 
 ```markdown
 Test runner: gdUnit4 by default (`-s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode`), GUT only when the project `AGENTS.md` says so (`-s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit`). A run that executes zero tests, or a missing runner, is a failure, never a skip. Game rules live in pure `RefCounted` classes with scene-free tests; scene tests are integration only (skill `testing`, section 1).
 ```
 
-   Resulting length: 47 + 2 = 49 lines (53 + 2 if P1-04 merged first; limit 80). Frontmatter, sections 1-4 and `Done when` stay as they are.
+   Resulting length: 47 + 2 = 49 lines (48 + 2 = 50 if P1-06 merged first; 51 + 2 = 53 if P1-04 merged first, per P1-04's own count; limit 80). Frontmatter, sections 1-4 and `Done when` stay as they are.
 
 5. kit `plugins/dev-core/skills/testing/SKILL.md`, section 1: insert after line 21 one blank line plus this paragraph, verbatim:
 
@@ -143,16 +143,16 @@ No file is created or deleted. No manifest, `INDEX.md`, rule file or `references
 
 - [ ] `grep -c 'skipping tests' platforms/kits/github/workflows/ci-godot.yml` prints `0`; `grep -c 'addons/gdUnit4' platforms/kits/github/workflows/ci-godot.yml` prints `3`; `grep -c 'Overall Summary' platforms/kits/github/workflows/ci-godot.yml` prints `1`; `grep -c 'neither addons/gdUnit4 nor addons/gut' platforms/kits/github/workflows/ci-godot.yml` prints `1`.
 - [ ] `grep -c 'godot --headless --path . --import' platforms/kits/github/workflows/ci-godot.yml` prints `1` (or `2` after P1-06 merges); `grep -c 'upload-artifact@v7' platforms/kits/github/workflows/ci-godot.yml` prints `2`.
-- [ ] `python3 -c "import yaml; d=yaml.safe_load(open('platforms/kits/github/workflows/ci-godot.yml')); print(len(d['jobs']['import-and-test']['steps']))"` prints `4` (pyyaml may be absent locally; then report it as unverified and rely on CI).
-- [ ] Broken-case proof (needs Godot 4.7.2 in PATH and a stratics-client checkout beside the kit; otherwise unverified): copy the `run:` block of the test step into a file, run `bash <file>` from the client root after `godot --headless --path . --import`: exit 0 and a line matching `Overall Summary: [1-9][0-9]* test cases` in `reports/gdunit.log`. Then move `addons/gdUnit4` away and rerun: exit 1 and the `::error::neither addons/gdUnit4 nor addons/gut exists` line. Restore the folder; `git -C ../stratics-client status --porcelain` prints only the untracked `reports/` you then delete.
+- [ ] `python3 -c "import yaml; d=yaml.safe_load(open('platforms/kits/github/workflows/ci-godot.yml')); print(len(d['jobs']['import-and-test']['steps']))"` prints `4` (or `5` after P1-06 merges, which adds its `Boot proof` step; pyyaml may be absent locally; then report it as unverified and rely on CI).
+- [ ] Broken-case proof (needs Godot 4.7.2 in PATH and a stratics-client checkout beside the kit; otherwise unverified): copy the `run:` block of the test step into a file, run `bash <file>` from the client root after `git lfs pull && godot --headless --path . --import` (the sprite suites load `assets/sprites/sample-0.4/*.png`, which are Git LFS pointers until pulled; stratics-docs `reusable-ci-godot.yml:88` pulls for the same reason): exit 0 and a line matching `Overall Summary: [1-9][0-9]* test cases` in `reports/gdunit.log`. Then move `addons/gdUnit4` away and rerun: exit 1 and the `::error::neither addons/gdUnit4 nor addons/gut exists` line. Restore the folder; `git -C ../stratics-client status --porcelain` prints only the untracked `reports/` you then delete.
 - [ ] `grep -c '^reports/$' platforms/kits/godot/.gitignore` prints `1`.
 - [ ] `grep -c 'GdUnitCmdTool.gd' plugins/dev-godot/templates/project-agents-godot-2d.md` prints `1`; `grep -n 'gut_cmdln' plugins/dev-godot/templates/project-agents-godot-2d.md` prints one line, after the gdUnit4 line; `grep -c '\[gdUnit4 | GUT\]' plugins/dev-godot/templates/project-agents-godot-2d.md` prints `1`; `grep -c 'never skip tests' plugins/dev-godot/templates/project-agents-godot-2d.md` prints `1`.
-- [ ] `grep -c 'GdUnitCmdTool.gd' plugins/dev-godot/skills/godot-standards/SKILL.md` prints `1`; `wc -l < plugins/dev-godot/skills/godot-standards/SKILL.md` prints a number <= 80; `sed -n 3p plugins/dev-godot/skills/godot-standards/SKILL.md` is byte-identical to main.
-- [ ] `grep -c 'GDScript (Godot): no line, branch or mutation percentage gate' plugins/dev-core/skills/testing/SKILL.md` prints `1`; `grep -c 'scene-free test' plugins/dev-core/skills/testing/SKILL.md` prints `1`; `wc -l < plugins/dev-core/skills/testing/SKILL.md` prints a number <= 80; `sed -n 3p plugins/dev-core/skills/testing/SKILL.md` is byte-identical to main.
+- [ ] `grep -c 'GdUnitCmdTool.gd' plugins/dev-godot/skills/godot-standards/SKILL.md` prints `1`; `wc -l < plugins/dev-godot/skills/godot-standards/SKILL.md` prints a number <= 80; `diff <(sed -n 3p plugins/dev-godot/skills/godot-standards/SKILL.md) <(git show main:plugins/dev-godot/skills/godot-standards/SKILL.md | sed -n 3p)` prints nothing.
+- [ ] `grep -c 'GDScript (Godot): no line, branch or mutation percentage gate' plugins/dev-core/skills/testing/SKILL.md` prints `1`; `grep -c 'scene-free test' plugins/dev-core/skills/testing/SKILL.md` prints `1`; `wc -l < plugins/dev-core/skills/testing/SKILL.md` prints a number <= 80; `diff <(sed -n 3p plugins/dev-core/skills/testing/SKILL.md) <(git show main:plugins/dev-core/skills/testing/SKILL.md | sed -n 3p)` prints nothing.
 - [ ] `grep -rn 'GUT tests only run\|import + GUT + manual export' platforms/` prints nothing; `grep -c 'gdUnit4' platforms/kits/godot/README.md platforms/kits/github/README.md` prints `1` for each file.
 - [ ] `git diff main --stat -- plugins/dev-godot/INDEX.md plugins/dev-core/INDEX.md plugins/dev-godot/rules/ VERSION` prints nothing.
-- [ ] Gates: `platforms/tools/check.sh` exit 0 (the description budget stays at 6,805 chars); `platforms/tools/smoke.sh` prints a line starting `smoke: OK`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` ends with `OK`; `python3 platforms/ci/validations/check_kit.py --links` exit 0.
-- [ ] `grep -c 'gdUnit4' CHANGELOG.md` prints at least `1`, inside `## [Unreleased]`.
+- [ ] Gates: `platforms/tools/check.sh` reports `check: OK` for the kit files (the description budget stays at 6,805 chars); on a branch that carries `docs/plans/`, the script fails today with 20 FAILs that are all broken links or a missing index under `docs/plans/`, none from this task's files: those belong to the plan and are reported in the PR body, not fixed here; `platforms/tools/smoke.sh` prints a line starting `smoke: OK`; `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` ends with `OK`; `python3 platforms/ci/validations/check_kit.py --links` exit 0.
+- [ ] `sed -n '/^## \[Unreleased\]/,/^## \[10/p' CHANGELOG.md | grep -c gdUnit4` prints at least `1` (today `grep -c gdUnit4 CHANGELOG.md` prints `0`, so this gate can fail).
 
 ## Conventions
 
@@ -164,11 +164,11 @@ No file is created or deleted. No manifest, `INDEX.md`, rule file or `references
 - `SKILL.md` <= 80 lines (`check_kit.py` `SKILL_MAX_LINES = 80`, whole file counted).
 - Templates named `^(spec|doc|project|kit)-[a-z0-9-]+\.md$`; `project-agents-godot-2d.md` keeps its name.
 - `check_kit.py` resolves backtick paths ending in `.md/.sh/.json/.yml/.yaml` that start with `platforms/`, `plugins/`, `templates/`, `references/` or `../` in `platforms/**/*.md` and plugin `templates/`/`skills/` files: `../github/workflows/ci-godot.yml` in the Godot README resolves today and must keep resolving; `.gd` paths are not checked.
-- `platforms/**/*.sh` rules (executable, shellcheck, bash 3.2) do not apply: no shell file changes. The kit CI's shellcheck step covers `platforms/tools/*.sh` and `platforms/kits/*/scripts/*.sh` only; the YAML `run:` block is validated by the broken-case proof above.
+- `platforms/**/*.sh` rules (executable, shellcheck, bash 3.2) do not apply: no shell file changes. The kit CI's shellcheck step (`.github/workflows/ci.yml:20`) covers `platforms/tools/*.sh`, `platforms/kits/*/*.sh` and `platforms/kits/*/scripts/*.sh` only; the YAML `run:` block is validated by the broken-case proof above.
 - Conventional Commits with Refs, for example `fix(kits): ci-godot runs gdUnit4 or GUT and fails instead of skipping` with `Refs: docs/plans/2026-10-kit-assessment/prompts/p1-05-godot-tests-gdunit4-never-skip.md`.
 - PR body = What / Why / How I tested (literal output of the gates, the greps and the broken-case run) / Refs; tick the kit `.github/PULL_REQUEST_TEMPLATE.md` checklist.
 - The executor may be Devin or Claude Code; nothing here needs Claude-specific tools.
 
 ## Report back
 
-Final message in three blocks: done (the eight edited files, every command from Acceptance criteria with its literal result, `wc -l` of both `SKILL.md` files) · unverified (anything not run: the pyyaml step count, the broken-case run when Godot 4.7.2 or a stratics-client checkout is missing, `claude plugin validate` when `claude` is not in PATH, the gdUnit4 report path and GUT `-gjunit_xml_file=` flag when the docs could not be reached) · next step (P1-06 rebases its `ci-godot.yml` and `SKILL.md:45` edits on this branch; P2-15 applies the template to stratics-client; P3-01 cites this command from `testable-game-logic.md`; P3-02 adds gdtoolkit to the same workflow). Also include the proposed one-line CHANGELOG entry, for example: `ci-godot.yml` runs gdUnit4 by default or GUT as the alternative, fails when no runner exists or zero tests execute, and uploads `reports/` as a JUnit artifact; `testing` adds the GDScript policy (no percentage gate; every game rule in a pure `RefCounted` class with scene-free tests; scene tests are integration only); `godot-standards`, `project-agents-godot-2d.md` and both kit READMEs name gdUnit4 first (assessment §4.4, §6 D2; `reviewer.md:21`; stratics-docs DTEC-010).
+Final message in three blocks: done (the eight edited files, every command from Acceptance criteria with its literal result, `wc -l` of both `SKILL.md` files) · unverified (anything not run: the pyyaml step count, the broken-case run when Godot 4.7.2 or a stratics-client checkout is missing, `claude plugin validate` when `claude` is not in PATH, the gdUnit4 report path and GUT `-gjunit_xml_file=` flag when the docs could not be reached) · next step (P1-06 rebases its `ci-godot.yml` and `SKILL.md:45` edits on this branch and, when rebasing, updates its own acceptance counts: `grep -c 'shell: bash'` on `ci-godot.yml` = 2, `import-and-test` steps = 5, and it drops its "GUT step byte-identical to main" check because that step no longer exists; P2-15 applies the template to stratics-client; P3-01 cites this command from `testable-game-logic.md`; P3-02 adds gdtoolkit to the same workflow). Also include the proposed one-line CHANGELOG entry, for example: `ci-godot.yml` runs gdUnit4 by default or GUT as the alternative, fails when no runner exists or zero tests execute, and uploads `reports/` as a JUnit artifact; `testing` adds the GDScript policy (no percentage gate; every game rule in a pure `RefCounted` class with scene-free tests; scene tests are integration only); `godot-standards`, `project-agents-godot-2d.md` and both kit READMEs name gdUnit4 first (assessment §4.4, §6 D2; `reviewer.md:21`; stratics-docs DTEC-010).

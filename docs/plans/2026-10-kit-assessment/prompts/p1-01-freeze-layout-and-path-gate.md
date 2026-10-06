@@ -8,10 +8,10 @@ Declare the agent-rules-kit 10.x layout frozen (no path or install-destination c
 
 ## Why
 
-- assessment §4.1: `CHANGELOG.md` records v1.0.0 on 2026-09-29 and v10.1.0 on 2026-10-04, with layout changes in 4.0, 6.0, 8.0, 9.0 and 10.0 (kit `CHANGELOG.md:195`, `:141`, `:58`, `:52`, `:33`). Every layout change forces `bootstrap`/`doctor` re-runs on every machine and invalidates citations in the consumer specs.
+- assessment §4.1: `CHANGELOG.md` records v1.0.0 on 2026-09-29 and v10.1.0 on 2026-10-04, with layout changes in 4.0, 6.0, 8.0, 9.0 and 10.0 (kit `CHANGELOG.md:196`, `:142`, `:59`, `:53`, `:31`). Every layout change forces `bootstrap`/`doctor` re-runs on every machine and invalidates citations in the consumer specs.
 - assessment §6 item A3 asks to freeze the layout for at least a quarter, treat paths as a contract, and add a cited-paths gate reachable through `sync-project.sh --check <repo>`; assessment §8 puts A3 in week 1, before any content work.
 - Consumer drift measured today: stratics-docs `AGENTS.md:20` cites `agents/skills/process/README.md` (layout v4 to v7); `docs/spec/decisions/DTEC-001-java-25-lts.md:19` and `:43` cite `kits/java-maven/pom-parent.xml` and `rules/java/build-and-dependencies.md`; `docs/spec/decisions/DTEC-002-stack-cliente-servidor-banco.md:50` cites `rules/godot/godot-2d.md`; `docs/spec/decisions/DTEC-003-redis-condicionado.md:20` and `:44` cite `knowledge/redis/`. None of these paths exist in the kit (verified with `ls agents rules knowledge kits processes platforms/install plugins/ai-kit` at the kit root: all absent). Fixing them is P1-02; this task adds the gate that keeps them fixed.
-- The kit itself is stale: `docs/projects.md:3` cites `platforms/install/` (removed in 8.0, `CHANGELOG.md:64`) and `docs/projects.md:3` and `:23` still describe "knowledge" as installed content (removed in 6.0 and 8.0). `.github/PULL_REQUEST_TEMPLATE.md:6` asks to bump `LAYOUT_VERSION`, a file that no longer exists (`ls LAYOUT_VERSION` fails).
+- The kit itself is stale: `docs/projects.md:3` cites `platforms/install/` (removed in 8.0 with the legacy install scripts, `CHANGELOG.md:65`) and `docs/projects.md:3` and `:23` still describe "knowledge" as installed content (moved under `agents/` in 4.0, `CHANGELOG.md:196`, and removed as a separate tree in 8.0, `:65`). `.github/PULL_REQUEST_TEMPLATE.md:6` asks to bump `LAYOUT_VERSION`, a file that no longer exists (`ls LAYOUT_VERSION` fails).
 - `docs/maintenance.md:7` already says a layout change is MAJOR but names no freeze window and does not classify content changes; `docs/design.md` has no stability principle at all.
 
 ## Current state
@@ -34,7 +34,7 @@ Declare the agent-rules-kit 10.x layout frozen (no path or install-destination c
 - kit `platforms/ci/validations/INDEX.md:8` (last table row; the new test row goes after it):
   `| `test_check_spec.py` | `check_spec.py` FEAT↔REQ cross-check (unittest) | the kit's CI |`
 - kit `platforms/ci/validations/test_sync_project.py` (new file); must be listed in `platforms/ci/validations/INDEX.md`. CI already discovers it: `.github/workflows/ci.yml:28` runs `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`.
-- kit `CHANGELOG.md:5-16`: `## [Unreleased]` exists with `### Added` and `### Changed` sections; append to them.
+- kit `CHANGELOG.md:5-18`: `## [Unreleased]` exists with `### Added` and `### Changed` sections; append to them.
 
 ## Change
 
@@ -67,7 +67,7 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
   hits="$(grep -rnE --include='*.md' --exclude-dir=.git --exclude-dir=node_modules \
       "(^|[^/A-Za-z0-9_.-])($STALE_KIT_PATHS)" "$1" 2>/dev/null \
     | sed "s|^$1/||" \
-    | grep -vE '(^|/)(legacy|docs/sessions)/' \
+    | grep -vE '^([^:]*/)?(legacy|docs/sessions)/' \
     | grep -vF -- "$STALE_OPT_OUT" || true)"
   [[ -n "$hits" ]] || return 0
   printf '%s\n' "$hits" | sed 's|^|sync: stale kit path: |'
@@ -78,11 +78,12 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
 
    The anchor `(^|[^/A-Za-z0-9_.-])` keeps current paths such as `platforms/kits/github/workflows/spec-lint.yml` and `.claude/rules/godot/...` out of the match. Update the usage comment on lines 3-4 to say `--check` also scans `*.md` for obsolete kit paths. Update `platforms/tools/INDEX.md:11` to: `| `sync-project.sh` | copies spec validation files into a project; `--check` compares the copy and scans the repo's `*.md` for obsolete kit paths | initialize or refresh project spec CI; in the project's CI |`.
 
-6. kit `platforms/ci/validations/test_sync_project.py` (new file, unittest, <=90 lines, pattern of `test_check_spec.py`: `subprocess.run` with `capture_output=True, text=True`). In `setUp` create a `tempfile.TemporaryDirectory`, run `platforms/tools/sync-project.sh <tmp>` once (install mode, needs `shasum`, no git). Four tests:
+6. kit `platforms/ci/validations/test_sync_project.py` (new file, unittest, <=90 lines, pattern of `test_check_spec.py`: `subprocess.run` with `capture_output=True, text=True`). In `setUp` create a `tempfile.TemporaryDirectory`, run `platforms/tools/sync-project.sh <tmp>` once (install mode, needs `shasum`, no git). Resolve the script as `Path(__file__).resolve().parent.parent.parent / 'tools' / 'sync-project.sh'` and run it with `subprocess.run(['bash', str(script), ...], capture_output=True, text=True, check=False)`; assert on `returncode` and `stdout`. Five tests:
    - clean repo: `--check` exit 0, stdout contains `consistent with kit`;
    - `docs/spec/decisions/DTEC-001-x.md` whose line 3 is `- agent-rules-kit `kits/java-maven/pom-parent.xml` requires [25,26)`: exit 1, output contains `stale kit path: docs/spec/decisions/DTEC-001-x.md:3`;
    - same line plus ` <!-- kit-path-ok -->` appended: exit 0;
-   - no false positives: a file citing `platforms/kits/github/workflows/spec-lint.yml` and a `docs/sessions/2026-01-01-x.md` citing `agents/skills/`: exit 0.
+   - no false positives: a file citing `platforms/kits/github/workflows/spec-lint.yml` and a `docs/sessions/2026-01-01-x.md` citing `agents/skills/`: exit 0;
+   - no false negatives from the exclusion: a `docs/x.md` line containing both `docs/legacy/` and `agents/skills/` (the exclusion matches the path field only, not the content): exit 1, output contains `stale kit path: docs/x.md`.
    Add the row `| `test_sync_project.py` | `sync-project.sh --check` stale-kit-path scan on a throwaway repo (unittest) | the kit's CI |` to `platforms/ci/validations/INDEX.md`. Do not touch `smoke.sh`: it is 492 lines of bootstrap/doctor lifecycle and CI already runs unittest discovery.
 
 7. kit `CHANGELOG.md` under `## [Unreleased]`: one `### Added` bullet for the scan and its test, one `### Changed` bullet for the freeze (design, maintenance, PR template) and the `projects.md` fix. Write what, why and proof, citing the stratics-docs lines from Why and the `ls` evidence that the paths are gone.
@@ -99,12 +100,12 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
 - [ ] `grep -c 'Layout stability' docs/design.md` prints `1`; `grep -c '2027-01-01' docs/design.md docs/maintenance.md` prints `1` for each file.
 - [ ] `grep -n 'platforms/install\|knowledge' docs/projects.md` prints nothing (exit 1).
 - [ ] `grep -c 'LAYOUT_VERSION' .github/PULL_REQUEST_TEMPLATE.md` prints `0`.
-- [ ] `grep -c 'kit-path-ok' platforms/tools/sync-project.sh` prints at least `2` (definition and message).
+- [ ] `grep -c 'kit-path-ok' platforms/tools/sync-project.sh` prints at least `2` (comment and definition).
 - [ ] `shellcheck platforms/tools/sync-project.sh` exits 0; `bash -n platforms/tools/sync-project.sh` exits 0; `test -x platforms/tools/sync-project.sh` exits 0. If macOS `/bin/bash` 3.2 is available, `/bin/bash -n platforms/tools/sync-project.sh` exits 0 too.
-- [ ] `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` ends with `OK` and reports at least 4 more tests than on main (count with `-v`).
+- [ ] `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` ends with `OK` and reports at least 5 more tests than on main (count with `-v`).
 - [ ] With a stratics-docs checkout beside the kit: `platforms/tools/sync-project.sh --check ../stratics-docs` exits 1 and prints exactly 6 `sync: stale kit path:` lines (`AGENTS.md:20`, DTEC-001 `:19` and `:43`, DTEC-002 `:50`, DTEC-003 `:20` and `:44`); verify the count first with `grep -rnE --include='*.md' '(^|[^/A-Za-z0-9_.-])(agents/skills/|rules/godot/|rules/java/|kits/java-maven/|knowledge/)' ../stratics-docs | grep -v docs/sessions | wc -l`. Against `../stratics-client` and `../stratics-server` the scan prints no stale line (the check may still fail on a missing `spec-lint/`; that is expected and unrelated).
 - [ ] Gates: `platforms/tools/check.sh` exit 0; `platforms/tools/smoke.sh` prints `smoke: OK`; `python3 platforms/ci/validations/check_kit.py --links` exit 0.
-- [ ] `grep -c 'stale kit path\|Layout stability\|layout frozen' CHANGELOG.md` prints at least `2`, all inside `## [Unreleased]`.
+- [ ] `grep -c 'kit-path-ok' CHANGELOG.md` prints `1` and `grep -c '2027-01-01' CHANGELOG.md` prints `1`, both inside `## [Unreleased]`.
 
 ## Conventions
 
@@ -121,4 +122,4 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
 
 ## Report back
 
-Final message in three blocks: done (every path created or edited, each command from Acceptance criteria with its literal result, including the 6 stale lines printed for stratics-docs) · unverified (anything not run, for example bash 3.2 parse when no macOS shell exists, or a Stratics checkout not available) · next step (P1-02 fixes the six citations; P2-15 wires `sync-project.sh --check` into the Stratics CIs). Also include the proposed one-line CHANGELOG entry, for example: `sync-project.sh --check` now scans the project's `*.md` for obsolete kit paths (layouts 1.x to 9.x) and fails listing `file:line`, with a `<!-- kit-path-ok -->` opt-out; the 10.x layout is declared frozen until 2027-01-01 in `docs/design.md` and `docs/maintenance.md`.
+Final message in three blocks: done (every path created or edited, each command from Acceptance criteria with its literal result, including the 6 stale lines printed for stratics-docs) · unverified (anything not run, for example bash 3.2 parse when no macOS shell exists, or a Stratics checkout not available) · next step (P1-02 fixes the six citations; P2-15 wires `sync-project.sh --check` into the Stratics CIs). Also include the two `## [Unreleased]` bullets as committed, for example (Added): `sync-project.sh --check` now scans the project's `*.md` for obsolete kit paths (layouts 1.x to 9.x) and fails listing `file:line`, with a `<!-- kit-path-ok -->` opt-out; (Changed): the 10.x layout is declared frozen until 2027-01-01 in `docs/design.md` and `docs/maintenance.md`.
