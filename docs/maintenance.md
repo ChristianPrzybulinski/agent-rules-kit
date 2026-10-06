@@ -4,7 +4,7 @@
 
 A release changes [`VERSION`](../VERSION), adds a [`CHANGELOG.md`](../CHANGELOG.md) entry and tags `vX.Y.Z`. `.github/workflows/release.yml` validates tag == `VERSION` and creates the release automatically.
 
-The 10.x layout is frozen until at least 2027-01-01 (principle "Layout stability" in [design.md](design.md)). A layout or installation-destination change is a SemVer MAJOR change and ships with a deprecation note in the release notes plus a migration in `bootstrap.sh` and `doctor.sh`. A content change is MINOR when it adds a rule, skill, reference, template, validator gate or document, and PATCH when it corrects one without changing routing. There is no separate layout version.
+The layout of 10.x, kept unchanged by 11.0.0, is frozen until at least 2027-01-01 (principle "Layout stability" in [design.md](design.md)). A layout or installation-destination change is a SemVer MAJOR change and ships with a deprecation note in the release notes plus a migration in `bootstrap.sh` and `doctor.sh`. A content change is MINOR when it adds a rule, skill, reference, template, validator gate or document, and PATCH when it corrects one without changing routing. There is no separate layout version.
 
 ## Adding content
 
