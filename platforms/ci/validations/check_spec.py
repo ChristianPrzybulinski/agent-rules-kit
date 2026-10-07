@@ -3,7 +3,8 @@
 
 With pyyaml+jsonschema: full validation. Without them: minimal YAML parser
 (flat frontmatter) + structural checks (required, enums, id pattern).
-Also validates docs/spec/progress/*.json (executor progress) when the folder exists.
+Also validates docs/spec/progress/*.json (executor progress) when the folder exists, and fails on a
+merge-conflict marker left in any Markdown file under the spec dir.
 """
 import json
 import os
@@ -100,6 +101,18 @@ STRUCT = {
 }
 
 ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|FEAT|DTEC|DGME|DPRO|DEBT)-(\d+)")
+
+# Start, base (diff3) and end markers git writes in a conflicted file. A bare "=======" line is not matched:
+# it is also a Markdown setext heading underline, and a conflict always carries the start and end markers.
+CONFLICT_MARKER = re.compile(r"^(<{7}|\|{7}|>{7})(?: |$)")
+
+
+def check_conflict_markers(spec_dir):
+    """Fails on a merge-conflict marker in any Markdown file under the spec dir (journeys and guides included)."""
+    for path in sorted(spec_dir.rglob("*.md")):
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if CONFLICT_MARKER.match(line):
+                fail(f"{path}:{n}: merge-conflict marker {line[:7]!r} left in the file")
 
 
 PROGRESS_TASK_KEYS = ("id", "title", "files", "proof", "passes", "notes")
@@ -233,6 +246,7 @@ def main():
             reqs[fid] = data.get("features") or []
 
     progress_files = check_progress(spec_dir / "progress", progress_schema, feats)
+    check_conflict_markers(spec_dir)
 
     # cross-references FEAT <-> REQ
     for fid, rlist in feats.items():

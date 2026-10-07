@@ -165,5 +165,40 @@ class ProgressTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
 
+class ConflictMarkerTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.spec = Path(self.tmp.name)
+        (self.spec / "features").mkdir()
+        (self.spec / "journeys").mkdir()
+        (self.spec / "features" / "FEAT-001.md").write_text(FEAT.format(fid="FEAT-001", reqs=""))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_check(self):
+        return subprocess.run([sys.executable, str(CHECK_SPEC), str(self.spec), str(SCHEMAS)],
+                              capture_output=True, text=True, check=False)
+
+    def test_conflict_left_in_a_feature_fails(self):
+        path = self.spec / "features" / "FEAT-001.md"
+        path.write_text(path.read_text() + "## History\n\n<<<<<<< HEAD\n- ours\n=======\n- theirs\n>>>>>>> origin/main\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("FEAT-001.md:12: merge-conflict marker '<<<<<<<'", result.stderr)
+        self.assertIn("merge-conflict marker '>>>>>>>'", result.stderr)
+
+    def test_conflict_left_in_a_file_without_frontmatter_fails(self):
+        (self.spec / "journeys" / "J-01.md").write_text("# J-01\n\n||||||| base\n- old\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("J-01.md:3: merge-conflict marker '|||||||'", result.stderr)
+
+    def test_setext_underline_and_quotes_pass(self):
+        (self.spec / "journeys" / "J-01.md").write_text("Title\n=======\n\n> > quoted\n`<<<<<<< HEAD` in code\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
