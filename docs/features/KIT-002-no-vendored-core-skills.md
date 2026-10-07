@@ -1,10 +1,10 @@
 ---
 id: KIT-002
 title: "Vendored projects do not copy core's skills"
-status: confirmed
+status: done
 confirmed: "2026-10-07 (owner, chat of the Stratics architect session)"
 issue: "#71"
-pr: ""
+pr: "#72"
 ---
 
 # KIT-002 — Vendored projects do not copy core's skills
@@ -32,4 +32,4 @@ plugin and from the copy. On 2026-10-07 the three Stratics repositories each ven
 
 ## History
 
-- 2026-10-07: confirmed (owner, chat).
+- 2026-10-07: confirmed (owner, chat) and implemented in #72.
