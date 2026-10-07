@@ -23,5 +23,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-001-pre-existing-needs-a-baseline.md`](KIT-001-pre-existing-needs-a-baseline.md) | done | #69 | #68 |
 | [`KIT-002-no-vendored-core-skills.md`](KIT-002-no-vendored-core-skills.md) | done | #71 | #72 |
 | [`KIT-003-smoke-fixture-no-auto-maintenance.md`](KIT-003-smoke-fixture-no-auto-maintenance.md) | done | #73 | #74 |
+| [`KIT-004-parallel-spec-id-blocks.md`](KIT-004-parallel-spec-id-blocks.md) | confirmed | #75 | — |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
