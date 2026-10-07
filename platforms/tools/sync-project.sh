@@ -19,7 +19,8 @@
 # project.godot (godot), pom.xml (java), docs/spec/ (docs).
 # A .claude/rules/*.md destination that exists without the generated marker refuses
 # the sync before any write; a marked file that falls out of the profile is removed.
-# --vendor-skills copies the profile's plugins/<plugin>/skills/<name>/ directories whole
+# --vendor-skills copies the profile's plugins/<plugin>/skills/<name>/ directories whole (core's
+# skills excepted: core stays enabled, so they load from the plugin)
 # into .claude/skills/<name>/, marks each copy with .agent-rules-kit and writes
 # KIT_MANIFEST.json (kit version, profile, plugin, sha256 per file). The manifest is
 # sticky: once it exists a bare sync-project.sh <repo> keeps the vendored mode. A
@@ -130,6 +131,9 @@ skill_dirs() { # prints "<plugin> <name>" for every plugins/<plugin>/skills/<nam
   # is hard-coded so skill renames and moves cannot stale this list
   local plugin skill_dir name
   while read -r plugin; do
+    # core stays enabled in .claude/settings.json (its guard hook lives only in the plugin), so its
+    # skills already load from the plugin; a vendored copy would load them twice (KIT-002)
+    [[ "$plugin" == core ]] && continue
     for skill_dir in "$KIT_DIR/plugins/$plugin/skills"/*/; do
       [[ -f "$skill_dir/SKILL.md" ]] || continue
       name="${skill_dir%/}"

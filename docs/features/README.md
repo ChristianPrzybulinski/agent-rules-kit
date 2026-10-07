@@ -21,5 +21,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | File | Status | Issue | PR |
 |---|---|---|---|
 | [`KIT-001-pre-existing-needs-a-baseline.md`](KIT-001-pre-existing-needs-a-baseline.md) | done | #69 | #68 |
+| [`KIT-002-no-vendored-core-skills.md`](KIT-002-no-vendored-core-skills.md) | confirmed | #71 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
