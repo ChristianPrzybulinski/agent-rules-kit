@@ -4,7 +4,7 @@ title: "Gates prove nothing in a sparse or partial checkout"
 status: done
 confirmed: "2026-10-07 (owner, chat of the Stratics E5' batch session)"
 issue: "#77"
-pr: ""
+pr: "#78"
 ---
 
 # KIT-005 — Gates prove nothing in a sparse or partial checkout
