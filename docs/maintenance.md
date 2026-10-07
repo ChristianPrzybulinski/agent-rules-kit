@@ -10,6 +10,7 @@ The layout of 10.x, kept unchanged by 11.0.0, is frozen until at least 2027-01-0
 
 | Type | Steps |
 |---|---|
+| kit feature | after the owner confirms an improvement: copy [`features/TEMPLATE.md`](features/TEMPLATE.md) to `features/KIT-NNN-<slug>.md`, open issue `[KIT-NNN] <title>` with label `kit-feature`, list it in [`features/README.md`](features/README.md); the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN` |
 | rule | create `plugins/<plugin>/rules/<name>.md` in the owning plugin with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; body = one pointer line to the owning skill plus 8-12 always/never bullets, at most 40 lines; list it in the plugin's `INDEX.md` and the root `INDEX.md` rules table (never add non-rule files to `rules/` — Devin loads every `.md` there as a rule) |
 | skill | copy [`../plugins/core/templates/kit-skill.md`](../plugins/core/templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; add the verbatim description to the plugin's `INDEX.md` |
 | reference | copy [`../plugins/core/templates/kit-reference.md`](../plugins/core/templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
