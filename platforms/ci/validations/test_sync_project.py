@@ -122,7 +122,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         return result
 
     def test_vendor_skills_install(self):
-        skills = self.kit_skills(DOCS_PLUGINS)
+        skills = self.kit_skills(DOCS_PLUGINS - {"core"})  # core loads from the plugin (KIT-002)
         own = self.repo / ".claude" / "skills" / "review-loop"
         own.mkdir(parents=True)
         (own / "SKILL.md").write_text("mine\n")
@@ -147,6 +147,8 @@ class SyncProjectCheckTest(unittest.TestCase):
         settings = json.loads((self.repo / ".claude" / "settings.json").read_text())
         self.assertEqual({k for k in settings["enabledPlugins"] if k.endswith("@ai-kit")},
                          {"core@ai-kit"})
+        for _, name in self.kit_skills({"core"}):  # enabled as a plugin, so never vendored too
+            self.assertFalse((root / name).exists(), name)
 
     def test_vendor_skills_idempotent_and_check_passes(self):
         self.vendor_install()
@@ -161,13 +163,13 @@ class SyncProjectCheckTest(unittest.TestCase):
 
     def test_vendor_skills_check_detects_drift(self):
         self.vendor_install()
-        with (self.repo / ".claude" / "skills" / "tokens" / "SKILL.md").open("a") as fh:
+        with (self.repo / ".claude" / "skills" / "github-cli" / "SKILL.md").open("a") as fh:
             fh.write("x")
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("diverges from the manifest", result.stdout)
         self.assertEqual(self.run_sync().returncode, 0)  # resync restores the copy
-        (self.repo / ".claude" / "skills" / "tokens" / "extra.txt").write_text("x\n")
+        (self.repo / ".claude" / "skills" / "github-cli" / "extra.txt").write_text("x\n")
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("not in manifest", result.stdout)
@@ -175,14 +177,14 @@ class SyncProjectCheckTest(unittest.TestCase):
     def test_vendor_skills_profile_switch(self):
         self.vendor_install()
         root = self.repo / ".claude" / "skills"
-        (root / "tokens" / "extra.txt").write_text("x\n")
+        (root / "github-cli" / "extra.txt").write_text("x\n")
         (root / "review-loop").mkdir()
         (root / "review-loop" / "SKILL.md").write_text("mine\n")
         result = self.run_sync("--profile", "godot")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse((root / "sdd-tasks").exists())
         self.assertTrue((root / "godot-standards" / "SKILL.md").is_file())
-        self.assertFalse((root / "tokens" / "extra.txt").exists())
+        self.assertFalse((root / "github-cli" / "extra.txt").exists())
         self.assertEqual((root / "review-loop" / "SKILL.md").read_text(), "mine\n")
         check = self.run_sync("--check", "--profile", "godot")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
@@ -192,7 +194,7 @@ class SyncProjectCheckTest(unittest.TestCase):
             repo = Path(other)
             (repo / "AGENTS.md").write_text("# x\n")
             (repo / "project.godot").write_text("")
-            (repo / ".claude" / "skills" / "tokens").mkdir(parents=True)
+            (repo / ".claude" / "skills" / "github-cli").mkdir(parents=True)
             result = self.run_sync("--vendor-skills", repo=repo)
             self.assertEqual(result.returncode, 1)
             self.assertIn("is not generated", result.stdout + result.stderr)

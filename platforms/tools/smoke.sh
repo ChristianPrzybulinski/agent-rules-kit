@@ -629,7 +629,7 @@ fi
 # whole into .claude/skills/ with .agent-rules-kit markers and a hashed
 # KIT_MANIFEST.json. Counts come from the $SOURCE fixture at test time (its
 # rewritten SKILL.md descriptions differ from the live kit).
-godot_plugins="core dev-core dev-godot quality-core infra-github" # mirrors profile_plugins godot in sync-project.sh
+godot_plugins="dev-core dev-godot quality-core infra-github" # profile_plugins godot minus core (KIT-002: core loads from the plugin)
 expected_skills="$(for p in $godot_plugins; do ls "$SOURCE/plugins/$p/skills"; done | wc -l | tr -d ' ')"
 expected_files=$(( $(for p in $godot_plugins; do find "$SOURCE/plugins/$p/skills" -type f; done | wc -l) + expected_skills ))
 mkdir -p "$ROOT/vendor-proj/.claude/skills/review-loop"
@@ -698,7 +698,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-vendor-resync.out" >&2
   fail "vendored resync after the edit failed"
 fi
-printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/tokens/extra.txt"
+printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/github-cli/extra.txt"
 set +e
 sync_vendor_extra_out="$(env PATH="$RESTRICTED_PATH" \
   "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" 2>&1)"
@@ -720,9 +720,9 @@ fi
   || fail "sdd-tasks missing after the profile switch"
 [[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
   || fail "hand-written review-loop skill was touched by the profile switch"
-[[ ! -e "$ROOT/vendor-proj/.claude/skills/tokens/extra.txt" ]] \
-  || fail "extra file survived the tokens regeneration"
-mkdir -p "$ROOT/vendor-proj2/.claude/skills/tokens"
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/github-cli/extra.txt" ]] \
+  || fail "extra file survived the github-cli regeneration"
+mkdir -p "$ROOT/vendor-proj2/.claude/skills/github-cli"
 printf '# mine\n' > "$ROOT/vendor-proj2/AGENTS.md"
 touch "$ROOT/vendor-proj2/project.godot"
 set +e
@@ -731,7 +731,7 @@ sync_vendor_refuse_out="$(env PATH="$RESTRICTED_PATH" \
 sync_vendor_refuse_status=$?
 set -e
 [[ "$sync_vendor_refuse_status" -eq 1 ]] \
-  || fail "sync-project did not refuse an unmarked .claude/skills/tokens"
+  || fail "sync-project did not refuse an unmarked .claude/skills/github-cli"
 [[ "$sync_vendor_refuse_out" == *"is not generated"* ]] \
   || fail "sync-project refusal did not report 'is not generated'"
 [[ ! -e "$ROOT/vendor-proj2/.claude/skills/KIT_MANIFEST.json" ]] \
