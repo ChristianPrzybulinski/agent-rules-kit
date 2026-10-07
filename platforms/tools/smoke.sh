@@ -43,7 +43,9 @@ PY
 
 git -C "$SOURCE" init -q -b main
 git -C "$SOURCE" add -A
-git -C "$SOURCE" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "test fixture"
+# Git >= 2.4x starts `git maintenance run --auto --detach` after a commit; it packs the fixture's loose objects
+# while bootstrap.sh clones the fixture, and the clone fails mid-copy (KIT-003)
+git -C "$SOURCE" -c maintenance.auto=false -c gc.auto=0 -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "test fixture"
 
 bootstrap_output="$ROOT/bootstrap.out"
 if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" \

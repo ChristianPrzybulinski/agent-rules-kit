@@ -13,6 +13,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - KIT-001: `plugins/core/AGENTS.md` § Truth: a failure is "pre-existing" only after the same command failed, in the session, on the commit before the first change (for a PR: its base); a mid-series `main` is no baseline. Why: on 2026-10-07 a Stratics architect session called a red `dat-importer` test pre-existing because it compared against a `main` that already held its own earlier PRs of the same series (DPRO-015 P2/P5/P6 had edited a file whose sha256 seven provenance rows pin); the regression shipped and needed a fix PR (stratics-docs#580). Owner approved the proposal in chat.
 - `evals.yml` runs only on `workflow_dispatch`. The weekly schedule is removed: the `ANTHROPIC_API_KEY` secret is not set (owner decision 2026-10-06), so each Monday run would fail and spend Actions minutes.
 
+### Fixed
+- KIT-003: `smoke.sh` commits its fixture with `-c maintenance.auto=false -c gc.auto=0`. Git 2.54's commit starts a detached `git maintenance run --auto` that packed the fixture's loose objects while `bootstrap.sh` cloned it, and `smoke: bootstrap failed` came back intermittently (four of four on the owner's clone, 2026-10-07).
+
 ## [11.0.0] - 2026-10-06
 
 MAJOR: `sdd-analyze` and `sdd-audit` are removed (merged into `sdd-check`, see Migration), and the default install changes (`extras` leaves `all`; `AI_KIT_USER_RULES` defaults to `0`). The 10.x layout is unchanged: no folder, manifest path or install destination moved.
