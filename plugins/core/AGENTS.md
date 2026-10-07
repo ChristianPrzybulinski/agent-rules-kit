@@ -44,6 +44,7 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 - Advice about API/flag/version from training → confirm against the installed version before using.
 - Doc or memory contradicts the code → the code wins; fix the record, not the code.
 - Before claiming "done": test ran, app ran, diff read. Without that, label it "unverified".
+- A failure is "pre-existing" only after the same command failed, this session, on the commit before your first change (for a PR: its base). A mid-series `main` is no baseline.
 
 ## Skepticism
 
