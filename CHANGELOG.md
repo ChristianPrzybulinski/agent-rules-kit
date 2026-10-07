@@ -5,10 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Added
+- `docs/features/`: one `KIT-NNN` file per kit improvement the owner confirmed (template, process, index), each with a `kit-feature` issue; the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN`. KIT-001 records #68 retroactively (issue #69). Why: improvements proposed in project sessions (Stratics night run 2026-10-07) had no history in the kit; the kit stays out of the project's review loop and is implemented by hand. Owner decision 2026-10-07 (chat). `docs/maintenance.md` gains the "kit feature" row.
 - `LICENSE`: proprietary, all rights reserved (no copying, redistribution or model training without written permission; a contribution grant to the copyright holder); the vendored third-party skills keep their MIT and Apache-2.0 licenses. `SECURITY.md`: private reporting, supported versions (latest release and `main`) and scope. Owner request 2026-10-06.
 
 ### Changed
-- `plugins/core/AGENTS.md` § Truth: a failure is "pre-existing" only after the same command failed, in the session, on the commit before the first change (for a PR: its base); a mid-series `main` is no baseline. Why: on 2026-10-07 a Stratics architect session called a red `dat-importer` test pre-existing because it compared against a `main` that already held its own earlier PRs of the same series (DPRO-015 P2/P5/P6 had edited a file whose sha256 seven provenance rows pin); the regression shipped and needed a fix PR (stratics-docs#580). Owner approved the proposal in chat.
+- KIT-001: `plugins/core/AGENTS.md` § Truth: a failure is "pre-existing" only after the same command failed, in the session, on the commit before the first change (for a PR: its base); a mid-series `main` is no baseline. Why: on 2026-10-07 a Stratics architect session called a red `dat-importer` test pre-existing because it compared against a `main` that already held its own earlier PRs of the same series (DPRO-015 P2/P5/P6 had edited a file whose sha256 seven provenance rows pin); the regression shipped and needed a fix PR (stratics-docs#580). Owner approved the proposal in chat.
 - `evals.yml` runs only on `workflow_dispatch`. The weekly schedule is removed: the `ANTHROPIC_API_KEY` secret is not set (owner decision 2026-10-06), so each Monday run would fail and spend Actions minutes.
 
 ## [11.0.0] - 2026-10-06
