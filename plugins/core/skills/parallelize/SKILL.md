@@ -36,7 +36,7 @@ Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/r
 
 ## 4. Fan out disjoint tasks
 
-- Fan out `[P]` tasks from skill `sdd-tasks` only when file ownership is disjoint.
+- Fan out `[P]` tasks from skill `sdd-tasks` when they have no real conflict. Without evidence, disjoint file ownership is the test; a shared file is no conflict until a `git merge-tree` replay says so (`references/measure-conflicts.md`). Keep real dependencies and semantic hotspots (migration number, protocol version, error-code allocation) sequential.
 - Brief each worker with its goal, owned files, interface, verification command and required report.
 - The lead reviews every diff and integrates results; a worker report is not evidence by itself.
 
