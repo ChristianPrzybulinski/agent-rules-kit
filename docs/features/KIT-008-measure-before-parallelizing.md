@@ -4,7 +4,7 @@ title: "Measure real conflicts with git merge-tree before deciding what runs in 
 status: done
 confirmed: "2026-10-08 (owner, chat of the Stratics P1/P2 orchestrator session: \"7 aprovo\")"
 issue: "#82"
-pr: "#85"
+pr: "#87"
 ---
 
 # KIT-008 — Measure real conflicts with git merge-tree before deciding what runs in parallel
@@ -51,3 +51,4 @@ with exit 1 and name the file.
 ## History
 
 - 2026-10-08: confirmed (owner, chat of the Stratics P1/P2 orchestrator session) and done.
+- 2026-10-08: #85 was closed by GitHub when its stacked base branch (KIT-007) was deleted at merge; the same branch landed as #87.
