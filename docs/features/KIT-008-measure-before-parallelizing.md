@@ -4,7 +4,7 @@ title: "Measure real conflicts with git merge-tree before deciding what runs in 
 status: done
 confirmed: "2026-10-08 (owner, chat of the Stratics P1/P2 orchestrator session: \"7 aprovo\")"
 issue: "#82"
-pr: ""
+pr: "#85"
 ---
 
 # KIT-008 — Measure real conflicts with git merge-tree before deciding what runs in parallel
