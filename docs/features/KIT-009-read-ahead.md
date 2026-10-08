@@ -4,7 +4,7 @@ title: "Read ahead: read-only prepare agents feed the implementer in multi-agent
 status: done
 confirmed: "2026-10-08 (owner, chat of the Stratics P1/P2 orchestrator session: \"7 aprovo\")"
 issue: "#83"
-pr: ""
+pr: "#86"
 ---
 
 # KIT-009 — Read ahead: read-only prepare agents feed the implementer in multi-agent pipelines
