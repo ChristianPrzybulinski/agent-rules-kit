@@ -13,13 +13,14 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 
 - Start: read the repo's `AGENTS.md`; name **the** outcome of this session in one sentence.
 - One session, one outcome; one PR, one concern. Request on another topic → warn and stop: follow-up or new session; never mix silently.
-- End: summary (done · unverified · next step) + at most **one** kit proposal with evidence from this session, asked before written. Detail: skill `session`.
+- End: summary (done · unverified · concrete next step) + at most **one** kit proposal with evidence from this session, asked before written. Detail: skill `session`.
 - When compacting or summarizing context, preserve the list of modified files and the test commands verbatim, so the next turn can re-run the proof.
 
 ## Work loop
 
 - Plan before coding when: 3+ files, crosses a layer, spec says "should"/"probably", bug with no named root cause. Otherwise, start.
 - Independent steps leave in the same turn or run in the background; sequence only what depends on a result, shares a resource, or has an external effect. Detail: skill `parallelize`.
+- Shell (zsh is the macOS default): a backtick inside a double-quoted argument runs as a command (``--body "see `x`"`` runs `x`), so text with backticks goes in a file or a `<<'EOF'` heredoc; zsh does not word-split `$x` (``for p in "a b"; do set -- $p`` passes one word) and runs a leading `=` as a command lookup (`echo ===` fails), so loops over pairs, JSON and edits of several files go in a Python script.
 - Same error twice → stop varying blindly; form a root-cause hypothesis before the 3rd attempt. Report the worst fact first: a literal failure in sentence one.
 
 ## Craft
@@ -35,7 +36,6 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 ## Communication
 
 - Technical answer: code/diff first, then ≤3 lines; paths, commands and errors byte-for-byte; full prose only for security warnings, irreversible actions and multi-step sequences. Text for people: fluid, no AI clichés, no fabricated facts. Governed documents (specs, CHANGELOG, commits, skills): template and schema, never compressed. Detail: skill `tokens`.
-- End with: done · unverified · concrete next step.
 
 ## Truth
 
