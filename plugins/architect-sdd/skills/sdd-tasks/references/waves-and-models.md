@@ -8,7 +8,7 @@ kind: detail
 ## Waves
 
 - Contracts, schemas and DECs go to wave 0; wave 0 runs sequentially.
-- Two tasks share a wave only when their file sets are disjoint and neither reads the other's output.
+- Two tasks share a wave only when neither reads the other's output and their file sets are disjoint — or, once a `git merge-tree` replay of past work shows the shared files merge cleanly (skill `parallelize`, its reference `measure-conflicts.md`), when they share only such files. A semantic hotspot (migration number, protocol version, error-code allocation) still separates them.
 - Wave numbers are FEAT-local; a cross-FEAT dependency points to a task cut earlier (an earlier wave in the published cut order).
 - Issues are cut in wave order; an executor runs one wave at a time and starts the next only when the `Depends on` chain is merged.
 
