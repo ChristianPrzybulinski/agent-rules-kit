@@ -4,7 +4,7 @@ title: "Agents' shell commands avoid three zsh traps; loops and JSON go to Pytho
 status: done
 confirmed: "2026-10-08 (owner, chat of the Stratics P1/P2 orchestrator session: \"7 aprovo\")"
 issue: "#81"
-pr: ""
+pr: "#84"
 ---
 
 # KIT-007 — Agents' shell commands avoid three zsh traps; loops and JSON go to Python

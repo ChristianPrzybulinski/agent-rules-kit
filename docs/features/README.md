@@ -26,6 +26,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-004-parallel-spec-id-blocks.md`](KIT-004-parallel-spec-id-blocks.md) | confirmed | #75 | — |
 | [`KIT-005-gates-need-a-full-checkout.md`](KIT-005-gates-need-a-full-checkout.md) | done | #77 | #78 |
 | [`KIT-006-spec-check-rejects-conflict-markers.md`](KIT-006-spec-check-rejects-conflict-markers.md) | done | #79 | #80 |
-| [`KIT-007-shell-zsh-traps.md`](KIT-007-shell-zsh-traps.md) | done | #81 | #? |
+| [`KIT-007-shell-zsh-traps.md`](KIT-007-shell-zsh-traps.md) | done | #81 | #84 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
