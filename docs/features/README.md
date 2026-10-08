@@ -28,5 +28,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-006-spec-check-rejects-conflict-markers.md`](KIT-006-spec-check-rejects-conflict-markers.md) | done | #79 | #80 |
 | [`KIT-007-shell-zsh-traps.md`](KIT-007-shell-zsh-traps.md) | done | #81 | #84 |
 | [`KIT-008-measure-before-parallelizing.md`](KIT-008-measure-before-parallelizing.md) | done | #82 | #85 |
+| [`KIT-009-read-ahead.md`](KIT-009-read-ahead.md) | done | #83 | #? |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Added
+- KIT-009: `parallelize` § 4 and new reference `parallelize/references/read-ahead.md` — read-only prepare workers, one per area (code, tests, spec), read a task ahead while it waits for a slot or a dependency and hand the implementer a context note (what to touch, step plan, open questions) that it reads first and re-checks. Why: Stratics implementers spent 62 % of their time before the first edit in the P1 batch (66 of 106 min), and its review loop added this prepare stage (FEAT-053 T23). Owner confirmed in chat (2026-10-08).
 - `docs/features/`: one `KIT-NNN` file per kit improvement the owner confirmed (template, process, index), each with a `kit-feature` issue; the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN`. KIT-001 records #68 retroactively (issue #69). Why: improvements proposed in project sessions (Stratics night run 2026-10-07) had no history in the kit; the kit stays out of the project's review loop and is implemented by hand. Owner decision 2026-10-07 (chat). `docs/maintenance.md` gains the "kit feature" row.
 - `LICENSE`: proprietary, all rights reserved (no copying, redistribution or model training without written permission; a contribution grant to the copyright holder); the vendored third-party skills keep their MIT and Apache-2.0 licenses. `SECURITY.md`: private reporting, supported versions (latest release and `main`) and scope. Owner request 2026-10-06.
 
