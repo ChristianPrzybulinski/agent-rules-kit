@@ -4,7 +4,7 @@ title: "doctor caps Claude Code's auto-compact window at 200k"
 status: done
 confirmed: "2026-10-12 (owner, chat of the Stratics architect session on Claude usage: \"sim, mas consegue ao inves de sugerir, realizar a compactação direto ja\")"
 issue: "#88"
-pr: ""
+pr: "#89"
 ---
 
 # KIT-010 — doctor caps Claude Code's auto-compact window at 200k
