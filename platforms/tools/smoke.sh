@@ -330,6 +330,10 @@ grep -Fq 'fix: claude bundle all@ai-kit installed' "$ROOT/doctor-stub-install.ou
   || fail "Claude stub install markers missing"
 [[ "$(readlink "$STUB_HOME/.claude/CLAUDE.md")" == "$STUB_HOME/.ai-kit/plugins/core/AGENTS.md" ]] \
   || fail "Claude CLAUDE.md symlink has the wrong target"
+grep -Fq "fix: claude autoCompactWindow set to 200k in $STUB_HOME/.claude/settings.json (KIT-010)" \
+  "$ROOT/doctor-stub-install.out" || fail "autoCompactWindow fix was not reported"
+[[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["autoCompactWindow"])' \
+    "$STUB_HOME/.claude/settings.json")" == "200k" ]] || fail "autoCompactWindow was not written as 200k"
 for rule_file in "$STUB_HOME/.ai-kit"/plugins/*/rules/*.md; do
   [[ -f "$rule_file" ]] || continue
   plugin_name="$(dirname "$(dirname "$rule_file")")"
@@ -350,6 +354,17 @@ grep -Fq 'ok: user-level claude rules disabled (AI_KIT_USER_RULES=0); repos carr
   "$ROOT/doctor-stub-no-user-rules.out" || fail "AI_KIT_USER_RULES=0 switch was not reported"
 [[ "$(find "$STUB_HOME/.claude/rules" -type l | wc -l | tr -d ' ')" == "0" ]] \
   || fail "user-level rule symlinks remained under AI_KIT_USER_RULES=0"
+grep -Fq 'ok: claude autoCompactWindow 200k' "$ROOT/doctor-stub-no-user-rules.out" \
+  || fail "autoCompactWindow 200k was not reported ok on the second run"
+
+# KIT-010: an explicit owner value above the kit's window is kept and reported, never overwritten.
+python3 - "$STUB_HOME/.claude/settings.json" <<'PY'
+import json
+import sys
+settings = json.load(open(sys.argv[1]))
+settings["autoCompactWindow"] = "500k"
+json.dump(settings, open(sys.argv[1], "w"), indent=2)
+PY
 
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
     AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
@@ -358,6 +373,10 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
   cat "$ROOT/doctor-stub-user-rules.out" >&2
   fail "doctor failed to restore user-level rule symlinks"
 fi
+grep -Fq "warn: claude autoCompactWindow '500k' is above the kit's 200k — kept (owner's choice)" \
+  "$ROOT/doctor-stub-user-rules.out" || fail "an owner autoCompactWindow above 200k was not reported"
+[[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["autoCompactWindow"])' \
+    "$STUB_HOME/.claude/settings.json")" == "500k" ]] || fail "doctor overwrote the owner's autoCompactWindow"
 for rule_file in "$STUB_HOME/.ai-kit"/plugins/*/rules/*.md; do
   [[ -f "$rule_file" ]] || continue
   plugin_name="$(dirname "$(dirname "$rule_file")")"

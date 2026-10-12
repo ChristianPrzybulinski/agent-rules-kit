@@ -70,7 +70,7 @@ A repository that vendors its skills (`sync-project.sh --vendor-skills`) enables
 
 ## Refresh and diagnosis
 
-On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours. `platforms/tools/doctor.sh` repairs clone, plugin and symlink state. Nothing refreshes at agent session start.
+On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours. `platforms/tools/doctor.sh` repairs clone, plugin and symlink state, and sets Claude Code's `autoCompactWindow` to `200k` when `~/.claude/settings.json` has none (KIT-010). Nothing refreshes at agent session start.
 
 ## Maintainers
 

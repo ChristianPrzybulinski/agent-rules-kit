@@ -6,6 +6,7 @@ KIT="${AI_KIT_DIR:-$HOME/.ai-kit}"
 HEADER="# Global Rules — AI Kit"
 FAILURES=0
 ORIGIN_SHA=""
+AUTO_COMPACT_WINDOW="200k"
 
 ok() {
   printf 'ok: %s\n' "$*"
@@ -206,6 +207,67 @@ ensure_claude_links() {
         ;;
     esac
   done
+}
+
+# KIT-010: Claude Code compacts a conversation at its context window; the kit caps it at 200k so a long session
+# stops re-reading up to 1M tokens on every turn. An explicit owner value is kept and reported.
+ensure_claude_auto_compact() {
+  local settings="$HOME/.claude/settings.json"
+  local result
+  if [[ -n "${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}" ]]; then
+    warn "CLAUDE_CODE_AUTO_COMPACT_WINDOW=$CLAUDE_CODE_AUTO_COMPACT_WINDOW overrides autoCompactWindow in $settings"
+  fi
+  if ! result="$(python3 - "$settings" "$AUTO_COMPACT_WINDOW" <<'PY'
+import json
+import os
+import re
+import sys
+
+path, kit_value = sys.argv[1], sys.argv[2]
+
+def tokens(value):
+    match = re.fullmatch(r"(\d+(?:\.\d+)?)([kKmM]?)", str(value).strip())
+    if not match:
+        return None
+    scale = {"": 1, "k": 1_000, "m": 1_000_000}[match.group(2).lower()]
+    return float(match.group(1)) * scale
+
+try:
+    with open(path, encoding="utf-8") as handle:
+        settings = json.load(handle)
+except FileNotFoundError:
+    settings = {}
+except (OSError, json.JSONDecodeError) as error:
+    print(f"fail {path} unreadable ({error}); autoCompactWindow not checked")
+    raise SystemExit(0)
+if not isinstance(settings, dict):
+    print(f"fail {path} is not a JSON object; autoCompactWindow not checked")
+    raise SystemExit(0)
+current = settings.get("autoCompactWindow")
+if current is None:
+    settings["autoCompactWindow"] = kit_value
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temp = path + ".ai-kit-tmp"
+    with open(temp, "w", encoding="utf-8") as handle:
+        json.dump(settings, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+    os.replace(temp, path)
+    print(f"fix claude autoCompactWindow set to {kit_value} in {path} (KIT-010)")
+elif tokens(current) is not None and tokens(current) <= tokens(kit_value):
+    print(f"ok claude autoCompactWindow {current}")
+else:
+    print(f"warn claude autoCompactWindow '{current}' is above the kit's {kit_value} — kept (owner's choice)")
+PY
+)"; then
+    fail "cannot check autoCompactWindow in $settings"
+    return
+  fi
+  case "$result" in
+    "fix "*) fix "${result#fix }" ;;
+    "ok "*) ok "${result#ok }" ;;
+    "warn "*) warn "${result#warn }" ;;
+    *) fail "${result#fail }" ;;
+  esac
 }
 
 devin_plugin_record() {
@@ -565,6 +627,7 @@ if command -v claude >/dev/null 2>&1; then
     fail "claude bundle all@ai-kit missing and install failed — run: claude plugin install all@ai-kit"
   fi
   ensure_claude_links
+  ensure_claude_auto_compact
 
   if [[ -L "$HOME/.claude/CLAUDE.md" ]]; then
     claude_import="$(python3 - "$devin_config" <<'PY'
