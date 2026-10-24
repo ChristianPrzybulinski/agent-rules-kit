@@ -15,7 +15,11 @@ allowed-tools:
 
 ## 1. Check local and remote state
 
-Run `git status`, identify the branch/remote and verify `gh auth status`. If authentication is missing, ask the user to run `gh auth login`; never print `GH_TOKEN` or `GITHUB_TOKEN`.
+Run `git status` and identify the branch/remote. Distinguish connectivity failures from authentication failures:
+
+- DNS errors, timeouts, or `error connecting to api.github.com` do not establish invalid credentials. For authorized reads, use the GitHub connector when it supports the operation; otherwise request narrowly scoped sandbox escalation for the exact CLI command. Do not change persistent permissions.
+- Check `gh auth status` through a working network path. Ask the user to run `gh auth login` only when the result establishes missing or invalid authentication. A permission or rate-limit error alone does not justify logging in again.
+- Never print `GH_TOKEN` or `GITHUB_TOKEN`. Do not blindly retry mutations after an ambiguous failure; first check whether the operation took effect.
 
 ## 2. Create the PR
 
