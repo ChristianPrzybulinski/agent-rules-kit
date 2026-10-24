@@ -30,5 +30,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-008-measure-before-parallelizing.md`](KIT-008-measure-before-parallelizing.md) | done | #82 | #87 |
 | [`KIT-009-read-ahead.md`](KIT-009-read-ahead.md) | done | #83 | #86 |
 | [`KIT-010-auto-compact-window.md`](KIT-010-auto-compact-window.md) | done | #88 | #89 |
+| [`KIT-011-github-connectivity-before-authentication.md`](KIT-011-github-connectivity-before-authentication.md) | done | #90 | #91 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

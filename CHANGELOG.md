@@ -20,6 +20,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `evals.yml` runs only on `workflow_dispatch`. The weekly schedule is removed: the `ANTHROPIC_API_KEY` secret is not set (owner decision 2026-10-06), so each Monday run would fail and spend Actions minutes.
 
 ### Fixed
+- KIT-011: `github-cli` distinguishes connectivity failures from invalid authentication, uses the GitHub connector or narrowly scoped sandbox escalation for authorized reads, and checks ambiguous mutations before retrying. Why: on 2026-10-24, GitHub CLI and Git queries failed inside the Codex sandbox but succeeded with per-command escalation; the connector also succeeded. Owner approved the exact skill text in chat. Three evaluation cases cover these decisions.
 - KIT-003: `smoke.sh` commits its fixture with `-c maintenance.auto=false -c gc.auto=0`. Git 2.54's commit starts a detached `git maintenance run --auto` that packed the fixture's loose objects while `bootstrap.sh` cloned it, and `smoke: bootstrap failed` came back intermittently (four of four on the owner's clone, 2026-10-07).
 
 ## [11.0.0] - 2026-10-06
