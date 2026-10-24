@@ -1,10 +1,10 @@
 ---
 id: KIT-011
 title: "Distinguish GitHub connectivity failures from authentication"
-status: confirmed
+status: done
 confirmed: "2026-10-24 (owner, Codex GitHub connectivity diagnosis chat; exact skill text approved)"
 issue: "#90"
-pr: ""
+pr: "#91"
 ---
 
 # KIT-011 — Distinguish GitHub connectivity failures from authentication
@@ -52,3 +52,4 @@ Evaluation prompts and graders were parsed, but model-driven evaluations were no
 ## History
 
 - 2026-10-24: owner approved the exact correction, then authorized its PR and merge; implementation validated locally.
+- 2026-10-24: implementation recorded in PR #91; model-driven evaluations remain unexecuted.
