@@ -4,7 +4,7 @@ title: "refresh.sh reinstalls a Claude plugin whose content changed without a ve
 status: done
 confirmed: "2026-10-26 (owner, Stratics FEAT-101 activation coordination chat)"
 issue: "#94"
-pr: ""
+pr: "#96"
 ---
 
 # KIT-013 — refresh.sh reinstalls a Claude plugin whose content changed without a version bump
@@ -52,4 +52,5 @@ merge leaves the Claude cache equal to the kit.
 
 ## History
 
-- 2026-10-26: confirmed (owner, chat).
+- 2026-10-26: confirmed (owner, chat); implemented in #96. A live read-only run found `infra-github` stale on the
+  owner's machine (KIT-011 content never reinstalled).

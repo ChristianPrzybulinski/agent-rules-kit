@@ -32,6 +32,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-010-auto-compact-window.md`](KIT-010-auto-compact-window.md) | done | #88 | #89 |
 | [`KIT-011-github-connectivity-before-authentication.md`](KIT-011-github-connectivity-before-authentication.md) | done | #90 | #91 |
 | [`KIT-012-loop-orchestrate-lease.md`](KIT-012-loop-orchestrate-lease.md) | done | #92 | #93 |
-| [`KIT-013-refresh-reinstalls-changed-claude-plugins.md`](KIT-013-refresh-reinstalls-changed-claude-plugins.md) | done | #94 | PRNUM |
+| [`KIT-013-refresh-reinstalls-changed-claude-plugins.md`](KIT-013-refresh-reinstalls-changed-claude-plugins.md) | done | #94 | #96 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
