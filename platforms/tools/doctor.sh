@@ -58,6 +58,64 @@ raise SystemExit(0 if contains(data) else 1)
 PY
 }
 
+# KIT-013: Claude caches a plugin per version, so a kit change without a version bump leaves the cache stale.
+# Prints each user-scope <plugin>@ai-kit whose cache differs from its directory in the marketplace clone.
+claude_stale_plugins() {
+  python3 - "$1" "$2" <<'PY'
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+
+RUNTIME_MARKERS = {".in_use"}
+
+def tree_hash(root):
+    digest = hashlib.sha256()
+    for directory, dirs, files in os.walk(root):
+        if Path(directory) == root:
+            # Claude keeps its .in_use process markers at the top of a cache directory.
+            dirs[:] = [name for name in dirs if name not in RUNTIME_MARKERS]
+            files = [name for name in files if name not in RUNTIME_MARKERS]
+        dirs.sort()
+        for name in sorted(files):
+            path = Path(directory, name)
+            relative = path.relative_to(root)
+            digest.update(str(relative).encode() + b"\0")
+            digest.update(b"link:" + os.readlink(path).encode() if path.is_symlink() else path.read_bytes())
+            digest.update(b"\0")
+    return digest.hexdigest()
+
+try:
+    marketplaces = json.loads(sys.argv[1])
+    plugins = json.loads(sys.argv[2])
+except json.JSONDecodeError:
+    raise SystemExit(0)
+if not isinstance(marketplaces, list) or not isinstance(plugins, list):
+    raise SystemExit(0)
+location = next((m.get("installLocation") for m in marketplaces if m.get("name") == "ai-kit"), None)
+if not location:
+    raise SystemExit(0)
+try:
+    catalog = json.loads(Path(location, ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    raise SystemExit(0)
+sources = {entry.get("name"): entry.get("source") for entry in catalog.get("plugins", [])}
+stale = set()
+for plugin in plugins:
+    name, _, marketplace = str(plugin.get("id", "")).partition("@")
+    source = sources.get(name)
+    install = plugin.get("installPath")
+    if marketplace != "ai-kit" or plugin.get("scope", "user") != "user" or not isinstance(source, str) or not install:
+        continue
+    source_dir = Path(location, source)
+    if source_dir.is_dir() and (not Path(install).is_dir() or tree_hash(source_dir) != tree_hash(Path(install))):
+        stale.add(name)
+for name in sorted(stale):
+    print(name)
+PY
+}
+
 codex_bin() {
   local candidate
   [[ "${AI_KIT_NO_CODEX_CLI:-0}" != "1" ]] || return 1
@@ -625,6 +683,13 @@ if command -v claude >/dev/null 2>&1; then
     fix "claude bundle all@ai-kit installed"
   else
     fail "claude bundle all@ai-kit missing and install failed — run: claude plugin install all@ai-kit"
+  fi
+  if stale_plugins="$(claude_stale_plugins "$claude_marketplaces" "$claude_plugins")"; then
+    for plugin_name in $stale_plugins; do
+      warn "claude plugin $plugin_name@ai-kit cache differs from the kit — run platforms/tools/refresh.sh"
+    done
+  else
+    warn "cannot compare Claude plugin caches with the kit"
   fi
   ensure_claude_links
   ensure_claude_auto_compact

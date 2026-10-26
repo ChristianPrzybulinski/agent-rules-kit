@@ -1,7 +1,7 @@
 ---
 id: KIT-013
 title: "refresh.sh reinstalls a Claude plugin whose content changed without a version bump"
-status: confirmed
+status: done
 confirmed: "2026-10-26 (owner, Stratics FEAT-101 activation coordination chat)"
 issue: "#94"
 pr: ""

@@ -257,7 +257,7 @@ state="${STUB_STATE_DIR:?}"
 case "$*" in
   "plugin marketplace list --json")
     if [[ -f "$state/claude-marketplace" ]]; then
-      echo '[{"name":"ai-kit"}]'
+      printf '[{"name":"ai-kit","installLocation":"%s"}]\n' "$HOME/.ai-kit"
     else
       echo '[]'
     fi
@@ -274,7 +274,8 @@ case "$*" in
         [[ -f "$installed" ]] || continue
         [[ "$first" -eq 0 ]] && printf ','
         first=0
-        printf '{"id":"%s@ai-kit"}' "$(basename "$installed")"
+        name="$(basename "$installed")"
+        printf '{"id":"%s@ai-kit","scope":"user","installPath":"%s"}' "$name" "$state/claude-cache/$name"
       done
       printf ']\n'
     else
@@ -285,6 +286,18 @@ case "$*" in
     mkdir -p "$state/claude-plugins"
     name="${3%@ai-kit}"
     touch "$state/claude-plugins/$name"
+    mkdir -p "$state/claude-cache"
+    cp -R "$HOME/.ai-kit/plugins/$name" "$state/claude-cache/$name"
+    mkdir -p "$state/claude-cache/$name/.in_use"
+    touch "$state/claude-cache/$name/.in_use/4242"
+    printf '{"id":"%s@ai-kit"}\n' "$name"
+    ;;
+  "plugin uninstall "*@ai-kit" --keep-data --json")
+    name="${3%@ai-kit}"
+    rm -rf "$state/claude-cache/$name"
+    rm -f "$state/claude-plugins/$name"
+    mkdir -p "$state/claude-uninstalls"
+    touch "$state/claude-uninstalls/$name"
     printf '{"id":"%s@ai-kit"}\n' "$name"
     ;;
   "plugin marketplace update ai-kit --json")
@@ -415,6 +428,17 @@ stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d '
 grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-remove.out" \
   || fail "stub re-exposure count was not reported"
 
+# KIT-013: a cache that differs from the kit without a version bump is reported, then reinstalled.
+printf 'stale\n' >> "$STUB_STATE/claude-cache/all/INDEX.md"
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-stale.out" 2>&1; then
+  cat "$ROOT/doctor-stub-stale.out" >&2
+  fail "doctor failed with a stale Claude plugin cache"
+fi
+grep -Fq 'warn: claude plugin all@ai-kit cache differs from the kit — run platforms/tools/refresh.sh' \
+  "$ROOT/doctor-stub-stale.out" || fail "doctor did not warn about the stale Claude plugin cache"
+
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
     AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" \
     "$STUB_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-stub.out" 2>&1; then
@@ -424,6 +448,22 @@ fi
 [[ -f "$STUB_STATE/upgrade" ]] || fail "refresh did not upgrade the stub marketplace"
 [[ -f "$STUB_STATE/claude-marketplace-update" ]] || fail "refresh did not update the Claude marketplace"
 [[ -f "$STUB_STATE/claude-plugin-updates/all" ]] || fail "refresh did not update the Claude bundle plugin"
+[[ -f "$STUB_STATE/claude-uninstalls/all" && -f "$STUB_STATE/claude-plugins/all" ]] \
+  || fail "refresh did not reinstall the stale Claude bundle plugin"
+grep -Fq 'refresh: reinstalled Claude plugin all@ai-kit (cache differed from the kit)' "$ROOT/refresh-stub.out" \
+  || fail "refresh did not report the Claude reinstall"
+diff -rq -x .in_use "$STUB_HOME/.ai-kit/plugins/all" "$STUB_STATE/claude-cache/all" >/dev/null \
+  || fail "reinstalled Claude cache still differs from the kit"
+
+rm -rf "$STUB_STATE/claude-uninstalls"
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" \
+    "$STUB_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-stub-current.out" 2>&1; then
+  cat "$ROOT/refresh-stub-current.out" >&2
+  fail "refresh failed with an up-to-date Claude plugin cache"
+fi
+[[ ! -e "$STUB_STATE/claude-uninstalls" ]] || fail "refresh reinstalled an up-to-date Claude plugin cache"
+grep -Fq 'reinstalled' "$ROOT/refresh-stub-current.out" && fail "refresh reported a reinstall of an up-to-date cache"
 
 FOREIGN_LINK_HOME="$ROOT/foreign-link-home"
 mkdir -p "$FOREIGN_LINK_HOME/.codex"
