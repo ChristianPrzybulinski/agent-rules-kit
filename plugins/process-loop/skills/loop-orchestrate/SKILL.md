@@ -37,6 +37,8 @@ After the owner confirms the list: `<loop> batch start --issues <list> --hold`. 
 
 Arm exactly one background `<loop> wait --role claude` and end the turn; never poll in the foreground.
 
+When the loop guards coordination with a lease (its `wait` refuses with `no-lease`), take it first with `<loop> coordinate resume --provider claude --session <id>` and arm `<loop> wait --role claude --as-provider claude --session <id>`, where `<id>` is this session's ID as the CLI reports it; never invent one.
+
 ## 5. Handle items
 
 One line per event to the owner; the exit-code table and the per-item actions are in `references/waiter-events.md`. After every `work` return, run `<loop> batch publish`, then re-arm.
