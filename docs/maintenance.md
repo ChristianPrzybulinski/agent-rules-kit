@@ -51,11 +51,12 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 
 ## CI requirements
 
-- `.github/workflows/ci.yml`: ShellCheck on tools/kits, `check.sh`, `smoke.sh`, and `check_kit.py --links`.
+- No kit workflow runs on push or pull request (KIT-014): the local gates are the proof, as the PR checklist lists them. A `workflow_dispatch` run is for a check that needs a clean Ubuntu runner.
+- `.github/workflows/ci.yml` (`workflow_dispatch`): ShellCheck on tools/kits, `check.sh`, `smoke.sh`, and `check_kit.py --links`.
 - Scripts under `platforms/` must parse under bash 3.2 (macOS `/bin/bash`, the `smoke.sh` restricted PATH): avoid unquoted text after a quoted string inside `"$(...)"` — write `"$(basename "$f")"`/`"${f##*/}"` instead of `"$(basename "$f" .md)"`.
 - `check.sh` runs `claude plugin validate` on the plugin and marketplace when Claude Code is installed.
 - `check_kit.py` also gates allowed tools, three-way user-only/subagent/rule parity, reference kinds/sources, hooks, backtick paths and exact skill-index descriptions.
-- `.github/workflows/gitleaks.yml`: secret scan on pushes and pull requests.
+- `.github/workflows/gitleaks.yml` (`workflow_dispatch`): secret scan of the whole history; locally, `gitleaks git --redact --log-opts="origin/main..HEAD"` scans the branch's commits.
 - `.github/workflows/evals.yml`: on-demand `claude plugin eval` per plugin; needs the `ANTHROPIC_API_KEY` repository secret, which is not set (owner 2026-10-06), so nothing runs it on a schedule.
 - `.github/workflows/release.yml`: tag/version validation and release creation.
 

@@ -1,10 +1,10 @@
 ---
 id: KIT-014
 title: "The kit's ci and gitleaks workflows run only on demand (workflow_dispatch)"
-status: confirmed
+status: done
 confirmed: "2026-10-26 (owner, Stratics FEAT-101 activation coordination chat)"
 issue: "#97"
-pr: ""
+pr: "#99"
 ---
 
 # KIT-014 — The kit's ci and gitleaks workflows run only on demand (workflow_dispatch)
@@ -59,10 +59,11 @@ requires these checks.
 
 - Run `bash platforms/tools/check.sh`, `bash platforms/tools/smoke.sh` and
   `python3 platforms/ci/validations/check_kit.py --links`.
-- `python3 -c "import yaml; [print(f, list(yaml.safe_load(open(f))[True])) for f in ('.github/workflows/ci.yml', '.github/workflows/gitleaks.yml')]"`
-  prints `['workflow_dispatch']` for both files. PyYAML reads the `on` key as `True`.
+- `python3 -c "import yaml; [print(f, yaml.safe_load(open(f))[True]) for f in ('.github/workflows/ci.yml', '.github/workflows/gitleaks.yml')]"`
+  prints `workflow_dispatch` for both files. PyYAML reads the `on` key as `True`.
 - After the merge, the merge push creates no `ci` or `gitleaks` run.
 
 ## History
 
-- 2026-10-26: confirmed (owner, chat), after the Actions usage audit of the four repositories.
+- 2026-10-26: confirmed (owner, chat), after the Actions usage audit of the four repositories. Proposal merged in
+  #98 (`5cbd86f`); implemented in #99.

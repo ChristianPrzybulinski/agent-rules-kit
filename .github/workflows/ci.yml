@@ -1,6 +1,6 @@
 name: ci
 
-on: [push, pull_request]
+on: workflow_dispatch  # KIT-014: the local gates are the proof; dispatch for a clean-runner check
 
 env:
   CI: "1"

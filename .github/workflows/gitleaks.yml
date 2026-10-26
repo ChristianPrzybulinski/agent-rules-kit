@@ -1,8 +1,6 @@
 name: gitleaks
 
-on:
-  push:
-  pull_request:
+on: workflow_dispatch  # KIT-014: local `gitleaks git` is the proof; a dispatch scans the whole history
 
 jobs:
   scan:
