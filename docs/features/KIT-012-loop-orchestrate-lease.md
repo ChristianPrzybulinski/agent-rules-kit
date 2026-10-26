@@ -4,7 +4,7 @@ title: "loop-orchestrate takes the coordinator lease before waiting"
 status: done
 confirmed: "2026-10-26 (owner, Stratics FEAT-101 activation coordination chat)"
 issue: "#92"
-pr: ""
+pr: "#93"
 ---
 
 # KIT-012 — loop-orchestrate takes the coordinator lease before waiting
@@ -33,4 +33,4 @@ following the skill stops at its first wait.
 
 ## History
 
-- 2026-10-26: confirmed (owner, chat).
+- 2026-10-26: confirmed (owner, chat); implemented in #93.
