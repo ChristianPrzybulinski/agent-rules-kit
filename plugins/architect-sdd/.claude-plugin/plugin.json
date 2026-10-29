@@ -1,6 +1,6 @@
 {
   "name": "architect-sdd",
-  "version": "11.0.0",
+  "version": "11.1.0",
   "description": "ai-kit SDD: spec-driven development pipeline from FEAT to GitHub cards",
   "author": {
     "name": "Christian Przybulinski"

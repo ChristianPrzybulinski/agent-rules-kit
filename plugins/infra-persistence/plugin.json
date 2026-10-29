@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "infra-persistence",
-  "version": "11.0.0",
+  "version": "11.1.0",
   "description": "ai-kit persistence: PostgreSQL and Redis"
 }

@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [11.1.0] - 2026-10-29
+
 ### Added
 - KIT-016: `sync-project.sh --profile` takes a comma list such as `docs,godot:client,java:server`. A monorepo syncs the union of its profiles' plugins (`.claude/settings.json`), path rules (`.claude/rules/`) and vendored skills, and the "generated but not in profile" removal check uses the same union. A `:<dir>` suffix scopes that profile's rule `globs`/`paths` to `<dir>/`, so `**/*.gd` renders as `client/**/*.gd`. The list is stored sorted and deduplicated in `KIT_MANIFEST.json`. An unknown profile or a folder outside the repository exits 2, and inference without `--profile` is unchanged. `smoke.sh` and `test_sync_project.py` cover it. Why: FEAT-100 T12 (dev-game-studio/stratics#2767) moved the folder-scoped Godot and Java rules to the Stratics monorepo root, and `--check --profile docs` reported both as "generated but not in profile", so a write sync would have deleted them. Owner confirmed through the Stratics session brief (2026-10-29).
 - KIT-010: `doctor.sh` sets Claude Code's `autoCompactWindow` to `200k` in `~/.claude/settings.json` when the key is missing; an explicit owner value is kept (`ok` at or below 200k, `warn` above it or for `auto`), and a set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is reported because it overrides the file. `smoke.sh` covers the fix, the ok and a kept `500k`. Why: on 2026-10-12 a Stratics session measured the weekly Claude limit at 27 % in about 23 hours, 78 % of it cache reads from sessions holding 350–540k tokens of context per turn (one at 958k). Owner confirmed in chat (2026-10-12).
