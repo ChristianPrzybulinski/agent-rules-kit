@@ -214,6 +214,54 @@ class SyncProjectCheckTest(unittest.TestCase):
             result = self.run_sync("--profile", value)
             self.assertEqual(result.returncode, 2, value)
 
+    def claude_state(self):
+        return {f: f.read_bytes() for f in (self.repo / ".claude").rglob("*") if f.is_file()}
+
+    def test_manifest_profile_list_is_sticky(self):  # KIT-017
+        self.vendor_install("--profile", "docs,godot:client,java:server")
+        before = self.claude_state()
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        self.assertIn("sync: profile=docs,godot:client,java:server (manifest)", check.stdout)
+        write = self.run_sync()
+        self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
+        self.assertIn("sync: profile=docs,godot:client,java:server (manifest)", write.stdout)
+        self.assertIn("[0 written, 0 removed]", write.stdout)
+        self.assertNotIn("sync: removed", write.stdout)
+        self.assertEqual(before, self.claude_state())
+
+    def test_explicit_profile_overrides_manifest(self):  # KIT-017
+        self.vendor_install("--profile", "docs,godot:client,java:server")
+        check = self.run_sync("--check", "--profile", "docs")
+        self.assertEqual(check.returncode, 1)
+        self.assertIn("sync: profile=docs (--profile)", check.stdout)
+        self.assertIn("profile='docs,godot:client,java:server' expected 'docs'", check.stdout)
+        write = self.run_sync("--profile", "docs")
+        self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
+        self.assertIn("sync: removed .claude/skills/godot-standards (not in profile)", write.stdout)
+        self.assertFalse((self.repo / ".claude" / "rules" / "dev-godot-godot.md").exists())
+        manifest = json.loads((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").read_text())
+        self.assertEqual(manifest["profile"], "docs")
+        bare = self.run_sync("--check")
+        self.assertEqual(bare.returncode, 0, bare.stdout + bare.stderr)
+        self.assertIn("sync: profile=docs (manifest)", bare.stdout)
+
+    def test_manifest_without_valid_profile(self):  # KIT-017
+        self.vendor_install()
+        path = self.repo / ".claude" / "skills" / "KIT_MANIFEST.json"
+        manifest = json.loads(path.read_text())
+        del manifest["profile"]
+        path.write_text(json.dumps(manifest))
+        result = self.run_sync("--check")  # no recorded list: inference decides
+        self.assertIn("sync: profile=docs (inferred)", result.stdout)
+        manifest["profile"] = "docs,rust"
+        path.write_text(json.dumps(manifest))
+        before = self.claude_state()
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("KIT_MANIFEST.json records that profile; pass --profile", result.stderr)
+        self.assertEqual(before, self.claude_state())
+
     def test_vendor_skills_collision_refusal(self):
         with tempfile.TemporaryDirectory() as other:
             repo = Path(other)

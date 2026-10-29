@@ -861,6 +861,22 @@ set -e
   || fail "sync-project did not explain the rejected profile folder"
 [[ "$(find "$ROOT/mono-proj/.claude" -type f -exec shasum -a 256 {} + | sort)" == "$first_mono_hashes" ]] \
   || fail "a rejected profile list changed the repo"
+# Without --profile the list KIT_MANIFEST.json records wins over inference (KIT-017),
+# so a bare --check passes and a bare write run removes nothing.
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/mono-proj" >"$ROOT/sync-mono-bare-check.out" 2>&1; then
+  cat "$ROOT/sync-mono-bare-check.out" >&2
+  fail "bare sync-project --check did not keep the manifest's profile list"
+fi
+grep -Fqx "sync: profile=$mono_profile (manifest)" "$ROOT/sync-mono-bare-check.out" \
+  || fail "bare sync-project --check did not report the manifest as the profile source"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/mono-proj" >"$ROOT/sync-mono-bare.out" 2>&1; then
+  cat "$ROOT/sync-mono-bare.out" >&2
+  fail "bare multi-profile sync-project install failed"
+fi
+[[ "$(find "$ROOT/mono-proj/.claude" -type f -exec shasum -a 256 {} + | sort)" == "$first_mono_hashes" ]] \
+  || fail "a bare sync dropped the manifest's profile list"
 mkdir -p "$ROOT/mono-plugins-proj"
 : > "$ROOT/mono-plugins-proj/AGENTS.md"
 if ! env PATH="$RESTRICTED_PATH" \
