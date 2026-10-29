@@ -4,7 +4,7 @@ title: "sync-project.sh syncs a monorepo with a comma list of profiles"
 status: done
 confirmed: "2026-10-29 (owner, brief relayed by the Stratics FEAT-100 T12 follow-up session)"
 issue: "#102"
-pr: ""
+pr: "#103"
 ---
 
 # KIT-016 — sync-project.sh syncs a monorepo with a comma list of profiles
@@ -86,5 +86,4 @@ write the rule back with the unscoped `**/*.gd` or `**/*.java`. No single profil
 
 ## History
 
-- 2026-10-29: confirmed (owner, brief relayed by the Stratics FEAT-100 T12 follow-up session). Implemented on
-  `kit/multi-profile-sync`.
+- 2026-10-29: confirmed (owner, brief relayed by the Stratics FEAT-100 T12 follow-up session). Implemented in #103.
