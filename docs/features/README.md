@@ -34,5 +34,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-012-loop-orchestrate-lease.md`](KIT-012-loop-orchestrate-lease.md) | done | #92 | #93 |
 | [`KIT-013-refresh-reinstalls-changed-claude-plugins.md`](KIT-013-refresh-reinstalls-changed-claude-plugins.md) | done | #94 | #96 |
 | [`KIT-014-kit-ci-on-demand.md`](KIT-014-kit-ci-on-demand.md) | done | #97 | #99 |
+| [`KIT-015-proportional-validation.md`](KIT-015-proportional-validation.md) | done | #100 | #101 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

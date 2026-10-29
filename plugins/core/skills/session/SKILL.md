@@ -21,17 +21,17 @@ One skill, three modes: `start` opens and scopes the session, `review` closes it
 
 - Read the repository's `AGENTS.md` and README before broad exploration. Name one outcome for the session in a single sentence; if it cannot be named, ask before proceeding.
 - For work spanning three or more files, crossing a layer, or containing ambiguity, propose planning mode before editing; for a one- or two-file mechanical change, proceed directly. Once a plan is approved, execute it without repeatedly reopening the plan.
-- A new topic mid-session is not silently added: ask whether to record it as a follow-up or close and start another session. Keep follow-ups in the handoff record, not conversational memory.
+- A new topic mid-session is not silently added: ask whether to record it as a follow-up or close and start another session. Keep follow-ups in the issue, PR or handoff record, not conversational memory.
 - Exhausted-session signals: rereading already-read files, compressed context, an outcome already delivered, new unrelated requests, or roughly two hours of work. Suggest the handoff mode and a new session; continue only if the user chooses to.
 - Match the agent tier: suggest a smaller tier for a mechanical one- or two-file task with no decision or investigation; keep the current tier for architecture, investigation or risk.
-- Close explicitly: run the review mode for the evidence summary and optional kit proposal; run the handoff mode when work is committed, pending or transferring to another agent. Leave the tree clean or list the dirty paths as a blocker.
+- Close explicitly: run the review mode for the evidence summary and optional kit proposal; when work is pending or transferring to another agent, point to the issue or PR that records its state, and run the handoff mode only when none does. Leave the tree clean or list the dirty paths as a blocker.
 
 ## review
 
 - Re-read the actual diff, commands and outputs; do not reconstruct them from memory. Report in at most six technical lines: done with paths and verification, unverified claims, and one concrete next step.
-- If work is committed or pending, run the handoff mode first and point the summary to that record.
+- If work is committed or pending, point the summary to the issue or PR that records its state; run the handoff mode first only when no such record exists. Cite the proof already recorded; re-run nothing just to restate it.
 - In Devin Cloud, open Session insights for ACU size, issues and the improved prompt; treat "misleading guidance" as a skill-description defect.
-- Look for a demonstrated kit gap using the signal table in `references/kit-proposal.md`, then decide: no observed signal → stop after the summary; project-only discovery (critical constant, fragile convention) → propose one line for that repo's `AGENTS.md` on the spot; several signals → choose the strongest and put the rest in the handoff as follow-ups. Never propose kit growth because it merely sounds useful.
+- Look for a demonstrated kit gap, or a rule or step that cost time without changing the outcome, using the signal table in `references/kit-proposal.md`, then decide: no observed signal → stop after the summary; project-only discovery (critical constant, fragile convention) → propose one line for that repo's `AGENTS.md` on the spot; several signals → choose the strongest and put the rest in the handoff as follow-ups. Never propose kit growth because it merely sounds useful.
 - Propose with the exact block in `references/kit-proposal.md`; ask whether to do it now, defer it, adjust it or discard it. An accepted proposal is a separate kit outcome and follows `docs/maintenance.md`, `platforms/tools/check.sh`, `CHANGELOG.md` and `VERSION`.
 
 ## handoff
