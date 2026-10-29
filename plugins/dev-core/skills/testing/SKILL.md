@@ -47,6 +47,14 @@ Do not test getters, framework behavior or that collaborator X was called. Asser
 
 ## 6. Run gates
 
-Run the narrow relevant test first, then the repository gate. Investigate unit tests over one second or integration tests over ten seconds instead of normalizing the delay.
+Size the proof by what the change can affect, never by file extension: agent instructions, permissions, workflows and executable config are code when they change runtime or security behavior. Unknown impact takes the higher row.
+
+| Impact | Proof before "done" |
+|---|---|
+| Docs only: prose, specs, comments; no runtime, permission or workflow effect | Read the diff; run the repository's doc, schema, link or generator checks. No code suite. |
+| Bounded code: one module, no shared boundary | Reproduce the failure first; run the affected tests; add a regression test where it guards meaningful behavior; one independent review. |
+| Shared integration, authorization, persistence or migration | Boundary and negative tests, then the broad affected suite, then one independent review; owner and security approvals stay. |
+
+Run the narrow checks and the consumer audit first and the broad suite last, once. A recorded result stays valid while the files, dependencies, config, environment and assumptions it ran on are unchanged; a new commit hash alone invalidates nothing. After a correction, re-run what the delta touches and the assumptions it changes; repeat the broad suite only when the delta reaches what it covered. The § 1 domain gates apply in every row. Investigate unit tests over one second or integration tests over ten seconds instead of normalizing the delay.
 
 Done when: required domain percentages and mutation pass (JVM) or every GDScript rule has a scene-free test, every non-trivial non-domain change has one proof, integrations have happy/sad coverage, and no test sleeps or asserts implementation calls.

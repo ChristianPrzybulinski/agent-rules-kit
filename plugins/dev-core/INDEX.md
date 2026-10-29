@@ -21,5 +21,9 @@
 - `investigate-no-fix-without-repro`
 - `investigate-perf-needs-number`
 - `investigate-report-is-hypothesis`
+- `testing-correction-reruns-delta`
+- `testing-docs-only-proof`
+- `testing-unchanged-result-reused`
+- `testing-workflow-is-not-docs`
 
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

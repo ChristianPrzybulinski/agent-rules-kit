@@ -24,4 +24,11 @@
 - `kit-skill.md`
 
 
+## `evals/`
+
+- `session-closeout-no-rerun`
+- `session-closeout-points-to-pr`
+- `session-closeout-simplification-proposal`
+- `session-handoff-without-record`
+
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).
