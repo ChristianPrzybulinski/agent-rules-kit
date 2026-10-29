@@ -4,7 +4,7 @@ title: "Validation and review sized by impact, with recorded evidence reuse and 
 status: done
 confirmed: "2026-10-29 (owner, Stratics process-simplification implementation brief in chat)"
 issue: "#100"
-pr: ""
+pr: "#101"
 ---
 
 # KIT-015 — Validation and review sized by impact, with recorded evidence reuse and a shorter closeout
@@ -100,4 +100,4 @@ outcome, so a closeout never proposed removing one (owner request in chat, 2026-
 ## History
 
 - 2026-10-29: confirmed (owner, chat) with the Stratics process-simplification brief; the simplification signal was
-  added at the owner's request in the same session.
+  added at the owner's request in the same session. Implemented in #101.
