@@ -189,6 +189,31 @@ class SyncProjectCheckTest(unittest.TestCase):
         check = self.run_sync("--check", "--profile", "godot")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
 
+    def test_multi_profile_union_and_folder_scope(self):  # KIT-016
+        result = self.run_sync("--profile", "java:server,docs,godot:client/")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rules = self.repo / ".claude" / "rules"
+        self.assertEqual(sorted(p.name for p in rules.glob("*.md")),
+                         ["architect-sdd-spec.md", "dev-godot-godot.md", "dev-java-java.md"])
+        self.assertIn('  - "client/**/*.gd"', (rules / "dev-godot-godot.md").read_text().splitlines())
+        self.assertIn('  - "server/**/*.java"', (rules / "dev-java-java.md").read_text().splitlines())
+        self.assertIn('  - "docs/spec/**/*.md"', (rules / "architect-sdd-spec.md").read_text().splitlines())
+        settings = json.loads((self.repo / ".claude" / "settings.json").read_text())
+        godot_java = {"dev-core", "dev-godot", "dev-java", "infra-core", "infra-persistence",
+                      "quality-security"}
+        self.assertEqual({k for k in settings["enabledPlugins"] if k.endswith("@ai-kit")},
+                         {p + "@ai-kit" for p in DOCS_PLUGINS | godot_java})
+        check = self.run_sync("--check", "--profile", "docs,godot:client,java:server")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        single = self.run_sync("--check", "--profile", "docs")
+        self.assertEqual(single.returncode, 1)
+        self.assertIn("dev-java-java.md is generated but not in profile", single.stdout)
+
+    def test_multi_profile_rejects_unknown_profile_and_outside_folder(self):
+        for value in ("docs,rust", "godot:../client", "godot:/client", "docs,"):
+            result = self.run_sync("--profile", value)
+            self.assertEqual(result.returncode, 2, value)
+
     def test_vendor_skills_collision_refusal(self):
         with tempfile.TemporaryDirectory() as other:
             repo = Path(other)

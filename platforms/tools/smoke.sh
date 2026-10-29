@@ -800,6 +800,78 @@ set -e
 [[ ! -e "$ROOT/vendor-proj2/.claude/settings.json" ]] \
   || fail "settings.json was written despite the refusal"
 
+# sync-project.sh with a comma list (KIT-016): a monorepo with docs at the root,
+# Godot under client/ and Java under server/ keeps the union of rules, plugins and
+# vendored skills, and a :<dir> profile scopes its rule globs to that folder.
+mono_profile="docs,godot:client,java:server"
+mkdir -p "$ROOT/mono-proj/docs/spec" "$ROOT/mono-proj/client" "$ROOT/mono-proj/server"
+printf '# mono\n' > "$ROOT/mono-proj/AGENTS.md"
+touch "$ROOT/mono-proj/client/project.godot" "$ROOT/mono-proj/server/pom.xml"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --profile "$mono_profile" --vendor-skills "$ROOT/mono-proj" \
+    >"$ROOT/sync-mono.out" 2>&1; then
+  cat "$ROOT/sync-mono.out" >&2
+  fail "multi-profile sync-project install failed"
+fi
+for r in architect-sdd-spec dev-godot-godot dev-java-java; do
+  [[ -f "$ROOT/mono-proj/.claude/rules/$r.md" ]] || fail "multi-profile sync did not write .claude/rules/$r.md"
+done
+grep -Fqx '  - "client/**/*.gd"' "$ROOT/mono-proj/.claude/rules/dev-godot-godot.md" \
+  || fail "godot:client did not scope the godot rule to client/"
+grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/dev-java-java.md" \
+  || fail "java:server did not scope the java rule to server/"
+grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/architect-sdd-spec.md" \
+  || fail "the unscoped docs profile changed the spec rule globs"
+for s in sdd-tasks godot-standards java-standards postgresql; do
+  [[ -f "$ROOT/mono-proj/.claude/skills/$s/.agent-rules-kit" ]] || fail "multi-profile sync did not vendor $s"
+done
+[[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["profile"])' \
+    "$ROOT/mono-proj/.claude/skills/KIT_MANIFEST.json")" == "$mono_profile" ]] \
+  || fail "manifest does not record profile $mono_profile"
+first_mono_hashes="$(find "$ROOT/mono-proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --profile java:server/,docs,godot:client,docs "$ROOT/mono-proj" \
+    >"$ROOT/sync-mono-second.out" 2>&1; then
+  cat "$ROOT/sync-mono-second.out" >&2
+  fail "reordered multi-profile sync-project install failed"
+fi
+[[ "$(find "$ROOT/mono-proj/.claude" -type f -exec shasum -a 256 {} + | sort)" == "$first_mono_hashes" ]] \
+  || fail "a reordered profile list is not the same sync"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --check --profile "$mono_profile" "$ROOT/mono-proj" \
+    >"$ROOT/sync-mono-check.out" 2>&1; then
+  cat "$ROOT/sync-mono-check.out" >&2
+  fail "sync-project --check failed on a multi-profile repo"
+fi
+set +e
+sync_mono_single_out="$(env PATH="$RESTRICTED_PATH" \
+  "$SOURCE/platforms/tools/sync-project.sh" --check --profile docs "$ROOT/mono-proj" 2>&1)"
+sync_mono_single_status=$?
+set -e
+[[ "$sync_mono_single_status" -eq 1 ]] || fail "single-profile --check accepted the monorepo's extra rules"
+[[ "$sync_mono_single_out" == *"dev-godot-godot.md is generated but not in profile"* ]] \
+  || fail "single-profile --check did not name the rule it would remove"
+set +e
+sync_mono_escape_out="$(env PATH="$RESTRICTED_PATH" \
+  "$SOURCE/platforms/tools/sync-project.sh" --profile 'docs,godot:../client' "$ROOT/mono-proj" 2>&1)"
+sync_mono_escape_status=$?
+set -e
+[[ "$sync_mono_escape_status" -eq 2 ]] || fail "sync-project accepted a profile folder outside the repo"
+[[ "$sync_mono_escape_out" == *"must be a relative path inside the repo"* ]] \
+  || fail "sync-project did not explain the rejected profile folder"
+[[ "$(find "$ROOT/mono-proj/.claude" -type f -exec shasum -a 256 {} + | sort)" == "$first_mono_hashes" ]] \
+  || fail "a rejected profile list changed the repo"
+mkdir -p "$ROOT/mono-plugins-proj"
+: > "$ROOT/mono-plugins-proj/AGENTS.md"
+if ! env PATH="$RESTRICTED_PATH" \
+    "$SOURCE/platforms/tools/sync-project.sh" --profile godot,java "$ROOT/mono-plugins-proj" \
+    >"$ROOT/sync-mono-plugins.out" 2>&1; then
+  cat "$ROOT/sync-mono-plugins.out" >&2
+  fail "multi-profile sync-project install without vendoring failed"
+fi
+[[ "$(grep -c '@ai-kit' "$ROOT/mono-plugins-proj/.claude/settings.json")" == "9" ]] \
+  || fail "godot,java settings.json does not enable the 9-plugin union"
+
 # sync-project.sh copies the spec validator only into repos with docs/spec: a
 # Java repo without it gets no .github/spec-lint and --check still passes.
 mkdir -p "$ROOT/nospec-proj"
@@ -818,4 +890,4 @@ if ! "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/nospec-proj" >"$RO
   fail "sync-project --check failed on a repo without docs/spec"
 fi
 
-printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy, vendored skills, no-spec repo)\n' "$skill_count"
+printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)\n' "$skill_count"
