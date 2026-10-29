@@ -15,8 +15,9 @@
 #                                                          repo's *.md for obsolete kit paths;
 #                                                          exit 1 on any divergence or stale citation
 # --profile selects the plugin set written to .claude/settings.json and copied into
-# .claude/rules/ and .claude/skills/. Without it the profile is inferred, first match wins:
-# project.godot (godot), pom.xml (java), docs/spec/ (docs).
+# .claude/rules/ and .claude/skills/. Without it the list that .claude/skills/KIT_MANIFEST.json
+# records is used; a repo without a manifest gets the profile inferred, first match wins:
+# project.godot (godot), pom.xml (java), docs/spec/ (docs). The run prints which source won.
 # <profile> is godot|java|docs, optionally followed by :<dir>. A comma list syncs the union
 # of its profiles' plugins, rules and skills, for a monorepo such as
 # docs,godot:client,java:server. The :<dir> suffix scopes that profile's rule globs/paths
@@ -28,7 +29,8 @@
 # skills excepted: core stays enabled, so they load from the plugin)
 # into .claude/skills/<name>/, marks each copy with .agent-rules-kit and writes
 # KIT_MANIFEST.json (kit version, profile, plugin, sha256 per file). The manifest is
-# sticky: once it exists a bare sync-project.sh <repo> keeps the vendored mode. A
+# sticky: once it exists a bare sync-project.sh <repo> keeps the vendored mode and the
+# recorded profile list. A
 # .claude/skills/<name>/ directory without the marker is never read, replaced or
 # deleted - its presence refuses the sync before any write. In this mode
 # .claude/settings.json enables only core@ai-kit (the guard hook lives in the
@@ -140,6 +142,20 @@ infer_profile() { # $1 = repo dir
   fi
 }
 
+manifest_profile() { # $1 = KIT_MANIFEST.json; prints the profile list it records, or nothing
+  # when the file is missing, unreadable or records none
+  [[ -f "$1" ]] || return 0
+  python3 - "$1" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        profile = json.load(handle).get("profile")
+except (OSError, ValueError, AttributeError):
+    profile = None
+print(profile if isinstance(profile, str) else "")
+PY
+}
+
 normalize_profile() { # $1 = --profile value; prints its entries sorted, deduplicated and
   # comma-joined, or fails on an unknown profile or a folder that leaves the repo
   local entry name dir
@@ -238,12 +254,23 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
   return 1
 }
 
-# The repo profile selects the plugin set; check and install both need it.
-if [[ -z "$PROFILE" ]]; then
+# The repo profile selects the plugin set; check and install both need it. The list is
+# sticky like the vendored mode below: without --profile, the list KIT_MANIFEST.json
+# records wins over inference, so a bare run keeps a monorepo's union (KIT-017).
+if [[ -n "$PROFILE" ]]; then
+  profile_source="--profile"
+elif PROFILE="$(manifest_profile "$REPO/.claude/skills/KIT_MANIFEST.json")" && [[ -n "$PROFILE" ]]; then
+  profile_source="manifest"
+else
   PROFILE="$(infer_profile "$REPO")"
-  echo "sync: profile=$PROFILE (inferred)"
+  profile_source="inferred"
 fi
-PROFILE="$(normalize_profile "$PROFILE")" || exit 2
+PROFILE="$(normalize_profile "$PROFILE")" || {
+  [[ "$profile_source" != manifest ]] \
+    || echo "sync: .claude/skills/KIT_MANIFEST.json records that profile; pass --profile to replace it" >&2
+  exit 2
+}
+echo "sync: profile=$PROFILE ($profile_source)"
 
 # --vendor-skills is sticky: an existing manifest keeps the repo vendored without
 # the flag, so init-spec.sh and a bare `sync-project.sh <repo>` preserve the mode.

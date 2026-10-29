@@ -36,5 +36,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-014-kit-ci-on-demand.md`](KIT-014-kit-ci-on-demand.md) | done | #97 | #99 |
 | [`KIT-015-proportional-validation.md`](KIT-015-proportional-validation.md) | done | #100 | #101 |
 | [`KIT-016-multi-profile-sync.md`](KIT-016-multi-profile-sync.md) | done | #102 | #103 |
+| [`KIT-017-sticky-profile-list.md`](KIT-017-sticky-profile-list.md) | done | #104 | #105 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
