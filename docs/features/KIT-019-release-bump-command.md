@@ -1,7 +1,7 @@
 ---
 id: KIT-019
 title: "One command bumps every version field for a kit release"
-status: confirmed
+status: done
 confirmed: "2026-10-29 (owner, chat of the kit 11.1.0/11.2.0 release session)"
 issue: "#110"
 pr: ""

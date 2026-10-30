@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- KIT-019: `platforms/tools/bump_version.py X.Y.Z [--date YYYY-MM-DD]` bumps a kit release in one command. It writes `VERSION`, every `"version"` field of the tracked `*plugin.json` and `*marketplace.json` (57 fields in 44 files at 11.2.0) and the `## [X.Y.Z] - <date>` heading under `## [Unreleased]`, and refuses a version that is not SemVer or not above `VERSION`, a dirty tree or an empty `[Unreleased]`. `--notes X.Y.Z` prints that version's CHANGELOG section as `release.yml` extracts it. `docs/maintenance.md` § Versioning lists the release steps: bump, PR `chore(release): publish X.Y.Z`, annotated tag `vX.Y.Z`, and a `gh release create vX.Y.Z --verify-tag --title vX.Y.Z` fallback while GitHub billing refuses `release.yml`. `test_bump_version.py` covers the bump on a throwaway copy (`check_kit.py` stays green), the refusals and the `--notes` parity with `release.yml`. Why: releases 11.1.0 (#106) and 11.2.0 (#109) each needed an ad-hoc scratch script for those fields, and with `release.yml` refused both were published by hand with drifting titles (`v10.1.0` next to `10.2.0` through `11.2.0`). Owner confirmed in chat (2026-10-29).
+
 ## [11.2.0] - 2026-10-29
 
 ### Changed

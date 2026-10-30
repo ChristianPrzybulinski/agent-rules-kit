@@ -12,3 +12,4 @@
 | `pr_gates.py` | the no-model PR gates against the GitHub REST API | `platforms/kits/github/workflows/pr-contract.yml`, a project's review loop |
 | `test_kpi.py` | `kpi.py` metrics on a fixture ledger (unittest) | the kit's CI |
 | `test_sync_project.py` | `sync-project.sh --check` stale-kit-path scan on a throwaway repo (unittest) | the kit's CI |
+| `test_bump_version.py` | `bump_version.py` bump, refusals and `--notes` parity with `release.yml` on a throwaway copy (unittest) | the kit's CI |
