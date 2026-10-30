@@ -21,21 +21,19 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 - Plan before coding when: 3+ files, crosses a layer, spec says "should"/"probably", bug with no named root cause. Otherwise, start.
 - Independent steps leave in the same turn or run in the background; sequence only what depends on a result, shares a resource, or has an external effect. Detail: skill `parallelize`.
 - Shell (zsh is the macOS default): a backtick inside a double-quoted argument runs as a command (``--body "see `x`"`` runs `x`), so text with backticks goes in a file or a `<<'EOF'` heredoc; zsh does not word-split `$x` (``for p in "a b"; do set -- $p`` passes one word) and runs a leading `=` as a command lookup (`echo ===` fails), so loops over pairs, JSON and edits of several files go in a Python script.
+- Browser automation: prefer Google Chrome when its connection is available, using the installed `/Applications/Google Chrome.app`, never a mounted installer; an explicit request for the app's built-in browser (Codex or Claude) wins.
 - Same error twice → stop varying blindly; form a root-cause hypothesis before the 3rd attempt. Report the worst fact first: a literal failure in sentence one.
 
 ## Craft
 
 - **Everything written is in English** — code, comments, commits, docs, folder names. Only the conversation with the user is in pt-BR.
 - Standards are skills: `code-standards`, `architecture`, `testing`, `branching-and-versioning`, `update-docs`, `git-lfs`. Load the one the task touches; `rules/` loads the Java and Godot sets by file glob.
+- Technical answer: code/diff first, then ≤3 lines; paths, commands and errors byte-for-byte; full prose only for security warnings, irreversible actions and multi-step sequences. Text for people: fluid, no AI clichés, no fabricated facts. Governed documents (specs, CHANGELOG, commits, skills): template and schema, never compressed. Detail: skill `tokens`.
 
 ## Security
 
 - Secret found → stop, warn before any other work; rotate this session; scan for siblings. Tokens come from keychain/env; never typed or echoed in chat/terminal.
 - Every commit: no hardcoded secret, validated input, parameterized queries, authz per action **and** entity, errors that do not leak internals. Detail: skills `secure-development`, `vuln-scan`.
-
-## Communication
-
-- Technical answer: code/diff first, then ≤3 lines; paths, commands and errors byte-for-byte; full prose only for security warnings, irreversible actions and multi-step sequences. Text for people: fluid, no AI clichés, no fabricated facts. Governed documents (specs, CHANGELOG, commits, skills): template and schema, never compressed. Detail: skill `tokens`.
 
 ## Truth
 
