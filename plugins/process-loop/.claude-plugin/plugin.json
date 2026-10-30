@@ -1,6 +1,6 @@
 {
   "name": "process-loop",
-  "version": "11.1.0",
+  "version": "11.2.0",
   "description": "ai-kit process loop: orchestrated implement-review-merge batches with gates and verdicts",
   "author": {
     "name": "Christian Przybulinski"

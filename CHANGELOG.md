@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [11.2.0] - 2026-10-29
+
 ### Changed
 - KIT-018: `plugins/core/AGENTS.md` § Work loop: browser automation prefers Google Chrome when its connection is available, using the installed `/Applications/Google Chrome.app`, never a mounted installer; an explicit request for the app's built-in browser wins. § Communication's line moves to § Craft, so the file keeps 58 of its 60 lines. Why: the rule lived as a local edit of `~/.ai-kit`, which made `doctor.sh` fail (dirty tree, 64 lines) and `refresh.sh` refuse to update.
 
