@@ -38,6 +38,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-016-multi-profile-sync.md`](KIT-016-multi-profile-sync.md) | done | #102 | #103 |
 | [`KIT-017-sticky-profile-list.md`](KIT-017-sticky-profile-list.md) | done | #104 | #105 |
 | [`KIT-018-core-browser-preference.md`](KIT-018-core-browser-preference.md) | done | #107 | #108 |
-| [`KIT-019-release-bump-command.md`](KIT-019-release-bump-command.md) | done | #110 | — |
+| [`KIT-019-release-bump-command.md`](KIT-019-release-bump-command.md) | done | #110 | #112 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
