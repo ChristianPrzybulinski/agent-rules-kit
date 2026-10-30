@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dev-java",
-  "version": "11.1.0",
+  "version": "11.2.0",
   "description": "ai-kit Java: Java 25, Spring/Quarkus and Maven standards"
 }
