@@ -1,10 +1,10 @@
 ---
 id: KIT-019
 title: "One command bumps every version field for a kit release"
-status: confirmed
+status: done
 confirmed: "2026-10-29 (owner, chat of the kit 11.1.0/11.2.0 release session)"
 issue: "#110"
-pr: ""
+pr: "#112"
 ---
 
 # KIT-019 — One command bumps every version field for a kit release
@@ -49,3 +49,4 @@ Then a dry bump to the next MINOR on a scratch worktree, after which `check_kit.
 ## History
 
 - 2026-10-29: confirmed (owner, chat: "Yes, write KIT-019").
+- 2026-10-29: done in #112.

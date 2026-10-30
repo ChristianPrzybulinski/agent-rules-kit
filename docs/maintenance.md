@@ -2,7 +2,12 @@
 
 ## Versioning
 
-A release changes [`VERSION`](../VERSION), adds a [`CHANGELOG.md`](../CHANGELOG.md) entry and tags `vX.Y.Z`. `.github/workflows/release.yml` validates tag == `VERSION` and creates the release automatically.
+A release sets one version in [`VERSION`](../VERSION), in every manifest `"version"` field and in a [`CHANGELOG.md`](../CHANGELOG.md) heading, then tags `vX.Y.Z`. The steps, in order:
+
+1. Bump, on a branch from current `main` with a clean tree: `python3 platforms/tools/bump_version.py X.Y.Z` (KIT-019). It refuses a version that is not SemVer or not above `VERSION`, a dirty tree and an empty `## [Unreleased]`. It writes `VERSION`, replaces `"version": "<current>"` in every tracked `*plugin.json` and `*marketplace.json` (printing the count) and inserts `## [X.Y.Z] - <today>` under `## [Unreleased]` (`--date YYYY-MM-DD` overrides the date). Then run `check.sh`.
+2. Open the release PR `chore(release): publish X.Y.Z`.
+3. After the merge, tag the merge commit on `main` with an annotated tag: `git tag -a vX.Y.Z -m vX.Y.Z <commit>`, then `git push origin vX.Y.Z`.
+4. The tag runs `.github/workflows/release.yml`, which validates tag == `VERSION` and creates the release from the CHANGELOG section. GitHub billing refuses its runs today (run 40978925050 on `v11.2.0`), so when no release appears, publish it by hand with the same notes and the workflow's title format: `python3 platforms/tools/bump_version.py --notes X.Y.Z > /tmp/kit-notes.md`, then `gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file /tmp/kit-notes.md`.
 
 The layout of 10.x, kept unchanged by 11.0.0, is frozen until at least 2027-01-01 (principle "Layout stability" in [design.md](design.md)). A layout or installation-destination change is a SemVer MAJOR change and ships with a deprecation note in the release notes plus a migration in `bootstrap.sh` and `doctor.sh`. A content change is MINOR when it adds a rule, skill, reference, template, validator gate or document, and PATCH when it corrects one without changing routing. There is no separate layout version.
 
