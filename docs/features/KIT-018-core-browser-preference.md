@@ -4,7 +4,7 @@ title: "The core rules carry the owner's browser preference"
 status: done
 confirmed: "2026-10-29 (owner, chat of the kit-validation session: \"Arrume os erros\")"
 issue: "#107"
-pr: ""
+pr: "#108"
 ---
 
 # KIT-018 — The core rules carry the owner's browser preference
