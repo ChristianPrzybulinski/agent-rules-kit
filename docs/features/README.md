@@ -41,5 +41,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-019-release-bump-command.md`](KIT-019-release-bump-command.md) | done | #110 | #112 |
 | [`KIT-021-synced-folder-warning.md`](KIT-021-synced-folder-warning.md) | done | #114 | #117 |
 | [`KIT-022-launchd-path-and-skips.md`](KIT-022-launchd-path-and-skips.md) | done | #115 | #118 |
+| [`KIT-023-shared-codex-lookup.md`](KIT-023-shared-codex-lookup.md) | done | #116 | #119 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
