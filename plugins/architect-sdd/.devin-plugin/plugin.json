@@ -1,6 +1,6 @@
 {
   "name": "architect-sdd",
-  "version": "11.2.0",
+  "version": "11.3.0",
   "description": "ai-kit SDD: spec-driven development pipeline from FEAT to GitHub cards",
   "requiredPlugins": [
     {
