@@ -1,0 +1,135 @@
+{
+  "_format": "cases[]: name (str), dirs (folders created under a throwaway HOME), links (symlink -> target, both under HOME), files (path -> text; @HOME@ becomes the HOME path), xattr (folder -> com.apple.file-provider-domain-id value, answered by a stub xattr; macOS only), env (variable -> folder under HOME), cwd (payload cwd under HOME) or stdin (raw payload), warn (true: a systemMessage naming the cloud-synced folder; false: empty stdout); every case exits 0",
+  "cases": [
+    {
+      "name": "unsynced folder",
+      "dirs": [
+        "Developer/repo"
+      ],
+      "cwd": "Developer/repo",
+      "warn": false
+    },
+    {
+      "name": "iCloud Drive",
+      "dirs": [
+        "Library/Mobile Documents/com~apple~CloudDocs/repo"
+      ],
+      "cwd": "Library/Mobile Documents/com~apple~CloudDocs/repo",
+      "warn": true
+    },
+    {
+      "name": "File Provider client",
+      "dirs": [
+        "Library/CloudStorage/Dropbox/repo"
+      ],
+      "cwd": "Library/CloudStorage/Dropbox/repo",
+      "warn": true
+    },
+    {
+      "name": "symlink into a synced folder",
+      "dirs": [
+        "Library/CloudStorage/GoogleDrive-x/repo"
+      ],
+      "links": {
+        "Developer/repo": "Library/CloudStorage/GoogleDrive-x/repo"
+      },
+      "cwd": "Developer/repo",
+      "warn": true
+    },
+    {
+      "name": "Documents without the iCloud attribute",
+      "dirs": [
+        "Documents/repo"
+      ],
+      "cwd": "Documents/repo",
+      "warn": false
+    },
+    {
+      "name": "iCloud Documents",
+      "dirs": [
+        "Documents/repo"
+      ],
+      "xattr": {
+        "Documents": "com.apple.CloudDocs.iCloudDriveFileProvider/00000000-0000-0000-0000-000000000000"
+      },
+      "cwd": "Documents/repo",
+      "warn": true
+    },
+    {
+      "name": "iCloud Desktop",
+      "dirs": [
+        "Desktop/repo"
+      ],
+      "xattr": {
+        "Desktop": "com.apple.CloudDocs.iCloudDriveFileProvider/00000000-0000-0000-0000-000000000000"
+      },
+      "cwd": "Desktop/repo",
+      "warn": true
+    },
+    {
+      "name": "iCloud Documents symlink to an unsynced folder",
+      "dirs": [
+        "Developer/GitHub/repo",
+        "Documents"
+      ],
+      "xattr": {
+        "Documents": "com.apple.CloudDocs.iCloudDriveFileProvider/00000000-0000-0000-0000-000000000000"
+      },
+      "links": {
+        "Documents/GitHub": "Developer/GitHub"
+      },
+      "cwd": "Documents/GitHub/repo",
+      "warn": false
+    },
+    {
+      "name": "OneDrive variable",
+      "dirs": [
+        "OneDrive - Org/repo"
+      ],
+      "env": {
+        "OneDriveCommercial": "OneDrive - Org"
+      },
+      "cwd": "OneDrive - Org/repo",
+      "warn": true
+    },
+    {
+      "name": "OneDrive name prefix only",
+      "dirs": [
+        "OneDrive",
+        "OneDrive2/repo"
+      ],
+      "env": {
+        "OneDrive": "OneDrive"
+      },
+      "cwd": "OneDrive2/repo",
+      "warn": false
+    },
+    {
+      "name": "Dropbox info.json",
+      "dirs": [
+        "Dropbox (Personal)/repo"
+      ],
+      "files": {
+        ".dropbox/info.json": "{\"personal\": {\"path\": \"@HOME@/Dropbox (Personal)\"}}"
+      },
+      "cwd": "Dropbox (Personal)/repo",
+      "warn": true
+    },
+    {
+      "name": "corrupt Dropbox info.json",
+      "dirs": [
+        "Developer/repo"
+      ],
+      "files": {
+        ".dropbox/info.json": "not json"
+      },
+      "cwd": "Developer/repo",
+      "warn": false
+    },
+    {
+      "name": "payload that is not JSON",
+      "stdin": "not json",
+      "warn": false
+    }
+  ]
+}
