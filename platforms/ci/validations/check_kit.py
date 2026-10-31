@@ -713,6 +713,9 @@ else:
                     (home / path).parent.mkdir(parents=True, exist_ok=True)
                     (home / path).write_text(text.replace("@HOME@", tmp))
                 env = {"PATH": bin_tmp + os.pathsep + os.environ.get("PATH", ""), "HOME": tmp}
+                # A session has TMPDIR; without it the macOS /usr/bin/python3 shim skips its xcrun cache (5x slower).
+                if os.environ.get("TMPDIR"):
+                    env["TMPDIR"] = os.environ["TMPDIR"]
                 env.update({var: str(home / path) for var, path in (case.get("env") or {}).items()})
                 payload = case["stdin"] if "stdin" in case else json.dumps(
                     {"hook_event_name": "SessionStart", "source": "startup", "cwd": str(home / case.get("cwd", ""))})

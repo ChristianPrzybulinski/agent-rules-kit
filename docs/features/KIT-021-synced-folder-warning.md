@@ -45,3 +45,4 @@ Detection on this Mac, 2026-10-31: `xattr -p com.apple.file-provider-domain-id ~
 
 - 2026-10-31: confirmed (owner, portability Phase 1 chat): the call sites are the session hook and `sync-project.sh`, and it warns instead of blocking.
 - 2026-10-31: one `check_kit.py --links` run at load average 18 timed out the `unsynced folder` case against the 5 s budget; the same command takes 0.09 s at load 16. The hook now runs `xattr` only under `~/Documents` or `~/Desktop`, and `sync-project.sh` treats a timeout as no warning instead of a Python traceback.
+- 2026-10-31: the pre-merge rerun at load average 20 timed out the same case again. Cause: `check_kit.py` ran each case with only `PATH` and `HOME`; without `TMPDIR` the macOS `/usr/bin/python3` shim skips its xcrun cache, so `python3 -c pass` took 0.20 s instead of 0.04 s at load 7, and 0.86 s on the first call. The detector itself took 0.12 s. A real session has `TMPDIR`, so the harness now passes it through.
