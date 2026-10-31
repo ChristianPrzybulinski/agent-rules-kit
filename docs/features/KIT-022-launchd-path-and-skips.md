@@ -4,7 +4,7 @@ title: "launchd refresh finds ~/.local/bin and logs skipped CLIs"
 status: done
 confirmed: "2026-10-31 (owner, chat of the portability Phase 1 session)"
 issue: "#115"
-pr: ""
+pr: "#118"
 ---
 
 # KIT-022 — launchd refresh finds ~/.local/bin and logs skipped CLIs
