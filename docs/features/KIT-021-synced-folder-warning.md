@@ -4,7 +4,7 @@ title: "Warn when a repository sits in a cloud-synced folder"
 status: done
 confirmed: "2026-10-31 (owner, chat of the portability Phase 1 session)"
 issue: "#114"
-pr: ""
+pr: "#117"
 ---
 
 # KIT-021 — Warn when a repository sits in a cloud-synced folder
