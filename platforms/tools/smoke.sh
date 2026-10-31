@@ -89,6 +89,29 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-ki
   fail "doctor failed after bootstrap"
 fi
 
+if [[ "${OSTYPE:-}" == darwin* ]]; then
+  # KIT-022: the rendered plist puts ~/.local/bin on launchd's PATH. A stub launchctl first on PATH
+  # records the calls, so the machine's real ai-kit.refresh agent is never booted out or replaced.
+  LAUNCHCTL_BIN="$ROOT/launchctl-bin"
+  mkdir -p "$LAUNCHCTL_BIN"
+  printf '#!/bin/sh\necho "$*" >> "%s/launchctl.calls"\n' "$ROOT" > "$LAUNCHCTL_BIN/launchctl"
+  chmod +x "$LAUNCHCTL_BIN/launchctl"
+  if ! env HOME="$TEST_HOME" PATH="$LAUNCHCTL_BIN:$RESTRICTED_PATH" \
+      AI_KIT_DIR="$TEST_HOME/.ai-kit" AI_KIT_SOURCE="$SOURCE" AI_KIT_NO_LAUNCHD=0 \
+      "$KIT_DIR/platforms/tools/bootstrap.sh" >"$ROOT/bootstrap-launchd.out" 2>&1; then
+    cat "$ROOT/bootstrap-launchd.out" >&2
+    fail "bootstrap failed to install the launchd refresh"
+  fi
+  plist="$TEST_HOME/Library/LaunchAgents/ai-kit.refresh.plist"
+  plutil -lint "$plist" >/dev/null || fail "rendered launchd plist is not valid"
+  grep -q '@[A-Z]*@' "$plist" && fail "rendered launchd plist keeps a placeholder"
+  grep -Fq "<string>$TEST_HOME/.local/bin:/opt/homebrew/bin:" "$plist" \
+    || fail "rendered launchd PATH does not start with ~/.local/bin"
+  grep -Fq "<string>$TEST_HOME/.ai-kit/platforms/tools/refresh.sh</string>" "$plist" \
+    || fail "rendered launchd plist does not run the kit's refresh.sh"
+  grep -Fq "bootstrap gui/" "$ROOT/launchctl.calls" || fail "bootstrap did not load the rendered plist"
+fi
+
 mkdir -p "$TEST_HOME/.config/devin" \
   "$TEST_HOME/.agents/skills/kitone" \
   "$TEST_HOME/.agents/skills/my-own" \
@@ -464,6 +487,17 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 [[ ! -e "$STUB_STATE/claude-uninstalls" ]] || fail "refresh reinstalled an up-to-date Claude plugin cache"
 grep -Fq 'reinstalled' "$ROOT/refresh-stub-current.out" && fail "refresh reported a reinstall of an up-to-date cache"
+
+# KIT-022: a CLI missing from PATH logs a skip line instead of passing in silence
+if ! env HOME="$STUB_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$STUB_HOME/.ai-kit" \
+    "$STUB_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-no-cli.out" 2>&1; then
+  cat "$ROOT/refresh-no-cli.out" >&2
+  fail "refresh failed without agent CLIs"
+fi
+grep -Fq 'skip: refresh: no codex CLI found; Codex marketplace not upgraded' "$ROOT/refresh-no-cli.out" \
+  || fail "refresh did not log the missing codex CLI"
+grep -Fq "skip: refresh: claude CLI not found on PATH $RESTRICTED_PATH; Claude plugins not updated" \
+  "$ROOT/refresh-no-cli.out" || fail "refresh did not log the missing claude CLI"
 
 FOREIGN_LINK_HOME="$ROOT/foreign-link-home"
 mkdir -p "$FOREIGN_LINK_HOME/.codex"

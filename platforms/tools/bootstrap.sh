@@ -174,8 +174,12 @@ if [[ "${OSTYPE:-}" == darwin* && "${AI_KIT_NO_LAUNCHD:-0}" != "1" ]]; then
   destination="$launch_agents/ai-kit.refresh.plist"
   escaped_kit="${KIT//&/\\&}"
   escaped_kit="${escaped_kit//|/\\|}"
+  # launchd does not expand ~, so the PATH entry for ~/.local/bin is rendered here (KIT-022)
+  escaped_home="${HOME//&/\\&}"
+  escaped_home="${escaped_home//|/\\|}"
   mkdir -p "$launch_agents"
-  sed "s|@KIT@|$escaped_kit|g" "$KIT/platforms/kits/launchd/ai-kit.refresh.plist" > "$destination"
+  sed -e "s|@KIT@|$escaped_kit|g" -e "s|@HOME@|$escaped_home|g" \
+    "$KIT/platforms/kits/launchd/ai-kit.refresh.plist" > "$destination"
   launchctl bootout "gui/$UID/ai-kit.refresh" 2>/dev/null || true
   launchctl bootstrap "gui/$UID" "$destination"
   printf 'fix: launchd refresh installed\n'

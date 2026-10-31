@@ -3,7 +3,7 @@
 | File | Scope | When to use |
 |---|---|---|
 | `bootstrap.sh` | clones the kit, connects agent plugins, installs launchd, then runs doctor | first setup on a machine |
-| `refresh.sh` | fast-forwards main and updates Codex/Claude marketplaces and plugins; reinstalls a Claude plugin whose cache differs from the kit (KIT-013) | scheduled refresh or manual update |
+| `refresh.sh` | fast-forwards main and updates Codex/Claude marketplaces and plugins; reinstalls a Claude plugin whose cache differs from the kit (KIT-013); logs a `skip:` line when the `claude` or `codex` CLI is missing (KIT-022) | scheduled refresh or manual update |
 | `doctor.sh` | verifies plugins/symlinks, warns on a stale Claude plugin cache, merges Devin import policy, cleans legacy state and checks budgets; `AI_KIT_USER_RULES=1` restores user-level rule symlinks (default 0: repos carry `.claude/rules`) | diagnose setup or after refresh |
 | `smoke.sh` | runs bootstrap and doctor against isolated throwaway homes | after lifecycle changes; in CI |
 | `vendor.sh` | installs pinned third-party skills; `--check` verifies the lock | update or verify vendored skills |
