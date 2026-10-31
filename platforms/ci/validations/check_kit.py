@@ -448,6 +448,7 @@ for name, plugin_dir in plugins.items():
 hooks_path = plugins.get(CORE_PLUGIN, PLUGINS_ROOT / CORE_PLUGIN) / "hooks/hooks.json"
 guard_commands = []
 post_edit_commands = []
+session_start_commands = []
 if hooks_path.exists():
     hooks_data = read_json(hooks_path)
     if not isinstance(hooks_data, dict) or set(hooks_data) != {"hooks"}:
@@ -457,7 +458,7 @@ if hooks_path.exists():
         if not isinstance(hook_events, dict):
             fail(rel(hooks_path), "hooks must be an object")
             hook_events = {}
-        unknown_events = set(hook_events) - {"PreToolUse", "PostToolUse"}
+        unknown_events = set(hook_events) - {"PreToolUse", "PostToolUse", "SessionStart"}
         if unknown_events:
             fail(rel(hooks_path), f"unsupported hooks: {sorted(unknown_events)}")
         pre_tool_hooks = hook_events.get("PreToolUse", [])
@@ -534,6 +535,40 @@ if hooks_path.exists():
                         fail(rel(hooks_path), f"{location} command missing")
                     elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 30:
                         post_edit_commands.append((command, timeout))
+        session_start_hooks = hook_events.get("SessionStart", [])
+        if not isinstance(session_start_hooks, list):
+            fail(rel(hooks_path), "hooks.SessionStart must be an array")
+        else:
+            for group_index, group in enumerate(session_start_hooks):
+                if not isinstance(group, dict):
+                    fail(rel(hooks_path), f"SessionStart[{group_index}] must be an object")
+                    continue
+                matcher = group.get("matcher")
+                try:
+                    matches_startup = isinstance(matcher, str) and re.fullmatch(matcher, "startup") is not None
+                except re.error:
+                    matches_startup = False
+                if not matches_startup:
+                    fail(rel(hooks_path), f"SessionStart[{group_index}] matcher must match startup")
+                hooks = group.get("hooks")
+                if not isinstance(hooks, list):
+                    fail(rel(hooks_path), f"SessionStart[{group_index}].hooks must be an array")
+                    continue
+                for hook_index, hook in enumerate(hooks):
+                    location = f"SessionStart[{group_index}].hooks[{hook_index}]"
+                    if not isinstance(hook, dict):
+                        fail(rel(hooks_path), f"{location} must be an object")
+                        continue
+                    if hook.get("type") != "command":
+                        fail(rel(hooks_path), f"{location} type must be 'command'")
+                    timeout = hook.get("timeout")
+                    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout > 10:
+                        fail(rel(hooks_path), f"{location} timeout must be at most 10")
+                    command = hook.get("command")
+                    if not isinstance(command, str) or not command:
+                        fail(rel(hooks_path), f"{location} command missing")
+                    elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
+                        session_start_commands.append((command, timeout))
 elif CORE_PLUGIN in plugins:
     fail(f"plugins/{CORE_PLUGIN}/hooks/hooks.json", "core plugin requires hooks/hooks.json")
 
@@ -638,6 +673,68 @@ else:
                     got = getattr(result, stream)
                     if (want == "" and got != "") or (want and want not in got):
                         fail(rel(post_edit_cases_path), f"post-edit case '{name}': {stream} expected {want!r}, got {got!r}")
+
+session_start_cases_path = KIT / "platforms/ci/validations/hook_session_start_cases.json"
+session_start_cases = read_json(session_start_cases_path) if session_start_cases_path.exists() else None
+if session_start_cases is None:
+    if not session_start_cases_path.exists():
+        fail(rel(session_start_cases_path), "hook session-start cases missing")
+elif not isinstance(session_start_cases, dict):
+    fail(rel(session_start_cases_path), "top level must be an object")
+else:
+    cases = session_start_cases.get("cases")
+    if not isinstance(cases, list):
+        fail(rel(session_start_cases_path), "cases must be an array")
+        cases = []
+    elif len(cases) < 10:
+        fail(rel(session_start_cases_path), "cases must contain at least 10 cases")
+    for command, timeout in session_start_commands:
+        for case in cases:
+            if not isinstance(case, dict) or not isinstance(case.get("warn"), bool):
+                fail(rel(session_start_cases_path), f"session-start case must be an object with a boolean warn: {case!r}")
+                continue
+            name = case.get("name", "?")
+            if case.get("xattr") and sys.platform != "darwin":
+                continue  # the iCloud Desktop & Documents branch runs on macOS only
+            with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as bin_tmp:
+                home = Path(tmp)
+                # macOS refuses writes to the file-provider attribute, so a stub xattr answers for the case.
+                stub = Path(bin_tmp) / "xattr"
+                stub.write_text('#!/bin/sh\nfor last; do :; done\ncase "$last" in\n' + "".join(
+                    f'  "{home / path}") echo "{value}"; exit 0 ;;\n' for path, value in (case.get("xattr") or {}).items())
+                    + "esac\nexit 1\n")
+                stub.chmod(0o755)
+                for directory in case.get("dirs") or []:
+                    (home / directory).mkdir(parents=True, exist_ok=True)
+                for link, target in (case.get("links") or {}).items():
+                    (home / link).parent.mkdir(parents=True, exist_ok=True)
+                    (home / link).symlink_to(home / target)
+                for path, text in (case.get("files") or {}).items():
+                    (home / path).parent.mkdir(parents=True, exist_ok=True)
+                    (home / path).write_text(text.replace("@HOME@", tmp))
+                env = {"PATH": bin_tmp + os.pathsep + os.environ.get("PATH", ""), "HOME": tmp}
+                env.update({var: str(home / path) for var, path in (case.get("env") or {}).items()})
+                payload = case["stdin"] if "stdin" in case else json.dumps(
+                    {"hook_event_name": "SessionStart", "source": "startup", "cwd": str(home / case.get("cwd", ""))})
+                try:
+                    result = subprocess.run(
+                        [shutil.which("bash"), "-c", command], input=payload, text=True,
+                        capture_output=True, timeout=timeout, cwd=tmp, env=env, check=False)
+                except subprocess.TimeoutExpired:
+                    fail(rel(session_start_cases_path), f"session-start case '{name}' timed out")
+                    continue
+                counts["hook_cases"] += 1
+                if result.returncode != 0:
+                    fail(rel(session_start_cases_path), f"session-start case '{name}': expected exit 0, got {result.returncode}")
+                elif case["warn"]:
+                    try:
+                        message = json.loads(result.stdout).get("systemMessage") or ""
+                    except (json.JSONDecodeError, AttributeError):
+                        message = ""
+                    if "cloud-synced folder" not in message:
+                        fail(rel(session_start_cases_path), f"session-start case '{name}': expected a warning, got {result.stdout!r}")
+                elif result.stdout != "":
+                    fail(rel(session_start_cases_path), f"session-start case '{name}': expected silence, got {result.stdout!r}")
 
 
 # --- 6. Skills ---

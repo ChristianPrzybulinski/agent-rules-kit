@@ -39,5 +39,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-017-sticky-profile-list.md`](KIT-017-sticky-profile-list.md) | done | #104 | #105 |
 | [`KIT-018-core-browser-preference.md`](KIT-018-core-browser-preference.md) | done | #107 | #108 |
 | [`KIT-019-release-bump-command.md`](KIT-019-release-bump-command.md) | done | #110 | #112 |
+| [`KIT-021-synced-folder-warning.md`](KIT-021-synced-folder-warning.md) | done | #114 | — |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
