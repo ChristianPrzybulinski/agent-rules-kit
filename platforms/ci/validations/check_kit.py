@@ -704,6 +704,9 @@ else:
                     f'  "{home / path}") echo "{value}"; exit 0 ;;\n' for path, value in (case.get("xattr") or {}).items())
                     + "esac\nexit 1\n")
                 stub.chmod(0o755)
+                # The real interpreter, as in the post-edit cases: under load the macOS /usr/bin/python3 shim's
+                # cold start alone can exceed the hook timeout.
+                (Path(bin_tmp) / "python3").symlink_to(sys.executable)
                 for directory in case.get("dirs") or []:
                     (home / directory).mkdir(parents=True, exist_ok=True)
                 for link, target in (case.get("links") or {}).items():
@@ -713,9 +716,6 @@ else:
                     (home / path).parent.mkdir(parents=True, exist_ok=True)
                     (home / path).write_text(text.replace("@HOME@", tmp))
                 env = {"PATH": bin_tmp + os.pathsep + os.environ.get("PATH", ""), "HOME": tmp}
-                # A session has TMPDIR; without it the macOS /usr/bin/python3 shim skips its xcrun cache (5x slower).
-                if os.environ.get("TMPDIR"):
-                    env["TMPDIR"] = os.environ["TMPDIR"]
                 env.update({var: str(home / path) for var, path in (case.get("env") or {}).items()})
                 payload = case["stdin"] if "stdin" in case else json.dumps(
                     {"hook_event_name": "SessionStart", "source": "startup", "cwd": str(home / case.get("cwd", ""))})
