@@ -1,6 +1,6 @@
 {
   "name": "dev-core",
-  "version": "11.2.0",
+  "version": "11.3.0",
   "description": "ai-kit dev patterns: code standards, testing, docs and investigation skills",
   "requiredPlugins": [
     {

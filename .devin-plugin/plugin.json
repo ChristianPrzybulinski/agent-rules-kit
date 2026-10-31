@@ -1,6 +1,6 @@
 {
   "name": "agent-rules-kit",
-  "version": "11.2.0",
+  "version": "11.3.0",
   "description": "Meta-plugin: installs the ai-kit 'all' bundle; individual plugins remain optional",
   "requiredPlugins": [
     {
