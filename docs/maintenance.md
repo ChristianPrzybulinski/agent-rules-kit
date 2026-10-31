@@ -41,7 +41,7 @@ Use `kit-index.md` for a directory listing or `kit-readme.md` for explanation; n
 
 A subagent skill sets Devin `subagent: true` or a shared `agent: <profile>`, plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/<plugin>/agents/` of a plugin reachable through the dependency graph.
 
-Hooks are a guard, not a guardrail: they fail open, load only in local Devin and Claude Code, and cannot replace user confirmation or the always-on safety boundaries. The PostToolUse format and lint hook follows the same rule: a missing tool exits 0 with a notice, findings exit 2 with the tool output on stderr, and every branch is covered by `platforms/ci/validations/hook_post_edit_cases.json`, which `check_kit.py` runs with stub tools (timeout ceiling 30 s; the PreToolUse guard keeps 10 s).
+Hooks are a guard, not a guardrail: they fail open, load only in local Devin and Claude Code, and cannot replace user confirmation or the always-on safety boundaries. The PostToolUse format and lint hook follows the same rule: a missing tool exits 0 with a notice, findings exit 2 with the tool output on stderr, and every branch is covered by `platforms/ci/validations/hook_post_edit_cases.json`, which `check_kit.py` runs with stub tools (timeout ceiling 30 s; the PreToolUse guard keeps 10 s). The SessionStart synced-folder warning always exits 0 and is covered by `platforms/ci/validations/hook_session_start_cases.json`, which runs on a throwaway `HOME` with a stub `xattr` (timeout ceiling 10 s).
 
 ## Third-party skills
 

@@ -23,6 +23,18 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "^startup$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c 'import json,os,subprocess,sys\ntry:\n    d=json.load(sys.stdin)\nexcept Exception:\n    d={}\nc=d.get(\"cwd\") if isinstance(d,dict) else None\nc=os.path.realpath(c if isinstance(c,str) and c else os.getcwd())\nh=os.path.expanduser(\"~\")\ne=os.environ.get\nk=os.path.normcase\ninside=lambda r: k(c+os.sep).startswith(k(os.path.realpath(r).rstrip(os.sep)+os.sep))\nroots=[os.path.join(h,\"Library\",\"Mobile Documents\"),os.path.join(h,\"Library\",\"CloudStorage\")]\nroots+=[e(v) for v in (\"OneDrive\",\"OneDriveCommercial\",\"OneDriveConsumer\") if e(v)]\nfor f in (os.path.join(h,\".dropbox\",\"info.json\"),os.path.join(e(\"APPDATA\") or h,\"Dropbox\",\"info.json\"),os.path.join(e(\"LOCALAPPDATA\") or h,\"Dropbox\",\"info.json\")):\n    try:\n        roots+=[a[\"path\"] for a in json.load(open(f)).values() if isinstance(a,dict) and isinstance(a.get(\"path\"),str)]\n    except Exception:\n        pass\nif sys.platform==\"darwin\":\n    for n in (\"Documents\",\"Desktop\"):\n        f=os.path.join(h,n)\n        if not inside(f):\n            continue\n        try:\n            r=subprocess.run([\"xattr\",\"-p\",\"com.apple.file-provider-domain-id\",f],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=2)\n        except Exception:\n            continue\n        if r.returncode==0 and r.stdout.strip():\n            roots.append(f)\nhit=[r for r in roots if inside(r)]\nif hit:\n    m=\"ai-kit: \"+c+\" is inside the cloud-synced folder \"+hit[0]+\"; the sync client indexes every file under .git, which slows Git and can block moves. Move the repository out of it, for example to ~/Developer.\"\n    print(json.dumps({\"systemMessage\":m,\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":m}}))'",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

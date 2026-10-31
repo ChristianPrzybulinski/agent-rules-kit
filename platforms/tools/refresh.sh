@@ -131,6 +131,8 @@ if [[ -n "$codex" ]]; then
   else
     warn "codex marketplace ai-kit not registered — run platforms/tools/bootstrap.sh"
   fi
+else
+  printf 'skip: refresh: no codex CLI found; Codex marketplace not upgraded\n'
 fi
 
 if command -v claude >/dev/null 2>&1; then
@@ -158,6 +160,9 @@ if command -v claude >/dev/null 2>&1; then
   else
     warn "claude marketplace ai-kit not registered — run platforms/tools/bootstrap.sh"
   fi
+else
+  # Under launchd PATH is the plist's, not the login shell's; print it so a missing entry shows (KIT-022)
+  printf 'skip: refresh: claude CLI not found on PATH %s; Claude plugins not updated\n' "$PATH"
 fi
 
 sha="$(git -C "$KIT" rev-parse --short HEAD)" || fail "cannot read HEAD"
