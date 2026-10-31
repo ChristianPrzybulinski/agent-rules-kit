@@ -38,6 +38,8 @@
 # --workflow names the CI file that must run check_spec.py. Without it, --check
 # accepts any file under .github/workflows/ containing check_spec.py, and install
 # copies the kit workflow (as spec-lint.yml) only if the project has none.
+# Both modes print "sync: warning: ..." on stderr when <repo-dir> resolves into a cloud-synced
+# folder (core's SessionStart hook decides; KIT-021); the exit code does not change.
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -253,6 +255,26 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
   echo "sync: the 10.x layout is frozen (docs/design.md, Layout stability); fix the citation or append $STALE_OPT_OUT"
   return 1
 }
+
+warn_synced_folder() { # $1 = repo dir; reruns core's SessionStart hook for it and prints its warning
+  python3 - "$KIT_DIR/plugins/core/hooks/hooks.json" "$1" <<'PY' || true
+import json, subprocess, sys
+for group in json.load(open(sys.argv[1]))["hooks"].get("SessionStart", []):
+    for hook in group.get("hooks", []):
+        try:
+            result = subprocess.run(["bash", "-c", hook["command"]], input=json.dumps({"cwd": sys.argv[2]}),
+                                    stdout=subprocess.PIPE, universal_newlines=True, timeout=hook.get("timeout", 10))
+            message = json.loads(result.stdout).get("systemMessage")
+        except (subprocess.TimeoutExpired, ValueError):
+            message = None  # best effort, like the hook itself: a slow or silent detector prints nothing
+        if message:
+            print("sync: warning: " + message, file=sys.stderr)
+PY
+}
+
+# One detector for both callers: the warning comes from the same hook command that
+# Claude Code and Devin run at session start (KIT-021).
+warn_synced_folder "$REPO"
 
 # The repo profile selects the plugin set; check and install both need it. The list is
 # sticky like the vendored mode below: without --profile, the list KIT_MANIFEST.json

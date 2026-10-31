@@ -1,5 +1,6 @@
 """sync-project.sh --check: stale kit path scan on a throwaway repo."""
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -25,9 +26,10 @@ class SyncProjectCheckTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_sync(self, *args, repo=None):
+    def run_sync(self, *args, repo=None, home=None):
+        env = dict(os.environ, HOME=str(home)) if home else None
         return subprocess.run(["bash", str(SCRIPT), *args, str(repo or self.repo)],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=env)
 
     def write_md(self, rel, text):
         path = self.repo / rel
@@ -63,6 +65,18 @@ class SyncProjectCheckTest(unittest.TestCase):
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("stale kit path: docs/x.md", result.stdout)
+
+    def test_synced_folder_warning(self):  # KIT-021
+        home = self.repo / "home"
+        repo = home / "Library" / "CloudStorage" / "Dropbox" / "repo"
+        (repo / "docs" / "spec").mkdir(parents=True)
+        (repo / "AGENTS.md").write_text("# x\n")
+        for args in ((), ("--check",)):
+            result = self.run_sync(*args, repo=repo, home=home)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("sync: warning: ai-kit: ", result.stderr)
+            self.assertIn("is inside the cloud-synced folder", result.stderr)
+        self.assertNotIn("cloud-synced", self.run_sync("--check", home=home).stderr)
 
     def test_install_generates_profile_files_and_is_idempotent(self):
         claude = self.repo / "CLAUDE.md"
