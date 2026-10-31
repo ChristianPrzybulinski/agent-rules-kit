@@ -465,6 +465,28 @@ fi
 [[ ! -e "$STUB_STATE/claude-uninstalls" ]] || fail "refresh reinstalled an up-to-date Claude plugin cache"
 grep -Fq 'reinstalled' "$ROOT/refresh-stub-current.out" && fail "refresh reported a reinstall of an up-to-date cache"
 
+# KIT-023: CODEX_BIN names a CLI that is not on PATH; a CODEX_BIN that is not executable finds none.
+[[ "$(CODEX_BIN="$STUB_BIN/codex" AI_KIT_NO_CODEX_CLI=0 "$SOURCE/platforms/tools/codex-bin.sh")" == "$STUB_BIN/codex" ]] \
+  || fail "codex-bin.sh did not print CODEX_BIN"
+rm -f "$STUB_STATE/upgrade"
+if ! env HOME="$STUB_HOME" PATH="$RESTRICTED_PATH" CODEX_BIN="$STUB_BIN/codex" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" \
+    "$STUB_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-codex-bin.out" 2>&1; then
+  cat "$ROOT/refresh-codex-bin.out" >&2
+  fail "refresh failed with CODEX_BIN"
+fi
+[[ -f "$STUB_STATE/upgrade" ]] || fail "refresh did not use the Codex CLI named by CODEX_BIN"
+rm -f "$STUB_STATE/upgrade"
+if ! env HOME="$STUB_HOME" PATH="$stub_path" CODEX_BIN="$ROOT/no-codex" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" \
+    "$STUB_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-codex-bin-missing.out" 2>&1; then
+  cat "$ROOT/refresh-codex-bin-missing.out" >&2
+  fail "refresh failed with a CODEX_BIN that does not exist"
+fi
+grep -Fq "WARN: CODEX_BIN=$ROOT/no-codex is not an executable file" "$ROOT/refresh-codex-bin-missing.out" \
+  || fail "refresh did not warn about a CODEX_BIN that does not exist"
+[[ ! -e "$STUB_STATE/upgrade" ]] || fail "refresh fell back to PATH despite an explicit CODEX_BIN"
+
 FOREIGN_LINK_HOME="$ROOT/foreign-link-home"
 mkdir -p "$FOREIGN_LINK_HOME/.codex"
 git clone "$SOURCE" "$FOREIGN_LINK_HOME/.ai-kit" >/dev/null 2>&1

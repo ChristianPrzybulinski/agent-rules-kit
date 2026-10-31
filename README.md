@@ -55,6 +55,8 @@ codex plugin add core@ai-kit   # repeat per plugin, or let bootstrap/doctor iter
 
 The root marketplace catalog lists all fourteen plugins; `~/.codex/AGENTS.md` links to `~/.ai-kit/plugins/core/AGENTS.md`. While [openai/codex#22078](https://github.com/openai/codex/issues/22078) remains open, doctor maintains fallback skill symlinks to `~/.ai-kit/plugins/*/skills/` and removes them once plugin skills are exposed. On Codex, bootstrap installs every catalog entry including `extras`; remove it afterwards with the Codex CLI's plugin removal command if unwanted (not verified here: no Codex CLI on the maintainer's machine).
 
+`bootstrap.sh`, `refresh.sh` and `doctor.sh` find the Codex CLI through `platforms/tools/codex-bin.sh`: `$CODEX_BIN` when set, then `codex` on `PATH`, then the CLI bundled in ChatGPT.app or Codex.app, then `~/.cache/codex-runtimes`. A `CODEX_BIN` that is not executable is reported and no other CLI is used. Run `platforms/tools/codex-bin.sh` to see which CLI the kit uses.
+
 ## Claude Code
 
 ```bash

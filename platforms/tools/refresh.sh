@@ -3,6 +3,7 @@
 set -euo pipefail
 
 KIT="${AI_KIT_DIR:-$HOME/.ai-kit}"
+source "$(dirname "${BASH_SOURCE[0]}")/codex-bin.sh"
 
 warn() {
   printf 'WARN: refresh: %s\n' "$*" >&2
@@ -93,31 +94,6 @@ for plugin in plugins:
 for name in sorted(stale):
     print(name)
 PY
-}
-
-codex_bin() {
-  local candidate
-  [[ "${AI_KIT_NO_CODEX_CLI:-0}" != "1" ]] || return 1
-  candidate="$(command -v codex 2>/dev/null || true)"
-  if [[ -n "$candidate" && -x "$candidate" ]]; then
-    printf '%s\n' "$candidate"
-    return 0
-  fi
-  for candidate in \
-    /Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex \
-    /Applications/Codex.app/Contents/Resources/codex-cli/bin/codex; do
-    if [[ -x "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  done
-  candidate="$(find "$HOME/.cache/codex-runtimes" /Applications/ChatGPT.app /Applications/Codex.app \
-    -type f -name codex -perm -u+x 2>/dev/null | head -1 || true)"
-  if [[ -n "$candidate" && -x "$candidate" ]]; then
-    printf '%s\n' "$candidate"
-    return 0
-  fi
-  return 1
 }
 
 run_step() {
