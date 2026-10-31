@@ -4,7 +4,7 @@ title: "One Codex CLI lookup that honors CODEX_BIN"
 status: done
 confirmed: "2026-10-31 (owner, chat of the portability Phase 1 session)"
 issue: "#116"
-pr: ""
+pr: "#119"
 ---
 
 # KIT-023 — One Codex CLI lookup that honors CODEX_BIN
