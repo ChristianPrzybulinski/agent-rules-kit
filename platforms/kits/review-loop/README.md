@@ -18,7 +18,11 @@ The model-free half of the orchestrated implement-review-merge loop (a project's
 
 ## Decision on the loop tool
 
-The loop tool stays in the project (a `ops/review-loop/loop.py` there): it reads `config.json` but still hard-codes the project name in its state directory, verdict marker, review status context, the apply-owner rule, the `Closes` message and the spec-issue bodies. It moves under `platforms/tools/` only after those literals read from config; until then the plugin skills say "the project's loop tool".
+The loop tool stays in the project (Stratics: `platform/review-loop/`, decided in its DPRO-011 amendment 2026-11-01d). It reads `config.json` but still hard-codes the project name in its state directory, verdict marker, review status context, the apply-owner rule, the `Closes` message, the spec-issue bodies and the integration repository list. The project splits it into a neutral engine that reads those values from config and a project profile; a boundary test fails when engine code names the project outside a shrinking allowlist.
+
+- It moves to its own repository when a trigger holds and the boundary test is green with no project entry left in the allowlist: a second project is going to run the loop, a second OS needs its own release of the engine, or someone needs the engine without the project.
+- It never moves into the kit: the kit is instructions every agent loads and is changed by hand outside the loop, while the loop tool is a stateful service whose own changes the loop reviews.
+- The plugin skills say "the project's loop tool" and read its path from the project (`loop-orchestrate` § 0).
 
 ## Unverified / limits
 

@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- KIT-024: `platforms/kits/review-loop/README.md` § Decision on the loop tool follows Stratics DPRO-011 amendment 2026-11-01d: the loop tool stays in the project (Stratics: `platform/review-loop/`), splits into a neutral engine and a project profile behind a boundary test, and moves to its own repository when a trigger holds (a second project, a second OS release, or a consumer without the project) and the boundary test is green with no project entry left. It never moves into the kit; the old plan to move it under `platforms/tools/` is dropped. `loop-orchestrate` § 0 reads the project's `platform/review-loop/README.md`, and `config.example.json` holds `platform/review-loop/**` in `full_risk_paths` and `owner_merge_paths`. Why: the owner approved the amendment on 2026-11-01 (dev-game-studio/stratics#3258), which rejected the kit as the loop's home, and the Stratics loop moved from `ops/review-loop/` to `platform/review-loop/` (DPRO-015).
+
 ## [11.3.0] - 2026-10-31
 
 ### Added

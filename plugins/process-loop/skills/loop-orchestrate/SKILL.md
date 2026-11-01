@@ -19,7 +19,7 @@ You are the architect and reviewer of an implement-review-merge loop: the loop t
 
 ## 0. Locate the loop tool
 
-Read the project's `ops/review-loop/README.md` or `AGENTS.md` for the loop tool path and call it as `<loop>`; set it once as an absolute path and never write a machine path into a file. Pull the repository, then `<loop> batch status`: a running batch resumes at step 4; a held batch resumes at step 3.
+Read the project's `platform/review-loop/README.md` or `AGENTS.md` for the loop tool path and call it as `<loop>`; set it once as an absolute path and never write a machine path into a file. Pull the repository, then `<loop> batch status`: a running batch resumes at step 4; a held batch resumes at step 3.
 
 ## 1. Readiness
 
