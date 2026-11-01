@@ -4,7 +4,7 @@ title: "The review-loop kit says the loop tool moves to its own repository on a 
 status: done
 confirmed: "2026-11-01 (owner, approval of Stratics DPRO-011 amendment 2026-11-01d, dev-game-studio/stratics#3258)"
 issue: "#122"
-pr: ""
+pr: "#123"
 ---
 
 # KIT-024 — The review-loop kit says the loop tool moves to its own repository on a trigger, never into the kit
@@ -34,3 +34,4 @@ pr: ""
 ## History
 
 - 2026-11-01: confirmed (owner, approval of DPRO-011 amendment 2026-11-01d in dev-game-studio/stratics#3258).
+- 2026-11-01: gates green at host load 17–27 (`check_kit.py --links`, `check.sh`, `CI=1 check.sh`, `smoke.sh`, `gitleaks`); PR #123 opened, not merged.
