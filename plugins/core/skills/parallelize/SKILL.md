@@ -32,6 +32,7 @@ Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/r
 
 - Start commands expected to exceed 10 seconds in the background while unrelated work continues.
 - Keep the process handle, collect literal output before reporting, and stop servers/watchers when finished.
+- Before waiting on `pgrep -f <pattern>`, list its matches once (`pgrep -fl`): the pattern also matches leftovers of earlier runs and any other shell or wrapper holding it. Narrow it to the processes meant, bracket one character (`'[l]oop.py gates'`) so the waiting shell stays out of other counts, and give the wait a deadline.
 - Do not run concurrent commands that contend for one local repository, port, database or test fixture.
 
 ## 4. Fan out disjoint tasks

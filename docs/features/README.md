@@ -44,5 +44,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-023-shared-codex-lookup.md`](KIT-023-shared-codex-lookup.md) | done | #116 | #119 |
 | [`KIT-024-loop-tool-destination.md`](KIT-024-loop-tool-destination.md) | done | #122 | #123 |
 | [`KIT-025-public-mit-license.md`](KIT-025-public-mit-license.md) | done | #124 | #125 |
+| [`KIT-026-pgrep-wait-lists-matches.md`](KIT-026-pgrep-wait-lists-matches.md) | done | #126 | #127 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
