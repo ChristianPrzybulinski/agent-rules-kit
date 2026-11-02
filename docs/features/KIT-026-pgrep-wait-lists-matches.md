@@ -4,7 +4,7 @@ title: "A pgrep wait lists its matches before it waits"
 status: done
 confirmed: "2026-11-02 (owner, chat of the GitHub profile session: \"escreva a proposta\")"
 issue: "#126"
-pr: ""
+pr: "#127"
 ---
 
 # KIT-026 — A pgrep wait lists its matches before it waits
