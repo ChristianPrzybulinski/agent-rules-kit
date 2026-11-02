@@ -4,7 +4,7 @@ title: "The kit is public under the MIT license"
 status: done
 confirmed: "2026-11-02 (owner, chat of the GitHub profile session: \"e o kit tambem\")"
 issue: "#124"
-pr: ""
+pr: "#125"
 ---
 
 # KIT-025 — The kit is public under the MIT license
