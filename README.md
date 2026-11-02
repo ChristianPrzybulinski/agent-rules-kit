@@ -6,10 +6,8 @@ A plugin-first source of always-on rules, triggered rules, skills, references an
 
 ## Bootstrap
 
-Private repository access requires `gh auth login`; run `gh auth setup-git` once so plain Git reuses those credentials.
-
 ```bash
-gh repo clone ChristianPrzybulinski/agent-rules-kit ~/.ai-kit && ~/.ai-kit/platforms/tools/bootstrap.sh
+git clone https://github.com/ChristianPrzybulinski/agent-rules-kit.git ~/.ai-kit && ~/.ai-kit/platforms/tools/bootstrap.sh
 ```
 
 ## How each agent loads the kit
@@ -77,3 +75,7 @@ On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours
 ## Maintainers
 
 Each directory under `plugins/` is a plugin with three manifests; the repository root is a content-free meta-plugin. Before a PR, run `platforms/tools/check.sh` and `platforms/tools/smoke.sh`. Content changes follow `docs/maintenance.md`. Never add non-rule files to any `plugins/*/rules/`; `plugins/*/agents/` contains only schema-validated shared profiles, and only `plugins/core/` carries `AGENTS.md` and `hooks/`.
+
+## License
+
+[MIT](LICENSE). The vendored third-party skills keep their own licenses, recorded in `platforms/kits/third-party/skills.lock` and shipped in each skill folder: `plugins/architect-core/skills/grilling/` and `plugins/extras/skills/find-skills/` (MIT, mattpocock/skills and vercel-labs/skills), `plugins/extras/skills/skill-creator/` and `plugins/extras/skills/frontend-design/` (Apache-2.0, anthropics/skills).

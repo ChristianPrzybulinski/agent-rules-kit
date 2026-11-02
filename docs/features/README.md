@@ -43,5 +43,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-022-launchd-path-and-skips.md`](KIT-022-launchd-path-and-skips.md) | done | #115 | #118 |
 | [`KIT-023-shared-codex-lookup.md`](KIT-023-shared-codex-lookup.md) | done | #116 | #119 |
 | [`KIT-024-loop-tool-destination.md`](KIT-024-loop-tool-destination.md) | done | #122 | #123 |
+| [`KIT-025-public-mit-license.md`](KIT-025-public-mit-license.md) | done | #124 | #125 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

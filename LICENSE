@@ -1,29 +1,21 @@
-Proprietary License — All Rights Reserved
+MIT License
 
-Copyright (c) 2026 Christian Przybulinski. All rights reserved.
+Copyright (c) 2026 Christian Przybulinski
 
-This repository and everything in it that the copyright holder owns — source code, documentation,
-specifications, data files, generated artifacts and their history — (the "Software") is proprietary and
-confidential.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-1. No license is granted. Without the prior written permission of the copyright holder, you may not copy,
-   reproduce, modify, merge, publish, distribute, sublicense, sell, or create derivative works of the
-   Software, in whole or in part, and you may not use it to train, fine-tune or evaluate machine-learning
-   models.
-2. A person or service given access to the repository may use the Software only to work on this project,
-   on the terms agreed with the copyright holder. Access transfers no right in the Software and ends when
-   the copyright holder revokes it.
-3. By submitting a contribution (a commit, pull request, issue text or file) to this repository, the
-   contributor grants the copyright holder a perpetual, worldwide, irrevocable, royalty-free license to use,
-   modify, sublicense and distribute that contribution as part of the Software, and confirms they have the
-   right to grant it.
-4. The Software is provided "as is", without warranty of any kind. In no event shall the copyright holder
-   be liable for any claim, damages or other liability arising from it or its use.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Third-party material
-
-The skills vendored from other projects keep their own licenses, recorded in
-`platforms/kits/third-party/skills.lock` and in each skill directory (`VENDOR.md`, `LICENSE.txt`):
-`plugins/architect-core/skills/grilling/` (MIT, mattpocock/skills), `plugins/extras/skills/find-skills/`
-(MIT, vercel-labs/skills), `plugins/extras/skills/skill-creator/` and `plugins/extras/skills/frontend-design/`
-(Apache-2.0, anthropics/skills). This license does not apply to them and grants no right in them.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
