@@ -52,7 +52,7 @@ platforms/tools/vendor.sh
 platforms/tools/vendor.sh --check
 ```
 
-The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, where the plugin comes from the lock's second column. Remove a vendor by deleting both its lock line and skill folder.
+The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, where the plugin comes from the lock's second column. MIT and Apache-2.0 require the license text in every copy, so a skill folder without its own `LICENSE*` gets the upstream repository root's, and `--check` fails on a skill without one (KIT-025). Remove a vendor by deleting both its lock line and skill folder.
 
 ## CI requirements
 

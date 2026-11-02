@@ -2,11 +2,13 @@
 
 ## Reporting a vulnerability
 
-This repository is private. Report a suspected vulnerability privately; never in a public place.
+This repository is public. Report a suspected vulnerability privately; never in a public issue, pull request or
+discussion.
 
-1. Tell the maintainer, @ChristianPrzybulinski, directly: say what is affected and how to reproduce it.
-2. You may also open an issue in this repository titled `Security: <short summary>`. It is visible to the
-   repository's collaborators only. Keep exploit details, tokens, passwords and personal data out of the issue.
+1. Open a private report: the repository's **Security** tab → **Report a vulnerability** (GitHub private
+   vulnerability reporting). Say what is affected and how to reproduce it; only the maintainer,
+   @ChristianPrzybulinski, sees it.
+2. Keep tokens, passwords and personal data out of the report.
 3. A credential that leaked (a token, a password, a key) is rotated first, before any other work; then report it.
 
 You get an answer within 7 days. A fix is made on `main` and noted in `CHANGELOG.md` without exploit detail.

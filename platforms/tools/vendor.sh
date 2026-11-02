@@ -10,6 +10,10 @@ PLUGINS_DIR="$KIT_DIR/plugins"
 MODE="install"; [[ "${1:-}" == "--check" ]] && MODE="check"
 FAILED=0
 
+# MIT and Apache-2.0 require the license text in every copy: the skill folder keeps its own LICENSE*, else the
+# upstream repository root's.
+has_license() { local f; for f in "$1"/LICENSE*; do [[ -f "$f" ]] && return 0; done; return 1; }
+
 while IFS='|' read -r name plugin repo path sha license verified; do
   name="$(echo "$name" | xargs)"; plugin="$(echo "$plugin" | xargs)"; repo="$(echo "$repo" | xargs)"
   path="$(echo "$path" | xargs)"; sha="$(echo "$sha" | xargs)"; license="$(echo "$license" | xargs)"
@@ -24,13 +28,15 @@ while IFS='|' read -r name plugin repo path sha license verified; do
     [[ -f "$dest/VENDOR.md" ]] || { echo "FAIL: $name missing VENDOR.md" >&2; FAILED=1; continue; }
     grep -q "sha: $sha" "$dest/VENDOR.md" || { echo "FAIL: $name sha diverges from the lock" >&2; FAILED=1; }
     [[ -f "$dest/SKILL.md" ]] || { echo "FAIL: $name missing SKILL.md" >&2; FAILED=1; }
+    has_license "$dest" || { echo "FAIL: $name missing a LICENSE file" >&2; FAILED=1; }
     continue
   fi
 
   tmp="$(mktemp -d)"
   git clone -q --depth 1 --filter=blob:none --sparse "https://github.com/$repo" "$tmp/repo" 2>/dev/null \
     || { echo "FAIL: clone of $repo" >&2; rm -rf "$tmp"; FAILED=1; continue; }
-  (cd "$tmp/repo" && git sparse-checkout set --no-cone "$path" && { git checkout -q "$sha" 2>/dev/null || true; })
+  (cd "$tmp/repo" && git sparse-checkout set --no-cone "$path" /LICENSE /LICENSE.md /LICENSE.txt \
+    && { git checkout -q "$sha" 2>/dev/null || true; })
   src="$tmp/repo/$path"
   if [[ ! -f "$src/SKILL.md" ]]; then
     # depth 1 may not contain the sha if HEAD moved; pinned refetch
@@ -41,6 +47,10 @@ while IFS='|' read -r name plugin repo path sha license verified; do
   mkdir -p "$PLUGINS_DIR/$plugin/skills"
   rm -rf "$dest"
   cp -R "$src" "$dest"
+  if ! has_license "$dest"; then
+    for f in "$tmp/repo"/LICENSE*; do [[ -f "$f" ]] && { cp "$f" "$dest/"; break; }; done
+  fi
+  has_license "$dest" || { echo "FAIL: no LICENSE file in $repo:$path or its root" >&2; rm -rf "$tmp"; FAILED=1; continue; }
   cat > "$dest/VENDOR.md" <<EOF
 repo: $repo
 path: $path
