@@ -4,7 +4,7 @@ title: "A handoff names the owner of a shared device and what no other session m
 status: done
 confirmed: "2026-11-03 (owner, chat of the Stratics Time Machine session: \"Sim, gravar\")"
 issue: "#128"
-pr: ""
+pr: "#129"
 ---
 
 # KIT-027 — A handoff names the owner of a shared device and what no other session may run on it
