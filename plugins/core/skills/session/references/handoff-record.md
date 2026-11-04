@@ -11,6 +11,7 @@ kind: detail
 - Read changed specs/status/history, literal verification outputs and user decisions.
 - For a FEAT in implementation, read `docs/spec/progress/FEAT-nnn.json`; the record links it and names the tasks with `passes: false`.
 - Classify claims as fact, decision, proposal, hypothesis or blocker; never infer from memory.
+- For a device or host that another session also uses (disk, USB bridge, VM, port), name the owner session of each device and the commands no other session may run on it (SMART, partitioning, authorize or unbind) before the first probe. A peer message that got no reply is not a release.
 
 ## Name one continuation action
 
