@@ -18,6 +18,9 @@
 
 ## `evals/`
 
+- `code-standards-match-one-call-arms`
+- `code-standards-no-bolt-on-flag`
+- `code-standards-one-decision-one-place`
 - `investigate-no-fix-without-repro`
 - `investigate-perf-needs-number`
 - `investigate-report-is-hypothesis`
