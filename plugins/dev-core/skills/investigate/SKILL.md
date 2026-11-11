@@ -39,6 +39,7 @@ Record observed and expected behavior, environment, commit/version, platform, fr
 
 - For money, inventory or data incidents, verify affected counts by query rather than estimate.
 - Define the regression test that must remain after the fix; do not implement the fix in this skill.
+- A guard that only hides the symptom (null check, catch-all, retry, default value) is not a fix unless the cause is named and the guard is the intended behavior.
 - Remove temporary instrumentation unless it becomes deliberate structured logging.
 
 ## 5. Report
