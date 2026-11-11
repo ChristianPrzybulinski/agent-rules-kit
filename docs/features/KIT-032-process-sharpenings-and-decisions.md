@@ -99,9 +99,30 @@ regex on its heading (precedent: `plugins/architect-sdd/evals/sdd-tasks-proof-is
 
 ## Proof
 
-Run from the worktree root at the PR head:
+Run from the worktree root at `2fe7a40` on 2026-11-11 (the commits after it change only this document and
+`docs/features/README.md`); every command exited 0:
 
-<!-- proof lines are filled after the gates run -->
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (14 plugins, 46 skills, 3 rules,
+  22 templates, 23 indexes, 123 links, 25 hook cases)", then "✔ Validation passed" 15 times and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (46 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: "check: OK (14 plugins, 46 skills, 3 rules, 22 templates, 23
+  indexes, 123 links, 25 hook cases)".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "2 commits scanned.", "scanned ~22990 bytes (22.99 KB) in
+  62.6ms", "no leaks found".
+- `python3 platforms/ci/validations/test_spec_trace.py`: "Ran 32 tests in 1.531s", "OK (skipped=1)".
+- `python3 platforms/ci/validations/test_check_spec.py`: "Ran 14 tests in 1.650s", "OK".
+- New eval cases, unverified: each ran as `claude plugin eval plugins/<plugin> --case '<name>' --runs 1 --ablation none
+  --no-publish --trust-plugin` and stopped before any model turn with "exit 1: Not logged in · Please run /login";
+  `claude auth status` prints `"loggedIn": false` on this host, inside and outside the Bash sandbox. Cases:
+  `plugins/architect-sdd`: `sdd-implement-actions-not-decisions`, `sdd-implement-decision-line`,
+  `sdd-implement-planned-red-in-branch`; `plugins/core`: `tokens-human-register-no-cliches`,
+  `tokens-technical-register`; `plugins/dev-core`: `investigate-guard-hides-symptom`; `plugins/infra-github`:
+  `branching-incomplete-behind-flag`, `branching-no-develop-branch`, `branching-squash-body`.
+- New fixture eval cases, unverified: the same command with `--scaffold --allow-tools Bash Edit Write` stopped before
+  any model turn with "the Docker (~/.docker, DOCKER_CONFIG) credential store on this machine holds a symbolic link
+  inside it, so the Bash sandbox cannot reliably exclude it"; the links are Docker Desktop's own, in `~/.docker/bin`.
+  Cases: `plugins/core`: `session-worktree-cleanup`, `tokens-bulk-log-summary`.
 
 ## History
 
