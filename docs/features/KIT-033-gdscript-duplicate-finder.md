@@ -115,8 +115,8 @@ setting at a time (same 659 files):
   `features/world/editor/records/record_session.gd:124` at 1.000, whose strings are identical, so a real copy.
 - The 6 production pairs between 0.82 and 0.9, read by hand: 4 are real copies (`_style` in `editor_panel.gd:301` and
   `schema_form.gd:627`; the sprite-set loaders `costume_art.gd:11`, `creature_art.gd:70` and `move_art.gd:11`;
-  `team_card.gd:139 _bar_box` and `tools/ui/build_battle_theme.gd:172 _flat`) and 2 are signal wiring alike only in
-  shape (`arena_controller.gd:19` / `daycare_controller.gd:16 _ready`, `quest_completion.gd:10` /
+  `features/battle/ui/team_card.gd:139 _bar_box` and `tools/ui/build_battle_theme.gd:172 _flat`) and 2 are signal
+  wiring alike only in shape (`arena_controller.gd:19` / `daycare_controller.gd:16 _ready`, `quest_completion.gd:10` /
   `exit_gate_controller.gd:24 _init`). The 92 production pairs at 0.9 or more were not read by hand, so the tool's
   false-positive rate is not yet measured.
 - Known miss: the `_integer` int copy against an `INF` copy scores 0.816 (34 against 35 fingerprints), just under 0.82.
@@ -125,9 +125,23 @@ setting at a time (same 659 files):
 
 ## Proof
 
-Run from the worktree root at the PR head:
+Run from the worktree root at `2c66dce` on 2026-11-11 (the commits after it change only this document and
+`docs/features/README.md`); every command exited 0:
 
-<!-- proof lines are filled after the gates run -->
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (14 plugins, 46 skills, 3 rules,
+  22 templates, 23 indexes, 125 links, 25 hook cases)", then "✔ Validation passed" 15 times and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (46 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: "check: OK (14 plugins, 46 skills, 3 rules, 22 templates, 23
+  indexes, 125 links, 25 hook cases)".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "6 commits scanned.", "scanned ~86223 bytes (86.22 KB) in
+  58ms", "no leaks found".
+- `python3 -B -m unittest platforms/ci/validations/test_complexity.py`: "Ran 9 tests in 2.989s", "OK".
+- `python3 -B -m unittest platforms/ci/validations/test_gd_duplicates.py`: "Ran 9 tests in 3.977s", "OK".
+- New eval cases, unverified: each ran as `claude plugin eval plugins/<plugin> --case '<name>' --runs 1 --ablation none
+  --no-publish --trust-plugin` and stopped before any model turn with "exit 1: Not logged in · Please run /login";
+  `claude auth status` prints `"loggedIn": false` on this host, inside and outside the Bash sandbox. Cases:
+  `plugins/dev-core`: `code-standards-duplicate-one-owner`.
 
 ## History
 
