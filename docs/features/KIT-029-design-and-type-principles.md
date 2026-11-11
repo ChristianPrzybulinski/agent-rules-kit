@@ -1,10 +1,10 @@
 ---
 id: KIT-029
 title: "Code and architecture rules name one owner per decision, a valid data shape, idempotent steps and no silenced warning"
-status: confirmed
+status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D1–D8 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#131"
-pr: ""
+pr: "#139"
 ---
 
 # KIT-029 — Code and architecture rules name one owner per decision, a valid data shape, idempotent steps and no silenced warning
@@ -112,3 +112,4 @@ Run from the worktree root at `6539efd` on 2026-11-11 (the commits after it chan
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D1 and D4).
 - 2026-11-11: implementation prompt launched; issue #131.
+- 2026-11-11: done in #139.
