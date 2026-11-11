@@ -20,7 +20,7 @@ Inspect neighboring code plus `.editorconfig`, `pom.xml` or `project.godot`, and
 
 ## 2. Name literally
 
-- Use one English term per concept; consult the project glossary before introducing a synonym.
+- Use one English term per concept; consult the project glossary before introducing a synonym, and add a new domain term to the glossary in the same change.
 - Booleans read as questions, collections are plural, methods use verbs and classes use nouns.
 - Reject type prefixes, unexplained abbreviations and decorative `Manager`, `Helper`, `Util`, `Data`, `Info` or `Impl` suffixes.
 
@@ -29,6 +29,8 @@ Inspect neighboring code plus `.editorconfig`, `pom.xml` or `project.godot`, and
 - One function performs one behavior, uses early returns and has no hidden side effects.
 - Use at most three or four parameters; introduce a record/DTO when the values form one concept.
 - Treat 20 lines as the target and 40 as the review threshold; split by behavior, not arbitrary chunks.
+- A `match`/`switch` whose arms each make one call is fine; arms that hold logic are split into functions or become a table.
+- New or changed functions target CRAP < 10 (Java) and CC ≤ 10 (GDScript); bring one above it down by splitting it, testing it or both (the one-call `match` above is exempt). `python3 ~/.ai-kit/platforms/tools/complexity.py --base <base>` lists them; its output is advisory.
 
 ## 4. Handle comments and errors
 
@@ -57,8 +59,17 @@ Choose the higher rung when two work; never trade correctness at an edge case fo
 ## 7. Control file growth and review the diff
 
 - Aim for 200–400 lines per feature file; 800 is the maximum before mandatory decomposition.
-- Fewer files win when cohesion remains high. Delete dead code before adding another abstraction.
+- Fewer files win when cohesion remains high. Remove what the change makes unnecessary (dead code, flag, special case, layer) before adding another abstraction.
+- Leave clear, local code alone: no drive-by refactor outside the flow the change touches.
 - Search callers before renaming or changing behavior. Run the repository formatter/linter and its relevant tests; report literal failures rather than adding suppression.
 - Report the ceiling with `[code] → skipped: X; add when Y.` Delete explanation that exceeds the simple change unless the user requested a report.
 
-Done when: names are literal, functions have one purpose, comments explain only why, errors remain visible, touched files respect the size ceiling, the solution stops at the earliest safe rung with no speculative dependency or abstraction, and any deliberate ceiling records its evolution trigger.
+## 8. Design the change before the edit
+
+- One decision (rule, threshold, mapping) lives in one place; every other site reads it from there.
+- A new or changed function that repeats existing code is merged into one owner every caller uses, or the PR names why the copy stays; in GDScript, `python3 ~/.ai-kit/platforms/tools/gd_duplicates.py --base <base>` lists the pairs at 0.82 or more (advisory).
+- Get the data shape right before the logic: a shape that holds only valid states removes the branches that would repair it.
+- A new requirement is not bolted onto the old design: build the smallest edit of the design you would have made had the requirement been there from the start, and deliver it in pieces.
+- When work is not obvious at a glance, do one unit by hand, then make a tool reproduce it (the hand-done unit is the tool's test); do first what helps every later step.
+
+Done when: names are literal, functions have one purpose, comments explain only why, errors remain visible, touched files respect the size ceiling, the solution stops at the earliest safe rung with no speculative dependency or abstraction, any deliberate ceiling records its evolution trigger, and each decision lives in one place.

@@ -15,6 +15,7 @@ Always/never for `*.gd`, `*.tscn` and `project.godot`. Procedures: skill `godot-
 
 - Always: Godot 4 syntax only: `@onready`, `@export`, `await`, `instantiate()`, `signal_name.connect(callable)`. Never `onready var`, `export`, `yield`, `instance()`, `connect("name", ...)`.
 - Always: typed GDScript: `var speed: float = 120.0`, `func hit(dmg: int) -> void`; an untyped variable, parameter or return is a defect.
+- Never: `@warning_ignore` to hide an untyped or unused warning (type it or delete the code); any other sits on the narrowest line with a comment naming why.
 - Never: `get_parent()` or an ancestor lookup to apply a game rule; use signals or the project's `EventBus` autoload.
 - Never: `$Node` or `get_node` inside `_process`/`_physics_process`; cache the node in an `@onready` declaration.
 - Always: the movement model is the one the repo `AGENTS.md` declares (tile-step or physics); never mix both in one entity.

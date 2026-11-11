@@ -36,6 +36,9 @@
 
 ## `evals/`
 
+- `sdd-implement-actions-not-decisions`
+- `sdd-implement-decision-line`
+- `sdd-implement-planned-red-in-branch`
 - `sdd-tasks-field-owned-by-other-feat`
 - `sdd-tasks-files-cell-has-test-path`
 - `sdd-tasks-proof-is-executable`

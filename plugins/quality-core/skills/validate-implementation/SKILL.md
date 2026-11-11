@@ -60,6 +60,7 @@ Target: <FEAT, path or request>
 Verdict: READY | PARTIAL | NOT READY
 Gates: <command> → OK | FAILED (<literal excerpt>)
 Reused: <result> — <record> — <why its inputs are unchanged>
+Advisory: <complexity.py lines, or its missing-input notice>
 | Criterion | Code | Test | Doc | Status |
 |---|---|---|---|---|
 | ... | path:line | path/command | path | met / missing / partial |
@@ -70,6 +71,7 @@ Next step: <smallest action that changes the verdict>
 - `READY`: every criterion is met and every gate passes.
 - `PARTIAL`: at least one criterion is missing or partial while gates otherwise run.
 - `NOT READY`: a gate fails or the target cannot be validated.
+- When the change touches `.java` or `.gd`, run `python3 ~/.ai-kit/platforms/tools/complexity.py --base <base>` on the clean checkout after the gates (so a JaCoCo report is the one the gate just wrote) and copy its lines to `Advisory:`; they never change the verdict.
 - An ambiguous criterion is a spec gap; route it to `sdd-clarify` rather than guessing.
 
 Done when: every criterion has observed code, proof and documentation status, all gates have literal results, and the verdict follows the rules above.
