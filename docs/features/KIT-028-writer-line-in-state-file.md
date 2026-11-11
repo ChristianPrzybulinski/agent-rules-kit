@@ -1,10 +1,10 @@
 ---
 id: KIT-028
 title: "A state file names the session writing its worktree"
-status: confirmed
+status: done
 confirmed: "2026-11-11 (owner, chat of the Stratics audit roadmap prompt session: \"sim para o kit\")"
 issue: "#130"
-pr: ""
+pr: "#138"
 ---
 
 # KIT-028 — A state file names the session writing its worktree
@@ -39,3 +39,4 @@ record to check against.
 ## History
 
 - 2026-11-11: confirmed (owner, chat); issue #130 opened.
+- 2026-11-11: done; PR #138 opened on the owner's "sim pode".
