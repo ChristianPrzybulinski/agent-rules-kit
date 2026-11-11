@@ -8,6 +8,7 @@
 | `codex-bin.sh` | finds the Codex CLI for bootstrap, refresh and doctor, which source it: `$CODEX_BIN`, `codex` on `PATH`, ChatGPT.app or Codex.app, `~/.cache/codex-runtimes`; run directly it prints the CLI it found (KIT-023) | check which Codex CLI the kit uses |
 | `smoke.sh` | runs bootstrap and doctor against isolated throwaway homes | after lifecycle changes; in CI |
 | `vendor.sh` | installs pinned third-party skills; `--check` verifies the lock | update or verify vendored skills |
+| `complexity.py` | advisory complexity of changed functions: Java CRAP from a JaCoCo XML the build wrote, GDScript CC from `gdradon cc` joined by function name; `[FILE...]` measures whole files; exit 0, `--threshold N` exits 1 at N and 2 on a missing report or gdradon (KIT-031) | before a PR or a completion verdict that touches `.java` or `.gd` |
 | `kpi.py` | per-batch review-loop KPIs from a `ledger.csv` | after each loop batch; before and after a kit rule change |
 | `bump_version.py` | `X.Y.Z [--date YYYY-MM-DD]` writes `VERSION`, every manifest `"version"` and the CHANGELOG heading; refuses a version not above `VERSION`, a dirty tree or an empty `[Unreleased]`; `--notes X.Y.Z` prints the release notes as `release.yml` cuts them (KIT-019) | first step of a kit release (`docs/maintenance.md` § Versioning) |
 | `check.sh` | validates the kit and Claude manifests; `--spec <dir>` validates project specs | after any kit change; in CI |

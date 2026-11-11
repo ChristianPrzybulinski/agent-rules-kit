@@ -18,6 +18,7 @@
 
 ## `evals/`
 
+- `code-standards-complexity-target`
 - `code-standards-match-one-call-arms`
 - `code-standards-no-bolt-on-flag`
 - `code-standards-one-decision-one-place`
