@@ -15,11 +15,12 @@ allowed-tools:
 
 ## 1. Map the dependency direction
 
-Classify touched code as entity/domain, use case/application, interface adapter, or framework/driver. Dependencies point inward; domain and application code import no Spring, Hibernate, Godot node, database or transport type.
+Classify touched code as entity/domain, use case/application, interface adapter, or framework/driver. Dependencies point inward; domain and application code import no Spring, Hibernate, Godot node, database or transport type. Business logic is a pure function: I/O, clock and randomness are passed in.
 
 ## 2. Place boundaries
 
-- Validate external input at the adapter boundary, then trust the typed interior.
+- Parse external input once at the adapter boundary into a typed value, then trust the typed interior; never re-validate it inside.
+- Model the domain so illegal states cannot be built: Java `sealed` types and `record`s with validating constructors, enums over strings; GDScript enums and typed classes over a raw `Dictionary` or `String`.
 - Pass DTOs across layers; do not expose domain entities directly to UI, persistence or transport code.
 - Translate infrastructure failures at the boundary while preserving a specific domain/application error.
 
@@ -53,4 +54,9 @@ Reject mutable global singletons, Active Record in the domain, anemic entities, 
 - Use fakes at ports; do not mock entities.
 - Inspect imports or run the project's architecture gate before closing.
 
-Done when: every dependency points inward, validation/error translation occurs at the edge, each port names its I/O, swap or domain-boundary reason, and the chosen building block or pattern solves a named current problem with its rejected simpler option understood and no speculative architecture added.
+## 8. Make state changes safe to repeat
+
+- Every command, script, migration and loop step is idempotent and crash-safe: run twice, or again after a crash half-way, it leaves the same state.
+- State that two actors would write gets one writer, enforced by the structure (an owner object or a queue), or each actor gets its own copy.
+
+Done when: every dependency points inward, validation/error translation occurs at the edge, each port names its I/O, swap or domain-boundary reason, and the chosen building block or pattern solves a named current problem with its rejected simpler option understood, no speculative architecture added, illegal states cannot be built, and every state change is idempotent with one writer.

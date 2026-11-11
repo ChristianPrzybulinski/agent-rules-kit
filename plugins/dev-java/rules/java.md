@@ -20,5 +20,6 @@ Always/never for `*.java` and `pom.xml`. Procedures: skill `java-standards` (nam
 - Never: edit an applied Flyway migration; a schema change is a new `V<n+1>__<slug>.sql` under `src/main/resources/db/migration/`.
 - Always: the persistence style the repo `AGENTS.md` declares (`JdbcClient` with hand-written SQL, or JPA); never introduce the other one.
 - Always: domain tests in pure JUnit 5 and AssertJ without `@SpringBootTest`; Mockito only at ports.
+- Never: `@SuppressWarnings` to hide a warning; `unused` means delete the code, and `unchecked` sits only on the narrowest declaration with a comment naming why the type cannot be expressed.
 - Never: `@Disabled` to go green, `ddl-auto=update`, or a secret in `application*.yml`.
 - Always: `./mvnw spotless:check verify` green before a PR, with the literal tail pasted as proof.
