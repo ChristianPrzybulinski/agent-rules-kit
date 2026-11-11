@@ -104,17 +104,17 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
 
 ## Decisions
 
-- 2026-11-11 T1 ({PR}): chose PIT's unnamed default set (`Mutator.newDefaults()`) over the named group `DEFAULTS`
+- 2026-11-11 T1 (#145): chose PIT's unnamed default set (`Mutator.newDefaults()`) over the named group `DEFAULTS`
   because `stratics-server/pom.xml` names no `<mutators>` (lines 276–295), so `newDefaults()` is what the Java gate
   runs.
-- 2026-11-11 T1 ({PR}): chose hand-picked text edits over a generator for T1 because the spike measures the cost and
+- 2026-11-11 T1 (#145): chose hand-picked text edits over a generator for T1 because the spike measures the cost and
   the kill rate of a run, and T2 builds the operators on the gdtoolkit tree.
-- 2026-11-11 T1 ({PR}): chose a hash of the function together with its selected test files over the function hash
+- 2026-11-11 T1 (#145): chose a hash of the function together with its selected test files over the function hash
   alone because a new or changed test can kill a survivor whose function did not change.
-- 2026-11-11 T1 ({PR}): chose to keep invalid mutants out of the score over counting them as killed because a mutant
+- 2026-11-11 T1 (#145): chose to keep invalid mutants out of the score over counting them as killed because a mutant
   that does not load says nothing about the tests: M10 (`return null` in a `-> String` function) exits 105 with
   "Script errors were detected during test discovery!" before any test runs, so T2 does not generate it.
-- 2026-11-11 T1 ({PR}): chose "Refs #137" over "Closes #137" because `docs/maintenance.md:18` says "the implementing
+- 2026-11-11 T1 (#145): chose "Refs #137" over "Closes #137" because `docs/maintenance.md:18` says "the implementing
   PR closes the issue" and this PR implements T1 only.
 
 ## Measurements
@@ -168,3 +168,4 @@ Run from the worktree root at `6614325` on 2026-11-11 (the commits after it chan
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
 - 2026-11-11: implementation prompt launched; issue #137; T1 spike run.
+- 2026-11-11: specification and T1 spike in #145, which refers to #137 and leaves it open.
