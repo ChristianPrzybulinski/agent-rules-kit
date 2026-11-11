@@ -52,5 +52,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-032-process-sharpenings-and-decisions.md`](KIT-032-process-sharpenings-and-decisions.md) | done | #134 | #142 |
 | [`KIT-033-gdscript-duplicate-finder.md`](KIT-033-gdscript-duplicate-finder.md) | done | #135 | #143 |
 | [`KIT-034-gdscript-coverage.md`](KIT-034-gdscript-coverage.md) | confirmed | #136 | — |
+| [`KIT-035-gdscript-mutation.md`](KIT-035-gdscript-mutation.md) | confirmed | #137 | — |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
