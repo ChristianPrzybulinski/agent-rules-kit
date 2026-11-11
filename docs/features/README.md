@@ -47,6 +47,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-026-pgrep-wait-lists-matches.md`](KIT-026-pgrep-wait-lists-matches.md) | done | #126 | #127 |
 | [`KIT-027-device-owner-in-handoff.md`](KIT-027-device-owner-in-handoff.md) | done | #128 | #129 |
 | [`KIT-029-design-and-type-principles.md`](KIT-029-design-and-type-principles.md) | confirmed | #131 | — |
-| [`KIT-031-complexity-signal.md`](KIT-031-complexity-signal.md) | confirmed | #133 | — |
+| [`KIT-031-complexity-signal.md`](KIT-031-complexity-signal.md) | done | #133 | #141 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

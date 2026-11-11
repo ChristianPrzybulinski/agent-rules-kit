@@ -1,10 +1,10 @@
 ---
 id: KIT-031
 title: "An advisory script reports CRAP for changed Java methods and CC for changed GDScript functions"
-status: confirmed
+status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D2, D3 and D5 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#133"
-pr: ""
+pr: "#141"
 ---
 
 # KIT-031 — An advisory script reports CRAP for changed Java methods and CC for changed GDScript functions
@@ -118,3 +118,4 @@ Run from the worktree root at `df7aa9e` on 2026-11-11 (the commits after it chan
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D2, D3 and D5).
 - 2026-11-11: implementation prompt launched; issue #133.
+- 2026-11-11: done in #141.
