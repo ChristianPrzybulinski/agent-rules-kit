@@ -103,23 +103,23 @@ closes #136; this PR refers to it.
 
 ## Decisions
 
-- 2026-11-11 T1 ({PR}): chose block and continuation probes over one probe per statement because a run of simple
+- 2026-11-11 T1 (#144): chose block and continuation probes over one probe per statement because a run of simple
   statements has a single entry: `pack_choice.gd` needed 70 probes in 72 counter slots for its 54 statement lines,
   and 14 of the entries are read from a condition's two outcomes instead of a slot of their own.
-- 2026-11-11 T1 ({PR}): chose no probe in front of a compound statement over a `KitCov.hit(N); ` prefix because `;`
+- 2026-11-11 T1 (#144): chose no probe in front of a compound statement over a `KitCov.hit(N); ` prefix because `;`
   joins only simple statements: gdtoolkit 4.5.0 parses `var a = 1; print(a)` and rejects `var a = 1; if a: pass` and
   `KitCov.hit(1); for i in [1]: pass` with `UnexpectedToken`.
-- 2026-11-11 T1 ({PR}): chose no branch outcome for a `for` loop over counting empty and non-empty iterables, open for
+- 2026-11-11 T1 (#144): chose no branch outcome for a `for` loop over counting empty and non-empty iterables, open for
   T2, because the entry probe on its iterable already shows whether the loop line ran; `match` arms become branch
   outcomes in T2.
-- 2026-11-11 T1 ({PR}): chose `HOME` pointed at a scratch folder over editing the copy's settings because the spike
+- 2026-11-11 T1 (#144): chose `HOME` pointed at a scratch folder over editing the copy's settings because the spike
   confirmed it: the real `godot.log` kept its mtime and every run logged under the scratch `HOME`.
-- 2026-11-11 T1 ({PR}): chose the writer autoload over a gdUnit4 session hook because it wrote the hits JSON on
+- 2026-11-11 T1 (#144): chose the writer autoload over a gdUnit4 session hook because it wrote the hits JSON on
   `_exit_tree` in all 4 instrumented runs; the hook stays T3's fallback.
-- 2026-11-11 T1 ({PR}): chose the statement-line ratio for `Function.coverage` over the branch ratio because KIT-031's
+- 2026-11-11 T1 (#144): chose the statement-line ratio for `Function.coverage` over the branch ratio because KIT-031's
   `complexity.py:7` reads JaCoCo's INSTRUCTION counter for Java, and a statement is GDScript's nearest unit to an
   instruction.
-- 2026-11-11 T1 ({PR}): chose "Refs #136" over "Closes #136" because `docs/maintenance.md:18` says "the implementing
+- 2026-11-11 T1 (#144): chose "Refs #136" over "Closes #136" because `docs/maintenance.md:18` says "the implementing
   PR closes the issue" and this PR implements T1 only.
 
 ## Risks
@@ -217,3 +217,4 @@ Run from the worktree root at `3bdba5c` on 2026-11-11 (the commits after it chan
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
 - 2026-11-11: implementation prompt launched; issue #136; T1 spike run.
+- 2026-11-11: specification and T1 spike in #144, which refers to #136 and leaves it open.
