@@ -1,10 +1,10 @@
 ---
 id: KIT-036
 title: "A local eval run checks the CLI login before a score counts"
-status: confirmed
+status: done
 confirmed: "2026-11-11 (owner, chat of the ub-mode implementation session: \"aprovo\")"
 issue: "#146"
-pr: ""
+pr: "#147"
 ---
 
 # KIT-036 — A local eval run checks the CLI login before a score counts
@@ -68,3 +68,4 @@ to the documented command, not a new script.
 
 - 2026-11-11: confirmed (owner, chat); issue #146. The first proposal asked for a runner that checks the login; the
   kit has no runner, so the rule went next to the documented command.
+- 2026-11-11: done in #147.
