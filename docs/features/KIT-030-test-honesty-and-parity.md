@@ -1,10 +1,10 @@
 ---
 id: KIT-030
 title: "Tests must fail on empty returns, surviving mutants on changed lines are handled, and both languages get the same checks"
-status: confirmed
+status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D1 and D5 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#132"
-pr: ""
+pr: "#140"
 ---
 
 # KIT-030 — Tests must fail on empty returns, surviving mutants on changed lines are handled, and both languages get the same checks
@@ -89,3 +89,4 @@ Run from the worktree root at `88f366b` on 2026-11-11 (the commits after it chan
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D1 and D5).
 - 2026-11-11: implementation prompt launched; issue #132.
+- 2026-11-11: done in #140.
