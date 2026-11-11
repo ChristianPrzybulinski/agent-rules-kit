@@ -54,7 +54,9 @@ exists, advisory until its false-positive rate is measured. Facts re-checked at 
 that would still pass if every function under test returned null, zero or empty is rewritten or deleted (skill
 `testing`, section 5); until GDScript coverage and mutation gate, that check stands in for them."
 
-The 80 % PIT threshold and the 100 % domain coverage gates do not change. Skill descriptions do not change. New eval
+The 80 % PIT threshold and the 100 % domain coverage gates do not change. Skill descriptions do not change, so the
+skill rows of the plugin `INDEX.md` files stay identical; each new eval case gains its line under `## evals/` there,
+because `check_kit.py` fails on an unlisted case (`platforms/ci/validations/check_kit.py:974`–`991`). New eval
 cases, none naming the skill:
 
 - `plugins/dev-core/evals/testing-empty-return-passes` (a JUnit `assertTrue(total >= 0)`)
