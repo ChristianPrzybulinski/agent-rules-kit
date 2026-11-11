@@ -70,6 +70,7 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 - Cases live in `plugins/<plugin>/evals/<case>/` (`prompt.md` plus `graders/*.md`, `case.yaml` and `fixture.sh` when the case needs a repository); a case without a grader fails to load, and `check_kit.py` rejects a case folder without `prompt.md` or `case.yaml`, or without `graders/*.md`.
 - A new or changed skill ships with 3 or more cases; the cases never name the skill (a `skill-fired` grader checks that it fired), except the user-only `sdd-tasks`.
 - Locally: `claude plugin eval plugins/<p> --case '<name>' --runs 1 --ablation none --no-publish --trust-plugin` (add `--scaffold --allow-tools Bash Edit Write` for cases with a fixture). The evals workflow runs only cases tagged `ready`, with a pinned model and judge.
+- Before a local run, `claude auth status` must exit 0 (`"loggedIn": true`). Logged out, every case stops before any model turn: the command exits 2 in about a second and the result reads `casesPassed: 0` and `overallScore: 0`, like a skill that fails every grader; only `partialReason: "auth_failed"` and the arm's `error` ("Not logged in · Please run /login") say that nothing ran. A `--scaffold` case also stops, with exit 1, when `~/.docker` holds a symbolic link (Docker Desktop's `~/.docker/bin`), which the Bash sandbox cannot exclude. Record such a case as unverified with that line, never as a failing skill, and rerun it after `claude auth login`.
 
 ## KPIs
 
