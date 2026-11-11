@@ -1,10 +1,10 @@
 ---
 id: KIT-031
 title: "An advisory script reports CRAP for changed Java methods and CC for changed GDScript functions"
-status: confirmed
+status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D2, D3 and D5 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#133"
-pr: ""
+pr: "#141"
 ---
 
 # KIT-031 — An advisory script reports CRAP for changed Java methods and CC for changed GDScript functions
@@ -93,11 +93,29 @@ No CI or loop gate runs the script (D2); a gate waits for the false-positive rat
 
 ## Proof
 
-Run from the worktree root at the PR head:
+Run from the worktree root at `df7aa9e` on 2026-11-11 (the commits after it change only this document and
+`docs/features/README.md`); every command exited 0:
 
-<!-- proof lines are filled after the gates run -->
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (14 plugins, 46 skills, 3 rules,
+  22 templates, 23 indexes, 124 links, 25 hook cases)", then "✔ Validation passed" 15 times and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (46 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: "check: OK (14 plugins, 46 skills, 3 rules, 22 templates, 23
+  indexes, 124 links, 25 hook cases)".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "4 commits scanned.", "scanned ~52221 bytes (52.22 KB) in
+  54.2ms", "no leaks found".
+- `python3 -B -m unittest platforms/ci/validations/test_complexity.py`: "Ran 9 tests in 3.186s", "OK".
+- New eval cases, unverified: each ran as `claude plugin eval plugins/<plugin> --case '<name>' --runs 1 --ablation none
+  --no-publish --trust-plugin` and stopped before any model turn with "exit 1: Not logged in · Please run /login";
+  `claude auth status` prints `"loggedIn": false` on this host, inside and outside the Bash sandbox. Cases:
+  `plugins/dev-core`: `code-standards-complexity-target`.
+- New fixture eval cases, unverified: the same command with `--scaffold --allow-tools Bash Edit Write` stopped before
+  any model turn with "the Docker (~/.docker, DOCKER_CONFIG) credential store on this machine holds a symbolic link
+  inside it, so the Bash sandbox cannot reliably exclude it"; the links are Docker Desktop's own, in `~/.docker/bin`.
+  Cases: `plugins/quality-core`: `validate-implementation-complexity-advisory`.
 
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D2, D3 and D5).
 - 2026-11-11: implementation prompt launched; issue #133.
+- 2026-11-11: done in #141.

@@ -14,7 +14,7 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 - Start: read the repo's `AGENTS.md`; name **the** outcome of this session in one sentence.
 - One session, one outcome; one PR, one concern. Request on another topic → warn and stop: follow-up or new session; never mix silently.
 - End: summary (done · unverified · concrete next step) + at most **one** kit proposal (a gap, or a rule or step to simplify) with evidence from this session, asked before written. Detail: skill `session`.
-- When compacting or summarizing context, preserve the list of modified files and the test commands verbatim, so the next turn can re-run the proof.
+- When compacting or summarizing context, preserve the list of modified files and the test commands verbatim, so the next turn can re-run the proof; after a compaction, every number, path and line a deliverable cites that the summary does not list as verified is re-checked before the deliverable is sent.
 
 ## Work loop
 
@@ -22,7 +22,7 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 - Independent steps leave in the same turn or run in the background; sequence only what depends on a result, shares a resource, or has an external effect. Detail: skill `parallelize`.
 - Shell (zsh is the macOS default): a backtick inside a double-quoted argument runs as a command (``--body "see `x`"`` runs `x`), so text with backticks goes in a file or a `<<'EOF'` heredoc; zsh does not word-split `$x` (``for p in "a b"; do set -- $p`` passes one word) and runs a leading `=` as a command lookup (`echo ===` fails), so loops over pairs, JSON and edits of several files go in a Python script.
 - Browser automation: prefer Google Chrome when its connection is available, using the installed `/Applications/Google Chrome.app`, never a mounted installer; an explicit request for the app's built-in browser (Codex or Claude) wins.
-- Same error twice → stop varying blindly; form a root-cause hypothesis before the 3rd attempt. Report the worst fact first: a literal failure in sentence one.
+- Same error twice → stop varying blindly; before the 3rd attempt write the premise both fixes share in one sentence and test or remove it. Report the worst fact first: a literal failure in sentence one.
 
 ## Craft
 

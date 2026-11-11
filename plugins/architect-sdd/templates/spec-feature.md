@@ -61,6 +61,9 @@ updated: "YYYY-MM-DD"
 | ID | Task | Files | Proof of completion | Covers | Depends on | State | Complexity | Model | Wave |
 |---|---|---|---|---|---|---|---|---|---|
 
+## Decisions
+<!-- one line per choice the spec did not fix, written when its task closes: YYYY-MM-DD T<n> (<PR>): chose X over Y because Z. New [DECISION] lines of this spec go here; Open questions keeps only open questions. The action log stays in the PR body. -->
+
 ## Audit
 <!-- filled by the calling session from the sdd-check report (or a FEAT-000.checklist.md file) -->
 

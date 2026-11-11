@@ -19,6 +19,7 @@
 ## `evals/`
 
 - `godot-standards-boot-exit-code`
+- `godot-standards-empty-return-test`
 - `godot-standards-rules-outside-nodes`
 - `godot-standards-typed-rewrite`
 
