@@ -48,5 +48,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-027-device-owner-in-handoff.md`](KIT-027-device-owner-in-handoff.md) | done | #128 | #129 |
 | [`KIT-029-design-and-type-principles.md`](KIT-029-design-and-type-principles.md) | done | #131 | #139 |
 | [`KIT-030-test-honesty-and-parity.md`](KIT-030-test-honesty-and-parity.md) | done | #132 | #140 |
+| [`KIT-032-process-sharpenings-and-decisions.md`](KIT-032-process-sharpenings-and-decisions.md) | done | #134 | #142 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
