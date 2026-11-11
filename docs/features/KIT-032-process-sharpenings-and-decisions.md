@@ -1,10 +1,10 @@
 ---
 id: KIT-032
 title: "Process rules name the shared premise, a FEAT Decisions log, branch-only planned breaks and worktree cleanup"
-status: confirmed
+status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D1, D6, D7 and D8 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#134"
-pr: ""
+pr: "#142"
 ---
 
 # KIT-032 — Process rules name the shared premise, a FEAT Decisions log, branch-only planned breaks and worktree cleanup
@@ -128,3 +128,4 @@ Run from the worktree root at `2fe7a40` on 2026-11-11 (the commits after it chan
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D1, D6, D7 and D8).
 - 2026-11-11: implementation prompt launched; issue #134.
+- 2026-11-11: done in #142.
