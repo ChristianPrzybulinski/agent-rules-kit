@@ -14,3 +14,5 @@
 | `test_kpi.py` | `kpi.py` metrics on a fixture ledger (unittest) | the kit's CI |
 | `test_sync_project.py` | `sync-project.sh --check` stale-kit-path scan on a throwaway repo (unittest) | the kit's CI |
 | `test_bump_version.py` | `bump_version.py` bump, refusals and `--notes` parity with `release.yml` on a throwaway copy (unittest) | the kit's CI |
+| `test_complexity.py` | `complexity.py` CRAP and CC on a fixture JaCoCo XML, a fixture `.gd` pair and a stub `gdradon` in a throwaway repo (unittest) | the kit's CI |
+| `test_gd_duplicates.py` | `gd_duplicates.py` pairs, size minimums, strings-only pairs, threshold, parse failures, cache and missing gdtoolkit on fixture `.gd` files in a throwaway repo (unittest; the parser cases skip without gdtoolkit) | the kit's CI |

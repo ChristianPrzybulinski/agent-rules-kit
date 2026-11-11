@@ -50,6 +50,7 @@ Boot proof, two commands in this order: `godot --headless --path . --import` (im
 Report the literal output of all three; a `SCRIPT ERROR`, `Parser Error` or import error is a failure even when the exit code is 0.
 
 Test runner: gdUnit4 by default (`-s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode`), GUT only when the project `AGENTS.md` says so (`-s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit`). A run that executes zero tests, or a missing runner, is a failure, never a skip. Game rules live in pure `RefCounted` classes with scene-free tests; scene tests are integration only (skill `testing`, section 1).
+A test that would still pass if every function under test returned null, zero or empty is rewritten or deleted (skill `testing`, section 5); until GDScript coverage and mutation gate, that check stands in for them.
 Before pushing, run `gdformat --check` and `gdlint` over every `.gd` outside `addons/` (config: `.gdlintrc` from the kit; CI job `lint` in `ci-godot.yml`); fix formatting with `gdformat <file>`, never by hand.
 
 Done when: changed scripts are typed, scene dependencies use composition/signals, rules are testable without nodes, and headless import plus tests pass, and movement code follows the declared movement model.

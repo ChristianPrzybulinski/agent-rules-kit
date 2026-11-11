@@ -13,5 +13,8 @@
 - `github-cli-network-fallback`
 - `github-cli-authentication-evidence`
 - `github-cli-ambiguous-mutation`
+- `branching-incomplete-behind-flag`
+- `branching-no-develop-branch`
+- `branching-squash-body`
 
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

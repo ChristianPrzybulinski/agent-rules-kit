@@ -25,7 +25,7 @@ allowed-tools:
 
 ## 3. Commit atomically
 
-Use `<type>(<scope>): <imperative description>` with `Refs: FEAT-nnn`, `Closes #n` or `BREAKING CHANGE:` as applicable. One commit represents one coherent change; no AI attribution in the title (a co-author footer only if the project requires it).
+Use `<type>(<scope>): <imperative description>` with `Refs: FEAT-nnn`, `Closes #n` or `BREAKING CHANGE:` as applicable. One commit represents one coherent change; no AI attribution in the title (a co-author footer only if the project requires it). The squash commit body states why, what changed and the proof (the command and its result).
 
 ## 4. Integrate without rewriting history
 
