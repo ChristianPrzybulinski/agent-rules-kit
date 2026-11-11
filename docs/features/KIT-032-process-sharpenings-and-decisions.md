@@ -78,7 +78,7 @@ uncommitted work and its dirty paths, and never remove it."
 `plugins/infra-github/skills/branching-and-versioning/SKILL.md` (40 → 40 lines), § 3 appends: "The squash commit body
 states why, what changed and the proof (the command and its result)."
 
-Skill descriptions do not change, so the plugin `INDEX.md` files stay identical. New eval cases, none naming its skill
+Skill descriptions do not change, so the skill rows of the plugin `INDEX.md` files stay identical; each new eval case gains its line under `## evals/` there, because `check_kit.py` fails on an unlisted case (`platforms/ci/validations/check_kit.py:974`–`991`). New eval cases, none naming its skill
 except the user-only `sdd-implement`, whose prompts invoke the slash command and whose skill-fired grader is a trace
 regex on its heading (precedent: `plugins/architect-sdd/evals/sdd-tasks-proof-is-executable`):
 

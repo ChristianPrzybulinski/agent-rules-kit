@@ -18,6 +18,7 @@
 
 ## `evals/`
 
+- `investigate-guard-hides-symptom`
 - `investigate-no-fix-without-repro`
 - `investigate-perf-needs-number`
 - `investigate-report-is-hypothesis`
