@@ -26,6 +26,10 @@
 - `investigate-report-is-hypothesis`
 - `testing-correction-reruns-delta`
 - `testing-docs-only-proof`
+- `testing-empty-return-passes`
+- `testing-honest-test-impractical`
+- `testing-parity-gdscript-coverage`
+- `testing-surviving-mutant-green-gate`
 - `testing-unchanged-result-reused`
 - `testing-workflow-is-not-docs`
 
