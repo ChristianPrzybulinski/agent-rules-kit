@@ -17,10 +17,10 @@ The layout of 10.x, kept unchanged by 11.0.0, is frozen until at least 2027-01-0
 |---|---|
 | kit feature | after the owner confirms an improvement: copy [`features/TEMPLATE.md`](features/TEMPLATE.md) to `features/KIT-NNN-<slug>.md`, open issue `[KIT-NNN] <title>` with label `kit-feature`, list it in [`features/README.md`](features/README.md); the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN` |
 | rule | create `plugins/<plugin>/rules/<name>.md` in the owning plugin with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; body = one pointer line to the owning skill plus 8-12 always/never bullets, at most 40 lines; list it in the plugin's `INDEX.md` and the root `INDEX.md` rules table (never add non-rule files to `rules/` — Devin loads every `.md` there as a rule) |
-| skill | copy [`../plugins/core/templates/kit-skill.md`](../plugins/core/templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; add the verbatim description to the plugin's `INDEX.md` |
-| reference | copy [`../plugins/core/templates/kit-reference.md`](../plugins/core/templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
+| skill | copy [`templates/kit-skill.md`](templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; add the verbatim description to the plugin's `INDEX.md` |
+| reference | copy [`templates/kit-reference.md`](templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
 | subagent profile | add `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it (reachable through the dependency graph) with frontmatter validated by `platforms/ci/schemas/agent.schema.json`; profiles are local-Devin only |
-| template | add `plugins/<plugin>/templates/<prefix>-<name>.md`, then list it in the plugin's `INDEX.md` |
+| template | only for a long artifact a skill links (a spec, a project `AGENTS.md`); a short field list goes inline in the skill. Add `plugins/<plugin>/templates/<prefix>-<name>.md` (prefix `spec`, `doc` or `project`), link it from the skill, then list it in the plugin's `INDEX.md` |
 | plugin | create `plugins/<name>/` with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json` and `INDEX.md`; declare `requiredPlugins`/`dependencies` on the plugins it consumes; register it in the root meta-plugin `optionalPlugins`, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`; add it to `all`'s manifests, unless it is opt-in like `extras`: then add its name to `OPTIONAL_PLUGINS` in `platforms/ci/validations/check_kit.py` instead |
 
 A rule uses this frontmatter shape:
@@ -37,7 +37,7 @@ globs:
 
 `globs` must be a YAML sequence: Devin rejects a comma-separated string (`YAML parse error: globs: invalid type: string ..., expected a sequence`).
 
-Use `kit-index.md` for a directory listing or `kit-readme.md` for explanation; never put both in one directory.
+Use `templates/kit-index.md` for a directory listing or `templates/kit-readme.md` for explanation; never put both in one directory. The `kit-*` templates shape kit content, so they live in [`templates/`](templates/INDEX.md), outside every plugin.
 
 A subagent skill sets Devin `subagent: true` or a shared `agent: <profile>`, plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/<plugin>/agents/` of a plugin reachable through the dependency graph.
 
@@ -62,13 +62,14 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 - `check.sh` runs `claude plugin validate` on the plugin and marketplace when Claude Code is installed.
 - `check_kit.py` also gates allowed tools, three-way user-only/subagent/rule parity, reference kinds/sources, hooks, backtick paths and exact skill-index descriptions.
 - `.github/workflows/gitleaks.yml` (`workflow_dispatch`): secret scan of the whole history; locally, `gitleaks git --redact --log-opts="origin/main..HEAD"` scans the branch's commits.
-- `.github/workflows/evals.yml`: on-demand `claude plugin eval` per plugin; needs the `ANTHROPIC_API_KEY` repository secret, which is not set (owner 2026-10-06), so nothing runs it on a schedule.
+- `.github/workflows/evals.yml`: on-demand `claude plugin eval` for each plugin that holds a case; needs the `ANTHROPIC_API_KEY` repository secret, which is not set (owner 2026-10-06), so nothing runs it on a schedule.
 - `.github/workflows/release.yml`: tag/version validation and release creation.
 
 ## Evals
 
 - Cases live in `plugins/<plugin>/evals/<case>/` (`prompt.md` plus `graders/*.md`, `case.yaml` and `fixture.sh` when the case needs a repository); a case without a grader fails to load, and `check_kit.py` rejects a case folder without `prompt.md` or `case.yaml`, or without `graders/*.md`.
-- A new or changed skill ships with 3 or more cases; the cases never name the skill (a `skill-fired` grader checks that it fired), except the user-only `sdd-tasks`.
+- The suite holds one trigger case for each of eight critical skills: `session`, `validate-implementation`, `branching-and-versioning`, `java-standards`, `godot-standards`, `testing`, `protocol-contract` and `code-standards`. A case never names its skill; its `skill-fired` grader checks that the skill fired.
+- A change to the `description` of one of those eight skills reruns its case by hand before the PR. A new skill, or a change to another skill, needs no case (KIT-037).
 - Locally: `claude plugin eval plugins/<p> --case '<name>' --runs 1 --ablation none --no-publish --trust-plugin` (add `--scaffold --allow-tools Bash Edit Write` for cases with a fixture). The evals workflow runs only cases tagged `ready`, with a pinned model and judge.
 - Before a local run, `claude auth status` must exit 0 (`"loggedIn": true`). Logged out, every case stops before any model turn: the command exits 2 in about a second and the result reads `casesPassed: 0` and `overallScore: 0`, like a skill that fails every grader; only `partialReason: "auth_failed"` and the arm's `error` ("Not logged in · Please run /login") say that nothing ran. A `--scaffold` case also stops, with exit 1, when `~/.docker` holds a symbolic link (Docker Desktop's `~/.docker/bin`), which the Bash sandbox cannot exclude. Record such a case as unverified with that line, never as a failing skill, and rerun it after `claude auth login`.
 

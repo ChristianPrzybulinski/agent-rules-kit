@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        plugin: [architect-core, architect-sdd, dev-core, dev-godot, dev-java, quality-core]
+        plugin: [architect-core, core, dev-core, dev-godot, dev-java, infra-github, quality-core]
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:

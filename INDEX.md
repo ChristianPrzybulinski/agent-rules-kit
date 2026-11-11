@@ -22,7 +22,7 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 
 | Plugin | Requires | Content |
 |---|---|---|
-| [`plugins/core/`](plugins/core/INDEX.md) | — | always-on rules, hook guard, session and collaboration skills, kit templates |
+| [`plugins/core/`](plugins/core/INDEX.md) | — | always-on rules, hook guard, session and collaboration skills, session handoff template |
 | [`plugins/dev-core/`](plugins/dev-core/INDEX.md) | `core` | code patterns: code standards, testing, docs, investigation |
 | [`plugins/dev-java/`](plugins/dev-java/INDEX.md) | `dev-core` | `rules/java.md`, Java 25/Spring standards |
 | [`plugins/dev-godot/`](plugins/dev-godot/INDEX.md) | `dev-core` | `rules/godot.md`, Godot 2D, asset import |

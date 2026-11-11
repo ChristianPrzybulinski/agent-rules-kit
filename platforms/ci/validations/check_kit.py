@@ -894,8 +894,8 @@ for name, plugin_dir in plugins.items():
         if template.name == "INDEX.md":
             continue
         counts["templates"] += 1
-        if not re.match(r"^(spec|doc|project|kit)-[a-z0-9-]+\.md$", template.name):
-            fail(rel(template), f"name '{template.name}' does not match ^(spec|doc|project|kit)-[a-z0-9-]+\\.md$")
+        if not re.match(r"^(spec|doc|project)-[a-z0-9-]+\.md$", template.name):
+            fail(rel(template), f"name '{template.name}' does not match ^(spec|doc|project)-[a-z0-9-]+\\.md$")
         stem = template.stem
         if stem in SPEC_MAP:
             data, _ = frontmatter(template)
@@ -1020,9 +1020,7 @@ def vendor_internal(path):
 for markdown_file in sorted(KIT.rglob("*.md")):
     if ".git" in markdown_file.parts or vendor_internal(markdown_file):
         continue
-    owner = plugin_of(markdown_file)
-    if owner is not None and "templates" in markdown_file.relative_to(plugins[owner]).parts[:1] \
-            and markdown_file.name.startswith("kit-"):
+    if markdown_file.parent == KIT / "docs" / "templates" and markdown_file.name.startswith("kit-"):
         continue
     for match in link_re.finditer(markdown_file.read_text(encoding="utf-8")):
         target = match.group(1)
@@ -1051,9 +1049,6 @@ for name, plugin_dir in plugins.items():
         backtick_files.append(plugin_dir / "INDEX.md")
 for markdown_file in sorted(set(path for path in backtick_files if path.exists())):
     owner = plugin_of(markdown_file)
-    if owner is not None and markdown_file.parent == plugins[owner] / "templates" \
-            and markdown_file.name.startswith("kit-"):
-        continue
     for match in backtick_re.finditer(markdown_file.read_text(encoding="utf-8")):
         target = match.group(1)
         if "<" in target:

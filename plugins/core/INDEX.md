@@ -18,21 +18,10 @@
 ## `templates/`
 
 - `doc-session-handoff.md`
-- `kit-index.md`
-- `kit-readme.md`
-- `kit-reference.md`
-- `kit-skill.md`
 
 
 ## `evals/`
 
 - `session-closeout-no-rerun`
-- `session-closeout-points-to-pr`
-- `session-closeout-simplification-proposal`
-- `session-handoff-without-record`
-- `session-worktree-cleanup`
-- `tokens-bulk-log-summary`
-- `tokens-human-register-no-cliches`
-- `tokens-technical-register`
 
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

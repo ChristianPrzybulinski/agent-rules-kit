@@ -54,5 +54,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-034-gdscript-coverage.md`](KIT-034-gdscript-coverage.md) | confirmed | #136 | — |
 | [`KIT-035-gdscript-mutation.md`](KIT-035-gdscript-mutation.md) | confirmed | #137 | — |
 | [`KIT-036-eval-login-check.md`](KIT-036-eval-login-check.md) | done | #146 | #147 |
+| [`KIT-037-evals-templates-trim.md`](KIT-037-evals-templates-trim.md) | done | #148 | #149 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

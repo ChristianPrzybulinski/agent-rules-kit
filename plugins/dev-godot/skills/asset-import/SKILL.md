@@ -44,7 +44,7 @@ Track `origin_path, origin_sha256, cast, number, name, aliases, width, height, p
 ## 5. Verify and report
 
 - Run the generation twice and compare bytes by hash.
-- Write `../../templates/doc-recovery-report.md` with input/ok/rejected/review counts, preview paths and unverified items.
+- Write a recovery report with input/ok/rejected/review counts, preview paths and unverified items.
 - Missing provenance or license is a distribution blocker.
 
 Done when: originals are unchanged, every output has a manifest chain and stable hash, and review/rejected items are explicit.
