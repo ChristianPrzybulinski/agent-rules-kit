@@ -152,9 +152,17 @@ baseline runs took 0.95 and 0.94 s, so the timeout was 9.5 s.
 
 ## Proof
 
-Run from the worktree root at the PR head:
+Run from the worktree root at `6614325` on 2026-11-11 (the commits after it change only this document and
+`docs/features/README.md`); every command exited 0:
 
-<!-- proof lines are filled after the gates run -->
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (14 plugins, 46 skills, 3 rules,
+  22 templates, 23 indexes, 123 links, 25 hook cases)", then "✔ Validation passed" 15 times and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (46 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: "check: OK (14 plugins, 46 skills, 3 rules, 22 templates, 23
+  indexes, 123 links, 25 hook cases)".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~13537 bytes (13.54 KB) in
+  39.8ms", "no leaks found".
 
 ## History
 
