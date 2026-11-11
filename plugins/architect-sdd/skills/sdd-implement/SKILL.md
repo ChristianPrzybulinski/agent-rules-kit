@@ -28,12 +28,14 @@ Orient: read `docs/spec/progress/FEAT-nnn.json` and `git log --oneline -20`; pic
 1. Mark `doing` and read every named file.
 2. For behavior, run/write the test first; it must fail for the intended reason.
 3. Implement the minimum, make the test green, then refactor.
-4. Run the task's proof literally and summarize output in History.
+4. Run the task's proof literally and summarize output in History. When the task closes, write one line in the FEAT's `## Decisions` for each choice the spec did not fix: `YYYY-MM-DD T<n> (<PR>): chose X over Y because Z`; decisions only, the action log stays in the PR body.
 5. Gate on the proof before moving on. In Claude Code (Claude-specific) the user sets `/goal <proof command> exits 0` before the task starts (the agent cannot invoke the built-in command itself); the goal evaluator re-checks the transcript after every turn until the proof output shows exit 0, so paste the literal proof output (syntax: code.claude.com/docs/en/goal, checked 2026-10-06). In Devin or any other executor, the Proof section of the PR body (§4) is the gate: the reviewer re-runs every line on a clean checkout and a failing line blocks. Set `passes: true` in the progress file only after the proof's literal output is recorded; on failure keep `false` and put the first failing line in `notes`. Commit the file in the task's commit (checkpoint). For a visual change (scene, UI, shader, animation) the PR carries a screenshot or GIF; `--headless` renders nothing, so capture from the editor or run the capture under `xvfb-run` in CI (verify against the Godot command-line docs before relying on it).
 6. Review conformance to task/criterion before code quality; a scope finding returns to implementation.
 7. Commit atomically with Conventional Commits and `Refs: FEAT-nnn Tn`; `git status --porcelain` is empty before the PR; mark `done` when the PR merges.
 
 A dependency/product/rule blocker becomes `blocked` with reason; never invent a workaround. Move only to an independent task.
+
+A planned red intermediate state (expand/contract, a failing test committed before its fix) is allowed only inside the task branch, with the commit body naming the undo; `main` never receives it.
 
 ## 3. Close the implementation
 

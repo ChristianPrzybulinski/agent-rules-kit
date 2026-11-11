@@ -22,11 +22,16 @@
 - `code-standards-match-one-call-arms`
 - `code-standards-no-bolt-on-flag`
 - `code-standards-one-decision-one-place`
+- `investigate-guard-hides-symptom`
 - `investigate-no-fix-without-repro`
 - `investigate-perf-needs-number`
 - `investigate-report-is-hypothesis`
 - `testing-correction-reruns-delta`
 - `testing-docs-only-proof`
+- `testing-empty-return-passes`
+- `testing-honest-test-impractical`
+- `testing-parity-gdscript-coverage`
+- `testing-surviving-mutant-green-gate`
 - `testing-unchanged-result-reused`
 - `testing-workflow-is-not-docs`
 

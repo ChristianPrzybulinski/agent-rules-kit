@@ -1,10 +1,10 @@
 ---
 id: KIT-029
 title: "Code and architecture rules name one owner per decision, a valid data shape, idempotent steps and no silenced warning"
-status: confirmed
+status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D1–D8 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#131"
-pr: ""
+pr: "#139"
 ---
 
 # KIT-029 — Code and architecture rules name one owner per decision, a valid data shape, idempotent steps and no silenced warning
@@ -90,11 +90,26 @@ plugin, not a synced project, so a case could only grade the base model.
 
 ## Proof
 
-Run from the worktree root at the PR head:
+Run from the worktree root at `6539efd` on 2026-11-11 (the commits after it change only this document and
+`docs/features/README.md`); every command exited 0:
 
-<!-- proof lines are filled after the gates run -->
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (14 plugins, 46 skills, 3 rules,
+  22 templates, 23 indexes, 123 links, 25 hook cases)", then "✔ Validation passed" 15 times and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (46 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: "check: OK (14 plugins, 46 skills, 3 rules, 22 templates, 23
+  indexes, 123 links, 25 hook cases)".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "2 commits scanned.", "scanned ~17606 bytes (17.61 KB) in
+  39.9ms", "no leaks found".
+- New eval cases, unverified: each ran as `claude plugin eval plugins/<plugin> --case '<name>' --runs 1 --ablation none
+  --no-publish --trust-plugin` and stopped before any model turn with "exit 1: Not logged in · Please run /login";
+  `claude auth status` prints `"loggedIn": false` on this host, inside and outside the Bash sandbox. Cases:
+  `plugins/architect-core`: `architecture-idempotent-import`, `architecture-illegal-states`,
+  `architecture-pure-battle-core`; `plugins/dev-core`: `code-standards-match-one-call-arms`,
+  `code-standards-no-bolt-on-flag`, `code-standards-one-decision-one-place`.
 
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D1 and D4).
 - 2026-11-11: implementation prompt launched; issue #131.
+- 2026-11-11: done in #139.
