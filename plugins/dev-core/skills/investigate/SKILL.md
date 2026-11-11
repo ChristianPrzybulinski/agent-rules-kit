@@ -44,6 +44,6 @@ Record observed and expected behavior, environment, commit/version, platform, fr
 
 ## 5. Report
 
-Use `../../templates/doc-bug-report.md`: symptom, reproduction, cause/evidence, impact, proposed fix and required test. A race/cache explanation needs a concurrent test or trace.
+Report symptom, reproduction, cause/evidence, impact, proposed fix and required test. A race/cache explanation needs a concurrent test or trace.
 
 Done when: the symptom reproduces deterministically and has a source-backed cause, or the report names exactly what evidence is still missing.

@@ -31,8 +31,9 @@ Record any breaking change and migration window before editing consumers.
 
 ## 3. Specify the message
 
-Use `../../templates/doc-contract-message.md` and define:
+Write one file per message, headed `<Name> — <command|event|response|error>` with the protocol version it appears in and its FEAT, and define:
 
+- one-sentence purpose;
 - direction and command/event/response/error kind;
 - field types, requiredness, range/size/frequency limits;
 - server-side validation and stable errors;

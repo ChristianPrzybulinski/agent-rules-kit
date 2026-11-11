@@ -33,14 +33,4 @@
 - `spec-requirement-functional.md`
 - `spec-requirement-non-functional.md`
 
-
-## `evals/`
-
-- `sdd-implement-actions-not-decisions`
-- `sdd-implement-decision-line`
-- `sdd-implement-planned-red-in-branch`
-- `sdd-tasks-field-owned-by-other-feat`
-- `sdd-tasks-files-cell-has-test-path`
-- `sdd-tasks-proof-is-executable`
-
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

@@ -10,23 +10,8 @@
 
 - `reviewer.md`
 
-## `templates/`
-
-- `doc-review-checklist.md`
-
-
 ## `evals/`
 
-- `reviewer-forked`
-- `reviewer-literal-excerpt`
-- `reviewer-never-fixes`
-- `skeptic-contrary-first`
-- `skeptic-no-source-undetermined`
-- `skeptic-unfalsifiable`
 - `validate-implementation-claimed-proof-not-rerun`
-- `validate-implementation-complexity-advisory`
-- `validate-implementation-godot-exit-code`
-- `validate-implementation-proof-cannot-fail`
-- `validate-implementation-stale-record-rerun`
 
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

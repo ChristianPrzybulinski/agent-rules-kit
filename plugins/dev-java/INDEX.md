@@ -16,8 +16,6 @@
 
 ## `evals/`
 
-- `java-standards-domain-no-framework`
-- `java-standards-keep-java25-maven`
 - `java-standards-no-field-injection`
 
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).
