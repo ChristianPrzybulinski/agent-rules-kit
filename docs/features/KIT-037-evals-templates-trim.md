@@ -4,7 +4,7 @@ title: "Eight trigger eval cases and no doc-* templates in plugins"
 status: done
 confirmed: "2026-11-11 (owner, chat of the kit review session: \"Sim, Fase 1\")"
 issue: "#148"
-pr: ""
+pr: "#149"
 ---
 
 # KIT-037 — Eight trigger eval cases and no doc-* templates in plugins
@@ -83,6 +83,7 @@ Templates, measured at the same commit:
   - `python3 platforms/ci/validations/check_kit.py --links`: exit 0, the same "check: OK" line.
   - `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: exit 0, "Ran 94 tests", "OK
     (skipped=1)".
+  - `gitleaks git --redact --log-opts="origin/main..HEAD"`: exit 0, "1 commits scanned", "no leaks found".
 - Not run: the eight kept cases. Their prompts and graders did not change, and the CLI is logged out on this machine
   (KIT-036).
 
@@ -90,3 +91,4 @@ Templates, measured at the same commit:
 
 - 2026-11-11: confirmed (owner, chat, "Sim, Fase 1"); issue #148. The proposal put the kept cases in `tests/evals/`;
   the CLI reads cases only below a plugin, so they stay in `plugins/<plugin>/evals/`.
+- 2026-11-11: done in #149.
