@@ -1,10 +1,10 @@
 ---
 id: KIT-033
 title: "An advisory script reports structural duplicates of changed GDScript functions"
-status: confirmed
+status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D3 and D5 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#135"
-pr: ""
+pr: "#143"
 ---
 
 # KIT-033 — An advisory script reports structural duplicates of changed GDScript functions
@@ -147,3 +147,4 @@ Run from the worktree root at `2c66dce` on 2026-11-11 (the commits after it chan
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
 - 2026-11-11: implementation prompt launched; issue #135.
+- 2026-11-11: done in #143.
