@@ -12,7 +12,7 @@ allowed-tools:
 
 ## 1. Classify before writing
 
-Choose one register: technical, human-facing, or governed. Read only the material needed for the requested outcome; broad reading needs a named hypothesis. A register sets density, never language or format: the conversation stays in the language the repo's `AGENTS.md` sets, and governed passages keep their template (§4), so there is no session-wide compression mode to request or remember.
+Choose one register: technical, human-facing, or governed. Read only the material needed for the requested outcome; broad reading needs a named hypothesis. Bulk output (long logs, wide searches, full test runs) goes to a subagent or a file; the main thread keeps the summary and the path. A register sets density, never language or format: the conversation stays in the language the repo's `AGENTS.md` sets, and governed passages keep their template (§4), so there is no session-wide compression mode to request or remember.
 
 ## 2. Use the technical register
 
