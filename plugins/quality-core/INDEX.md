@@ -24,6 +24,7 @@
 - `skeptic-no-source-undetermined`
 - `skeptic-unfalsifiable`
 - `validate-implementation-claimed-proof-not-rerun`
+- `validate-implementation-complexity-advisory`
 - `validate-implementation-godot-exit-code`
 - `validate-implementation-proof-cannot-fail`
 - `validate-implementation-stale-record-rerun`

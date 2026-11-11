@@ -30,6 +30,7 @@ Inspect neighboring code plus `.editorconfig`, `pom.xml` or `project.godot`, and
 - Use at most three or four parameters; introduce a record/DTO when the values form one concept.
 - Treat 20 lines as the target and 40 as the review threshold; split by behavior, not arbitrary chunks.
 - A `match`/`switch` whose arms each make one call is fine; arms that hold logic are split into functions or become a table.
+- New or changed functions target CRAP < 10 (Java) and CC ≤ 10 (GDScript); bring one above it down by splitting it, testing it or both (the one-call `match` above is exempt). `python3 ~/.ai-kit/platforms/tools/complexity.py --base <base>` lists them; its output is advisory.
 
 ## 4. Handle comments and errors
 
