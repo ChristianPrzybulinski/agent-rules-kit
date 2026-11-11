@@ -14,6 +14,9 @@
 
 ## `evals/`
 
+- `architecture-idempotent-import`
+- `architecture-illegal-states`
+- `architecture-pure-battle-core`
 - `protocol-contract-field-owned-by-other-feat`
 - `protocol-contract-no-transport-dec`
 - `protocol-contract-required-field-bumps-version`

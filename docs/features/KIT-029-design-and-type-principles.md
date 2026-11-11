@@ -75,7 +75,7 @@ be expressed."
 `plugins/dev-godot/rules/godot.md` (11 → 12 bullets) gains: "- Never: `@warning_ignore` to hide an untyped or unused
 warning (type it or delete the code); any other sits on the narrowest line with a comment naming why."
 
-Skill descriptions do not change, so the plugin `INDEX.md` files stay identical. New eval cases, none naming the skill:
+Skill descriptions do not change, so the skill rows of the plugin `INDEX.md` files stay identical; each new eval case gains its line under `## evals/` there, because `check_kit.py` fails on an unlisted case (`platforms/ci/validations/check_kit.py:974`–`991`). New eval cases, none naming the skill:
 
 - `plugins/dev-core/evals/code-standards-one-decision-one-place` (one owner for a duplicated evolve level)
 - `plugins/dev-core/evals/code-standards-match-one-call-arms` (a one-call `match` stays as it is)
