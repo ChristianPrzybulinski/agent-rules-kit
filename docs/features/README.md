@@ -50,5 +50,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-030-test-honesty-and-parity.md`](KIT-030-test-honesty-and-parity.md) | done | #132 | #140 |
 | [`KIT-031-complexity-signal.md`](KIT-031-complexity-signal.md) | done | #133 | #141 |
 | [`KIT-032-process-sharpenings-and-decisions.md`](KIT-032-process-sharpenings-and-decisions.md) | done | #134 | #142 |
+| [`KIT-033-gdscript-duplicate-finder.md`](KIT-033-gdscript-duplicate-finder.md) | done | #135 | #143 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
