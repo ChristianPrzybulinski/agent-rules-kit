@@ -67,9 +67,23 @@ cases, none naming the skill:
 
 ## Proof
 
-Run from the worktree root at the PR head:
+Run from the worktree root at `88f366b` on 2026-11-11 (the commits after it change only this document and
+`docs/features/README.md`); every command exited 0:
 
-<!-- proof lines are filled after the gates run -->
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (14 plugins, 46 skills, 3 rules,
+  22 templates, 23 indexes, 123 links, 25 hook cases)", then "✔ Validation passed" 15 times and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (46 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: "check: OK (14 plugins, 46 skills, 3 rules, 22 templates, 23
+  indexes, 123 links, 25 hook cases)".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "2 commits scanned.", "scanned ~13522 bytes (13.52 KB) in
+  47ms", "no leaks found".
+- New eval cases, unverified: each ran as `claude plugin eval plugins/<plugin> --case '<name>' --runs 1 --ablation none
+  --no-publish --trust-plugin` and stopped before any model turn with "exit 1: Not logged in · Please run /login";
+  `claude auth status` prints `"loggedIn": false` on this host, inside and outside the Bash sandbox. Cases:
+  `plugins/dev-core`: `testing-empty-return-passes`, `testing-honest-test-impractical`,
+  `testing-parity-gdscript-coverage`, `testing-surviving-mutant-green-gate`; `plugins/dev-godot`:
+  `godot-standards-empty-return-test`.
 
 ## History
 
