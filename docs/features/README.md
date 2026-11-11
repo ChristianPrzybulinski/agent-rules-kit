@@ -46,5 +46,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-025-public-mit-license.md`](KIT-025-public-mit-license.md) | done | #124 | #125 |
 | [`KIT-026-pgrep-wait-lists-matches.md`](KIT-026-pgrep-wait-lists-matches.md) | done | #126 | #127 |
 | [`KIT-027-device-owner-in-handoff.md`](KIT-027-device-owner-in-handoff.md) | done | #128 | #129 |
+| [`KIT-034-gdscript-coverage.md`](KIT-034-gdscript-coverage.md) | confirmed | #136 | — |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
