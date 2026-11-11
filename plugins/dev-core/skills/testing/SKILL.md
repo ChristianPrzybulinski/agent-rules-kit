@@ -18,9 +18,13 @@ allowed-tools:
 
 Domain rules involving business logic, money, inventory, rewards, battle or authorization require 100% line and branch coverage plus mutation score ≥80%. These gates are never reduced.
 
+Every surviving mutant on a changed line is killed by a new assertion, deleted as dead code, or named as equivalent in the PR body; a green 80% gate does not excuse it.
+
 Outside the domain, require one executable test for each non-trivial branch, parser, rule-bearing mapping or translated adapter behavior; trivial getters, records, constructors, one-to-one mappings and framework wiring remain untested.
 
-GDScript (Godot): no line, branch or mutation percentage gate; the tooling does not exist. Instead, every game rule (combat, inventory, movement validation, economy, rewards) lives in a pure `RefCounted` class with `class_name`, built with `.new()` and tested without a `SceneTree` (no `add_child`, no autoload, no `get_node`; inject the clock and the RNG). Scene tests (gdUnit4 scene runner, GUT `add_child_autofree`) are integration tests: few, around a `.tscn` contract. CI fails when the runner is absent or zero tests execute.
+GDScript (Godot): no line, branch or mutation percentage gate yet; the kit is building the tools (KIT-034 coverage, KIT-035 mutation), and until they gate, the § 5 empty-return check stands in for them. Every game rule (combat, inventory, movement validation, economy, rewards) lives in a pure `RefCounted` class with `class_name`, built with `.new()` and tested without a `SceneTree` (no `add_child`, no autoload, no `get_node`; inject the clock and the RNG). Scene tests (gdUnit4 scene runner, GUT `add_child_autofree`) are integration tests: few, around a `.tscn` contract. CI fails when the runner is absent or zero tests execute.
+
+Parity: every quality check one language has (coverage, mutation, complexity, duplication), the other gets with the same rule; when no tool exists the kit builds one, and each tool stays advisory until its false-positive rate is measured.
 
 ## 2. Define behavior before implementation
 
@@ -45,6 +49,10 @@ Never use `Thread.sleep`, `time.sleep` or an engine timer to let a test catch up
 
 Do not test getters, framework behavior or that collaborator X was called. Assert the externally observable result or state transition. A failing test is fixed with code/test correction, never disabling it.
 
+- Call the code through the public entry its user uses (public method, port, message or scene contract) and assert what that user sees; never reach into a private helper.
+- A test that would still pass if every function under test returned null, zero or empty proves nothing: rewrite it with the expected value, or delete it.
+- When an honest test is impractical, write none: record the manual proof (the command or steps and what was observed) in the PR body instead.
+
 ## 6. Run gates
 
 Size the proof by what the change can affect, never by file extension: agent instructions, permissions, workflows and executable config are code when they change runtime or security behavior. Unknown impact takes the higher row.
@@ -57,4 +65,4 @@ Size the proof by what the change can affect, never by file extension: agent ins
 
 Run the narrow checks and the consumer audit first and the broad suite last, once. A recorded result stays valid while the files, dependencies, config, environment and assumptions it ran on are unchanged; a new commit hash alone invalidates nothing. After a correction, re-run what the delta touches and the assumptions it changes; repeat the broad suite only when the delta reaches what it covered. The § 1 domain gates apply in every row. Investigate unit tests over one second or integration tests over ten seconds instead of normalizing the delay.
 
-Done when: required domain percentages and mutation pass (JVM) or every GDScript rule has a scene-free test, every non-trivial non-domain change has one proof, integrations have happy/sad coverage, and no test sleeps or asserts implementation calls.
+Done when: required domain percentages and mutation pass (JVM) or every GDScript rule has a scene-free test, every non-trivial non-domain change has one proof, integrations have happy/sad coverage, no test sleeps or asserts implementation calls, no test passes on empty returns, and every surviving mutant on a changed line is killed, deleted or named.
