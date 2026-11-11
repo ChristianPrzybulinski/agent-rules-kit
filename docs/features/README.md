@@ -48,5 +48,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-027-device-owner-in-handoff.md`](KIT-027-device-owner-in-handoff.md) | done | #128 | #129 |
 | [`KIT-029-design-and-type-principles.md`](KIT-029-design-and-type-principles.md) | confirmed | #131 | — |
 | [`KIT-031-complexity-signal.md`](KIT-031-complexity-signal.md) | confirmed | #133 | — |
+| [`KIT-033-gdscript-duplicate-finder.md`](KIT-033-gdscript-duplicate-finder.md) | confirmed | #135 | — |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
