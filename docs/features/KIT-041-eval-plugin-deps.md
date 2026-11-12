@@ -64,8 +64,9 @@ dependency to make the eval load was not an option without the owner.
 - A free probe (`--max-cost-usd 0`, exit 2, `partialReason: "cost_ceiling"`, cost 0) with target `plugins`,
   `--tag ready --ablation with-without --scaffold` resolves `suite.plugins` to `core`, `dev` and `sdd`; with
   `--case session-closeout-no-rerun` it resolves to `core` alone.
-- Not run: `validate-implementation-claimed-proof-not-rerun`, which needs `--scaffold --allow-tools Bash Edit Write`
-  and stops on this host because `~/.docker` holds a symbolic link (§ Evals). Unverified.
+- Not run: `review-claimed-proof-not-rerun` (`validate-implementation-claimed-proof-not-rerun` before KIT-039), which
+  needs `--scaffold --allow-tools Bash Edit Write` and stops on this host because `~/.docker` holds a symbolic link
+  (§ Evals). Unverified.
 - Gates: see the PR body.
 
 ## History
