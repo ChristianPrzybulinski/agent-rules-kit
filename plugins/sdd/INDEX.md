@@ -10,13 +10,13 @@
 | `sdd-check` | SDD step 3 — mechanical spec check and quality checklist. Use when a clarified FEAT needs gap checks before planning. Not for ambiguity (skill sdd-clarify). |
 | `sdd-clarify` | SDD step 2 — resolve ambiguous FEAT criteria. Use when a FEAT has open questions or vague terms. Not for gap checks (skill sdd-check). |
 | `sdd-constitution` | SDD step 0 — project constitution and spec index. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
-| `sdd-implement` | SDD step 6 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill validate-implementation). |
+| `sdd-implement` | SDD step 6 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill review). |
 | `sdd-journey` | Journey layer — J-NN steps cite REQ ids, tasks and tests. Use when writing a user-visible flow. Not for FEATs (skill sdd-specify). |
 | `sdd-plan` | SDD step 4 — technical FEAT plan and decisions. Use when clarification and check are complete. Not for task breakdown (skill sdd-tasks). |
 | `sdd-specify` | SDD step 1 — feature and requirement specification. Use when a described feature needs FEAT/REQ criteria. Not for open questions (skill sdd-clarify). |
 | `sdd-spike` | Prototype lane for game feel. Use when movement, camera, battle feedback or UI must be felt on screen before a FEAT exists. Not for specs (skill sdd-specify). |
 | `sdd-tasks` | SDD step 5 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement). |
-| `sdd-to-card` | SDD step 8 — one GitHub issue per task row plus the FEAT card. Use when cutting issues or closing a FEAT. Not for PR operations (skill github-cli). |
+| `sdd-to-card` | SDD step 8 — one GitHub issue per task row plus the FEAT card. Use when cutting issues or closing a FEAT. Not for PR operations (skill git). |
 
 ## `rules/`
 

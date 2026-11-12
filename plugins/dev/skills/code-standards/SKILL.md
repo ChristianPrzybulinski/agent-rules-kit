@@ -1,6 +1,6 @@
 ---
 name: code-standards
-description: Names, functions, comments, errors and the YAGNI ladder. Use when writing or reviewing code or adding a dependency. Not for test policy (skill testing).
+description: Code names, functions, errors, YAGNI and doc closure. Use when writing or reviewing code, adding a dependency or updating docs. Not for tests (skill testing).
 triggers:
   - user
   - model
@@ -72,4 +72,8 @@ Choose the higher rung when two work; never trade correctness at an edge case fo
 - A new requirement is not bolted onto the old design: build the smallest edit of the design you would have made had the requirement been there from the start, and deliver it in pieces.
 - When work is not obvious at a glance, do one unit by hand, then make a tool reproduce it (the hand-done unit is the tool's test); do first what helps every later step.
 
-Done when: names are literal, functions have one purpose, comments explain only why, errors remain visible, touched files respect the size ceiling, the solution stops at the earliest safe rung with no speculative dependency or abstraction, any deliberate ceiling records its evolution trigger, and each decision lives in one place.
+## 9. Close the docs in the same PR
+
+Run the closure checklist in `references/living-docs.md` (README and `AGENTS.md` commands, CHANGELOG, public API docs, decision, debt and feature records, prose for people); observed code wins over a contradicting doc.
+
+Done when: names are literal, functions have one purpose, comments explain only why, errors remain visible, touched files respect the size ceiling, the solution stops at the earliest safe rung with no speculative dependency or abstraction, any deliberate ceiling records its evolution trigger, each decision lives in one place, and every applicable living-docs item is updated in the same PR.

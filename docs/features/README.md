@@ -56,5 +56,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-036-eval-login-check.md`](KIT-036-eval-login-check.md) | done | #146 | #147 |
 | [`KIT-037-evals-templates-trim.md`](KIT-037-evals-templates-trim.md) | done | #148 | #149 |
 | [`KIT-038-three-plugins.md`](KIT-038-three-plugins.md) | done | #151 | #153 |
+| [`KIT-039-skill-merges.md`](KIT-039-skill-merges.md) | done | #154 | #155 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
