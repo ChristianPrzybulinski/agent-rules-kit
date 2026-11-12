@@ -21,6 +21,8 @@
     "git push origin --delete feature",
     "git branch -D main",
     "git branch --delete --force main",
+    "git branch -D feat/merged other-branch",
+    "git branch -D feat/merged && git status",
     "git checkout -- .",
     "git checkout .",
     "git restore .",
