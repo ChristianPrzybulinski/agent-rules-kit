@@ -81,11 +81,11 @@ built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T
    or compile error before the tests run) and *error* (anything else); *not run*, with exit 2, when writing or running
    the mutant raises. The score is killed plus timed out over killed, timed out and survived; invalid mutants stay out
    of it.
-6. **Differential.** Each mutant's result is cached under a hash of its function's path, name and text (line ends
-   and trailing blanks aside) together with the `res://` path and content hash of each selected test file, and its
-   place in the function, so a function whose hash did not change keeps its last result (ub-mode's idea) on whatever
-   lines it moves to, a new or changed test makes it run again, and a second run with nothing changed starts no
-   Godot. `--cache FILE` moves the cache and `--no-cache` runs every mutant.
+6. **Differential.** Each killed, survived or invalid result is cached under a hash of its function's path, name and
+   text (line ends and trailing blanks aside) together with the `res://` path and content hash of each selected test
+   file, and its place in the function, so a function whose hash did not change keeps its last result (ub-mode's idea)
+   on whatever lines it moves to, a new or changed test makes it run again, and a second run with nothing changed starts
+   no Godot. `--cache FILE` moves the cache and `--no-cache` runs every mutant.
 7. **Workers.** Parallel workers, each starting a mutant only while the one-minute load average is below the core
    count and fewer than 2 gate runs hold the host (the loop's gates count).
 8. **Output.** One survivor per line on stdout, `path:line function OPERATOR from → to`, then a summary with the score
@@ -180,9 +180,10 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
   beside `gd_duplicates.py`'s `ai-kit/gd-duplicates`, over a file under `.git` or the checkout, because the key holds
   the function's path from the Git top and its text, not the folder, so clones and worktrees of one repository share
   results, and the tool still writes nothing in the checkout.
-- 2026-11-12 T5: chose to keep killed, survived, timed out and invalid only over every status, because those are the
-  mutant's verdict against its tests, while error, not run, no coverage and no tests come from the host, the
-  unmutated run or that run's coverage report; a mutant that ended in error runs again.
+- 2026-11-12 T5: chose to keep killed, survived and invalid only over every status, because those are the mutant's
+  verdict against its tests, while error, not run, no coverage and no tests come from the host, the unmutated run or
+  that run's coverage report, and timed out from the host's load too (review of #195, below); a mutant that ended
+  in error or timed out runs again.
 - 2026-11-12 T5: chose to leave Godot's version, the rest of the file and the rest of the project out of the key over
   adding them, because reading Godot's version starts Godot, so a run with nothing changed would start one, and a
   whole-file hash reruns every function of a file when one changes, which is what the cache avoids. A change
@@ -191,8 +192,18 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
   status rule changes.
 - 2026-11-12 T5, after #192's review fixes merged in: chose to keep "not run" out of the cache, as "error" is, since a
   write or run that raised says nothing about the mutant, and to leave the timeout out of the key, since it is 10 × a
-  baseline measured anew on each run plus `--timeout-constant`, so no key fixes it. A "timed out" kept from a run with a
-  lower constant stays until the function or a selected test changes; `--no-cache` measures again.
+  baseline measured anew on each run plus `--timeout-constant`, so no key fixes it. Since the review of #195 no
+  "timed out" is kept, so a lower constant leaves none behind.
+- 2026-11-12 review of #195: chose to leave "timed out" out of the cache, so such a mutant runs again on each run,
+  over keeping it on the strength of the 30 s constant, because it is the one status the host's load also decides:
+  a run that load (5–20 on this host during gates) or `--workers N` clones slow past 10 × the baseline plus 30 s
+  counts as detected, a kept "timed out" would raise the score until the function or a selected test changes, and
+  nothing in the key tells a mutant that hangs from a slow host. With it out, leaving the timeout out of the key is
+  exact: a run that ended before its timeout ends the same way under a longer one, and a run that reached it is not
+  kept. The cost is one timeout (10 × the baseline plus 30 s) on every run per mutant that really hangs; none of
+  T3's 100 timed out. PIT 1.30.0 sets no precedent either way: its open-source history keeps no result
+  (`NullHistory.analyse` returns `Collections.emptyList()` in `pitest-entry-1.30.0.jar`). `CACHE_VERSION` stays 1:
+  the lookup takes only a status in `CACHED`, so a "timed out" in a file saved before this change runs again.
 - 2026-11-12 T5: chose the mutant's place as its line offset in the function, column, replaced length, operator and
   new text over its line number, because a function that moves to other lines (an edit above it) keeps its results;
   the place still names one edit, so a different gdtoolkit cannot give a cached status to another mutant.
@@ -399,3 +410,5 @@ head; `origin/main` is `cd9a632`; the commit after it changes only this document
   status for a mutant whose run raises and a floor under the mutant timeout; both are in § Decisions.
 - 2026-11-12: #192's head `b46e16e` (its review fixes and `main` `cd9a632`) merged into T5 at `c15fc79`; "not run"
   stays out of the cache and the timeout out of the key (§ Decisions).
+- 2026-11-12: #192 merged on `main` as `af9bb69` (squash); `main` `dfaff73` (with #194) merged into T5 at
+  `ac2887a`; the review of #195 left "timed out" out of the cache (§ Decisions).

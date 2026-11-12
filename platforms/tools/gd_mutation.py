@@ -39,14 +39,14 @@ parse or compile error that names the mutated file); killed (exit 100); survived
 or more); error (anything else); not run when writing or running it raised (godot gone, a full disk), and a worker
 that cannot restore its file stops. The score is killed plus timed out over killed, timed out and survived.
 
-Differential: a killed, survived, timed out or invalid result is kept in --cache FILE (default
+Differential: a killed, survived or invalid result is kept in --cache FILE (default
 $XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json, beside gd_duplicates.py's; default ~/.cache) under a hash of the
 function's path, name and text (line ends and trailing blanks aside) with the res:// path and content of each
 selected test file, and the mutant's place in the function. A later run takes such a mutant's result from the cache
 without a run, so a second run with nothing changed starts no Godot; the function moving to other lines keeps it, a
-change to its text or to a selected test file runs it again. The rest of the file, the project and Godot's version
-are not in the hash: --no-cache runs every mutant and leaves the cache alone. The cache keeps the 5000 functions
-used last.
+change to its text or to a selected test file runs it again. A timed-out mutant runs again, since host load can
+stop a run that would end. The rest of the file, the project and Godot's version are not in the hash: --no-cache
+runs every mutant and leaves the cache alone. The cache keeps the 5000 functions used last.
 
 stdout holds one survivor per line, `path:line function OPERATOR from → to`; stderr the "no coverage" lines, the
 counts, the score and the notices; --json FILE writes every mutant with its status, the unmutated runs and the
@@ -106,7 +106,7 @@ CLASS_NAME = re.compile(r"^\s*class_name\s+(\w+)", re.M)
 INNER_CLASS = re.compile(r"^\s*class\s+(\w+)", re.M)
 ENUM = re.compile(r"^\s*enum\s+(\w+)", re.M)
 STATUSES = ("killed", "survived", "timed out", "invalid", "error", "no coverage", "no tests", "not run")
-CACHED = {"killed", "survived", "timed out", "invalid"}  # results of the mutant itself, not of the host or the run
+CACHED = {"killed", "survived", "invalid"}  # the mutant's own verdict; "timed out" also depends on host load
 CACHE_VERSION = 1  # raise when an operator or a status rule changes: an older cache is then dropped
 CACHE_FUNCTIONS = 5000
 SHOWN = 80  # characters of a mutant's from/to text
