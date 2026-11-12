@@ -5,10 +5,6 @@ on:
 jobs:
   eval:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        plugin: [core, dev, sdd]
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
@@ -17,15 +13,17 @@ jobs:
         run: |
           curl -fsSL https://claude.ai/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: eval ${{ matrix.plugin }}
+      # The target is plugins/, not plugins/<p>: a dev or sdd case lists ../../../core in its plugins: frontmatter,
+      # which loads only from inside the target directory.
+      - name: eval
         run: |
-          claude plugin eval "plugins/${{ matrix.plugin }}" --trust-plugin --scaffold --allow-tools Bash Edit Write --tag ready \
-            --threshold 0.8 --model claude-sonnet-5-5 --judge-model claude-haiku-4-5 \
-            --no-publish --max-cost-usd 20 --json "results-${{ matrix.plugin }}.json" --report "report-${{ matrix.plugin }}.html"
+          claude plugin eval plugins --trust-plugin --scaffold --allow-tools Bash Edit Write --tag ready \
+            --ablation with-without --threshold 0.8 --model claude-sonnet-5-5 --judge-model claude-haiku-4-5 \
+            --no-publish --max-cost-usd 20 --output-dir eval-results --json results.json --report report.html
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: evals-${{ matrix.plugin }}
+          name: evals
           path: |
-            results-${{ matrix.plugin }}.json
-            report-${{ matrix.plugin }}.html
+            results.json
+            report.html
