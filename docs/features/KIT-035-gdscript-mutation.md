@@ -396,6 +396,25 @@ head; `origin/main` is `cd9a632`; the commit after it changes only this document
 - `gitleaks git --redact --log-opts="origin/main..HEAD"`: "6 commits scanned.", "scanned ~108675 bytes (108.68 KB) in
   59.3ms", "no leaks found".
 
+T5 after merging `main` `dfaff73` and the review of #195: run from the worktree root at `ef41fa4` on 2026-11-12, on
+`origin/main` `dfaff73`; the commit after it changes only this document; every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 183 tests in 173.667s", "OK
+  (skipped=5)"; the 34 tests of `test_gd_mutation.py` ran (alone: "Ran 34 tests in 68.250s", "OK"), none skipped.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "8 commits scanned.", "scanned ~118918 bytes (118.92 KB) in
+  64.5ms", "no leaks found".
+- The three tests new or changed in `ef41fa4` fail on `gd_mutation.py` as of `ac2887a` (a scratch copy): "Ran 34
+  tests in 62.054s", "FAILED (failures=2, errors=1)". The slow-host test and `save_cache`'s test find "timed out"
+  kept; the error-or-timed-out test finds one rerun where two are expected.
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
