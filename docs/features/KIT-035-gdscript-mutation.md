@@ -75,11 +75,12 @@ built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T
    worker works on its own APFS clone (`cp -cR`). A mutant is written into the worker's file, run and restored.
 4. **Tests.** The test files under `tests/` that name the mutated file's `class_name` or its `res://` path, run with the
    project's own gdUnit4 command (`stratics-client/tools/dev.sh:42`, one `-a` per file). The timeout is 10 × the
-   baseline time of the same selection.
+   baseline time of the same selection plus 30 s (`--timeout-constant`).
 5. **Status.** Per mutant, from the exit code and the log: *killed* (exit 100), *survived* (exit 0 or 101 with an
    "Overall Summary" of one test case or more), *timed out*, *invalid* (the mutant does not load: exit 105, or a parse
-   or compile error before the tests run) and *error* (anything else). The score is killed plus timed out over killed,
-   timed out and survived; invalid mutants stay out of it.
+   or compile error before the tests run) and *error* (anything else); *not run*, with exit 2, when writing or running
+   the mutant raises. The score is killed plus timed out over killed, timed out and survived; invalid mutants stay out
+   of it.
 6. **Differential.** Each mutant's result is cached under a hash of its function's path, name and text (line ends
    and trailing blanks aside) together with the `res://` path and content hash of each selected test file, and its
    place in the function, so a function whose hash did not change keeps its last result (ub-mode's idea) on whatever
@@ -159,6 +160,21 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
   `end`): a line with a hit runs, a line whose statements all have 0 hits is "no coverage", and a line the report does
   not measure (no statement, or `null` hits) runs and is counted in one notice, over skipping it, because an
   unmeasured line is unknown, not uncovered.
+- 2026-11-12 review of #192: chose "not run" and exit 2 for a mutant whose write or run raises (an `OSError` from the
+  file write, `Popen` or the log append), with a notice naming the exception, the worker then taking the next mutant,
+  over "error" with exit 0, because "error" measures the mutant (Godot ran and ended outside the known exits) while a
+  raise is the host's failure, and exit 0 would show the score of a subset as the whole. A worker that cannot restore
+  its file stops, since every later mutant in its clone would run against a broken source; the mutants no worker took
+  are "not run".
+- 2026-11-12 review of #192: chose a mutant timeout of 10 × the selection's unmutated time plus `TIMEOUT_CONSTANT`
+  (30 s, `--timeout-constant S`) over 10 × alone, because a run stopped early counts as detected and raises the score.
+  It is PIT's shape: PIT 1.30.0 allows `round(time × factor) + constant`, factor 1.25 and constant 4000 ms
+  (`PercentAndConstantTimeoutStrategy.DEFAULT_CONSTANT` in `pitest-1.30.0.jar`; the Maven plugin's `timeoutConstant`
+  default is 3000 ms in `pitest-maven-1.30.0.jar`'s `plugin.xml`). PIT's constant covers a test in a JVM already
+  started; each run here starts Godot, and a start slowed by host load (5–20 on this host during gates) or by
+  `--workers N` clones starting together does not grow with the run: at T3's 1.2 s, 10 × alone stops a mutant after
+  12 s. 30 s is a judgement, not measured under load; it costs 30 s more per mutant that really hangs (none of T3's
+  100). The stub tests pass `--timeout-constant 0`, except the one that checks the default.
 
 - 2026-11-12 T5: chose one cache file at `$XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json` (default `~/.cache`),
   beside `gd_duplicates.py`'s `ai-kit/gd-duplicates`, over a file under `.git` or the checkout, because the key holds
@@ -173,6 +189,10 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
   elsewhere that turns a result (a helper, a constant, Godot itself) keeps the old result until the function or a
   selected test changes; `--no-cache` measures again, and `CACHE_VERSION` drops the whole file when an operator or a
   status rule changes.
+- 2026-11-12 T5, after #192's review fixes merged in: chose to keep "not run" out of the cache, as "error" is, since a
+  write or run that raised says nothing about the mutant, and to leave the timeout out of the key, since it is 10 × a
+  baseline measured anew on each run plus `--timeout-constant`, so no key fixes it. A "timed out" kept from a run with a
+  lower constant stays until the function or a selected test changes; `--no-cache` measures again.
 - 2026-11-12 T5: chose the mutant's place as its line offset in the function, column, replaced length, operator and
   new text over its line number, because a function that moves to other lines (an edit above it) keeps its results;
   the place still names one edit, so a different gdtoolkit cannot give a cached status to another mutant.
@@ -313,6 +333,26 @@ only this document); every command exited 0:
 - `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~71034 bytes (71.03 KB) in
   89ms", "no leaks found".
 
+T2–T4 review fixes: run from the worktree root at `0e0b6a6` on 2026-11-12, on `cd9a632` (`origin/main`, merged in at
+`d70b0ef`; the commits after it change only this document); every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 171 tests in 160.227s", "OK
+  (skipped=5)"; the 25 tests of `test_gd_mutation.py` ran, none skipped. The fifth skip is the `GodotTest` case #193
+  added to `test_gd_coverage.py`, which needs `KIT_GDUNIT4`.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "3 commits scanned.", "scanned ~84268 bytes (84.27 KB) in
+  54.4ms", "no leaks found".
+- The three new tests fail on `gd_mutation.py` as of `aafed4a` (a scratch copy, the tests' `--timeout-constant` left
+  out): "Ran 25 tests in 29.170s", "FAILED (failures=3)". The two raise tests stop at the exit code, 0 where 2 is
+  expected (the raise ended the worker's thread); the timeout test stops at the baseline timeout, 10 × alone.
+
 T5: run from the worktree root at `c164509` on 2026-11-12, on `aafed4a` (#192's head; `origin/main` is `86a4564`);
 the commit after it changes only this document; every command exited 0:
 
@@ -339,3 +379,5 @@ the commit after it changes only this document; every command exited 0:
   and leaves it open.
 - 2026-11-12: T5 (the differential cache) implemented and measured on the client in its own PR, stacked on #192, which
   refers to #137 and leaves it open.
+- 2026-11-12: the review of #192 asked for `main` merged in (`cd9a632`, #193; the tools README rows of both kept), a
+  status for a mutant whose run raises and a floor under the mutant timeout; both are in § Decisions.

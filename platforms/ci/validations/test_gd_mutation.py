@@ -182,8 +182,11 @@ from pathlib import Path
 args = sys.argv[1:]
 text = None
 if "--path" in args:
-    target = Path(args[args.index("--path") + 1], "app", "calc.gd")
-    text = target.read_text() if target.exists() else None
+    folder = Path(args[args.index("--path") + 1])
+    target, log = folder / "app" / "calc.gd", folder.parent / "godot.log"
+    text = target.read_text() if target.is_file() else None
+    if log.exists():
+        log.chmod(0o644)
 if os.environ.get("STUB_LOG"):
     with open(os.environ["STUB_LOG"], "a") as out:
         call = {{"args": args, "home": os.environ["HOME"], "nice": os.getpriority(os.PRIO_PROCESS, 0), "text": text}}
@@ -203,12 +206,19 @@ if action == "parse":
     print("SCRIPT ERROR: Parse Error: Expected expression after return.")
     print("          at: GDScript::reload (res://app/calc.gd:11)")
     sys.exit(1)
+if action == "slow":  # longer than 10 x the unmutated run, shorter than the default timeout constant
+    time.sleep(4)
+if action == "lock":  # the tool cannot append this run's output to the worker's log: its run raises
+    log.chmod(0o444)
+if action == "dir":  # the tool cannot restore the mutated file
+    target.unlink()
+    target.mkdir()
 if action is None:
     time.sleep(float(os.environ.get("STUB_PAUSE", "0")))
 print("Overall Summary:")
 print("\\x1b[1m %s test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 orphans |\\x1b[0m"
       % os.environ.get("STUB_CASES", "2"))
-sys.exit(int(action) if action is not None else int(os.environ.get("STUB_EXIT", "0")))
+sys.exit(int(action) if action and action.isdigit() else int(os.environ.get("STUB_EXIT", "0")))
 """
 STATUSES = [("add", 6, "PRIMITIVE_RETURNS", "invalid"), ("add", 6, "MATH", "killed"),
             ("sign_of", 10, "NEGATE_CONDITIONALS", "timed out"), ("sign_of", 10, "CONDITIONALS_BOUNDARY", "survived"),
@@ -262,7 +272,10 @@ class RunnerTest(unittest.TestCase):
         self.git("add", "-A")
         self.git("-c", "commit.gpgsign=false", "commit", "-q", "-m", message)
 
-    def run_tool(self, *args, cwd=None, **env):
+    def run_tool(self, *args, cwd=None, constant="0", **env):
+        """The tool with --timeout-constant 0, so a timed-out stub mutant waits 10 x the unmutated run only;
+        constant=None keeps the default."""
+        args += ("--timeout-constant", constant) if constant is not None else ()
         return subprocess.run([sys.executable, "-B", str(TOOL), *args], cwd=cwd or self.project,
                               env={**self.env, **env}, capture_output=True, text=True, check=False)
 
@@ -330,6 +343,41 @@ class RunnerTest(unittest.TestCase):
             self.assertEqual((kept / worker / "project" / "app" / "calc.gd").read_text(), CALC)
         self.assertEqual({c["args"][1] for c in self.calls()[3:]},
                          {str(kept / "w0" / "project"), str(kept / "w1" / "project")})
+
+    @NEEDS_PARSER
+    def test_mutant_whose_run_raises_is_not_run_the_next_ones_run_and_the_tool_exits_2(self):
+        rules = {**RULES, "a - b": "lock"}
+        result = self.run_tool("app/calc.gd", "--json", str(self.out), STUB_RULES=json.dumps(rules))
+        self.assertEqual((result.returncode, result.stdout.splitlines()), (2, [SURVIVOR]), result.stderr)
+        self.assertIn("gd_mutation: client/app/calc.gd:6 MATH not run: PermissionError", result.stderr)
+        self.assertIn("6 mutant(s): 1 survived, 1 timed out, 2 invalid, 1 error, 1 not run; score 50.0 % (1/2)",
+                      result.stderr)
+        expected = [(f, n, o, "not run" if o == "MATH" else s) for f, n, o, s in STATUSES]
+        self.assertEqual(self.statuses()[1], expected)
+        self.assertEqual(len(self.calls()), 3 + 6)
+        self.assert_no_leftovers()
+
+    @NEEDS_PARSER
+    def test_worker_that_cannot_restore_the_file_stops_and_the_rest_are_not_run(self):
+        result = self.run_tool("app/calc.gd", "--json", str(self.out), STUB_RULES=json.dumps({"a - b": "dir"}))
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("calc.gd not restored (IsADirectoryError", result.stderr)
+        self.assertIn("4 mutant(s) not run: every worker stopped", result.stderr)
+        self.assertEqual([s for *_, s in self.statuses()[1]], ["survived", "survived"] + ["not run"] * 4)
+        self.assertEqual(len(self.calls()), 3 + 2)
+        self.assert_no_leftovers()
+
+    @NEEDS_PARSER
+    def test_timeout_adds_the_constant_so_a_run_slower_than_10_x_the_unmutated_one_is_not_timed_out(self):
+        result = self.run_tool("app/calc.gd", "--json", str(self.out), constant=None,
+                               STUB_RULES=json.dumps({"a - b": "slow"}), STUB_PAUSE="0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data, statuses = self.statuses()
+        baseline, = data["baselines"]
+        self.assertAlmostEqual(baseline["timeout"], 10 * baseline["seconds"] + 30, delta=0.06)
+        slow, = [m for m in data["mutants"] if m["operator"] == "MATH"]
+        self.assertGreater(slow["seconds"], 10 * baseline["seconds"])
+        self.assertEqual({s for *_, s in statuses}, {"survived"})
 
     @NEEDS_PARSER
     def test_unmutated_run_that_does_not_count_exits_2_and_runs_no_mutant(self):

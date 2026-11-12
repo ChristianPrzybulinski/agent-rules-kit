@@ -2,7 +2,7 @@
 """Advisory mutation testing of GDScript functions under gdUnit4, with PIT's default operators (KIT-035).
 
 Usage: gd_mutation.py [--base REF] [--ref REF] [--coverage JSON] [--tests RES_DIR]... [--workers N]
-                      [--timeout S] [--cache FILE | --no-cache] [--json FILE] [--keep] [FILE...]
+                      [--timeout S] [--timeout-constant S] [--cache FILE | --no-cache] [--json FILE] [--keep] [FILE...]
 
 `git archive <ref>` (default HEAD) of the Godot project around the current directory goes into a new temporary
 folder, as gd_coverage.py makes it; the checkout is never edited. Each asked .gd file of the copy outside addons/,
@@ -34,9 +34,10 @@ class_name or its res:// path; a file with none lists its mutants as "no tests".
 and HOME. Each selection runs once unmutated: it must exit 0 or 101 with one test case or more, or its mutants are
 "not run" and the tool exits 2. A mutant is written into its worker's clone, run with the project's gdUnit4 command
 (one `-a` per suite, headless, `nice -n 10`, stopped with every process it started after 10 x the selection's
-unmutated time) and restored. Its status: timed out; invalid (exit 105, or a parse or compile error that names the
-mutated file); killed (exit 100); survived (exit 0 or 101 with one test case or more); error (anything else). The
-score is killed plus timed out over killed, timed out and survived.
+unmutated time plus --timeout-constant, default 30 s) and restored. Its status: timed out; invalid (exit 105, or a
+parse or compile error that names the mutated file); killed (exit 100); survived (exit 0 or 101 with one test case
+or more); error (anything else); not run when writing or running it raised (godot gone, a full disk), and a worker
+that cannot restore its file stops. The score is killed plus timed out over killed, timed out and survived.
 
 Differential: a killed, survived, timed out or invalid result is kept in --cache FILE (default
 $XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json, beside gd_duplicates.py's; default ~/.cache) under a hash of the
@@ -50,7 +51,7 @@ used last.
 stdout holds one survivor per line, `path:line function OPERATOR from → to`; stderr the "no coverage" lines, the
 counts, the score and the notices; --json FILE writes every mutant with its status, the unmutated runs and the
 score. Exit 0 (advisory); 2 when godot, gdUnit4 or gdtoolkit is missing, a ref or the coverage report is bad, the
-import does not finish or an unmutated run fails.
+import does not finish, an unmutated run fails or a mutant is not run.
 """
 import argparse
 import fcntl
@@ -109,6 +110,11 @@ CACHED = {"killed", "survived", "timed out", "invalid"}  # results of the mutant
 CACHE_VERSION = 1  # raise when an operator or a status rule changes: an older cache is then dropped
 CACHE_FUNCTIONS = 5000
 SHOWN = 80  # characters of a mutant's from/to text
+# A mutant's run is stopped after TIMEOUT_FACTOR x its selection's unmutated time plus --timeout-constant seconds,
+# PIT's shape (round(time x timeoutFactor) + timeoutConstant): a Godot start slowed by host load or by workers
+# starting together is not proportional to the run's time, and a run stopped too early counts as detected.
+TIMEOUT_FACTOR = 10
+TIMEOUT_CONSTANT = 30
 
 
 def notice(text):
@@ -556,7 +562,10 @@ class Worker:
 
 
 def run_mutants(godot, workers, mutants, sources, timeouts):
-    """Each worker takes the next mutant, writes it into its clone, runs its tests and restores the file."""
+    """Each worker takes the next mutant, writes it into its clone, runs its tests and restores the file.
+
+    A mutant whose write or run raises is "not run" and the worker takes the next one; a worker that cannot restore
+    the file stops, since its clone no longer holds the source. Returns how many mutants are "not run"."""
     jobs = queue.Queue()
     for mutant in mutants:
         jobs.put(mutant)
@@ -568,24 +577,37 @@ def run_mutants(godot, workers, mutants, sources, timeouts):
             except queue.Empty:
                 return
             target, original = worker.folder / mutant.rel, sources[mutant.rel]
-            write(target, mutant.apply(original))
             try:
+                write(target, mutant.apply(original))
                 code, output, seconds, _ = run_godot(godot, test_command(worker.folder, mutant.tests), worker.env,
                                                      worker.log, timeouts[tuple(mutant.tests)])
-            finally:
+                mutant.exit, mutant.seconds = code, round(seconds, 2)
+                mutant.status = classify(code, output, mutant.rel)
+            except Exception as error:  # the host failed, not the mutant: no status counts it
+                mutant.status = "not run"
+                notice(f"{mutant.path}:{mutant.line} {mutant.operator} not run: {type(error).__name__}: {error}")
+            try:
                 write(target, original)
-            mutant.exit, mutant.seconds = code, round(seconds, 2)
-            mutant.status = classify(code, output, mutant.rel)
+            except OSError as error:
+                notice(f"a worker stops: {target} not restored ({type(error).__name__}: {error})")
+                return
 
     threads = [threading.Thread(target=work, args=(w,)) for w in workers]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
+    left = [m for m in mutants if not m.status]
+    for mutant in left:
+        mutant.status = "not run"
+    if left:
+        notice(f"{len(left)} mutant(s) not run: every worker stopped")
+    return sum(1 for m in mutants if m.status == "not run")
 
 
-def baselines(godot, worker, selections, timeout):
-    """{selection: run} of each test selection unmutated; `ok` is False when it cannot measure mutants."""
+def baselines(godot, worker, selections, timeout, constant):
+    """{selection: run} of each test selection unmutated, with its mutants' timeout; `ok` is False when it cannot
+    measure mutants."""
     runs = {}
     for tests in selections:
         code, output, seconds, _ = run_godot(godot, test_command(worker.folder, tests), worker.env, worker.log,
@@ -593,7 +615,8 @@ def baselines(godot, worker, selections, timeout):
         summary = test_summary(output)
         ok = code in COUNTED_EXITS and summary is not None and summary["cases"] >= 1
         runs[tests] = {"tests": list(tests), "exit": code, "cases": summary["cases"] if summary else None,
-                       "seconds": round(seconds, 2), "timeout": round(10 * seconds, 2), "ok": ok}
+                       "seconds": round(seconds, 2), "timeout": round(TIMEOUT_FACTOR * seconds + constant, 2),
+                       "ok": ok}
         if not ok:
             notice(f"unmutated run of {', '.join(tests)} exited {code} with "
                    f"{summary['cases'] if summary else 'no'} test case(s); its mutants are not run")
@@ -698,19 +721,20 @@ def measure(args, prefix, sha, wanted, godot, scratch):
         folder.mkdir()
         clone(copy, folder / "project")
         workers.append(Worker(folder / "project", scratch_env(folder), folder / "godot.log"))
-    runs = baselines(godot, workers[0], sorted({tuple(m.tests) for m in pending}), args.timeout)
+    runs = baselines(godot, workers[0], sorted({tuple(m.tests) for m in pending}), args.timeout,
+                     args.timeout_constant)
     for mutant in pending:
         if not runs[tuple(mutant.tests)]["ok"]:
             mutant.status = "not run"
     began = time.monotonic()
-    run_mutants(godot, workers, [m for m in pending if not m.status], sources,
-                {tests: run["timeout"] for tests, run in runs.items()})
+    failed = run_mutants(godot, workers, [m for m in pending if not m.status], sources,
+                         {tests: run["timeout"] for tests, run in runs.items()})
     data["seconds"].update({"import": round(import_seconds, 2), "mutants": round(time.monotonic() - began, 2)})
     data["baselines"] = list(runs.values())
     if args.cache:
         save_cache(args.cache, mutants, sha)
     summarize(mutants, args, data)
-    return 2 if any(not run["ok"] for run in runs.values()) else 0
+    return 2 if failed or any(not run["ok"] for run in runs.values()) else 0
 
 
 def main():
@@ -724,6 +748,9 @@ def main():
     ap.add_argument("--workers", type=int, default=1, help="parallel Godot runs, each in its own clone (default 1)")
     ap.add_argument("--timeout", type=int, default=TIMEOUT,
                     help=f"seconds for the import and each unmutated run (default {TIMEOUT})")
+    ap.add_argument("--timeout-constant", type=float, default=TIMEOUT_CONSTANT,
+                    help=f"seconds added to {TIMEOUT_FACTOR} x the unmutated time to stop a mutant's run "
+                         f"(default {TIMEOUT_CONSTANT})")
     ap.add_argument("--cache", default=str(Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
                                            / "ai-kit" / "gd-mutation" / "cache.json"),
                     help="file of earlier results by function and test hashes (default "
@@ -736,6 +763,8 @@ def main():
     gd_coverage.notice = notice  # the reused helpers report under this tool's name
     if args.workers < 1:
         ap.error("--workers must be 1 or more")
+    if args.timeout_constant < 0:
+        ap.error("--timeout-constant must be 0 or more")
     files = [os.path.realpath(p) for p in args.files]
     args.json = os.path.abspath(args.json) if args.json else None
     args.coverage = os.path.abspath(args.coverage) if args.coverage else None
