@@ -4,7 +4,7 @@ title: "One plugin: dev and sdd merge into core"
 status: done
 confirmed: "2026-11-12 (owner, chat of the kit review session: \"Sim, um só\")"
 issue: "#176"
-pr: ""
+pr: "#177"
 ---
 
 # KIT-047 — One plugin: dev and sdd merge into core
