@@ -185,6 +185,7 @@
     "find . -exec ls {} +",
     "if git diff --quiet; then echo ok; fi",
     "cd x\ngit status",
-    "rm -r build\ntouch -f stamp"
+    "rm -r build\ntouch -f stamp",
+    "git commit -m \"$(cat <<'EOF'\nkit: explain the guard\n\nThen git push --force fails on a protected branch.\nEOF\n)\""
   ]
 }
