@@ -66,5 +66,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-041-eval-plugin-deps.md`](KIT-041-eval-plugin-deps.md) | done | #156 | #158 |
 | [`KIT-042-root-docs-and-readmes.md`](KIT-042-root-docs-and-readmes.md) | done | #160 | #161 |
 | [`KIT-043-tool-text-is-evidence.md`](KIT-043-tool-text-is-evidence.md) | done | #162 | #163 |
+| [`KIT-044-positive-phrasing.md`](KIT-044-positive-phrasing.md) | done | #165 | #166 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
