@@ -19,7 +19,7 @@ Only the latest release (`VERSION`, currently the 11.x line) and `main` receive 
 
 ## In scope
 
-- the guard and format hooks (`plugins/core/hooks/`) letting a destructive or secret-leaking command through;
+- the guard and format hooks (`plugins/guardrails/hooks/`) letting a destructive or secret-leaking command through;
 - the install and sync tools (`platforms/tools/*.sh`) writing outside their destinations, following a symlink
   out of the target, or touching a file they do not own;
 - a skill, rule or template that instructs an agent to expose secrets or to disable a safety check.

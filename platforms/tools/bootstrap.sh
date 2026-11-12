@@ -43,7 +43,7 @@ PY
 
 ensure_agents_link() {
   local destination="$HOME/.codex/AGENTS.md"
-  local expected="$KIT/plugins/core/AGENTS.md"
+  local expected="$KIT/plugins/guardrails/AGENTS.md"
   local current
   local backup
   mkdir -p "$HOME/.codex"
@@ -91,7 +91,12 @@ ensure_agents_link
 
 if command -v devin >/dev/null 2>&1; then
   devin_plugins="$(devin plugins list 2>/dev/null || true)"
-  if [[ "$devin_plugins" == *"agent-rules-kit"* || "$devin_plugins" == *"core"* ]]; then
+  devin_installed=0
+  [[ "$devin_plugins" == *"agent-rules-kit"* ]] && devin_installed=1
+  for plugin_dir in "$KIT"/plugins/*/; do
+    [[ -d "$plugin_dir/.devin-plugin" && "$devin_plugins" == *"$(basename "$plugin_dir")"* ]] && devin_installed=1
+  done
+  if [[ "$devin_installed" == 1 ]]; then
     printf 'ok: devin plugin installed\n'
   elif devin plugins install "$REPOSITORY" -y >/dev/null 2>&1; then
     printf 'fix: devin plugin installed\n'
@@ -115,7 +120,8 @@ if [[ -n "$codex" ]]; then
   for plugin_dir in "$KIT"/plugins/*/; do
     plugin_name="$(basename "$plugin_dir")"
     [[ -d "$plugin_dir/.devin-plugin" || -d "$plugin_dir/.claude-plugin" || -f "$plugin_dir/plugin.json" ]] || continue
-    if [[ "$plugins" == *"$plugin_name@ai-kit"* ]]; then
+    # A substring match would also accept "<name>@ai-kit  not installed" (KIT-055)
+    if grep -Eq "^[[:space:]]*$plugin_name@ai-kit[[:space:]]+installed" <<<"$plugins"; then
       printf 'ok: codex plugin %s@ai-kit installed\n' "$plugin_name"
     elif "$codex" plugin add "$plugin_name@ai-kit" >/dev/null 2>&1; then
       printf 'fix: codex plugin %s@ai-kit installed\n' "$plugin_name"

@@ -179,6 +179,20 @@ else
   printf 'skip: refresh: claude CLI not found on PATH %s; Claude plugins not updated\n' "$PATH"
 fi
 
+# KIT-055: a pull that renames or removes a kit path leaves the doctor-managed links dangling; repair them once.
+broken_link=""
+while IFS= read -r -d '' link; do
+  target="$(readlink "$link")"
+  if [[ "$target" == "$KIT/"* && ! -e "$link" ]]; then
+    broken_link="$link"
+    break
+  fi
+done < <(find "$HOME/.claude" "$HOME/.codex" -maxdepth 2 -type l -print0 2>/dev/null)
+if [[ -n "$broken_link" ]]; then
+  printf 'refresh: kit link %s is broken; running doctor.sh\n' "$broken_link"
+  "$KIT/platforms/tools/doctor.sh" || warn "doctor.sh reported failures — run platforms/tools/doctor.sh"
+fi
+
 sha="$(git -C "$KIT" rev-parse --short HEAD)" || fail "cannot read HEAD"
 date="$(git -C "$KIT" show -s --format=%cs HEAD)" || fail "cannot read commit date"
 printf 'refresh: %s %s main\n' "$sha" "$date"

@@ -54,7 +54,7 @@ class CheckKitReadmesTest(unittest.TestCase):
         self.assertIn("CONTRIBUTING.md: layout: required path missing", output)
 
     def test_a_link_out_of_the_plugin_and_a_missing_not_for_fail(self):
-        skill = self.kit / "plugins" / "core" / "skills" / "session" / "SKILL.md"
+        skill = self.kit / "plugins" / "guardrails" / "skills" / "session" / "SKILL.md"
         text = skill.read_text(encoding="utf-8").replace("Not for parallelism", "Never parallelism", 1)
         skill.write_text(text + "\nSee [design](../../../../docs/design.md).\n", encoding="utf-8")
         result = self.check()

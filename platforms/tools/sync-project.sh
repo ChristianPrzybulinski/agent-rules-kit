@@ -4,8 +4,8 @@
 #                                                          installs/updates .github/spec-lint/ (repos with docs/spec only),
 #                                                          CLAUDE.md (imports AGENTS.md),
 #                                                          .claude/settings.json (ai-kit marketplace +
-#                                                          enabledPlugins core@ai-kit) and
-#                                                          .claude/rules/core-<rule>.md (the profile's
+#                                                          enabledPlugins guardrails@ai-kit) and
+#                                                          .claude/rules/guardrails-<rule>.md (the profile's
 #                                                          path rules, marked as generated); with
 #                                                          --vendor-skills also .claude/skills/<name>/
 #                                                          (whole skill directories, .agent-rules-kit
@@ -28,7 +28,7 @@
 # records.
 # A .claude/rules/*.md destination that exists without the generated marker refuses
 # the sync before any write; a marked file that falls out of the profile is removed.
-# --vendor-skills copies the profile's plugins/core/skills/<name>/ directories whole (the always-on
+# --vendor-skills copies the profile's plugins/guardrails/skills/<name>/ directories whole (the always-on
 # skills, "-" in the map, excepted: they load from the enabled plugin)
 # into .claude/skills/<name>/, marks each copy with .agent-rules-kit and writes
 # KIT_MANIFEST.json (kit version, profile, plugin, sha256 per file). The manifest is
@@ -36,17 +36,19 @@
 # recorded profile list. A
 # .claude/skills/<name>/ directory without the marker is never read, replaced or
 # deleted - its presence refuses the sync before any write. Both modes enable only
-# core@ai-kit in .claude/settings.json: the kit ships one plugin (KIT-047) and the guard
+# guardrails@ai-kit in .claude/settings.json: the kit ships one plugin (KIT-047) and the guard
 # hook lives in the plugin only, so a local session that trusts the folder also loads
 # each vendored skill from the plugin; the copy serves sessions that load no plugin.
 # --workflow names the CI file that must run check_spec.py. Without it, --check
 # accepts any file under .github/workflows/ containing check_spec.py, and install
 # copies the kit workflow (as spec-lint.yml) only if the project has none.
 # Both modes print "sync: warning: ..." on stderr when <repo-dir> resolves into a cloud-synced
-# folder (core's SessionStart hook decides; KIT-021); the exit code does not change.
+# folder (the plugin's SessionStart hook decides; KIT-021); the exit code does not change.
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# The kit's one plugin (KIT-047), named guardrails since KIT-055.
+KIT_PLUGIN="guardrails"
 
 MODE="install"
 PROFILE=""
@@ -93,7 +95,7 @@ kit_files() { # prints "src rel-dest"
 rule_files() { # prints "src rel-dest" for every kit rule the map gives to a profile in $PROFILE
   local name
   while read -r name; do
-    echo "$KIT_DIR/plugins/core/rules/$name .claude/rules/core-$name"
+    echo "$KIT_DIR/plugins/$KIT_PLUGIN/rules/$name .claude/rules/$KIT_PLUGIN-$name"
   done < <(map_selected rules)
 }
 
@@ -235,20 +237,20 @@ rule_scopes() { # $1 = normalized profile list, $2 = kit rule file; a rule named
   echo "${scopes:-.}"
 }
 
-skill_dirs() { # prints "core <name>" for every kit skill the map gives to a profile in $PROFILE;
-  # the always-on skills ("-") stay out: core is enabled in .claude/settings.json (its guard hook
+skill_dirs() { # prints "<plugin> <name>" for every kit skill the map gives to a profile in $PROFILE;
+  # the always-on skills ("-") stay out: the plugin is enabled in .claude/settings.json (its guard hook
   # lives only in the plugin), so they load from the plugin (KIT-002)
   local name
   while read -r name; do
-    echo "core $name"
+    echo "$KIT_PLUGIN $name"
   done < <(map_selected skills)
 }
 
-# Obsolete kit paths (layouts 1.x to 9.x). A consumer line that must keep one
+# Obsolete kit paths (layouts 1.x to 11.x). A consumer line that must keep one
 # (historical citation) appends the marker "<!-- kit-path-ok -->".
 # .claude/ is skipped: generated kit copies there are verified by their own
 # manifest and repo-owned content under .claude/ is not a kit citation.
-STALE_KIT_PATHS='agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|rules/git/|kits/java-maven/|kits/github/|platforms/install/|knowledge/|processes/sdd/|plugins/ai-kit/'
+STALE_KIT_PATHS='agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|rules/git/|kits/java-maven/|kits/github/|platforms/install/|knowledge/|processes/sdd/|plugins/ai-kit/|plugins/core/'
 STALE_OPT_OUT='<!-- kit-path-ok -->'
 
 scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; returns 1 if any
@@ -264,8 +266,8 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
   return 1
 }
 
-warn_synced_folder() { # $1 = repo dir; reruns core's SessionStart hook for it and prints its warning
-  python3 - "$KIT_DIR/plugins/core/hooks/hooks.json" "$1" <<'PY' || true
+warn_synced_folder() { # $1 = repo dir; reruns the plugin's SessionStart hook for it and prints its warning
+  python3 - "$KIT_DIR/plugins/guardrails/hooks/hooks.json" "$1" <<'PY' || true
 import json, subprocess, sys
 for group in json.load(open(sys.argv[1]))["hooks"].get("SessionStart", []):
     for hook in group.get("hooks", []):
@@ -312,7 +314,7 @@ vendored_skills=0
 vendored_files=0
 # The kit ships one plugin (KIT-047); it stays enabled in both modes for the
 # PreToolUse/PostToolUse guard hooks, which a copied tree cannot carry.
-SETTINGS_PLUGINS="core"
+SETTINGS_PLUGINS="$KIT_PLUGIN"
 if [[ "$VENDOR" == 1 ]]; then echo "sync: skills=vendored"; else echo "sync: skills=plugins"; fi
 
 if [[ "$MODE" == check ]]; then
@@ -583,9 +585,9 @@ if current != text:
         fh.write(text)
 PY
 
-# The profile's path rules render into .claude/rules/core-<rule>.md; only
+# The profile's path rules render into .claude/rules/<plugin>-<rule>.md; only
 # marker-carrying files the profile no longer receives are removed (dev-*.md and
-# sdd-*.md from kits before KIT-047 among them).
+# sdd-*.md from kits before KIT-047, core-*.md before KIT-055, among them).
 mkdir -p "$REPO/.claude/rules"
 rules_written=0
 rules_removed=0
@@ -743,7 +745,7 @@ EOF
 
 `.claude/skills/` holds a copy of the kit skills for this profile, each directory marked
 `.agent-rules-kit` and listed with hashes in `KIT_MANIFEST.json`; do not edit.
-`enabledPlugins` keeps only `core@ai-kit` for the guard hook, which lives in the plugin
+`enabledPlugins` keeps only `guardrails@ai-kit` for the guard hook, which lives in the plugin
 only. Devin reads `.claude/skills/` as well (verify against the docs.devin.ai skills
 overview before relying on it) and recommends `.agents/skills/`, which this sync does
 not generate.

@@ -1,5 +1,5 @@
 {
-  "name": "core",
+  "name": "guardrails",
   "version": "11.3.0",
   "description": "ai-kit: always-on rules, review, security, code and test standards, Java/Godot stacks and the spec-driven pipeline"
 }
