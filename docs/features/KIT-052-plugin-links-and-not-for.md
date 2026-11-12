@@ -4,7 +4,7 @@ title: "check_kit.py fails a link that leaves its plugin and a skill description
 status: confirmed
 confirmed: "2026-11-12 (owner, kit review of 100 repositories, lane E brief relayed by the coordinating session)"
 issue: ""
-pr: ""
+pr: "#183"
 ---
 
 # KIT-052 — check_kit.py fails a link that leaves its plugin and a skill description without 'Not for'

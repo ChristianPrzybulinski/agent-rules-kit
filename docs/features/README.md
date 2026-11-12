@@ -70,6 +70,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-045-python-rule.md`](KIT-045-python-rule.md) | done | #167 | #168 |
 | [`KIT-046-refresh-reexec.md`](KIT-046-refresh-reexec.md) | done | #173 | #175 |
 | [`KIT-047-one-plugin.md`](KIT-047-one-plugin.md) | done | #176 | #177 |
-| [`KIT-052-plugin-links-and-not-for.md`](KIT-052-plugin-links-and-not-for.md) | confirmed | — | — |
+| [`KIT-052-plugin-links-and-not-for.md`](KIT-052-plugin-links-and-not-for.md) | confirmed | — | #183 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
