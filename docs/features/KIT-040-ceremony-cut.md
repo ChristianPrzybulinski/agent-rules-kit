@@ -57,11 +57,11 @@ format and lint, SessionStart synced-folder warning).
 
 ## Proof
 
-- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: exit 0, "check: OK (3 plugins, 38 skills,
-  3 rules, 11 templates, 21 indexes, 86 links, 25 hook cases)", "gen_index: plugin indexes are current", and
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: exit 0, "check: OK (3 plugins, 27 skills,
+  3 rules, 11 templates, 21 indexes, 87 links, 25 hook cases)", "gen_index: plugin indexes are current", and
   `claude plugin validate` passed for each plugin and the marketplace. Run on the head that merged `origin/main`
-  (`02382ee`, KIT-038), where the 14 plugins had become `core`, `dev` and `sdd`.
-- `bash platforms/tools/smoke.sh`: exit 0, "smoke: OK (38 skills, app fallback, cleanup, symlink safety, manifests,
+  (`6970e8e`, KIT-039), where KIT-038 had made the 14 plugins `core`, `dev` and `sdd`.
+- `bash platforms/tools/smoke.sh`: exit 0, "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
   sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
 - `python3 platforms/ci/validations/check_kit.py --links`: exit 0, the same "check: OK" line.
 - `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: exit 0, "Ran 103 tests", "OK
@@ -70,7 +70,7 @@ format and lint, SessionStart synced-folder warning).
   as current.
   `gen_index.py --check` exits 1 and names `plugins/<name>/INDEX.md` and the regenerate command for a missing, a
   hand-edited and a stale index.
-- `gitleaks git --redact --log-opts="origin/main..HEAD"`: exit 0, "no leaks found" (2 commits scanned after the merge).
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: exit 0, "no leaks found" (3 commits scanned after the merge).
 - Hooks: no hook command changed, so the 25 hook cases still run the same strings. A throwaway plugin with a
   `SessionStart` hook run by `claude -p --plugin-dir` (2.1.287) printed `CLAUDE_PLUGIN_ROOT=<plugin dir>`,
   `CLAUDE_PLUGIN_DATA` and `CLAUDE_PROJECT_DIR`.
@@ -83,3 +83,6 @@ format and lint, SessionStart synced-folder warning).
 - 2026-11-11: done in #152. The brief's fourth item (hook commands into script files) was left out, see Change 4.
 - 2026-11-11: merged `origin/main` (`02382ee`, KIT-038, #153) into the branch; the 12 indexes of the retired plugins
   are gone and the three new ones are generated. No gate or script of this record changed in the merge.
+- 2026-11-11: merged `origin/main` again (`6970e8e`: KIT-039 skill merges, 38 → 27 skills, and the `sync-project.sh`
+  rule-scoping fix #157); only `CHANGELOG.md` and `docs/features/README.md` conflicted, and the three plugin indexes
+  were regenerated.
