@@ -63,7 +63,18 @@ destinations. Older `KIT-0nn` records and released CHANGELOG entries keep the `c
 
 ## Proof
 
-Filled from the gate run on the PR head.
+On `61f8ad1` (base `3876ad5`), every command exit 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`;
+- `bash platforms/tools/smoke.sh`, with the Codex removal, AGENTS.md re-point, Claude warning and refresh repair cases;
+- `python3 platforms/ci/validations/check_kit.py --links` (1 plugin, 27 skills, 84 links);
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: 185 tests, `OK (skipped=1)`, with the
+  two `test_sync_project.py` migration tests;
+- `python3 platforms/tools/gen_index.py --check`, `bash platforms/tools/vendor.sh --check`,
+  `claude plugin validate plugins/guardrails` and `gitleaks git --redact --log-opts=origin/main..HEAD`.
+
+Not run: `claude plugin eval` (billed), and the `renames` migration on a real Claude user-scope install, which is the
+KIT-038 and KIT-047 mechanism.
 
 ## History
 
