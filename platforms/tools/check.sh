@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Kit validation. Usage:
-#   check.sh              validates kit invariants and Claude plugin/marketplace manifests
+#   check.sh              validates kit invariants, generated plugin INDEX.md files and Claude manifests
 #   check.sh --spec <dir> validates a docs/spec directory against the schemas
 #   check.sh --links      includes absolute ~/.ai-kit/... links in the check
 set -euo pipefail
@@ -12,6 +12,9 @@ if [[ "${1:-}" == "--spec" ]]; then
 fi
 
 python3 "$KIT_DIR/platforms/ci/validations/check_kit.py" "$@"
+
+# plugin INDEX.md files are generated (KIT-040); a stale one fails here and the message names the fix
+python3 "$KIT_DIR/platforms/tools/gen_index.py" --check
 
 if command -v claude >/dev/null 2>&1; then
   for plugin_dir in "$KIT_DIR"/plugins/*/; do
