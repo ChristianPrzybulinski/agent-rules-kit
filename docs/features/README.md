@@ -75,5 +75,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-050-hooks-no-verify-compact.md`](KIT-050-hooks-no-verify-compact.md) | done | #180 | #182 |
 | [`KIT-052-plugin-links-and-not-for.md`](KIT-052-plugin-links-and-not-for.md) | done | #184 | #183 |
 | [`KIT-053-guard-git-global-options.md`](KIT-053-guard-git-global-options.md) | done | #186 | #187 |
+| [`KIT-054-guard-command-prefixes.md`](KIT-054-guard-command-prefixes.md) | done | #189 |  |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

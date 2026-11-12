@@ -1,4 +1,4 @@
-"""core hooks: the guard's --no-verify pattern, the SessionStart compact branch and a latency budget per hook."""
+"""core hooks: the guard's --no-verify pattern and time on contrived input, the SessionStart compact branch and a latency budget per hook."""
 import json
 import os
 import subprocess
@@ -35,6 +35,14 @@ OTHER_FLAGS = (
     "grep -rn -- --no-verify docs",
     "npm run lint -- --no-verify",
 )
+# Allowed commands built to make a backtracking regex blow up; before KIT-054 the first ran past the 10 s hook timeout.
+CONTRIVED = (
+    "git" + " -C -a" * 40 + " status",
+    "sudo" + " -u x" * 40 + " echo",
+    "echo a" + "\n" * 20000 + "echo b",
+    "cat > settings.txt <<EOF\n" + "".join(f"KEY_{index}=value-{index}\n" for index in range(1000)) + "EOF",
+)
+CONTRIVED_BUDGET_S = 1.0
 
 
 class HooksTest(unittest.TestCase):
@@ -78,6 +86,17 @@ class HooksTest(unittest.TestCase):
             with self.subTest(command=command):
                 result = self.guard(command)
                 self.assertEqual((result.returncode, result.stdout), (0, ""))
+
+    def test_guard_time_is_bounded_on_contrived_input(self):
+        for command in CONTRIVED:
+            with self.subTest(command=command[:40]):
+                runs = []
+                for _ in range(3):
+                    start = time.perf_counter()
+                    result = self.guard(command)
+                    runs.append(time.perf_counter() - start)
+                self.assertEqual((result.returncode, result.stdout), (0, ""))
+                self.assertLess(min(runs), CONTRIVED_BUDGET_S, f"guard took {min(runs):.3f} s at best of 3")
 
     def test_compact_reinjects_git_state(self):
         repo = self.dir / "repo"
