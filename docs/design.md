@@ -1,6 +1,6 @@
 # Design — why the kit is like this
 
-The validated layout and routing test live in [`../INDEX.md`](../INDEX.md). These principles explain the choices behind them.
+The validated layout and the "what goes where" table live in [`../CONTRIBUTING.md`](../CONTRIBUTING.md). These principles explain the choices behind them.
 
 ## Principles
 
@@ -41,7 +41,7 @@ Plugin skills remain installed but may be absent from the model input while [ope
   - What must hold every time goes in a hook; a skill or `AGENTS.md` sentence is advisory (Claude Code best-practices).
   - Covered, anchored at each command segment including after `sudo`/`xargs`/`time`/`env`: `rm -rf`, `find -delete`, `git push --force`, `git branch -D`, `git checkout -- <path>`, `git restore` (unless `--staged`), `git reset --hard`, `git clean -f`, `git stash drop`, `git filter-repo`, `git lfs migrate`, `docker compose down -v`, `docker prune`, `docker volume rm`, `flyway clean`, `destructive SQL file` (file name contains `drop|trunc|clean|reset|wipe|purge|destroy`), `destructive SQL`, `terraform destroy`, `gh repo delete`, `truncate -s 0` (size 0 only), `chmod -R 777` (recursive only), `curl | sh`.
   - Not covered, relies on the instruction: `git checkout <ref> -- <path>` (overwrites one path), `git worktree remove --force`, `UPDATE`/`DELETE` without `WHERE` (`dbeaver` skill), adding or removing a dependency and changing an applied migration (`plugins/core/AGENTS.md`), deploy/e-mail/payment side effects, anything typed by a human, Devin Cloud sessions (no hooks), and SQL files whose name does not contain a destructive word.
-  - The guard is local, fails open and never replaces user confirmation: `docs/maintenance.md` keeps that statement.
+  - The guard is local, fails open and never replaces user confirmation: `CONTRIBUTING.md` keeps that statement.
 - **`security-guidance` was left out as a kit dependency:** it reviews edited code for vulnerability patterns and does not block commands, so it cannot replace the PreToolUse guard; a project may enable it beside the kit as a Claude-Code-only code-security complement through the generated `.claude/settings.json` (the file P2-04 generates; not enabled by default).
 - **Additional skill frameworks were left out:** markdown procedures avoid another runtime and remain portable across supported agents.
 - **A `.devin/rules` copy was left out:** the Devin plugin already loads `plugins/*/rules/` by glob from the plugin itself; a second copy would load twice.

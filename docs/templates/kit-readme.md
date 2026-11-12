@@ -17,4 +17,4 @@
 
 - [what this content assumes and does not prove]
 
-<!-- Use README when explanation is needed. If a listing is enough, use kit-index.md. -->
+<!-- A folder gets a README only when its files need explanation; a plain listing adds nothing (KIT-042). -->
