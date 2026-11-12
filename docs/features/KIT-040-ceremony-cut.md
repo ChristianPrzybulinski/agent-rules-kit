@@ -1,10 +1,10 @@
 ---
 id: KIT-040
 title: "Feature records only for big kit changes, generated plugin indexes and no docs/plans"
-status: confirmed
+status: done
 confirmed: "2026-11-11 (owner, chat of the kit review session: phase 4 of the approved plan)"
 issue: "#150"
-pr: ""
+pr: "#152"
 ---
 
 # KIT-040 — Feature records only for big kit changes, generated plugin indexes and no docs/plans
@@ -69,6 +69,7 @@ format and lint, SessionStart synced-folder warning).
   as current.
   `gen_index.py --check` exits 1 and names `plugins/<name>/INDEX.md` and the regenerate command for a missing, a
   hand-edited and a stale index.
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: exit 0, "no leaks found".
 - Hooks: no hook command changed, so the 25 hook cases still run the same strings. A throwaway plugin with a
   `SessionStart` hook run by `claude -p --plugin-dir` (2.1.287) printed `CLAUDE_PLUGIN_ROOT=<plugin dir>`,
   `CLAUDE_PLUGIN_DATA` and `CLAUDE_PROJECT_DIR`.
@@ -78,3 +79,4 @@ format and lint, SessionStart synced-folder warning).
 ## History
 
 - 2026-11-11: confirmed (owner, chat of the kit review session, phase 4 of the approved plan); issue #150.
+- 2026-11-11: done in #152. The brief's fourth item (hook commands into script files) was left out, see Change 4.
