@@ -20,9 +20,11 @@
 # project.godot (godot), pom.xml (java), docs/spec/ (docs). The run prints which source won.
 # <profile> is godot|java|docs, optionally followed by :<dir>. A comma list syncs the union
 # of its profiles' plugins, rules and skills, for a monorepo such as
-# docs,godot:client,java:server. The :<dir> suffix scopes that profile's rule globs/paths
-# to <dir>/ ("**/*.gd" renders as "client/**/*.gd"). The list is stored sorted and
-# deduplicated, which is the form KIT_MANIFEST.json records.
+# docs,godot:client,java:server. The :<dir> suffix scopes the globs/paths of the rule named
+# after that profile to <dir>/ ("**/*.gd" renders as "client/**/*.gd"; java:server leaves the
+# godot rule alone), and a plugin's other rules to the folders of every profile that includes
+# the plugin. The list is stored sorted and deduplicated, which is the form KIT_MANIFEST.json
+# records.
 # A .claude/rules/*.md destination that exists without the generated marker refuses
 # the sync before any write; a marked file that falls out of the profile is removed.
 # --vendor-skills copies the profile's plugins/<plugin>/skills/<name>/ directories whole (core's
@@ -98,12 +100,11 @@ rule_files() { # prints "src rel-dest" for every rules/*.md in the profile's plu
 
 render_rule() { # $1 = kit rule file, $2 = output path: frontmatter (first --- through the
   # closing ---) copied byte-for-byte, then the generated marker, then the body unchanged;
-  # when the rule's plugin comes only from folder-scoped profiles, each globs/paths item
-  # "<glob>" becomes one "<dir>/<glob>" item per folder
-  local src="$1" out="$2" line glob dir scopes plugin
+  # when rule_scopes names folders, each globs/paths item "<glob>" becomes one
+  # "<dir>/<glob>" item per folder
+  local src="$1" out="$2" line glob dir scopes
   local separators=0 in_list=0
-  plugin="${src#"$KIT_DIR"/plugins/}"
-  scopes="$(plugin_scopes "$PROFILE" "${plugin%%/*}")"
+  scopes="$(rule_scopes "$PROFILE" "$src")"
   while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ "$separators" -eq 1 && "$scopes" != . ]]; then
       case "$line" in
@@ -219,6 +220,20 @@ plugin_scopes() { # $1 = normalized profile list, $2 = plugin; prints the space-
     case " $scopes " in *" $dir "*) ;; *) scopes="$scopes${scopes:+ }$dir" ;; esac
   done < <(profile_entries "$1")
   echo "${scopes:-.}"
+}
+
+rule_scopes() { # $1 = normalized profile list, $2 = kit rule file; a rule named after a profile
+  # (plugins/dev/rules/godot.md and profile godot) takes only that profile's folders, so java:server
+  # never scopes the godot rule; any other rule takes plugin_scopes of its plugin
+  local rel="${2#"$KIT_DIR"/plugins/}" stack name dir scopes=""
+  stack="${rel##*/}"
+  stack="${stack%.md}"
+  while read -r name dir; do
+    [[ "$name" == "$stack" ]] || continue
+    if [[ "$dir" == . ]]; then echo .; return 0; fi
+    case " $scopes " in *" $dir "*) ;; *) scopes="$scopes${scopes:+ }$dir" ;; esac
+  done < <(profile_entries "$1")
+  if [[ -n "$scopes" ]]; then echo "$scopes"; else plugin_scopes "$1" "${rel%%/*}"; fi
 }
 
 skill_dirs() { # prints "<plugin> <name>" for every plugins/<plugin>/skills/<name>/

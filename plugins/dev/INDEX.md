@@ -9,19 +9,14 @@ Depends on: `core`
 | Skill | Invoked by | Description |
 |---|---|---|
 | `asset-import` | user | Godot asset import with manifests and reproducible transforms. Use when bringing sprites, tilesets or maps into Godot. Not for drawing art (skill krita). |
-| `characterization-tests` | user, model | Tests that pin current behavior of legacy or ported code. Use when refactoring or rebalancing a rule with no spec. Not for new behavior (skill testing). |
-| `code-standards` | user, model | Names, functions, comments, errors and the YAGNI ladder. Use when writing or reviewing code or adding a dependency. Not for test policy (skill testing). |
-| `docker` | user, model | Docker and Compose workflow. Use when editing compose, a Dockerfile or diagnosing a container that will not start. Not for app config (skill twelve-factor). |
-| `git-lfs` | user, model | Git LFS policy. Use when editing .gitattributes, adding/migrating a large binary or checking quota. Not for branch policy (skill branching-and-versioning). |
+| `code-standards` | user, model | Code names, functions, errors, YAGNI and doc closure. Use when writing or reviewing code, adding a dependency or updating docs. Not for tests (skill testing). |
+| `docker` | user, model | Docker, Compose and Twelve-Factor config. Use when editing compose, Dockerfile, env or deploy config, or fixing a container. Not for data (skill persistence). |
 | `godot-standards` | user, model | Godot 2D and typed GDScript standards. Use when editing *.gd, *.tscn, project.godot or GDScript scenes. Not for asset import (skill asset-import). |
 | `investigate` | user, model | Root-cause investigation with reproduction. Use when a bug, slow behavior or incident has no named cause. Not for implementing fixes (skill sdd-implement). |
 | `java-standards` | user, model | Java 25, Spring/Quarkus and JUnit standards. Use when editing *.java, pom.xml, Spring/Quarkus code or JUnit tests. Not for general test policy (skill testing). |
 | `krita` | user | Krita pixel-art workflow. Use when editing pixel art, retouching sprites or defining sprite export. Not for Godot import (skill asset-import). |
-| `postgresql` | user, model | PostgreSQL persistence rules. Use when changing a schema, migration or index, running EXPLAIN, or diagnosing locks. Not for cache data (skill redis). |
-| `redis` | user, model | Redis ephemeral-data rules. Use when designing cache keys/TTL, rate limits, pub/sub or short locks. Not for durable data (skill postgresql). |
-| `testing` | user, model | Test policy and gates. Use when setting coverage/mutation gates or deciding what not to test. Not for legacy tests (skill characterization-tests). |
-| `twelve-factor` | user, model | Twelve-Factor application configuration. Use when changing config, env vars, deploy behavior or Docker app config. Not for container mechanics (skill docker). |
-| `update-docs` | user, model | Project documentation closure. Use when updating README, CHANGELOG, Javadoc, ADR or release notes. Not for feature specs (skill sdd-specify). |
+| `persistence` | user, model | PostgreSQL and Redis rules. Use when changing a schema, migration or index, reading EXPLAIN or locks, or designing cache keys. Not for Compose (skill docker). |
+| `testing` | user, model | Test policy, gates and characterization tests. Use when setting coverage/mutation gates, choosing tests or pinning legacy code. Not for verdicts (skill review). |
 
 ## `rules/`
 

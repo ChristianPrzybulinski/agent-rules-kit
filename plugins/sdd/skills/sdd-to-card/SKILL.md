@@ -1,6 +1,6 @@
 ---
 name: sdd-to-card
-description: SDD step 8 — one GitHub issue per task row plus the FEAT card. Use when cutting issues or closing a FEAT. Not for PR operations (skill github-cli).
+description: SDD step 8 — one GitHub issue per task row plus the FEAT card. Use when cutting issues or closing a FEAT. Not for PR operations (skill git).
 argument-hint: "FEAT-nnn [--project <number>]"
 triggers:
   - user

@@ -882,7 +882,7 @@ grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/dev-java.md" 
   || fail "java:server did not scope the java rule to server/"
 grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/sdd-spec.md" \
   || fail "the unscoped docs profile changed the spec rule globs"
-for s in sdd-tasks godot-standards java-standards postgresql; do
+for s in sdd-tasks godot-standards java-standards persistence; do
   [[ -f "$ROOT/mono-proj/.claude/skills/$s/.agent-rules-kit" ]] || fail "multi-profile sync did not vendor $s"
 done
 [[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["profile"])' \

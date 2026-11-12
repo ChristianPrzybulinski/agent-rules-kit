@@ -22,8 +22,8 @@ The repository root is a content-free meta-plugin. Its [manifest](.devin-plugin/
 
 | Plugin | Requires | Content |
 |---|---|---|
-| [`plugins/core/`](plugins/core/INDEX.md) | — | always-on rules, hook guard, session and collaboration skills; review (`reviewer` profile, skeptic, validate-implementation); GitHub workflow (gh, branching and versioning, review gates); security (secure development, vulnerability scanning) |
-| [`plugins/dev/`](plugins/dev/INDEX.md) | `core` | `rules/java.md`, `rules/godot.md`; code standards, testing, docs, investigation, Java 25/Spring, Godot 2D, asset import, Krita, Docker, Git LFS, twelve-factor, PostgreSQL, Redis |
+| [`plugins/core/`](plugins/core/INDEX.md) | — | always-on rules, hook guard, session (two-humans rules), parallelize; review (`reviewer` profile: completion verdict, claim check, PR gates); git (branches, versions, `gh`, LFS); security (design and scans) |
+| [`plugins/dev/`](plugins/dev/INDEX.md) | `core` | `rules/java.md`, `rules/godot.md`; code standards (docs closure), testing (characterization tests), investigation, Java 25/Spring, Godot 2D, asset import, Krita, Docker (twelve-factor config), persistence (PostgreSQL, Redis) |
 | [`plugins/sdd/`](plugins/sdd/INDEX.md) | `core` | `rules/spec.md`, `researcher` profile; architecture (layers, ports, DDD), protocol contracts, grilling, the sdd-* pipeline + journey layer, spec templates |
 
 ## Plugin rules

@@ -10,17 +10,11 @@
 
 | Skill | Invoked by | Description |
 |---|---|---|
-| `branching-and-versioning` | user, model | Branch, commit, PR and release policy. Use when creating a branch, flag, commit, PR, SemVer release or tag. Not for `gh` commands (skill github-cli). |
-| `collab-two-humans` | user, model | Condition → action rules for two people plus agents on one backlog. Use when a second human joins. Not for solo work. |
-| `github-cli` | user, model | `gh` PR workflow. Use when writing a PR body, checking reviews, merging or publishing a release. Not for branch policy (skill branching-and-versioning). |
+| `git` | user, model | Branch, commit, PR, `gh`, release and LFS policy. Use when creating a branch, commit, PR or release, or adding a large binary. Not for PR gates (skill review). |
 | `parallelize` | user, model | Parallel planning for tool calls, long commands and [P] tasks. Use when work has independent steps. Not for product concurrency (skill testing). |
-| `review-gates` | user, model | No-model PR gates on a pull request — contract, scope, proof. Use when reviewing or merging a PR. Not for PR creation (skill github-cli). |
-| `secure-development` | user, model | Security design for dependencies, auth, endpoints and sensitive data. Use when changing a trust boundary. Not for scanning changes (skill vuln-scan). |
-| `session` | user, model | Session start, closeout review and handoff record. Use when starting, changing topic, closing or leaving pending work. Not for parallelism (skill parallelize). |
-| `skeptic` | user, model | Adversarial check of a claim or proposed fix. Use when the user suggests a solution or a claim has no source yet. Not for bugs (skill investigate). |
-| `tokens` | user, model | Response register for code, e-mail, reports, README and governed docs. Use when writing long answers or text for humans. Not for doc policy (skill update-docs). |
-| `validate-implementation` | user, model | Completion verdict against a request or FEAT. Use when asking “is it done?” or preparing a PR. Not for fixing failures (skill sdd-implement). |
-| `vuln-scan` | user | Scan for CVEs, secrets and changed endpoints. Use when preparing a sensitive PR, release or requested audit. Not for security design (skill secure-development). |
+| `review` | user, model | Completion verdict, claim check and PR gates. Use when asking “is it done?”, preparing a PR or testing a claim. Not for fixing failures (skill sdd-implement). |
+| `security` | user, model | Security design and CVE, secret and endpoint scans. Use when changing a trust boundary or preparing a sensitive PR or release. Not for verdicts (skill review). |
+| `session` | user, model | Session start, closeout and handoff. Use when starting, switching topic, closing, handing off or a second human joins. Not for parallelism (skill parallelize). |
 
 ## `agents/`
 
@@ -32,9 +26,9 @@
 
 ## `evals/`
 
-- `branching-squash-body`
+- `git-squash-body`
+- `review-claimed-proof-not-rerun`
 - `session-closeout-no-rerun`
-- `validate-implementation-claimed-proof-not-rerun`
 
 ## `hooks/`
 
