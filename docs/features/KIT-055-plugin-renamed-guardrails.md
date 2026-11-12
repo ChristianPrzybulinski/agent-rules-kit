@@ -4,7 +4,7 @@ title: "The kit plugin is renamed from core to guardrails"
 status: done
 confirmed: "2026-11-12 (owner, chat of the kit backlog review session: \"Sim, plugins/guardrails\")"
 issue: "#188"
-pr: ""
+pr: "#197"
 ---
 
 # KIT-055 — The kit plugin is renamed from core to guardrails
