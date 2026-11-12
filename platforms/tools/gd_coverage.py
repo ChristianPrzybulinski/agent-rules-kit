@@ -2,7 +2,7 @@
 """Advisory line and branch coverage of GDScript functions under gdUnit4 (KIT-034).
 
 Usage: gd_coverage.py [--base REF] [--ref REF] [--tests RES_DIR]... [--exclude PATH]... [--timeout S]
-                      [--json FILE] [--keep] [FILE...]
+                      [--ignore SUITE]... [--json FILE] [--keep] [FILE...]
 
 `git archive <ref>` (default HEAD) of the Godot project around the current directory goes into a new temporary
 folder, with its Git LFS pointers filled from the local LFS store; the checkout is never edited. Every .gd file of the
@@ -19,6 +19,9 @@ Lambdas are not entered. The copy gains `kit_cov/kit_cov.gd` (class KitCov) and 
 ends; the counters of every Godot process the tests start in the copy are added to the run's own. It is imported once
 and the gdUnit4 suite runs headless under `nice -n 10`, with HOME and the XDG folders inside the temporary folder.
 A test that copies an instrumented script into another project runs it there without KitCov: exclude that script.
+A test that reads the project's own wiring sees the writer autoload and each probed file's use of KitCov: each
+--ignore SUITE goes to gdUnit4 as `-i SUITE` (a suite name, a path the suite's file contains, or `suite:test`), so
+those tests do not run and a line only they reach counts as not covered. The tool names no test itself.
 Each Godot run is stopped, with every process it started, after --timeout seconds (default 1800).
 
 A run counts when it finishes in time, exits 0 or 101 (orphans), its Overall Summary shows one test case or more and
@@ -571,7 +574,10 @@ def measure(args, prefix, sha, wanted, godot, scratch):
     if code:
         notice(f"import exited {code}")
     command = ["--path", str(copy), "--headless", "-s", GDUNIT_TOOL]
-    command += [arg for t in tests for arg in ("-a", t)] + ["-c", "--ignoreHeadlessMode"]
+    command += [arg for t in tests for arg in ("-a", t)] + [arg for i in args.ignore for arg in ("-i", i)]
+    command += ["-c", "--ignoreHeadlessMode"]
+    if args.ignore:
+        notice(f"gdUnit4 leaves out {', '.join(args.ignore)} (--ignore)")
     code, output, test_seconds, pid = run_godot(godot, command, env, log, args.timeout)
     errors += parse_errors(output)
     for text in errors[:3]:
@@ -611,7 +617,8 @@ def measure(args, prefix, sha, wanted, godot, scratch):
            "other Godot process(es) added")
     if args.json:
         data = {"tool": "gd_coverage", "version": 1, "ref": sha, "project": prefix or ".", "godot": version,
-                "tests": {**summary, "exit": code, "seconds": round(test_seconds, 1), "other_processes": others},
+                "tests": {**summary, "exit": code, "seconds": round(test_seconds, 1), "other_processes": others,
+                          "ignored": args.ignore},
                 "seconds": {"instrument": round(instrument_seconds, 1), "import": round(import_seconds, 1)},
                 "files": {"instrumented": len(sources) - len(failed), "failed": failed, "excluded": left_out},
                 "lfs": {"filled": filled, "missing": missing}, "probes": probes, "slots": slots,
@@ -628,6 +635,8 @@ def main():
     ap.add_argument("--tests", action="append", help="gdUnit4 test folder, repeatable (default res://tests)")
     ap.add_argument("--exclude", action="append", default=[],
                     help="project path of a .gd file or folder left without probes, repeatable")
+    ap.add_argument("--ignore", action="append", default=[],
+                    help="gdUnit4 suite name, suite path or suite:test left out of the run (its -i), repeatable")
     ap.add_argument("--timeout", type=int, default=TIMEOUT, help=f"seconds for one Godot run (default {TIMEOUT})")
     ap.add_argument("--json", help="write the full report to this file")
     ap.add_argument("--keep", action="store_true", help="keep the temporary copy, its log and counters")
