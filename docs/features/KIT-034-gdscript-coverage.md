@@ -350,6 +350,26 @@ Run from the worktree root at `3bdba5c` on 2026-11-11 (the commits after it chan
 - `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~16577 bytes (16.58 KB) in
   50.8ms", "no leaks found".
 
+T2–T4: run from the worktree root at `1b9f3ba` on 2026-11-12, rebased on `38a760b` (the commits after it change only
+this document); every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 82 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 143 tests in 128.834s", "OK
+  (skipped=4)"; 3 of the 4 skips are `test_gd_coverage.py` `GodotTest`, which needs `KIT_GDUNIT4`.
+- `KIT_GDUNIT4=<a gdUnit4 6.2.1 addons/gdUnit4 folder> nice -n 10 python3 -B -m unittest test_gd_coverage` in
+  `platforms/ci/validations`, with Godot 4.7.2 and gdtoolkit 4.5.0: "Ran 21 tests in 44.089s", "OK", no skip. It ran
+  before the rebase, which changed neither the tool nor its tests.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~76406 bytes (76.41 KB) in
+  77ms", "no leaks found".
+- `git merge-tree --write-tree HEAD origin/main` against `3834729` (KIT-054, #190): no conflict.
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
