@@ -1,2 +1,2 @@
 # name | plugin | repo | path-in-repo | commit-sha | license | verified
-grilling | sdd | mattpocock/skills | skills/productivity/grilling | d81f3a183412e71a5b1e84ca21bc1a35eea03a60 | MIT | 2026-09-30
+grilling | core | mattpocock/skills | skills/productivity/grilling | d81f3a183412e71a5b1e84ca21bc1a35eea03a60 | MIT | 2026-09-30

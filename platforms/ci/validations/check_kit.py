@@ -1070,6 +1070,39 @@ if lock.exists():
             fail(rel(vendor_file), f"sha diverges from the lock ({obj['sha'][:7]})")
 
 
+# --- 11b. Sync profile map (KIT-047) ---
+# platforms/tools/sync-profiles.txt decides which repository profiles get a copy of each core skill and rule.
+profile_map = KIT / "platforms/tools/sync-profiles.txt"
+MAP_PROFILES = {"godot", "java", "python", "docs"}
+core_dir = plugins.get(CORE_PLUGIN, PLUGINS_ROOT / CORE_PLUGIN)
+map_want = {f"skills/{d.name}" for d in sorted((core_dir / "skills").glob("*/")) if (d / "SKILL.md").is_file()}
+map_want |= {f"rules/{f.name}" for f in sorted((core_dir / "rules").glob("*.md"))}
+if not profile_map.exists():
+    fail(rel(profile_map), "missing; sync-project.sh reads it to pick each profile's skills and rules")
+else:
+    map_seen = {}
+    for number, line in enumerate(profile_map.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        entry, sep, receivers = line.partition("|")
+        entry, receivers = entry.strip(), receivers.split()
+        if not sep or not receivers:
+            fail(rel(profile_map), f"line {number}: expected '<skills/name or rules/file> | <profiles> or -'")
+            continue
+        if entry in map_seen:
+            fail(rel(profile_map), f"line {number}: '{entry}' repeats line {map_seen[entry]}")
+        map_seen[entry] = number
+        if receivers == ["-"]:
+            if entry.startswith("rules/"):
+                fail(rel(profile_map), f"line {number}: a rule reaches a repository only as a copy; name its profiles")
+        elif not set(receivers) <= MAP_PROFILES:
+            fail(rel(profile_map), f"line {number}: profiles must be '-' or among {sorted(MAP_PROFILES)}")
+    for entry in sorted(map_want - set(map_seen)):
+        fail(rel(profile_map), f"no line for {entry}; every core skill and rule needs one")
+    for entry in sorted(set(map_seen) - map_want):
+        fail(rel(profile_map), f"'{entry}' is not a skill or rule of plugins/{CORE_PLUGIN}")
+
+
 # --- 12. Paragraph duplication ---
 duplication_files = []
 if agents_md.exists():

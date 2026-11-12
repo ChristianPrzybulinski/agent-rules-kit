@@ -15,30 +15,6 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Engineering"
-    },
-    {
-      "name": "dev",
-      "source": {
-        "source": "local",
-        "path": "./plugins/dev"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "sdd",
-      "source": {
-        "source": "local",
-        "path": "./plugins/sdd"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
     }
   ]
 }

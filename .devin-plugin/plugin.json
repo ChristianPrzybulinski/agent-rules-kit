@@ -1,22 +1,12 @@
 {
   "name": "agent-rules-kit",
   "version": "11.3.0",
-  "description": "Meta-plugin: installs the three ai-kit plugins (core, dev, sdd)",
+  "description": "Meta-plugin: installs the ai-kit plugin (core)",
   "requiredPlugins": [
     {
       "source": "git-subdir",
       "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
       "path": "plugins/core"
-    },
-    {
-      "source": "git-subdir",
-      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/dev"
-    },
-    {
-      "source": "git-subdir",
-      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/sdd"
     }
   ]
 }
