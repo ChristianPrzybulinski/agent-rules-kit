@@ -34,7 +34,7 @@ Verifies work someone else claims or proposes and reports a verdict with sources
 
 ## 2. Inspect what exists
 
-- Run `git diff <base>...HEAD --stat` and inspect the changed files; report cited files absent from the diff.
+- Run `git diff <base>...HEAD --stat` and inspect the changed files; report cited files absent from the diff and changed behavior no criterion asked for.
 - For each criterion, locate implementation, executable proof and required documentation.
 - A criterion without an executable test or reproducible command is not met.
 - Validate the pushed head on a clean checkout (`git worktree add --detach <tmp> <sha>`); local uncommitted state never counts. A result the author's report or PR lists is a claim until a record backs it: a CI or gate run, or a log a command wrote, naming the commit it ran on. Re-run there every proof without such a record and every proof whose inputs changed since it ran (files it covers, dependencies, config, environment, or an assumption it tested). Reuse a recorded result whose inputs are unchanged and write it on a `Reused:` line; a new commit hash alone invalidates nothing. A claimed result that neither a command nor a record reproduces is unverified; one that fails there makes the verdict `NOT READY`.
@@ -55,7 +55,7 @@ Read the repository's `AGENTS.md` and README for commands. Pick the gates by the
 - Capture the literal failing excerpt; never replace it with “some tests failed.”
 - Run the gates in a complete checkout of the repository. A sparse or partial worktree is for editing: a gate that stops there on a missing path (`can't open file`, `No such file`) is a failed run, never a pass, and under `set -e` it skips every later gate — rerun from a full checkout before the verdict.
 - In Claude Code (Claude-specific) the calling session also runs `/code-review <base>...HEAD` on the pushed head before the verdict of any change above docs-only (when this skill runs forked without the Skill tool, run it from the parent session and hand its findings to the verdict); it runs as a background subagent and reports correctness bugs, so continue with the closure records while it runs and wait for its findings before §4. Confirm each finding at `path:line` on the clean checkout; a confirmed finding becomes a `missing` or `partial` row of the criterion table (or a `Gates:` line `code-review → FAILED (<finding>)` when it belongs to no criterion); an unconfirmed one goes under `Unverified`. In Devin or any other executor, apply the repository `REVIEW.md` (kit copy: `platforms/kits/github/REVIEW.md`) by hand instead. `/code-review` reads `CLAUDE.md`, not `REVIEW.md` (checked against code.claude.com/docs/en/code-review on 2026-10-06).
-- Closure records: read the `living-docs` reference in skill `code-standards`. Check CHANGELOG, command-facing README changes, public API docs, FEAT status, DEC/DEBT, and an incomplete feature's flag.
+- Closure records: read the `living-docs` reference in skill `code-standards`. Check CHANGELOG, command-facing README changes, public API docs, FEAT status, DEC/DEBT (the diff contradicts no accepted DEC), and an incomplete feature's flag.
 
 ## 4. Issue the verdict
 

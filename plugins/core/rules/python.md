@@ -13,7 +13,7 @@ Always/never for `*.py` and `pyproject.toml`. Procedures: skill `code-standards`
 
 - Always: run the interpreter the repo names (`AGENTS.md`, `.python-version`, `requires-python`, a pinned path); on macOS a bare `python3` can be the Xcode 3.9, so read `python3 --version` before trusting a result.
 - Always: the standard library first; a third-party import or a new `pyproject.toml` dependency is a dependency change (ask first) with its version pinned.
-- Always: type hints on every new or changed signature (`def load(path: Path, *, strict: bool = False) -> dict[str, str]:`); a `dataclass` instead of a tuple of three or more fields.
+- Always: type hints on every new or changed signature (`def load(path: Path, *, strict: bool = False) -> dict[str, str]:`); `typing.Literal` for a fixed set of strings; a `dataclass` instead of a tuple of three or more fields.
 - Always: `pathlib.Path` for paths and an explicit `encoding="utf-8"` on every text read and write.
 - Always: `subprocess.run([...], check=True)`, or an explicit return-code check, with the arguments as a list; never `shell=True` with interpolated text or `os.system`.
 - Never: a mutable default argument (`def f(items=[])`); default to `None` and build the value inside.

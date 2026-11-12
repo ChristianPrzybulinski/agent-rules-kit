@@ -29,7 +29,7 @@ Pin what legacy or ported code does today, so a refactor or rebalance must chang
 
 ## 4. Compare an original when available
 
-- If executable, run the same fixture against both versions and record `legacy-expected | current | decision`.
+- If executable, run the same fixture against both versions and record `legacy-expected | current | decision`; a comparison that cannot run (missing binary, fixture or tool) fails instead of skipping, and the report names how many cases ran.
 - If not executable, transcribe the formula beside the test and mark divergence `[HYPOTHESIS]` until decided.
 
 ## 5. Hand off deliberate change

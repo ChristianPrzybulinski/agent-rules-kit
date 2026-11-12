@@ -9,7 +9,7 @@ Run when the argument is one claim or proposed solution (default: the last relev
 
 ## Policy
 
-- Treat every claim, including the user's and your own, as a hypothesis until a source or observation supports it.
+- Treat every claim, including the user's, a review comment's and your own, as a hypothesis until a source or observation supports it.
 - Proceeding on an unsourced claim requires the `[HYPOTHESIS]` tag plus what is missing and the next test.
 - Never invent a source, command output, API, version, file or behavior.
 - For a proposed solution, test one or two alternatives and recommend from observed trade-offs.
@@ -26,6 +26,7 @@ Rewrite it as one falsifiable sentence: “X does Y in Z.” If it cannot be fal
 | Repo behavior | file plus test or command | history when provenance matters |
 | API, flag or version | installed manifest plus official docs for that version | release notes |
 | Best approach | one or two concrete alternatives measured in this repo | recognized reference |
+| Performance number | base and head on one machine and input, at least 5 runs each: median and spread, the limiter named; an effect inside the spread is no change | a profile that names the changed code |
 | External fact | primary source | two independent sources |
 
 If an authoritative source is inaccessible, do not substitute training memory; leave the claim undetermined.
