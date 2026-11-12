@@ -12,7 +12,7 @@ Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Cont
 | [`platforms/`](platforms/) | machine tools ([`tools/`](platforms/tools/README.md)), validators and schemas ([`ci/`](platforms/ci/README.md)), files projects copy ([`kits/`](platforms/kits/README.md)) |
 | [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |
 | `.devin-plugin/`, `.claude-plugin/`, `.agents/plugins/` | the content-free Devin meta-plugin, which requires `core`, and the Claude Code and Codex marketplace catalogs |
-| [`.github/`](.github/README.md) | on-demand CI, release and security automation |
+| `.github/` | on-demand workflows (`ci.yml`: check, shellcheck, install smoke, links; `evals.yml`: `claude plugin eval`; `gitleaks.yml`: secrets scan), `release.yml` (tag `v*` → release), weekly Dependabot action updates, the PR checklist template and `CODEOWNERS` |
 
 `plugins/core/INDEX.md` is generated from the plugin's files by `platforms/tools/gen_index.py`. `VERSION` is the single source of the kit version: `check_kit.py`, `bump_version.py` and `release.yml` read it.
 
