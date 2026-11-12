@@ -1,10 +1,10 @@
 ---
 id: KIT-041
 title: "The dev and sdd eval cases load core, so skill-fired measures the skill"
-status: confirmed
+status: done
 confirmed: "2026-11-11 (owner's kit review, brief from the coordinating session \"Agents kit review e simplificação\")"
 issue: "#156"
-pr: ""
+pr: "#158"
 ---
 
 # KIT-041 — The dev and sdd eval cases load core, so skill-fired measures the skill
@@ -71,3 +71,4 @@ dependency to make the eval load was not an option without the owner.
 ## History
 
 - 2026-11-11: confirmed (owner's kit review, brief from the coordinating session); issue #156.
+- 2026-11-11: done in #158.
