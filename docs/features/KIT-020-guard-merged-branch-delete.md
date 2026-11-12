@@ -4,7 +4,7 @@ title: "The destructive-command guard allows git branch -D on a merged PR's bran
 status: done
 confirmed: "2026-11-12 (owner in chat of the kit backlog review session: \"Sim, os dois\" to implementing #113 and updating #138; the issue itself was confirmed 2026-10-30)"
 issue: "#113"
-pr: ""
+pr: "#185"
 ---
 
 # KIT-020 — The destructive-command guard allows git branch -D on a merged PR's branch
@@ -72,4 +72,4 @@ next to each other); that gap is older than this change and stays out of its sco
 ## History
 
 - 2026-10-30: proposed in a stratics closeout and filed as #113 (owner).
-- 2026-11-12: confirmed (owner, chat) and implemented.
+- 2026-11-12: confirmed (owner, chat) and implemented in #185.
