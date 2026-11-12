@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [12.0.0] - 2026-11-12
+
 MAJOR: the kit plugin `core` is renamed `guardrails` (KIT-055); see Migration. The marketplace `ai-kit`, the Devin meta-plugin `agent-rules-kit`, the guard prefix `ai-kit guard:` and the install destinations do not change.
 
 ### Added
