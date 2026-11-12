@@ -4,7 +4,7 @@ title: "The destructive-command guard sees commands behind assignments, paths, w
 status: done
 confirmed: "2026-11-12 (owner in chat of the KIT-054 implementation session: \"Com quebra de linha (Recomendado)\" to the scope question before opening the issue)"
 issue: "#189"
-pr: ""
+pr: "#190"
 ---
 
 # KIT-054 — The destructive-command guard sees commands behind assignments, paths, wrappers and line breaks
@@ -104,4 +104,4 @@ denied as `rm -rf`.
 ## History
 
 - 2026-11-12: left out of KIT-053 (#187) as not covered; the `G` backtracking was found in its review.
-- 2026-11-12: scope confirmed (owner, chat, line breaks and `find -exec` included); issue #189.
+- 2026-11-12: scope confirmed (owner, chat, line breaks and `find -exec` included); issue #189, implemented in #190.
