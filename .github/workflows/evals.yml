@@ -13,8 +13,6 @@ jobs:
         run: |
           curl -fsSL https://claude.ai/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      # The target is plugins/, not plugins/<p>: a dev or sdd case lists ../../../core in its plugins: frontmatter,
-      # which loads only from inside the target directory.
       - name: eval
         run: |
           claude plugin eval plugins --trust-plugin --scaffold --allow-tools Bash Edit Write --tag ready \
