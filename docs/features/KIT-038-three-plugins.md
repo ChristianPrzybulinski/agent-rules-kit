@@ -4,7 +4,7 @@ title: "Three plugins by audience: core, dev and sdd"
 status: done
 confirmed: "2026-11-11 (owner, chat of the kit review session: \"Sim, Fase 2\")"
 issue: "#151"
-pr: "#TBD"
+pr: "#153"
 ---
 
 # KIT-038 — Three plugins by audience: core, dev and sdd
