@@ -90,8 +90,9 @@ The tool, `platforms/tools/gd_coverage.py` (Python 3.9+, gdtoolkit 4.5.0, our ow
    `FILE...` limits the report to those files and `--base REF` to the functions whose lines changed in `REF...HEAD`,
    read by `complexity.py`'s `changed_lines`. `--keep` keeps the temporary folder. Exit 0 (advisory); a gate waits
    for T7.
-6. **CRAP.** `complexity.py` reads that JSON and fills `Function.coverage` with the line ratio for GDScript, so a
-   GDScript function scores CRAP the way a Java one does from JaCoCo (T5).
+6. **CRAP.** `complexity.py --gd-coverage FILE` (repeatable) reads that JSON and fills `Function.coverage` with the
+   line ratio for GDScript, joined by repository-relative path and `func` line, so a GDScript function scores CRAP the
+   way a Java one does from JaCoCo (T5); a function the report does not hold scores CC as before.
 
 `plugins/core/skills/testing/SKILL.md:26` and `testable-game-logic.md:28` change only in T6, after the tool exists.
 No CI or loop gate runs it (D2, D5).
@@ -184,6 +185,15 @@ closes #136; this PR refers to it.
   `platforms/ci/validations/INDEX.md`" became the tool's row in `platforms/tools/README.md`, the index of tools;
   `platforms/ci/README.md` lists validations and has no row for a tool's test (`test_complexity.py` and
   `test_gd_duplicates.py` have none).
+- 2026-11-12 T5: chose to join a GDScript function to the `gd_coverage.py` report by its repository-relative path and
+  `func` line over its name because `gd_spans` keeps the bare `func` name, so two inner classes' functions of one name
+  would share a ratio, while both tools start a function at its `func` line. The report writes paths from the
+  repository root (`client/app/network/network.gd` in the monorepo), and `complexity.py` takes `FILE` relative to the
+  current folder, so it turns each path into one from `git rev-parse --show-toplevel`. A report taken at another
+  commit still joins where a function kept its path and line, and the tool says so (notice).
+- 2026-11-12 T5: chose to treat an unreadable or foreign `--gd-coverage` file like a missing JaCoCo report (notice,
+  CC scores, exit 2 with `--threshold`) over scoring its functions at 0 % coverage, because 0 % turns every CC into
+  CC² + CC and would read as a finding that the change did not cause.
 
 ## Risks
 
@@ -243,6 +253,14 @@ closes #136; this PR refers to it.
   client is `client/` in stratics-docs, where `resolve_server_url` is one line (`client/app/network/network.gd:350` at
   `ac649c10c`). The tool archives `<ref>:client` when it runs inside that folder (`extract`), and a run there counted
   with 9 test cases ignored (§ Measurements).
+- [FACT] with coverage, a GDScript function reaches the CRAP target sooner than the old CC-only target: CRAP < 10 fails
+  for a fully covered function at CC 10 (CRAP 10.0), which `code-standards`
+  (`plugins/core/skills/code-standards/SKILL.md:33`, "CC ≤ 10 (GDScript)") still accepts. 8 of the 62 functions that
+  coverage added on the monorepo client are such functions (§ Measurements). The skill text changes with T6, not T5.
+- [FACT] a function that only an ignored test reaches reads as not covered and can become a CRAP finding:
+  `client/tools/ui/size_audit.gd` `guard` (CC 9) has 0/20 lines covered in the counted run because its one test,
+  `test_guard_rejects_new_changed_stale_and_duplicate_entries`, is ignored, and scores CRAP 90.0, the second worst on
+  the client (§ Measurements). T7's false-positive count includes such findings.
 
 ## Measurements
 
@@ -393,6 +411,24 @@ run 3 with fewer cases. The one paired measure is the plain copy against run 1, 
 | probes | 6,463 `hit`, 4,712 `b` and 559 `t` in 16,446 counter slots; 37 lines unmeasured |
 | counter files | the run's own and 6 from the Godot processes that tests started in the copy |
 | tool timings | instrumentation 11.3 s, `--import` 21.7 s, suite 559.1 s; 4,565 LFS pointers filled, 0 missing |
+
+T5 ran on 2026-11-12 with run 3's report and gdtoolkit 4.5.0, on a new Git repository holding only the 1,047
+`client/**/*.gd` files of `ac649c10c`, so its root matches the report's paths (the stratics-docs checkout was only
+read); the 276 files of the report were the `FILE` arguments, and each run took about 6 s. gdradon cannot parse 3 of
+them (`client/features/battle/battle.gd` line 704, `client/features/mail/mail_window.gd` line 222 and
+`client/features/world/movement/remote_track.gd` line 13, "invalid syntax"), so their functions are not measured with
+or without coverage.
+
+| `complexity.py` run | Result |
+|---|---|
+| without `--gd-coverage` (KIT-031) | 66 of 3,114 measured functions above target, all by CC |
+| `--gd-coverage` run 3's report | "GDScript coverage for 3114 of 3114 measured function(s)"; 128 of 3,114 above target, all by CRAP; the notice names the report's ref `ac649c10c070` against the copy's HEAD `2072376d2326`, and every function joined because the files are the same |
+
+The 66 CC findings all stay, as CRAP is never below CC; 32 of them are fully covered, so their CRAP equals their CC.
+Of the 62 that coverage adds, 26 are at CC 10 (8 fully covered, CRAP 10.0, § Risks) and 36 at CC 3 to 9 with lines not
+covered (CC derived from CRAP and the report's line ratio). The worst three are `client/app/network/network.gd`
+`_validate_message` (CC 224, 299/320 lines) at CRAP 238.2, `client/tools/ui/size_audit.gd` `guard` (0/20 lines; its
+test is ignored, § Risks) at 90.0 and `client/tools/ui/build_shop_theme.gd` `_build_hair` (0/30 lines) at 72.0.
 
 ## Proof
 

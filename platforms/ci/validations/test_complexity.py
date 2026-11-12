@@ -1,4 +1,6 @@
-"""complexity.py: CRAP from a fixture JaCoCo XML and CC from a stub gdradon on a fixture .gd pair."""
+"""complexity.py: CRAP from a fixture JaCoCo XML and CC from a stub gdradon on a fixture .gd pair, or CRAP when a
+fixture gd_coverage.py --json report holds the GDScript function."""
+import json
 import os
 import subprocess
 import sys
@@ -99,8 +101,8 @@ class ComplexityTest(unittest.TestCase):
         self.git("add", "-A")
         self.git("-c", "commit.gpgsign=false", "commit", "-q", "-m", message)
 
-    def run_tool(self, *args, env=None):
-        return subprocess.run([sys.executable, "-B", str(TOOL), *args], cwd=self.repo, env=env or self.env,
+    def run_tool(self, *args, env=None, cwd=None):
+        return subprocess.run([sys.executable, "-B", str(TOOL), *args], cwd=cwd or self.repo, env=env or self.env,
                               capture_output=True, text=True, check=False)
 
     def test_reports_changed_functions_above_target_only(self):
@@ -168,6 +170,44 @@ class ComplexityTest(unittest.TestCase):
         self.assertEqual((result.returncode, result.stdout), (0, ""), result.stderr)
         self.assertNotIn("JaCoCo", result.stderr)
         self.assertEqual(self.run_tool("--base", "no-such-ref").returncode, 2)
+
+    def gd_report(self, project, functions, ref=None):
+        """A gd_coverage.py --json file holding (repository-relative path, start, covered, total) per function."""
+        path = Path(self.tmp.name) / f"gd-coverage-{len(functions)}.json"
+        items = [{"path": p, "name": "ignored by the join", "start": s, "end": s + 1,
+                  "lines": {"covered": c, "total": n}} for p, s, c, n in functions]
+        path.write_text(json.dumps({"tool": "gd_coverage", "version": 1, "ref": ref, "project": project,
+                                    "functions": items}))
+        return str(path)
+
+    def test_gd_coverage_report_turns_a_gdscript_cc_into_crap(self):
+        report = self.gd_report(".", [(GD, 4, 1, 2), (GD, 12, 1, 1)])  # move half covered, tiny fully
+        result = self.run_tool("--base", self.base, "--jacoco", str(self.report), "--gd-coverage", report)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(f"{GD} move CRAP 30.0", result.stdout.splitlines())  # 12^2 * 0.5^3 + 12
+        self.assertIn(f"{GD} tiny CRAP 10.0", result.stdout.splitlines())  # covered: CRAP = CC, which CRAP < 10 fails
+        self.assertIn("GDScript coverage for 2 of 2 measured function(s); the rest score CC", result.stderr)
+
+    def test_gd_coverage_joins_by_repository_relative_path_and_func_line(self):
+        project, inside = GD.split("/", 1)  # gd_coverage.py run in scripts/ still writes paths from the root
+        report = self.gd_report(project, [(GD, 4, 0, 1), (GD, 9, 1, 1), (GD, 12, 0, 0)], "0" * 40)
+        result = self.run_tool("--gd-coverage", report, inside, cwd=self.repo / project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), [f"{inside} move CRAP 156.0", f"{inside} legacy_branchy CC 15"])
+        self.assertIn("GDScript coverage for 1 of 3 measured function(s); the rest score CC", result.stderr)
+        self.assertIn(f"measured 000000000000, not HEAD {self.git('rev-parse', 'HEAD')[:12]}", result.stderr)
+
+    def test_unreadable_gd_coverage_report_is_named_and_never_scored_as_zero_coverage(self):
+        other = Path(self.tmp.name) / "other.json"
+        other.write_text('{"tool": "jacoco"}')
+        for report, why in ((str(other) + ".absent", "other.json.absent not read"),
+                            (str(other), "not a gd_coverage.py --json version 1 report")):
+            result = self.run_tool("--base", self.base, "--jacoco", str(self.report), "--gd-coverage", report)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(why, result.stderr)
+            self.assertEqual(result.stdout.splitlines(), CHANGED)
+            self.assertEqual(self.run_tool("--base", self.base, "--jacoco", str(self.report), "--gd-coverage",
+                                           report, "--threshold", "99").returncode, 2)
 
 
 if __name__ == "__main__":
