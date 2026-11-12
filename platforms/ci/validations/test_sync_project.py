@@ -210,7 +210,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rules = self.repo / ".claude" / "rules"
         self.assertEqual(sorted(p.name for p in rules.glob("*.md")),
-                         ["dev-godot.md", "dev-java.md", "sdd-spec.md"])
+                         ["dev-godot.md", "dev-java.md", "dev-python.md", "sdd-spec.md"])
         self.assertIn('  - "client/**/*.gd"', (rules / "dev-godot.md").read_text().splitlines())
         self.assertIn('  - "server/**/*.java"', (rules / "dev-java.md").read_text().splitlines())
         self.assertIn('  - "docs/spec/**/*.md"', (rules / "sdd-spec.md").read_text().splitlines())
@@ -230,6 +230,19 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(alone.returncode, 0, alone.stdout + alone.stderr)
         # no java profile: the java rule takes the folders of every profile that includes plugin dev
         self.assertIn('  - "client/**/*.java"', (rules / "dev-java.md").read_text().splitlines())
+
+    def test_python_profile_scopes_the_python_rule(self):  # KIT-045
+        result = self.run_sync("--profile", "docs,godot:client,java:server,python:platform,python:tools")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rules = self.repo / ".claude" / "rules"
+        python_rule = (rules / "dev-python.md").read_text().splitlines()
+        for glob in ("platform/**/*.py", "tools/**/*.py", "platform/**/pyproject.toml"):
+            self.assertIn(f'  - "{glob}"', python_rule)
+        self.assertNotIn("client/", "\n".join(python_rule))
+        self.assertNotIn("platform/", (rules / "dev-godot.md").read_text())
+        self.assertNotIn("platform/", (rules / "dev-java.md").read_text())
+        check = self.run_sync("--check", "--profile", "python:tools,docs,python:platform,godot:client,java:server")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
 
     def test_multi_profile_rejects_unknown_profile_and_outside_folder(self):
         for value in ("docs,rust", "godot:../client", "godot:/client", "docs,"):
