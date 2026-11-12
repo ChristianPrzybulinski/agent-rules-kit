@@ -1,10 +1,10 @@
 ---
 id: KIT-045
 title: "Python files get a path rule, and a python profile scopes it in a monorepo"
-status: confirmed
+status: done
 confirmed: "2026-11-11 (owner's kit review: Java, Godot and Python first; recommendations approved in chat until revoked)"
 issue: "#167"
-pr: ""
+pr: "#168"
 ---
 
 # KIT-045 — Python files get a path rule, and a python profile scopes it in a monorepo
@@ -49,3 +49,4 @@ A consumer adds `python:<dir>` to its profile on its next sync (Stratics: `pytho
 ## History
 
 - 2026-11-11: confirmed (owner's kit review); issue #167.
+- 2026-11-11: done in #168.
