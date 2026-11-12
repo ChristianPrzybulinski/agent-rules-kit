@@ -38,7 +38,7 @@ States: `proposed` → `approved` | `rejected` | `superseded` (superseded by a l
 
 ## How to validate
 
-[What evidence would confirm or topple the decision; when to revisit.]
+[What evidence would confirm or topple the decision.] Enforced by: [test path, check or review section, or `review only`]. Revisit when: [the observable condition that reopens it].
 
 ## References
 

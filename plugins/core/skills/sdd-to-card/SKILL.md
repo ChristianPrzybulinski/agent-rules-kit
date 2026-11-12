@@ -36,6 +36,6 @@ A task issue closes through its PR, whose last line is `Closes <owner>/<docs-rep
 
 ## 4. Verify
 
-Run `gh issue view <n>` and confirm title, status, links and the FEAT `card` agree.
+Run `gh issue view <n>` and confirm title, status, links and the FEAT `card` agree. Read each task issue as a fresh session would: if it cannot start from that text alone, add the missing fact (the file to start in, a real input or output sample).
 
 Done when: one issue per task row is cut verbatim in wave order, FEAT `card` and statuses agree with GitHub, the frontmatter change is committed, and no specification body was duplicated.

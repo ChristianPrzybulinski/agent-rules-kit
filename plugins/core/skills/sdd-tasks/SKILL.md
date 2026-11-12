@@ -20,7 +20,7 @@ Require `status: planned` and a Plan section with files, boundaries and test str
 
 ## 2. Split by verifiable outcome
 
-- Each task takes roughly 5–30 minutes, touches at most five named files and has one command/test proving completion.
+- Each task is a thin slice one fresh agent context can finish: roughly 5–30 minutes, at most five named files and one command/test proving completion. A mechanical change across the codebase (rename, retype) is one task, and a spec value a row needs (version, name, limit) is copied into it verbatim.
 - Split any title needing “and also”. Tests travel with behavior, not in an end-of-feature test task.
 - Order contract/types → domain/tests → persistence/migration → adapters/integration → client → flag/docs.
 - For a business rule, the first implementation task writes the failing domain test.
