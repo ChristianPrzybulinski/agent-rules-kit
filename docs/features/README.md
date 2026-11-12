@@ -69,5 +69,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-044-positive-phrasing.md`](KIT-044-positive-phrasing.md) | done | #165 | #166 |
 | [`KIT-045-python-rule.md`](KIT-045-python-rule.md) | done | #167 | #168 |
 | [`KIT-046-refresh-reexec.md`](KIT-046-refresh-reexec.md) | done | #173 | #175 |
+| [`KIT-050-hooks-no-verify-compact.md`](KIT-050-hooks-no-verify-compact.md) | confirmed | #180 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
