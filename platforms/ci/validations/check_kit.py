@@ -30,14 +30,12 @@ REFERENCE_MAX_LINES = 60
 RULE_BODY_MAX_LINES = 40
 
 CORE_PLUGIN = "core"
-BUNDLE_PLUGIN = "all"
-OPTIONAL_PLUGINS = {"extras"}  # opt-in content plugins that the 'all' bundle does not require
 REPO_URL = "https://github.com/ChristianPrzybulinski/agent-rules-kit.git"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:[-.][a-z0-9]+)*$")
 
 failures = []
 warnings = []
-counts = {"plugins": 0, "skills": 0, "rules": 0, "templates": 0, "indexes": 0, "links": 0,
+counts = {"plugins": 0, "skills": 0, "rules": 0, "templates": 0, "readmes": 0, "links": 0,
           "hook_cases": 0}
 
 try:
@@ -186,7 +184,7 @@ def dep_entry(name):
 
 # --- 1. Layout ---
 REQUIRED_ROOT_PATHS = [
-    "INDEX.md", "README.md", "VERSION", ".devin-plugin/plugin.json",
+    "README.md", "CONTRIBUTING.md", "VERSION", ".devin-plugin/plugin.json",
     ".agents/plugins/marketplace.json", ".claude-plugin/marketplace.json", "plugins", "platforms/tools",
     "platforms/ci/schemas", "platforms/ci/validations", "platforms/kits", "docs",
 ]
@@ -217,10 +215,6 @@ if PLUGINS_ROOT.exists():
         plugins[entry.name] = entry
         counts["plugins"] += 1
 
-content_plugins = {name: path for name, path in plugins.items() if name != BUNDLE_PLUGIN}
-for optional in sorted(OPTIONAL_PLUGINS - plugins.keys()):
-    fail("plugins", f"OPTIONAL_PLUGINS names '{optional}', which is not a plugin directory")
-
 for name, plugin_dir in plugins.items():
     if not NAME_RE.match(name):
         fail(rel(plugin_dir), f"plugin name '{name}' is not lowercase kebab/dot")
@@ -237,10 +231,6 @@ for name, plugin_dir in plugins.items():
             fail(rel(plugin_dir / "AGENTS.md"), "always-on rules live only in plugins/core/AGENTS.md")
         if (plugin_dir / "hooks").exists():
             fail(rel(plugin_dir / "hooks"), "hooks live only in plugins/core/hooks/")
-    if name == BUNDLE_PLUGIN:
-        for content_dir in ("skills", "rules", "agents", "templates"):
-            if (plugin_dir / content_dir).exists():
-                fail(rel(plugin_dir / content_dir), f"'{BUNDLE_PLUGIN}' is manifest-only")
 
 version = (KIT / "VERSION").read_text(encoding="utf-8").strip() if (KIT / "VERSION").exists() else ""
 if version and not re.match(r"^\d+\.\d+\.\d+$", version):
@@ -296,15 +286,6 @@ for name, plugin_dir in plugins.items():
     if sorted(set(claude_deps)) != dep_graph[name]:
         fail(rel(plugin_dir), "Claude dependencies and Devin requiredPlugins name different plugin sets")
 
-    if name == BUNDLE_PLUGIN and devin_manifest is not None:
-        if devin_manifest.get("skills") != []:
-            fail(rel(plugin_dir / ".devin-plugin/plugin.json"), "'all' must set \"skills\": []")
-        expected = sorted(set(content_plugins) - OPTIONAL_PLUGINS)
-        if dep_graph[name] != expected:
-            fail(rel(plugin_dir / ".devin-plugin/plugin.json"),
-                 f"'all' must require every content plugin except opt-in {sorted(OPTIONAL_PLUGINS)}")
-    if name != BUNDLE_PLUGIN and BUNDLE_PLUGIN in dep_graph[name]:
-        fail(rel(plugin_dir), f"content plugin may not require '{BUNDLE_PLUGIN}'")
 
 # cycle check
 visiting, visited = set(), set()
@@ -342,14 +323,11 @@ if meta_manifest is not None:
         fail(rel(meta_path), "name != 'agent-rules-kit'")
     if meta_manifest.get("version") != version:
         fail(rel(meta_path), f"version '{meta_manifest.get('version')}' != VERSION '{version}'")
-    if meta_manifest.get("requiredPlugins") != [dep_entry(BUNDLE_PLUGIN)]:
-        fail(rel(meta_path), f"requiredPlugins must contain exactly the '{BUNDLE_PLUGIN}' git-subdir entry")
-    expected_optional = sorted(plugins.keys() - {BUNDLE_PLUGIN})
-    optional_paths = sorted(
-        entry.get("path", "") for entry in (meta_manifest.get("optionalPlugins") or [])
-        if isinstance(entry, dict))
-    if optional_paths != [f"plugins/{name}" for name in expected_optional]:
-        fail(rel(meta_path), f"optionalPlugins must list every plugin except '{BUNDLE_PLUGIN}'")
+    # KIT-038: the meta-plugin installs every plugin; there is no bundle and no opt-in plugin
+    if meta_manifest.get("requiredPlugins") != [dep_entry(name) for name in sorted(plugins)]:
+        fail(rel(meta_path), "requiredPlugins must list the git-subdir entry of every plugin, sorted by name")
+    if "optionalPlugins" in meta_manifest:
+        fail(rel(meta_path), "optionalPlugins is not used: every plugin is required")
 
 marketplace = read_json(KIT / ".agents/plugins/marketplace.json") if (KIT / ".agents/plugins/marketplace.json").exists() else None
 if marketplace is not None:
@@ -743,7 +721,6 @@ else:
 # --- 6. Skills ---
 skill_names = {}
 skill_descriptions = []
-skill_description_text = {}
 skill_dirs = set()
 skill_plugin = {}  # skill name -> plugin name
 per_plugin_budget = {}
@@ -778,7 +755,6 @@ for name, plugin_dir in plugins.items():
             description = ""
         skill_descriptions.append((f"{name}:{skill_name}", len(description)))
         per_plugin_budget[name] = per_plugin_budget.get(name, 0) + len(description)
-        skill_description_text[skill_name] = description
         vendored = (skill_dir / "VENDOR.md").exists()
         if not vendored:
             validate_schema(skill_file, data, "skill.schema.json")
@@ -822,7 +798,7 @@ for name, plugin_dir in plugins.items():
             if "Use when" not in description:
                 fail(rel(skill_file), "description lacks literal 'Use when'")
             if "Not for" not in description:
-                warn(rel(skill_file), "description lacks 'Not for'")
+                fail(rel(skill_file), "description lacks literal 'Not for'")
 
     for reference in sorted(skills_root.glob("*/references/*.md")):
         skill_dir = reference.parent.parent
@@ -894,8 +870,8 @@ for name, plugin_dir in plugins.items():
         if template.name == "INDEX.md":
             continue
         counts["templates"] += 1
-        if not re.match(r"^(spec|doc|project|kit)-[a-z0-9-]+\.md$", template.name):
-            fail(rel(template), f"name '{template.name}' does not match ^(spec|doc|project|kit)-[a-z0-9-]+\\.md$")
+        if not re.match(r"^(spec|doc|project)-[a-z0-9-]+\.md$", template.name):
+            fail(rel(template), f"name '{template.name}' does not match ^(spec|doc|project)-[a-z0-9-]+\\.md$")
         stem = template.stem
         if stem in SPEC_MAP:
             data, _ = frontmatter(template)
@@ -946,17 +922,11 @@ for root in index_roots:
     for directory in sorted(directories):
         if exempt_dir(directory):
             continue
-        has_index = (directory / "INDEX.md").exists()
-        has_readme = (directory / "README.md").exists()
-        if has_index and has_readme:
-            fail(rel(directory), "has INDEX.md and README.md (never both)")
+        # a README is optional (KIT-042); when present it names every entry
+        if not (directory / "README.md").exists():
             continue
-        if not (has_index or has_readme):
-            fail(rel(directory), "no INDEX.md or README.md")
-            continue
-        counts["indexes"] += 1
-        index_file = directory / ("INDEX.md" if has_index else "README.md")
-        index_text = index_file.read_text(encoding="utf-8")
+        counts["readmes"] += 1
+        index_text = (directory / "README.md").read_text(encoding="utf-8")
         entries = [path.name for path in directory.iterdir()
                    if path.name not in ("INDEX.md", "README.md", ".gitkeep")
                    and not path.name.startswith(".")]
@@ -964,41 +934,28 @@ for root in index_roots:
             if entry not in index_text:
                 fail(rel(directory), f"entry '{entry}' does not appear in the index")
 
-if not (KIT / "INDEX.md").exists() or not (KIT / "README.md").exists():
-    fail(".", "root requires INDEX.md and README.md")
+# the only INDEX.md files are the generated plugin indexes (KIT-042)
+for index_file in sorted(KIT.rglob("INDEX.md")):
+    if ".git" in index_file.parts:
+        continue
+    if index_file.parent.parent != KIT / "plugins":
+        fail(rel(index_file), "INDEX.md exists only at plugins/<name>/ (generated); use README.md")
 
-# per-plugin INDEX.md: lists every content entry and every skill with its exact description
+# per-plugin INDEX.md is generated by platforms/tools/gen_index.py; check.sh fails when it is stale
 for name, plugin_dir in plugins.items():
-    plugin_index = plugin_dir / "INDEX.md"
-    index_text = plugin_index.read_text(encoding="utf-8") if plugin_index.exists() else ""
-    for subdir in ("skills", "rules", "templates", "agents", "evals"):
-        sub_root = plugin_dir / subdir
-        if not sub_root.exists():
+    if not (plugin_dir / "INDEX.md").exists():
+        fail(rel(plugin_dir), "no INDEX.md (run python3 platforms/tools/gen_index.py)")
+    evals_root = plugin_dir / "evals"
+    if not evals_root.exists():
+        continue
+    for entry in sorted(evals_root.iterdir()):
+        if entry.name.startswith(".") or entry.name in ("INDEX.md", "README.md", "results", "mocks"):
             continue
-        for entry in sorted(sub_root.iterdir()):
-            if entry.name.startswith(".") or entry.name in ("INDEX.md", "README.md") \
-                    or (subdir == "evals" and entry.name in ("results", "mocks")):
-                continue
-            if subdir == "evals" and entry.is_dir():
-                if not ((entry / "prompt.md").exists() or (entry / "case.yaml").exists()):
-                    fail(rel(entry), "eval case without prompt.md or case.yaml")
-                if not any((entry / "graders").glob("*.md")):
-                    fail(rel(entry), "eval case without graders/*.md")
-            if subdir == "rules" and entry.is_file():
-                if f"rules/{entry.name}" not in index_text and entry.name not in index_text:
-                    fail(rel(plugin_index), f"rule '{entry.name}' missing from plugin index")
-            elif entry.name not in index_text:
-                fail(rel(plugin_index), f"entry '{entry.name}' missing from plugin index")
-    skills_root = plugin_dir / "skills"
-    if skills_root.exists():
-        for skill_name, owner in skill_names.items():
-            if owner != name:
-                continue
-            match = re.search(rf"^\| `{re.escape(skill_name)}` \| (.*) \|$", index_text, re.M)
-            if not match:
-                fail(rel(plugin_index), f"skill '{skill_name}' missing from index")
-            elif match.group(1) != skill_description_text.get(skill_name):
-                fail(rel(plugin_index), f"skill '{skill_name}' description differs from frontmatter")
+        if entry.is_dir():
+            if not ((entry / "prompt.md").exists() or (entry / "case.yaml").exists()):
+                fail(rel(entry), "eval case without prompt.md or case.yaml")
+            if not any((entry / "graders").glob("*.md")):
+                fail(rel(entry), "eval case without graders/*.md")
 
 
 # --- 10. Relative links ---
@@ -1017,12 +974,15 @@ def vendor_internal(path):
             and (plugins[owner] / "skills" / relative.parts[1] / "VENDOR.md").exists())
 
 
+def escapes_plugin(owner, resolved):
+    """A plugin cache holds only plugins/<owner>/, so a path that leaves it breaks once installed."""
+    return owner is not None and not resolved.is_relative_to(plugins[owner].resolve())
+
+
 for markdown_file in sorted(KIT.rglob("*.md")):
     if ".git" in markdown_file.parts or vendor_internal(markdown_file):
         continue
-    owner = plugin_of(markdown_file)
-    if owner is not None and "templates" in markdown_file.relative_to(plugins[owner]).parts[:1] \
-            and markdown_file.name.startswith("kit-"):
+    if markdown_file.parent == KIT / "docs" / "templates" and markdown_file.name.startswith("kit-"):
         continue
     for match in link_re.finditer(markdown_file.read_text(encoding="utf-8")):
         target = match.group(1)
@@ -1036,10 +996,12 @@ for markdown_file in sorted(KIT.rglob("*.md")):
         resolved = (markdown_file.parent / target).resolve()
         if not resolved.exists():
             fail(rel(markdown_file), f"broken link: {target}")
+        elif escapes_plugin(plugin_of(markdown_file), resolved):
+            fail(rel(markdown_file), f"path escapes plugin root: {target}")
 
 backtick_re = re.compile(
     r"`((?:(?:\.\./|\./)+|references/|templates/|platforms/|plugins/)[^`\s]+\.(?:md|sh|json|yml|yaml))`")
-backtick_files = [agents_md, KIT / "INDEX.md", KIT / "README.md"]
+backtick_files = [agents_md, KIT / "README.md", KIT / "CONTRIBUTING.md"]
 backtick_files += list((KIT / "docs").glob("*.md"))
 backtick_files += list((KIT / "platforms").rglob("*.md"))
 for name, plugin_dir in plugins.items():
@@ -1051,9 +1013,6 @@ for name, plugin_dir in plugins.items():
         backtick_files.append(plugin_dir / "INDEX.md")
 for markdown_file in sorted(set(path for path in backtick_files if path.exists())):
     owner = plugin_of(markdown_file)
-    if owner is not None and markdown_file.parent == plugins[owner] / "templates" \
-            and markdown_file.name.startswith("kit-"):
-        continue
     for match in backtick_re.finditer(markdown_file.read_text(encoding="utf-8")):
         target = match.group(1)
         if "<" in target:
@@ -1072,13 +1031,9 @@ for markdown_file in sorted(set(path for path in backtick_files if path.exists()
         if not matches:
             fail(rel(markdown_file), f"broken backtick path: {target}")
             continue
-        if owner is not None and not target.startswith(("platforms/", "plugins/")):
-            for resolved in matches:
-                try:
-                    resolved.relative_to(plugins[owner].resolve())
-                except ValueError:
-                    fail(rel(markdown_file), f"path escapes plugin root: {target}")
-                    break
+        if not target.startswith(("platforms/", "plugins/")) and any(
+                escapes_plugin(owner, resolved) for resolved in matches):
+            fail(rel(markdown_file), f"path escapes plugin root: {target}")
 
 
 # --- 11. Vendor skills lock ---
@@ -1118,6 +1073,39 @@ if lock.exists():
             fail(rel(vendor_file), f"sha diverges from the lock ({obj['sha'][:7]})")
 
 
+# --- 11b. Sync profile map (KIT-047) ---
+# platforms/tools/sync-profiles.txt decides which repository profiles get a copy of each core skill and rule.
+profile_map = KIT / "platforms/tools/sync-profiles.txt"
+MAP_PROFILES = {"godot", "java", "python", "docs"}
+core_dir = plugins.get(CORE_PLUGIN, PLUGINS_ROOT / CORE_PLUGIN)
+map_want = {f"skills/{d.name}" for d in sorted((core_dir / "skills").glob("*/")) if (d / "SKILL.md").is_file()}
+map_want |= {f"rules/{f.name}" for f in sorted((core_dir / "rules").glob("*.md"))}
+if not profile_map.exists():
+    fail(rel(profile_map), "missing; sync-project.sh reads it to pick each profile's skills and rules")
+else:
+    map_seen = {}
+    for number, line in enumerate(profile_map.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        entry, sep, receivers = line.partition("|")
+        entry, receivers = entry.strip(), receivers.split()
+        if not sep or not receivers:
+            fail(rel(profile_map), f"line {number}: expected '<skills/name or rules/file> | <profiles> or -'")
+            continue
+        if entry in map_seen:
+            fail(rel(profile_map), f"line {number}: '{entry}' repeats line {map_seen[entry]}")
+        map_seen[entry] = number
+        if receivers == ["-"]:
+            if entry.startswith("rules/"):
+                fail(rel(profile_map), f"line {number}: a rule reaches a repository only as a copy; name its profiles")
+        elif not set(receivers) <= MAP_PROFILES:
+            fail(rel(profile_map), f"line {number}: profiles must be '-' or among {sorted(MAP_PROFILES)}")
+    for entry in sorted(map_want - set(map_seen)):
+        fail(rel(profile_map), f"no line for {entry}; every core skill and rule needs one")
+    for entry in sorted(set(map_seen) - map_want):
+        fail(rel(profile_map), f"'{entry}' is not a skill or rule of plugins/{CORE_PLUGIN}")
+
+
 # --- 12. Paragraph duplication ---
 duplication_files = []
 if agents_md.exists():
@@ -1143,6 +1131,6 @@ for markdown_file in sorted(set(duplication_files)):
 
 print(f"check: {'OK' if not failures else 'failed'} ({counts['plugins']} plugins, {counts['skills']} skills, "
       f"{counts['rules']} rules, {counts['templates']} templates, "
-      f"{counts['indexes']} indexes, {counts['links']} links, "
+      f"{counts['readmes']} readmes, {counts['links']} links, "
       f"{counts['hook_cases']} hook cases)")
 sys.exit(1 if failures else 0)

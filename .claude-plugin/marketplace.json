@@ -7,104 +7,29 @@
     "description": "agent-rules-kit marketplace"
   },
   "renames": {
-    "ai-kit": "core"
+    "ai-kit": "core",
+    "quality-core": "core",
+    "quality-security": "core",
+    "infra-github": "core",
+    "dev-core": "core",
+    "dev-java": "core",
+    "dev-godot": "core",
+    "infra-core": "core",
+    "infra-persistence": "core",
+    "architect-core": "core",
+    "architect-sdd": "core",
+    "all": null,
+    "extras": null,
+    "process-loop": null,
+    "dev": "core",
+    "sdd": "core"
   },
+  "forceRemoveDeletedPlugins": true,
   "plugins": [
     {
       "name": "core",
       "source": "./plugins/core",
-      "description": "ai-kit core: always-on global rules, session discipline and kit templates",
-      "version": "11.3.0",
-      "category": "productivity"
-    },
-    {
-      "name": "dev-core",
-      "source": "./plugins/dev-core",
-      "description": "ai-kit dev patterns: code standards, testing, docs and investigation skills",
-      "version": "11.3.0",
-      "category": "programming"
-    },
-    {
-      "name": "dev-java",
-      "source": "./plugins/dev-java",
-      "description": "ai-kit Java: Java 25, Spring/Quarkus and Maven standards",
-      "version": "11.3.0",
-      "category": "programming"
-    },
-    {
-      "name": "dev-godot",
-      "source": "./plugins/dev-godot",
-      "description": "ai-kit Godot: Godot 2D, GDScript and pixel-art pipeline standards",
-      "version": "11.3.0",
-      "category": "programming"
-    },
-    {
-      "name": "architect-core",
-      "source": "./plugins/architect-core",
-      "description": "ai-kit architecture: Clean Architecture, DDD, contracts and idea stress-testing",
-      "version": "11.3.0",
-      "category": "architecture"
-    },
-    {
-      "name": "architect-sdd",
-      "source": "./plugins/architect-sdd",
-      "description": "ai-kit SDD: spec-driven development pipeline from FEAT to GitHub cards",
-      "version": "11.3.0",
-      "category": "architecture"
-    },
-    {
-      "name": "quality-core",
-      "source": "./plugins/quality-core",
-      "description": "ai-kit quality: review subagent, adversarial checks and completion verdicts",
-      "version": "11.3.0",
-      "category": "quality"
-    },
-    {
-      "name": "quality-security",
-      "source": "./plugins/quality-security",
-      "description": "ai-kit security: secure design and vulnerability scanning",
-      "version": "11.3.0",
-      "category": "security"
-    },
-    {
-      "name": "infra-core",
-      "source": "./plugins/infra-core",
-      "description": "ai-kit infra: Docker, Git LFS and twelve-factor configuration",
-      "version": "11.3.0",
-      "category": "infrastructure"
-    },
-    {
-      "name": "infra-persistence",
-      "source": "./plugins/infra-persistence",
-      "description": "ai-kit persistence: PostgreSQL and Redis",
-      "version": "11.3.0",
-      "category": "databases"
-    },
-    {
-      "name": "infra-github",
-      "source": "./plugins/infra-github",
-      "description": "ai-kit GitHub: gh workflow, branching and versioning policy",
-      "version": "11.3.0",
-      "category": "infrastructure"
-    },
-    {
-      "name": "extras",
-      "source": "./plugins/extras",
-      "description": "ai-kit extras: opt-in skills outside the default install (frontend-design, krita, dbeaver, find-skills, skill-creator)",
-      "version": "11.3.0",
-      "category": "productivity"
-    },
-    {
-      "name": "process-loop",
-      "source": "./plugins/process-loop",
-      "description": "ai-kit process loop: orchestrated implement-review-merge batches with gates and verdicts",
-      "version": "11.3.0",
-      "category": "productivity"
-    },
-    {
-      "name": "all",
-      "source": "./plugins/all",
-      "description": "ai-kit bundle: installs every ai-kit plugin except the opt-in extras",
+      "description": "ai-kit: always-on rules, review, security, code and test standards, Java/Godot stacks and the spec-driven pipeline",
       "version": "11.3.0",
       "category": "productivity"
     }

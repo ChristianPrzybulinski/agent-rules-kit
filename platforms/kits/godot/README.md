@@ -12,4 +12,4 @@ Base for Godot 4 2D projects.
 | `../git-lfs/.gitattributes` | combine with the `.gitignore` (binaries in LFS) |
 | `../github/workflows/ci-godot.yml` | headless CI (import, boot proof, gdUnit4 by default or GUT, fails when no runner or zero tests, JUnit artifact, gdformat/gdlint, manual export) |
 
-GDScript/scene-architecture rules: `plugins/dev-godot/skills/godot-standards/SKILL.md`.
+GDScript/scene-architecture rules: `plugins/core/skills/godot-standards/SKILL.md`.

@@ -14,7 +14,7 @@ allowed-tools:
 
 # Parallelize
 
-Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/review, or built-in `subagent_explore`/`subagent_general`); Devin Cloud uses managed Devins within ACU limits because profiles and hooks do not load there; Codex has no subagents, so keep steps sequential or ask the user to open parallel sessions.
+Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/review, or built-in `subagent_explore`/`subagent_general`); Devin Cloud uses managed Devins within ACU limits because profiles and hooks do not load there; Codex `spawn_agent` forks the whole thread, model included, unless `fork_turns="none"`: pass it with a self-contained brief.
 
 ## 1. Map dependencies
 
@@ -26,31 +26,30 @@ Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/r
 
 - Batch independent `read`, `grep`, `glob`, status and short `exec` calls in one response.
 - Prefer one precise aggregate command over many file-by-file calls.
-- Do not add speculative reads merely to fill a parallel wave; the scope rule in `../tokens/SKILL.md` still applies.
+- Read only the material the outcome needs; broad reading needs a named hypothesis, and no speculative read is added merely to fill a parallel wave.
+- Bulk output (long logs, wide searches, full test runs) goes to a subagent or a file; the main thread keeps the summary and the path. Filter at the source (a script, `jq`, `grep`, a line range) so only the answer prints; redirect before slicing (`cmd > out.txt 2>&1`), since a pipe into `tail` reports tail's exit status.
 
 ## 3. Background long work
 
 - Start commands expected to exceed 10 seconds in the background while unrelated work continues.
 - Keep the process handle, collect literal output before reporting, and stop servers/watchers when finished.
 - Before waiting on `pgrep -f <pattern>`, list its matches once (`pgrep -fl`): the pattern also matches leftovers of earlier runs and any other shell or wrapper holding it. Narrow it to the processes meant, bracket one character (`'[l]oop.py gates'`) so the waiting shell stays out of other counts, and give the wait a deadline.
-- Do not run concurrent commands that contend for one local repository, port, database or test fixture.
+- A recurring or unattended job (loop, cron, scheduled task) names the skill it runs instead of copying its steps, states its stop condition and who acts on its output, and stops with a report at an ask-first action.
 
 ## 4. Fan out disjoint tasks
 
 - Fan out `[P]` tasks from skill `sdd-tasks` when they have no real conflict. Without evidence, disjoint file ownership is the test; a shared file is no conflict until a `git merge-tree` replay says so (`references/measure-conflicts.md`). Keep real dependencies and semantic hotspots (migration number, protocol version, error-code allocation) sequential.
 - While a task waits for a slot or a dependency, read ahead: read-only prepare workers, one per area (code, tests, spec), write a context note that the implementer reads first and re-checks (`references/read-ahead.md`).
-- Brief each worker with its goal, owned files, interface, verification command and required report.
-- The lead reviews every diff and integrates results; a worker report is not evidence by itself.
+- Brief each worker in a fresh context, artifacts by path: goal, owned files and units, interface, done criterion, the default for a missing detail, verification command and a bounded report (paths changed, units covered, checks run, open items; no whole-task claim). Name the model tier, since an omitted one inherits the lead's.
+- The lead reviews every diff, compares covered units with assigned ones and does the gaps itself, then integrates; a worker report is not evidence by itself.
 
 ## 5. Keep unsafe work sequential
 
-- Keep dependencies, shared resources, correctness-critical queries, and external effects sequential.
 - Serialize Git operations on one worktree; use another worktree when branches must progress independently (`references/worktrees.md`).
-- After the same failure twice, stop parallel retries and form a new hypothesis.
 
 ## 6. Close
 
-- Collect every background result and name anything intentionally left running.
+- Collect every background result, on later turns too (a job with no result is checked, not assumed done), and name anything intentionally left running.
 - Report what ran together, what stayed sequential and why.
 
 Done when: no unrelated step waited unnecessarily, no shared resource raced, and every started process has a collected result or an explicit owner.

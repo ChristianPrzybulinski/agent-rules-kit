@@ -6,8 +6,13 @@ not one of the loop's repositories, and it serves more than one project.
 
 ## Process
 
-1. A session (a project's improvement notes, an assessment under [`../plans/`](../plans/README.md), a review) proposes a
-   kit change with its evidence. Nothing is written here until the owner confirms it.
+A record is for a big change only: a hook, `plugins/core/AGENTS.md`, plugin structure or manifests, a check, gate or
+script behavior change, or a new or removed skill. Any other change (a skill, rule, reference, template or doc text
+edit) needs only its `CHANGELOG.md` line, and the PR body carries the why (KIT-040). Records written before KIT-040 stay
+as they are.
+
+1. A session (a project's improvement notes, an assessment, a review) proposes a kit change with its evidence. Nothing
+   is written here until the owner confirms it.
 2. On confirmation: copy [`TEMPLATE.md`](TEMPLATE.md) to `KIT-NNN-<slug>.md` (next free number), and open one issue in
    this repository titled `[KIT-NNN] <title>`, label `kit-feature`, that links the file.
 3. The PR that implements it closes the issue (`Closes #N`); its `CHANGELOG.md` line cites `KIT-NNN`. The file's
@@ -47,5 +52,26 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-026-pgrep-wait-lists-matches.md`](KIT-026-pgrep-wait-lists-matches.md) | done | #126 | #127 |
 | [`KIT-027-device-owner-in-handoff.md`](KIT-027-device-owner-in-handoff.md) | done | #128 | #129 |
 | [`KIT-028-writer-line-in-state-file.md`](KIT-028-writer-line-in-state-file.md) | done | #130 | #138 |
+| [`KIT-029-design-and-type-principles.md`](KIT-029-design-and-type-principles.md) | done | #131 | #139 |
+| [`KIT-030-test-honesty-and-parity.md`](KIT-030-test-honesty-and-parity.md) | done | #132 | #140 |
+| [`KIT-031-complexity-signal.md`](KIT-031-complexity-signal.md) | done | #133 | #141 |
+| [`KIT-032-process-sharpenings-and-decisions.md`](KIT-032-process-sharpenings-and-decisions.md) | done | #134 | #142 |
+| [`KIT-033-gdscript-duplicate-finder.md`](KIT-033-gdscript-duplicate-finder.md) | done | #135 | #143 |
+| [`KIT-034-gdscript-coverage.md`](KIT-034-gdscript-coverage.md) | confirmed | #136 | — |
+| [`KIT-035-gdscript-mutation.md`](KIT-035-gdscript-mutation.md) | confirmed | #137 | — |
+| [`KIT-036-eval-login-check.md`](KIT-036-eval-login-check.md) | done | #146 | #147 |
+| [`KIT-037-evals-templates-trim.md`](KIT-037-evals-templates-trim.md) | done | #148 | #149 |
+| [`KIT-038-three-plugins.md`](KIT-038-three-plugins.md) | done | #151 | #153 |
+| [`KIT-039-skill-merges.md`](KIT-039-skill-merges.md) | done | #154 | #155 |
+| [`KIT-040-ceremony-cut.md`](KIT-040-ceremony-cut.md) | done | #150 | #152 |
+| [`KIT-041-eval-plugin-deps.md`](KIT-041-eval-plugin-deps.md) | done | #156 | #158 |
+| [`KIT-042-root-docs-and-readmes.md`](KIT-042-root-docs-and-readmes.md) | done | #160 | #161 |
+| [`KIT-043-tool-text-is-evidence.md`](KIT-043-tool-text-is-evidence.md) | done | #162 | #163 |
+| [`KIT-044-positive-phrasing.md`](KIT-044-positive-phrasing.md) | done | #165 | #166 |
+| [`KIT-045-python-rule.md`](KIT-045-python-rule.md) | done | #167 | #168 |
+| [`KIT-046-refresh-reexec.md`](KIT-046-refresh-reexec.md) | done | #173 | #175 |
+| [`KIT-047-one-plugin.md`](KIT-047-one-plugin.md) | done | #176 | #177 |
+| [`KIT-050-hooks-no-verify-compact.md`](KIT-050-hooks-no-verify-compact.md) | done | #180 | #182 |
+| [`KIT-052-plugin-links-and-not-for.md`](KIT-052-plugin-links-and-not-for.md) | done | #184 | #183 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

@@ -21,7 +21,7 @@ The seven spec schemas (`spec`, `feature`, `requirement`, `decision`, `debt`, `j
 
 | Validation | Scope |
 |---|---|
-| `validations/check_kit.py` | multi-plugin layout, manifests and dependency graph, frontmatters, description budget, indexes, links, vendor lock, duplication (`--links` includes `~/.ai-kit/...`) |
+| `validations/check_kit.py` | multi-plugin layout, manifests and dependency graph, frontmatters, description budget, README completeness and `INDEX.md` placement (self-test `validations/test_check_kit_readmes.py`), links, vendor lock, duplication (`--links` includes `~/.ai-kit/...`) |
 | `validations/check_spec.py` | a project's `docs/spec`: schema + id=prefix + FEAT↔REQ cross-check (ids exist, both frontmatters list each link) + unique IDs + `progress/*.json` (schema, feat exists, name = feat, unique task ids); self-test `validations/test_check_spec.py` |
 | `validations/spec_trace.py` | a project's `docs/spec/journeys/`: step-table link checks, FEAT↔REQ symmetry, `traceability.md` generation/staleness, `impact`/`mark-done`/`status`; self-test `validations/test_spec_trace.py` |
 | `validations/pr_gates.py` | the no-model PR gates against the GitHub REST API, driven by a project JSON config; served by `platforms/kits/github/workflows/pr-contract.yml` |

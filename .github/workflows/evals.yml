@@ -2,30 +2,30 @@ name: evals
 # Manual only: the runs bill the Anthropic API and need the ANTHROPIC_API_KEY secret, which is not set.
 on:
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   eval:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        plugin: [architect-core, architect-sdd, dev-core, dev-godot, dev-java, quality-core]
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false  # the eval agent runs Bash; it gets no git token
       - name: install Claude Code
         run: |
           curl -fsSL https://claude.ai/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: eval ${{ matrix.plugin }}
+      - name: eval
         run: |
-          claude plugin eval "plugins/${{ matrix.plugin }}" --trust-plugin --scaffold --allow-tools Bash Edit Write --tag ready \
-            --threshold 0.8 --model claude-sonnet-5-5 --judge-model claude-haiku-4-5 \
-            --no-publish --max-cost-usd 20 --json "results-${{ matrix.plugin }}.json" --report "report-${{ matrix.plugin }}.html"
+          claude plugin eval plugins --trust-plugin --scaffold --allow-tools Bash Edit Write --tag ready \
+            --ablation with-without --threshold 0.8 --model claude-sonnet-5-5 --judge-model claude-haiku-4-5 \
+            --no-publish --max-cost-usd 20 --output-dir eval-results --json results.json --report report.html
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: evals-${{ matrix.plugin }}
+          name: evals
           path: |
-            results-${{ matrix.plugin }}.json
-            report-${{ matrix.plugin }}.html
+            results.json
+            report.html

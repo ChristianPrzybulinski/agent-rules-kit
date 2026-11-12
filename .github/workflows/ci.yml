@@ -2,6 +2,9 @@ name: ci
 
 on: workflow_dispatch  # KIT-014: the local gates are the proof; dispatch for a clean-runner check
 
+permissions:
+  contents: read
+
 env:
   CI: "1"
 
@@ -10,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
