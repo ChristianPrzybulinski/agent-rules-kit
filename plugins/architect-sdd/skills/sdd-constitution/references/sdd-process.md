@@ -22,7 +22,7 @@ Repeat `implement → validate` per issue until READY. Run `to-card` after `task
 | 4 | `sdd-plan` | checked FEAT | Plan + DECs; planned |
 | 5 | `sdd-tasks` | Plan | ordered task rows |
 | 6 | `sdd-implement` | one task issue | code/tests/docs; PR per issue |
-| 7 | `validate-implementation` | FEAT + delivery | READY/PARTIAL/NOT READY |
+| 7 | `review` | FEAT + delivery | READY/PARTIAL/NOT READY |
 | 8 | `sdd-to-card` | task rows + FEAT | one issue per task, FEAT card |
 
 ## Identifiers and status

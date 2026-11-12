@@ -1,6 +1,6 @@
 ---
 name: dbeaver
-description: DBeaver GUI inspection. Use when inspecting a database, exporting test data or drawing an ER diagram. Not for schema changes (skill postgresql).
+description: DBeaver GUI inspection. Use when inspecting a database, exporting test data or drawing an ER diagram. Not for schema changes (skill persistence).
 argument-hint: "[connect | export | er-diagram]"
 triggers:
   - user

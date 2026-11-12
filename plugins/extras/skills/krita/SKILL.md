@@ -30,6 +30,6 @@ Export frames, then run `platforms/kits/godot/scripts/make_spritesheet.py` to cr
 
 ## 4. Automate only verified transformations
 
-Use Pillow/ImageMagick scripts for repeated recolor/crop/resize/background removal after checking installation. Record inputs, outputs and hashes per the `git-lfs-and-binaries` reference in skill `git-lfs`; never remove one color globally without per-set preview/decision.
+Use Pillow/ImageMagick scripts for repeated recolor/crop/resize/background removal after checking installation. Record inputs, outputs and hashes per the `git-lfs-and-binaries` reference in skill `git`; never remove one color globally without per-set preview/decision.
 
 Done when: source/export formats are correct, frame names and transparency are stable, batch transforms are reproducible and the deliverable is ready for asset import.

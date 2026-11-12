@@ -1,6 +1,7 @@
 ---
 name: testing
-description: Test policy and gates. Use when setting coverage/mutation gates or deciding what not to test. Not for legacy tests (skill characterization-tests).
+description: Test policy, gates and characterization tests. Use when setting coverage/mutation gates, choosing tests or pinning legacy code. Not for verdicts (skill review).
+argument-hint: "[legacy class/method or flow to characterize | empty]"
 triggers:
   - user
   - model
@@ -31,6 +32,7 @@ Parity: every quality check one language has (coverage, mutation, complexity, du
 - Bug: add a test that reproduces the symptom and fails for the right reason before the fix.
 - Feature: the failing acceptance/domain test defines the behavior that makes the task done.
 - Business rule: use a parameterized valid/boundary/invalid case table.
+- Legacy or ported code with no spec (refactor or rebalance): pin its current behavior first with characterization tests, `references/characterization.md`; never fix behavior while pinning it.
 
 ## 3. Choose the proof level
 

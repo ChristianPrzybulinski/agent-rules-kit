@@ -31,7 +31,7 @@ The question must be about feel (movement, camera, battle feedback, UI) and unan
 ## 3. Rules while spiking
 
 - No file under `docs/spec/` changes.
-- No coverage, lint, mutation or `validate-implementation` gate applies; any code shape is allowed.
+- No coverage, lint, mutation or `review` gate applies; any code shape is allowed.
 - Measure what the question asks (frame time, input-to-motion latency, tile crossing time, hit-feedback delay) and record the numbers.
 
 ## 4. Deliver

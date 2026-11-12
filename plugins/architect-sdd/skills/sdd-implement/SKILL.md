@@ -1,6 +1,6 @@
 ---
 name: sdd-implement
-description: SDD step 6 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill validate-implementation).
+description: SDD step 6 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill review).
 argument-hint: "FEAT-nnn [T-nn]"
 triggers:
   - user
@@ -39,7 +39,7 @@ A planned red intermediate state (expand/contract, a failing test committed befo
 
 ## 3. Close the implementation
 
-Use the `living-docs` reference in skill `update-docs`, update CHANGELOG/README/API docs and run full repository gates. Then call `validate-implementation`; PARTIAL/NOT READY returns to the missing task.
+Use the `living-docs` reference in skill `code-standards`, update CHANGELOG/README/API docs and run full repository gates. Then call `review`; PARTIAL/NOT READY returns to the missing task.
 
 Incomplete work may merge only behind a recorded flag that defaults off. A flag continuously on for more than 30 days creates a `DEBT-nnn` removal item. Security/integrity rules never hide behind a flag.
 

@@ -177,13 +177,13 @@ class SyncProjectCheckTest(unittest.TestCase):
 
     def test_vendor_skills_check_detects_drift(self):
         self.vendor_install()
-        with (self.repo / ".claude" / "skills" / "github-cli" / "SKILL.md").open("a") as fh:
+        with (self.repo / ".claude" / "skills" / "git" / "SKILL.md").open("a") as fh:
             fh.write("x")
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("diverges from the manifest", result.stdout)
         self.assertEqual(self.run_sync().returncode, 0)  # resync restores the copy
-        (self.repo / ".claude" / "skills" / "github-cli" / "extra.txt").write_text("x\n")
+        (self.repo / ".claude" / "skills" / "git" / "extra.txt").write_text("x\n")
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("not in manifest", result.stdout)
@@ -191,14 +191,14 @@ class SyncProjectCheckTest(unittest.TestCase):
     def test_vendor_skills_profile_switch(self):
         self.vendor_install()
         root = self.repo / ".claude" / "skills"
-        (root / "github-cli" / "extra.txt").write_text("x\n")
+        (root / "git" / "extra.txt").write_text("x\n")
         (root / "review-loop").mkdir()
         (root / "review-loop" / "SKILL.md").write_text("mine\n")
         result = self.run_sync("--profile", "godot")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse((root / "sdd-tasks").exists())
         self.assertTrue((root / "godot-standards" / "SKILL.md").is_file())
-        self.assertFalse((root / "github-cli" / "extra.txt").exists())
+        self.assertFalse((root / "git" / "extra.txt").exists())
         self.assertEqual((root / "review-loop" / "SKILL.md").read_text(), "mine\n")
         check = self.run_sync("--check", "--profile", "godot")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
@@ -281,7 +281,7 @@ class SyncProjectCheckTest(unittest.TestCase):
             repo = Path(other)
             (repo / "AGENTS.md").write_text("# x\n")
             (repo / "project.godot").write_text("")
-            (repo / ".claude" / "skills" / "github-cli").mkdir(parents=True)
+            (repo / ".claude" / "skills" / "git").mkdir(parents=True)
             result = self.run_sync("--vendor-skills", repo=repo)
             self.assertEqual(result.returncode, 1)
             self.assertIn("is not generated", result.stdout + result.stderr)

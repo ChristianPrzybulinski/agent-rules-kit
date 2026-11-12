@@ -815,7 +815,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-vendor-resync.out" >&2
   fail "vendored resync after the edit failed"
 fi
-printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/github-cli/extra.txt"
+printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/git/extra.txt"
 set +e
 sync_vendor_extra_out="$(env PATH="$RESTRICTED_PATH" \
   "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" 2>&1)"
@@ -837,9 +837,9 @@ fi
   || fail "sdd-tasks missing after the profile switch"
 [[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
   || fail "hand-written review-loop skill was touched by the profile switch"
-[[ ! -e "$ROOT/vendor-proj/.claude/skills/github-cli/extra.txt" ]] \
-  || fail "extra file survived the github-cli regeneration"
-mkdir -p "$ROOT/vendor-proj2/.claude/skills/github-cli"
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/git/extra.txt" ]] \
+  || fail "extra file survived the git regeneration"
+mkdir -p "$ROOT/vendor-proj2/.claude/skills/git"
 printf '# mine\n' > "$ROOT/vendor-proj2/AGENTS.md"
 touch "$ROOT/vendor-proj2/project.godot"
 set +e
@@ -848,7 +848,7 @@ sync_vendor_refuse_out="$(env PATH="$RESTRICTED_PATH" \
 sync_vendor_refuse_status=$?
 set -e
 [[ "$sync_vendor_refuse_status" -eq 1 ]] \
-  || fail "sync-project did not refuse an unmarked .claude/skills/github-cli"
+  || fail "sync-project did not refuse an unmarked .claude/skills/git"
 [[ "$sync_vendor_refuse_out" == *"is not generated"* ]] \
   || fail "sync-project refusal did not report 'is not generated'"
 [[ ! -e "$ROOT/vendor-proj2/.claude/skills/KIT_MANIFEST.json" ]] \
@@ -878,7 +878,7 @@ grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/dev-java-java
   || fail "java:server did not scope the java rule to server/"
 grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/architect-sdd-spec.md" \
   || fail "the unscoped docs profile changed the spec rule globs"
-for s in sdd-tasks godot-standards java-standards postgresql; do
+for s in sdd-tasks godot-standards java-standards persistence; do
   [[ -f "$ROOT/mono-proj/.claude/skills/$s/.agent-rules-kit" ]] || fail "multi-profile sync did not vendor $s"
 done
 [[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["profile"])' \
