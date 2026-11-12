@@ -4,7 +4,7 @@ title: "Root docs fold into README and CONTRIBUTING; only the generated plugin i
 status: done
 confirmed: "2026-11-11 (owner's kit review, night brief items 1, 2, 3, 4 and 6; recommendations approved in chat until revoked)"
 issue: "#160"
-pr: ""
+pr: "#161"
 ---
 
 # KIT-042 — Root docs fold into README and CONTRIBUTING; only the generated plugin indexes stay
@@ -54,3 +54,4 @@ meta-plugin (`50dbc77`), so every Devin session would load it on top of `plugins
 ## History
 
 - 2026-11-11: confirmed (owner's kit review); issue #160.
+- 2026-11-11: done in #161.
