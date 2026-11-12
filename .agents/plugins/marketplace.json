@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "core",
+      "name": "guardrails",
       "source": {
         "source": "local",
-        "path": "./plugins/core"
+        "path": "./plugins/guardrails"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",

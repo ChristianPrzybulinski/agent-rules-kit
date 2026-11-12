@@ -8,4 +8,4 @@ Ready-made `.gitattributes` for projects with art/binaries (Godot 2D in particul
 2. `git lfs install` (once per machine). Fresh clone: `git lfs install && git lfs pull`.
 3. New binary type → add the pattern **in the same commit** as the first file.
 
-Full rules: `plugins/core/skills/git/references/git-lfs-and-binaries.md`. GitHub quotas: `plugins/core/skills/git/references/lfs-quotas-github.md`.
+Full rules: `plugins/guardrails/skills/git/references/git-lfs-and-binaries.md`. GitHub quotas: `plugins/guardrails/skills/git/references/lfs-quotas-github.md`.

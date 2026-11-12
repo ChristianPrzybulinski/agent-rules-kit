@@ -1,4 +1,4 @@
-"""core guard (KIT-020): git branch -D passes only for one branch whose tip is a merged PR's head; anything else fails closed."""
+"""guardrails guard (KIT-020): git branch -D passes only for one branch whose tip is a merged PR's head; anything else fails closed."""
 import json
 import shutil
 import subprocess
@@ -8,7 +8,7 @@ import time
 import unittest
 from pathlib import Path
 
-HOOKS = Path(__file__).resolve().parents[3] / "plugins" / "core" / "hooks" / "hooks.json"
+HOOKS = Path(__file__).resolve().parents[3] / "plugins" / "guardrails" / "hooks" / "hooks.json"
 GUARD_HOOK = json.loads(HOOKS.read_text(encoding="utf-8"))["hooks"]["PreToolUse"][0]["hooks"][0]
 GUARD, GUARD_TIMEOUT = GUARD_HOOK["command"], GUARD_HOOK["timeout"]
 BRANCH = "feat/kit-020"

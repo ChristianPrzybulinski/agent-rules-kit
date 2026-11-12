@@ -58,7 +58,7 @@ fi
 agents_link="$TEST_HOME/.codex/AGENTS.md"
 [[ -L "$agents_link" ]] || fail "Codex AGENTS.md is not a symlink"
 resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$agents_link")"
-expected_resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$TEST_HOME/.ai-kit/plugins/core/AGENTS.md")"
+expected_resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$TEST_HOME/.ai-kit/plugins/guardrails/AGENTS.md")"
 [[ "$resolved" == "$expected_resolved" ]] || fail "Codex AGENTS.md resolves to $resolved"
 
 rm "$agents_link"
@@ -70,7 +70,7 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-ki
 fi
 grep -Fq 'fix: codex AGENTS.md symlink repointed' "$ROOT/doctor-repoint.out" \
   || fail "legacy AGENTS.md symlink repoint was not reported"
-[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/core/AGENTS.md" ]] \
+[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/guardrails/AGENTS.md" ]] \
   || fail "legacy AGENTS.md symlink was not repointed"
 
 rm "$agents_link"
@@ -80,8 +80,18 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-ki
   cat "$ROOT/doctor-repoint-kit.out" >&2
   fail "doctor failed to repoint the former kit/ AGENTS.md symlink"
 fi
-[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/core/AGENTS.md" ]] \
+[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/guardrails/AGENTS.md" ]] \
   || fail "former kit/ AGENTS.md symlink was not repointed"
+
+rm "$agents_link"
+ln -s "$TEST_HOME/.ai-kit/plugins/core/AGENTS.md" "$agents_link"
+if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
+    "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-repoint-core.out" 2>&1; then
+  cat "$ROOT/doctor-repoint-core.out" >&2
+  fail "doctor failed to repoint the former plugins/core AGENTS.md symlink"
+fi
+[[ "$(readlink "$agents_link")" == "$TEST_HOME/.ai-kit/plugins/guardrails/AGENTS.md" ]] \
+  || fail "former plugins/core AGENTS.md symlink was not repointed (KIT-055)"
 
 if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-kit" \
     "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-initial.out" 2>&1; then
@@ -239,10 +249,16 @@ case "$*" in
     ;;
   "plugin list")
     if [[ "${STUB_PLUGIN:-0}" == "1" ]]; then
-      echo "core@ai-kit installed, enabled"
-    elif [[ -d "$state/plugins" ]]; then
-      for installed in "$state/plugins"/*; do
-        [[ -f "$installed" ]] && echo "$(basename "$installed")@ai-kit installed, enabled"
+      echo "guardrails@ai-kit installed, enabled"
+    elif [[ "${STUB_MARKETPLACE:-0}" == "1" || -f "$state/marketplace" ]]; then
+      # Like the real CLI, every marketplace plugin is listed, "not installed" ones included (KIT-055)
+      for plugin_dir in "$HOME/.ai-kit"/plugins/*/; do
+        name="$(basename "$plugin_dir")"
+        if [[ -f "$state/plugins/$name" ]]; then
+          echo "$name@ai-kit  installed, enabled"
+        else
+          echo "$name@ai-kit  not installed"
+        fi
       done
     fi
     ;;
@@ -252,9 +268,30 @@ case "$*" in
     ;;
   "plugin add "*@ai-kit)
     mkdir -p "$state/plugins"
-    name="${2%@ai-kit}"
+    name="${3%@ai-kit}"
     touch "$state/plugins/$name"
     echo "Added plugin $name from marketplace ai-kit."
+    ;;
+  "plugin remove "*@ai-kit)
+    name="${3%@ai-kit}"
+    python3 - "$HOME/.codex/config.toml" "$name@ai-kit" <<'PY'
+import sys
+from pathlib import Path
+
+config = Path(sys.argv[1])
+header = f'[plugins."{sys.argv[2]}"]'
+kept = []
+skipping = False
+for line in config.read_text(encoding="utf-8").splitlines():
+    if line.startswith("["):
+        skipping = line.strip() == header
+    if not skipping:
+        kept.append(line)
+config.write_text("\n".join(kept) + "\n", encoding="utf-8")
+PY
+    mkdir -p "$state/codex-removed"
+    touch "$state/codex-removed/$name"
+    echo "Removed plugin $name from marketplace ai-kit."
     ;;
   "plugin marketplace upgrade ai-kit")
     touch "$state/upgrade"
@@ -263,7 +300,7 @@ case "$*" in
   "debug prompt-input list skills")
     count="${STUB_EXPOSED:-0}"
     for ((i = 1; i <= count; i++)); do
-      echo "core:x$i"
+      echo "guardrails:x$i"
     done
     ;;
   *)
@@ -341,6 +378,10 @@ esac
 STUB
 chmod +x "$STUB_BIN/claude"
 git clone "$SOURCE" "$STUB_HOME/.ai-kit" >/dev/null 2>&1
+# KIT-055: a plugin the kit renamed stays enabled in config.toml until the doctor removes it.
+mkdir -p "$STUB_HOME/.codex"
+printf '[plugins."core@ai-kit"]\nenabled = true\n\n[plugins."other@elsewhere"]\nenabled = true\n' \
+  > "$STUB_HOME/.codex/config.toml"
 
 stub_path="$STUB_BIN:$RESTRICTED_PATH"
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
@@ -352,6 +393,13 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 grep -Fq 'fix: codex marketplace ai-kit registered' "$ROOT/doctor-stub-install.out" \
   || fail "stub marketplace add was not reported"
+grep -Fq 'fix: codex plugin core@ai-kit removed (no longer in the kit)' "$ROOT/doctor-stub-install.out" \
+  || fail "retired Codex plugin removal was not reported (KIT-055)"
+[[ -f "$STUB_STATE/codex-removed/core" ]] || fail "doctor did not run codex plugin remove core@ai-kit"
+grep -Fq '[plugins."core@ai-kit"]' "$STUB_HOME/.codex/config.toml" \
+  && fail "retired Codex plugin table remained in config.toml"
+grep -Fq '[plugins."other@elsewhere"]' "$STUB_HOME/.codex/config.toml" \
+  || fail "doctor removed a plugin from another marketplace"
 codex_fixes="$(grep -c 'fix: codex plugin .*@ai-kit installed' "$ROOT/doctor-stub-install.out" || true)"
 plugin_total="$(find "$STUB_HOME/.ai-kit"/plugins -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 [[ "$codex_fixes" == "$plugin_total" ]] \
@@ -368,7 +416,7 @@ for plugin_dir in "$STUB_HOME/.ai-kit"/plugins/*/; do
     || fail "Claude stub install marker missing for $(basename "$plugin_dir")"
 done
 [[ -f "$STUB_STATE/claude-marketplace" ]] || fail "Claude stub marketplace marker missing"
-[[ "$(readlink "$STUB_HOME/.claude/CLAUDE.md")" == "$STUB_HOME/.ai-kit/plugins/core/AGENTS.md" ]] \
+[[ "$(readlink "$STUB_HOME/.claude/CLAUDE.md")" == "$STUB_HOME/.ai-kit/plugins/guardrails/AGENTS.md" ]] \
   || fail "Claude CLAUDE.md symlink has the wrong target"
 grep -Fq "fix: claude autoCompactWindow set to 200k in $STUB_HOME/.claude/settings.json (KIT-010)" \
   "$ROOT/doctor-stub-install.out" || fail "autoCompactWindow fix was not reported"
@@ -456,14 +504,14 @@ grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-remove.out"
   || fail "stub re-exposure count was not reported"
 
 # KIT-013: a cache that differs from the kit without a version bump is reported, then reinstalled.
-printf 'stale\n' >> "$STUB_STATE/claude-cache/core/INDEX.md"
+printf 'stale\n' >> "$STUB_STATE/claude-cache/guardrails/INDEX.md"
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
     AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
     "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-stale.out" 2>&1; then
   cat "$ROOT/doctor-stub-stale.out" >&2
   fail "doctor failed with a stale Claude plugin cache"
 fi
-grep -Fq 'warn: claude plugin core@ai-kit cache differs from the kit — run platforms/tools/refresh.sh' \
+grep -Fq 'warn: claude plugin guardrails@ai-kit cache differs from the kit — run platforms/tools/refresh.sh' \
   "$ROOT/doctor-stub-stale.out" || fail "doctor did not warn about the stale Claude plugin cache"
 
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
@@ -474,12 +522,12 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 [[ -f "$STUB_STATE/upgrade" ]] || fail "refresh did not upgrade the stub marketplace"
 [[ -f "$STUB_STATE/claude-marketplace-update" ]] || fail "refresh did not update the Claude marketplace"
-[[ -f "$STUB_STATE/claude-plugin-updates/core" ]] || fail "refresh did not update the Claude core plugin"
-[[ -f "$STUB_STATE/claude-uninstalls/core" && -f "$STUB_STATE/claude-plugins/core" ]] \
-  || fail "refresh did not reinstall the stale Claude core plugin"
-grep -Fq 'refresh: reinstalled Claude plugin core@ai-kit (cache differed from the kit)' "$ROOT/refresh-stub.out" \
+[[ -f "$STUB_STATE/claude-plugin-updates/guardrails" ]] || fail "refresh did not update the Claude guardrails plugin"
+[[ -f "$STUB_STATE/claude-uninstalls/guardrails" && -f "$STUB_STATE/claude-plugins/guardrails" ]] \
+  || fail "refresh did not reinstall the stale Claude guardrails plugin"
+grep -Fq 'refresh: reinstalled Claude plugin guardrails@ai-kit (cache differed from the kit)' "$ROOT/refresh-stub.out" \
   || fail "refresh did not report the Claude reinstall"
-diff -rq -x .in_use "$STUB_HOME/.ai-kit/plugins/core" "$STUB_STATE/claude-cache/core" >/dev/null \
+diff -rq -x .in_use "$STUB_HOME/.ai-kit/plugins/guardrails" "$STUB_STATE/claude-cache/guardrails" >/dev/null \
   || fail "reinstalled Claude cache still differs from the kit"
 
 rm -rf "$STUB_STATE/claude-uninstalls"
@@ -491,6 +539,34 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 [[ ! -e "$STUB_STATE/claude-uninstalls" ]] || fail "refresh reinstalled an up-to-date Claude plugin cache"
 grep -Fq 'reinstalled' "$ROOT/refresh-stub-current.out" && fail "refresh reported a reinstall of an up-to-date cache"
+grep -Fq 'running doctor.sh' "$ROOT/refresh-stub-current.out" && fail "refresh ran the doctor with no broken kit link"
+
+# KIT-055: an installed <name>@ai-kit that the kit no longer ships is reported with its remedy.
+touch "$STUB_STATE/claude-plugins/core"
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-retired.out" 2>&1; then
+  cat "$ROOT/doctor-stub-retired.out" >&2
+  fail "doctor failed with a retired Claude plugin installed"
+fi
+grep -Fq 'warn: claude plugin core@ai-kit is no longer in the kit (scope: user) — user scope: claude plugin uninstall core@ai-kit; project scope: run platforms/tools/sync-project.sh in that repository' \
+  "$ROOT/doctor-stub-retired.out" || fail "doctor did not warn about the retired Claude plugin"
+grep -Fq 'warn: claude plugin guardrails@ai-kit is no longer' "$ROOT/doctor-stub-retired.out" \
+  && fail "doctor reported a current kit plugin as retired"
+rm -f "$STUB_STATE/claude-plugins/core"
+
+# KIT-055: a pull that renames a kit path leaves the always-on link dangling; refresh runs the doctor once.
+ln -sfn "$STUB_HOME/.ai-kit/plugins/core/AGENTS.md" "$STUB_HOME/.claude/CLAUDE.md"
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    "$STUB_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-stub-dangling.out" 2>&1; then
+  cat "$ROOT/refresh-stub-dangling.out" >&2
+  fail "refresh failed with a dangling kit link"
+fi
+grep -Fq "refresh: kit link $STUB_HOME/.claude/CLAUDE.md is broken; running doctor.sh" \
+  "$ROOT/refresh-stub-dangling.out" || fail "refresh did not report the dangling kit link"
+[[ "$(readlink "$STUB_HOME/.claude/CLAUDE.md")" == "$STUB_HOME/.ai-kit/plugins/guardrails/AGENTS.md" ]] \
+  || fail "refresh did not repair the dangling CLAUDE.md link"
 
 # KIT-022: a CLI missing from PATH logs a skip line instead of passing in silence
 if ! env HOME="$STUB_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$STUB_HOME/.ai-kit" \
@@ -560,7 +636,7 @@ grep -q '^FAIL:' "$ROOT/doctor-foreign-link.out" || fail "foreign-symlink failur
 [[ "$(readlink "$FOREIGN_LINK_HOME/.codex/AGENTS.md")" == "/tmp/elsewhere.md" ]] \
   || fail "foreign Codex AGENTS.md symlink changed"
 
-guard_command="$(python3 - "$SOURCE/plugins/core/hooks/hooks.json" <<'PY'
+guard_command="$(python3 - "$SOURCE/plugins/guardrails/hooks/hooks.json" <<'PY'
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
@@ -593,11 +669,11 @@ expect_validator_failure() {
   grep -Fq "$expected" <<<"$output" || fail "$label did not report: $expected"
 }
 
-cp "$SOURCE/plugins/core/hooks/hooks.json" "$SOURCE/plugins/core/hooks.json"
+cp "$SOURCE/plugins/guardrails/hooks/hooks.json" "$SOURCE/plugins/guardrails/hooks.json"
 expect_validator_failure "root hooks.json" "hooks.json is forbidden"
-rm "$SOURCE/plugins/core/hooks.json"
+rm "$SOURCE/plugins/guardrails/hooks.json"
 
-skill="$SOURCE/plugins/core/skills/asset-import/SKILL.md"
+skill="$SOURCE/plugins/guardrails/skills/asset-import/SKILL.md"
 cp "$skill" "$ROOT/asset-import.before"
 python3 - "$skill" <<'PY'
 from pathlib import Path
@@ -608,7 +684,7 @@ PY
 expect_validator_failure "user-only Claude parity" "user-only parity requires"
 cp "$ROOT/asset-import.before" "$skill"
 
-profile="$SOURCE/plugins/core/agents/researcher.md"
+profile="$SOURCE/plugins/guardrails/agents/researcher.md"
 cp "$profile" "$ROOT/researcher.before"
 python3 - "$profile" <<'PY'
 from pathlib import Path
@@ -634,7 +710,7 @@ plugin_dirs = sorted(
     path for path in (kit / "plugins").iterdir()
     if (path / ".devin-plugin/plugin.json").is_file()
 )
-assert [path.name for path in plugin_dirs] == ["core"]  # KIT-047
+assert [path.name for path in plugin_dirs] == ["guardrails"]  # KIT-047, KIT-055
 assert meta["requiredPlugins"] == [
     {"source": "git-subdir", "url": repo, "path": f"plugins/{path.name}"} for path in plugin_dirs
 ]
@@ -649,7 +725,9 @@ for plugin_dir in plugin_dirs:
         assert data["name"] == plugin_dir.name, manifest
 claude_marketplace = json.loads((kit / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
 renames = claude_marketplace["renames"]
-assert renames["ai-kit"] == "core"
+assert renames["ai-kit"] == "guardrails"
+assert renames["core"] == "guardrails"  # KIT-055
+assert not set(renames) & {path.name for path in plugin_dirs}
 assert {target for target in renames.values() if target} <= {path.name for path in plugin_dirs}
 assert claude_marketplace["forceRemoveDeletedPlugins"] is True
 listed = {entry["name"]: entry["source"] for entry in claude_marketplace["plugins"]}
@@ -682,7 +760,7 @@ fi
 [[ "$(shasum -a 256 "$ROOT/proj/CLAUDE.md" "$ROOT/proj/.claude/settings.json")" == "$first_hashes" ]] \
   || fail "sync-project is not idempotent"
 [[ "$(grep -c '@ai-kit' "$ROOT/proj/.claude/settings.json")" == "1" ]] \
-  || fail "godot settings.json does not list only core@ai-kit"
+  || fail "godot settings.json does not list only guardrails@ai-kit"
 if ! "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/proj" >"$ROOT/sync-check.out" 2>&1; then
   cat "$ROOT/sync-check.out" >&2
   fail "sync-project --check failed on a generated repo"
@@ -726,10 +804,10 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-rules.out" >&2
   fail "sync-project rules install failed"
 fi
-[[ -f "$ROOT/proj/.claude/rules/core-godot.md" ]] \
-  || fail "sync-project did not write .claude/rules/core-godot.md"
-grep -Fq '<!-- agent-rules-kit: generated from plugins/core/rules/godot.md' \
-  "$ROOT/proj/.claude/rules/core-godot.md" || fail "generated rule marker missing"
+[[ -f "$ROOT/proj/.claude/rules/guardrails-godot.md" ]] \
+  || fail "sync-project did not write .claude/rules/guardrails-godot.md"
+grep -Fq '<!-- agent-rules-kit: generated from plugins/guardrails/rules/godot.md' \
+  "$ROOT/proj/.claude/rules/guardrails-godot.md" || fail "generated rule marker missing"
 first_claude_hashes="$(find "$ROOT/proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
 if ! env PATH="$RESTRICTED_PATH" \
     "$SOURCE/platforms/tools/sync-project.sh" --profile godot "$ROOT/proj" \
@@ -746,7 +824,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-rules-check.out" >&2
   fail "sync-project --check failed on generated .claude/rules"
 fi
-printf 'x\n' >> "$ROOT/proj/.claude/rules/core-godot.md"
+printf 'x\n' >> "$ROOT/proj/.claude/rules/guardrails-godot.md"
 set +e
 sync_rules_drift_out="$(env PATH="$RESTRICTED_PATH" \
   "$SOURCE/platforms/tools/sync-project.sh" --check --profile godot "$ROOT/proj" 2>&1)"
@@ -762,10 +840,10 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-rules-docs.out" >&2
   fail "sync-project --profile docs failed"
 fi
-[[ ! -e "$ROOT/proj/.claude/rules/core-godot.md" ]] \
+[[ ! -e "$ROOT/proj/.claude/rules/guardrails-godot.md" ]] \
   || fail "stale generated rule survived the profile switch"
-[[ -f "$ROOT/proj/.claude/rules/core-spec.md" ]] \
-  || fail "sync-project did not write .claude/rules/core-spec.md"
+[[ -f "$ROOT/proj/.claude/rules/guardrails-spec.md" ]] \
+  || fail "sync-project did not write .claude/rules/guardrails-spec.md"
 [[ "$(cat "$ROOT/proj/.claude/rules/my-own.md")" == "mine" ]] \
   || fail "hand-written .claude/rules file was touched"
 
@@ -778,7 +856,7 @@ godot_skills="$(awk -F'|' '/^skills\// { name = $1; gsub(/ /, "", name); if ((" 
   "$SOURCE/platforms/tools/sync-profiles.txt")"
 [[ -n "$godot_skills" ]] || fail "sync-profiles.txt sends no skill to profile godot"
 expected_skills="$(printf '%s\n' $godot_skills | wc -l | tr -d ' ')"
-expected_files=$(( $(for n in $godot_skills; do find "$SOURCE/plugins/core/skills/$n" -type f; done | wc -l) + expected_skills ))
+expected_files=$(( $(for n in $godot_skills; do find "$SOURCE/plugins/guardrails/skills/$n" -type f; done | wc -l) + expected_skills ))
 mkdir -p "$ROOT/vendor-proj/.claude/skills/review-loop"
 printf '# proj\n' > "$ROOT/vendor-proj/AGENTS.md"
 touch "$ROOT/vendor-proj/project.godot"
@@ -798,14 +876,14 @@ manifest_files="$(python3 -c 'import json,sys; print(sum(len(s["files"]) for s i
 [[ "$manifest_files" == "$expected_files" ]] \
   || fail "manifest lists $manifest_files files, expected $expected_files"
 for n in $godot_skills; do
-  vendor_diff="$(diff -r -q "$SOURCE/plugins/core/skills/$n/" "$ROOT/vendor-proj/.claude/skills/$n" || true)"
+  vendor_diff="$(diff -r -q "$SOURCE/plugins/guardrails/skills/$n/" "$ROOT/vendor-proj/.claude/skills/$n" || true)"
   [[ "$vendor_diff" == "Only in $ROOT/vendor-proj/.claude/skills/$n: .agent-rules-kit" ]] \
     || fail "vendored $n differs from the kit copy: $vendor_diff"
 done
 [[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
   || fail "hand-written review-loop skill was touched"
 [[ "$(grep -c '@ai-kit' "$ROOT/vendor-proj/.claude/settings.json")" == "1" ]] \
-  || fail "vendored settings.json does not keep exactly core@ai-kit"
+  || fail "vendored settings.json does not keep exactly guardrails@ai-kit"
 first_vendor_hashes="$(find "$ROOT/vendor-proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
 if ! env PATH="$RESTRICTED_PATH" \
     "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/vendor-proj" \
@@ -894,14 +972,14 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-mono.out" >&2
   fail "multi-profile sync-project install failed"
 fi
-for r in core-spec core-godot core-java; do
+for r in guardrails-spec guardrails-godot guardrails-java; do
   [[ -f "$ROOT/mono-proj/.claude/rules/$r.md" ]] || fail "multi-profile sync did not write .claude/rules/$r.md"
 done
-grep -Fqx '  - "client/**/*.gd"' "$ROOT/mono-proj/.claude/rules/core-godot.md" \
+grep -Fqx '  - "client/**/*.gd"' "$ROOT/mono-proj/.claude/rules/guardrails-godot.md" \
   || fail "godot:client did not scope the godot rule to client/"
-grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/core-java.md" \
+grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/guardrails-java.md" \
   || fail "java:server did not scope the java rule to server/"
-grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/core-spec.md" \
+grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/guardrails-spec.md" \
   || fail "the unscoped docs profile changed the spec rule globs"
 for s in sdd-tasks godot-standards java-standards persistence; do
   [[ -f "$ROOT/mono-proj/.claude/skills/$s/.agent-rules-kit" ]] || fail "multi-profile sync did not vendor $s"
@@ -930,7 +1008,7 @@ sync_mono_single_out="$(env PATH="$RESTRICTED_PATH" \
 sync_mono_single_status=$?
 set -e
 [[ "$sync_mono_single_status" -eq 1 ]] || fail "single-profile --check accepted the monorepo's extra rules"
-[[ "$sync_mono_single_out" == *"core-godot.md is generated but not in profile"* ]] \
+[[ "$sync_mono_single_out" == *"guardrails-godot.md is generated but not in profile"* ]] \
   || fail "single-profile --check did not name the rule it would remove"
 set +e
 sync_mono_escape_out="$(env PATH="$RESTRICTED_PATH" \
@@ -967,7 +1045,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   fail "multi-profile sync-project install without vendoring failed"
 fi
 [[ "$(grep -c '@ai-kit' "$ROOT/mono-plugins-proj/.claude/settings.json")" == "1" ]] \
-  || fail "godot,java settings.json does not enable only core@ai-kit"
+  || fail "godot,java settings.json does not enable only guardrails@ai-kit"
 
 # sync-project.sh copies the spec validator only into repos with docs/spec: a
 # Java repo without it gets no .github/spec-lint and --check still passes.

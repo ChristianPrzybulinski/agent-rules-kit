@@ -1,13 +1,13 @@
 # Contributing to agent-rules-kit
 
-How to change the kit: where content goes, versioning, checks and evals. Sessions that work inside this repository read this file before a change; the always-on rules come from the installed `core` plugin, so the root carries no `AGENTS.md` or `CLAUDE.md` (KIT-042).
+How to change the kit: where content goes, versioning, checks and evals. Sessions that work inside this repository read this file before a change; the always-on rules come from the installed `guardrails` plugin, so the root carries no `AGENTS.md` or `CLAUDE.md` (KIT-042).
 
 ## What goes where
 
 | Content | Location |
 |---|---|
-| always-on global behavior | `plugins/core/AGENTS.md` |
-| hook guard and format/lint hooks | `plugins/core/hooks/hooks.json` |
+| always-on global behavior | `plugins/guardrails/AGENTS.md` |
+| hook guard and format/lint hooks | `plugins/guardrails/hooks/hooks.json` |
 | path-triggered rule | `plugins/<plugin>/rules/<name>.md` in the owning plugin |
 | procedure or reference | `plugins/<plugin>/skills/<name>/` |
 | subagent profile | `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it |
@@ -19,10 +19,10 @@ How to change the kit: where content goes, versioning, checks and evals. Session
 
 `platforms/ci/validations/check_kit.py` enforces these:
 
-- The repository root holds no agent-facing content. A root `AGENTS.md` is refused: the root is the Devin meta-plugin, so it would load in every Devin session on top of `plugins/core/AGENTS.md`.
+- The repository root holds no agent-facing content. A root `AGENTS.md` is refused: the root is the Devin meta-plugin, so it would load in every Devin session on top of `plugins/guardrails/AGENTS.md`.
 - `.devin-plugin/plugin.json` requires every plugin and lists none as optional.
 - Every directory under `plugins/` is a plugin with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json` and a generated `INDEX.md`; no other `INDEX.md` exists in the repository.
-- `plugins/core/` is the only plugin with `AGENTS.md` or `hooks/`.
+- `plugins/guardrails/` is the only plugin with `AGENTS.md` or `hooks/`.
 - Plugin names are unique, and every referenced skill or agent is reachable through the dependency graph.
 - `VERSION`, the meta-plugin manifest and every Devin, Codex and Claude manifest agree.
 - Codex and Claude marketplace source paths are `./plugins/<name>`; plugin content has no managed duplicate.
@@ -43,13 +43,13 @@ The layout of 10.x, kept unchanged by 11.0.0, is frozen until at least 2027-01-0
 
 | Type | Steps |
 |---|---|
-| kit feature | only for a hook, `plugins/core/AGENTS.md`, plugin structure or manifests, a check, gate or script behavior change, or a new or removed skill: after the owner confirms it, copy [`docs/features/TEMPLATE.md`](docs/features/TEMPLATE.md) to `docs/features/KIT-NNN-<slug>.md`, open issue `[KIT-NNN] <title>` with label `kit-feature`, list it in [`docs/features/README.md`](docs/features/README.md); the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN`. Any other change (a skill, rule, reference, template or doc text edit) needs only a CHANGELOG line, and the PR body carries the why |
+| kit feature | only for a hook, `plugins/guardrails/AGENTS.md`, plugin structure or manifests, a check, gate or script behavior change, or a new or removed skill: after the owner confirms it, copy [`docs/features/TEMPLATE.md`](docs/features/TEMPLATE.md) to `docs/features/KIT-NNN-<slug>.md`, open issue `[KIT-NNN] <title>` with label `kit-feature`, list it in [`docs/features/README.md`](docs/features/README.md); the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN`. Any other change (a skill, rule, reference, template or doc text edit) needs only a CHANGELOG line, and the PR body carries the why |
 | rule | create `plugins/<plugin>/rules/<name>.md` in the owning plugin with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; body = one pointer line to the owning skill plus 8-12 always/never bullets, at most 40 lines; run `python3 platforms/tools/gen_index.py` to list it in the plugin's `INDEX.md` (never add non-rule files to `rules/` — Devin loads every `.md` there as a rule) |
-| skill | search `plugins/core/INDEX.md` first and extend the skill that owns the topic; a new skill is only for a topic no skill owns (KIT-039). Copy [`docs/templates/kit-skill.md`](docs/templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; run `python3 platforms/tools/gen_index.py` (it copies the description into the plugin's `INDEX.md`) |
+| skill | search `plugins/guardrails/INDEX.md` first and extend the skill that owns the topic; a new skill is only for a topic no skill owns (KIT-039). Copy [`docs/templates/kit-skill.md`](docs/templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; run `python3 platforms/tools/gen_index.py` (it copies the description into the plugin's `INDEX.md`) |
 | reference | copy [`docs/templates/kit-reference.md`](docs/templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
 | subagent profile | add `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it (reachable through the dependency graph) with frontmatter validated by `platforms/ci/schemas/agent.schema.json`; profiles are local-Devin only |
 | template | only for a long artifact a skill links (a spec, a project `AGENTS.md`); a short field list goes inline in the skill. Add `plugins/<plugin>/templates/<prefix>-<name>.md` (prefix `spec`, `doc` or `project`), link it from the skill, then run `python3 platforms/tools/gen_index.py` |
-| plugin | create `plugins/<name>/` with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json`, then run `python3 platforms/tools/gen_index.py` for its `INDEX.md`; declare `requiredPlugins`/`dependencies` on the plugins it consumes; register it in the root meta-plugin `requiredPlugins`, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`. Prefer a skill in `core`: a second plugin is justified only by an audience that must not load `core` (KIT-038, KIT-047). Renaming or removing a plugin adds the old name to the Claude marketplace `renames` map |
+| plugin | create `plugins/<name>/` with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json`, then run `python3 platforms/tools/gen_index.py` for its `INDEX.md`; declare `requiredPlugins`/`dependencies` on the plugins it consumes; register it in the root meta-plugin `requiredPlugins`, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`. Prefer a skill in `guardrails`: a second plugin is justified only by an audience that must not load `guardrails` (KIT-038, KIT-047). Renaming or removing a plugin adds the old name to the Claude marketplace `renames` map |
 
 A rule uses this frontmatter shape:
 

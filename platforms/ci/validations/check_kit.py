@@ -29,7 +29,8 @@ SKILL_MAX_LINES = 80
 REFERENCE_MAX_LINES = 60
 RULE_BODY_MAX_LINES = 40
 
-CORE_PLUGIN = "core"
+# The kit's one plugin (KIT-047), named guardrails since KIT-055.
+KIT_PLUGIN = "guardrails"
 REPO_URL = "https://github.com/ChristianPrzybulinski/agent-rules-kit.git"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:[-.][a-z0-9]+)*$")
 
@@ -226,11 +227,11 @@ for name, plugin_dir in plugins.items():
             fail(rel(entry), f"reserved/unknown plugin-root entry: {entry.name}")
     if (plugin_dir / "hooks.json").exists():
         fail(rel(plugin_dir / "hooks.json"), "root hooks.json is forbidden; use hooks/hooks.json")
-    if name != CORE_PLUGIN:
+    if name != KIT_PLUGIN:
         if (plugin_dir / "AGENTS.md").exists():
-            fail(rel(plugin_dir / "AGENTS.md"), "always-on rules live only in plugins/core/AGENTS.md")
+            fail(rel(plugin_dir / "AGENTS.md"), f"always-on rules live only in plugins/{KIT_PLUGIN}/AGENTS.md")
         if (plugin_dir / "hooks").exists():
-            fail(rel(plugin_dir / "hooks"), "hooks live only in plugins/core/hooks/")
+            fail(rel(plugin_dir / "hooks"), f"hooks live only in plugins/{KIT_PLUGIN}/hooks/")
 
 version = (KIT / "VERSION").read_text(encoding="utf-8").strip() if (KIT / "VERSION").exists() else ""
 if version and not re.match(r"^\d+\.\d+\.\d+$", version):
@@ -351,8 +352,15 @@ if marketplace is not None:
 claude_marketplace_path = KIT / ".claude-plugin/marketplace.json"
 claude_marketplace = read_json(claude_marketplace_path) if claude_marketplace_path.exists() else None
 if claude_marketplace is not None:
-    if (claude_marketplace.get("renames") or {}).get("ai-kit") != CORE_PLUGIN:
-        fail(rel(claude_marketplace_path), f"renames must map 'ai-kit' -> '{CORE_PLUGIN}'")
+    renames = claude_marketplace.get("renames") or {}
+    if renames.get("ai-kit") != KIT_PLUGIN:
+        fail(rel(claude_marketplace_path), f"renames must map 'ai-kit' -> '{KIT_PLUGIN}'")
+    # A rename migrates an installed id to a current plugin or removes it (null); a current name is never a key.
+    for old_name, new_name in sorted(renames.items()):
+        if old_name in plugins:
+            fail(rel(claude_marketplace_path), f"renames key '{old_name}' is a current plugin")
+        if new_name is not None and new_name not in plugins:
+            fail(rel(claude_marketplace_path), f"renames '{old_name}' -> '{new_name}' is not a plugin dir or null")
     entries = claude_marketplace.get("plugins")
     if not isinstance(entries, list):
         fail(rel(claude_marketplace_path), "plugins must be an array")
@@ -378,13 +386,13 @@ for script in sorted((KIT / "platforms").rglob("*.sh")):
 
 
 # --- 4. AGENTS.md ---
-agents_md = plugins.get(CORE_PLUGIN, PLUGINS_ROOT / CORE_PLUGIN) / "AGENTS.md"
+agents_md = plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN) / "AGENTS.md"
 if agents_md.exists():
     agents_lines = len(agents_md.read_text(encoding="utf-8").splitlines())
     if agents_lines > AGENTS_MAX_LINES:
         fail(rel(agents_md), f"{agents_lines} lines (>{AGENTS_MAX_LINES})")
-elif CORE_PLUGIN in plugins:
-    fail(f"plugins/{CORE_PLUGIN}/AGENTS.md", "core plugin requires AGENTS.md")
+elif KIT_PLUGIN in plugins:
+    fail(f"plugins/{KIT_PLUGIN}/AGENTS.md", f"{KIT_PLUGIN} plugin requires AGENTS.md")
 
 
 # --- 5. Subagents and hooks ---
@@ -423,7 +431,7 @@ for name, plugin_dir in plugins.items():
                 fail(rel(profile), f"agent '{data['name']}' already defined in plugin '{agent_owners[data['name']]}'")
             agent_owners[data["name"]] = name
 
-hooks_path = plugins.get(CORE_PLUGIN, PLUGINS_ROOT / CORE_PLUGIN) / "hooks/hooks.json"
+hooks_path = plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN) / "hooks/hooks.json"
 guard_commands = []
 post_edit_commands = []
 session_start_commands = []
@@ -547,8 +555,8 @@ if hooks_path.exists():
                         fail(rel(hooks_path), f"{location} command missing")
                     elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
                         session_start_commands.append((command, timeout))
-elif CORE_PLUGIN in plugins:
-    fail(f"plugins/{CORE_PLUGIN}/hooks/hooks.json", "core plugin requires hooks/hooks.json")
+elif KIT_PLUGIN in plugins:
+    fail(f"plugins/{KIT_PLUGIN}/hooks/hooks.json", f"{KIT_PLUGIN} plugin requires hooks/hooks.json")
 
 hook_cases_path = KIT / "platforms/ci/validations/hook_guard_cases.json"
 hook_cases = read_json(hook_cases_path) if hook_cases_path.exists() else None
@@ -845,7 +853,7 @@ for name, plugin_dir in plugins.items():
         validate_schema(rule_file, data, "rule.schema.json")
         trigger = data.get("trigger")
         if trigger == "always_on":
-            fail(rel(rule_file), "always-on content lives only in plugins/core/AGENTS.md")
+            fail(rel(rule_file), "always-on content lives only in plugins/guardrails/AGENTS.md")
         if trigger == "glob" and not data.get("globs"):
             fail(rel(rule_file), "trigger 'glob' requires 'globs'")
         if trigger != "glob" and "globs" in data:
@@ -1078,12 +1086,12 @@ if lock.exists():
 
 
 # --- 11b. Sync profile map (KIT-047) ---
-# platforms/tools/sync-profiles.txt decides which repository profiles get a copy of each core skill and rule.
+# platforms/tools/sync-profiles.txt decides which repository profiles get a copy of each kit skill and rule.
 profile_map = KIT / "platforms/tools/sync-profiles.txt"
 MAP_PROFILES = {"godot", "java", "python", "docs"}
-core_dir = plugins.get(CORE_PLUGIN, PLUGINS_ROOT / CORE_PLUGIN)
-map_want = {f"skills/{d.name}" for d in sorted((core_dir / "skills").glob("*/")) if (d / "SKILL.md").is_file()}
-map_want |= {f"rules/{f.name}" for f in sorted((core_dir / "rules").glob("*.md"))}
+kit_plugin_dir = plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN)
+map_want = {f"skills/{d.name}" for d in sorted((kit_plugin_dir / "skills").glob("*/")) if (d / "SKILL.md").is_file()}
+map_want |= {f"rules/{f.name}" for f in sorted((kit_plugin_dir / "rules").glob("*.md"))}
 if not profile_map.exists():
     fail(rel(profile_map), "missing; sync-project.sh reads it to pick each profile's skills and rules")
 else:
@@ -1105,9 +1113,9 @@ else:
         elif not set(receivers) <= MAP_PROFILES:
             fail(rel(profile_map), f"line {number}: profiles must be '-' or among {sorted(MAP_PROFILES)}")
     for entry in sorted(map_want - set(map_seen)):
-        fail(rel(profile_map), f"no line for {entry}; every core skill and rule needs one")
+        fail(rel(profile_map), f"no line for {entry}; every kit skill and rule needs one")
     for entry in sorted(set(map_seen) - map_want):
-        fail(rel(profile_map), f"'{entry}' is not a skill or rule of plugins/{CORE_PLUGIN}")
+        fail(rel(profile_map), f"'{entry}' is not a skill or rule of plugins/{KIT_PLUGIN}")
 
 
 # --- 12. Paragraph duplication ---

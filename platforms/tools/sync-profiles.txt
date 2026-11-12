@@ -1,7 +1,7 @@
 # Which repository profiles receive a copy of each kit skill and rule (KIT-047).
 # Read by platforms/tools/sync-project.sh; platforms/ci/validations/check_kit.py requires exactly one line per
-# plugins/core/skills/<name>/ and plugins/core/rules/<name>.md, and only the profiles godot, java, python and docs.
-# <skills/<name> or rules/<file>> | <profiles, space-separated> or - (always-on skill: core stays enabled for its
+# plugins/guardrails/skills/<name>/ and plugins/guardrails/rules/<name>.md, and only the profiles godot, java, python and docs.
+# <skills/<name> or rules/<file>> | <profiles, space-separated> or - (always-on skill: guardrails stays enabled for its
 # guard hook, so the skill loads from the plugin and a vendored copy would load it twice, KIT-002)
 rules/godot.md           | godot java python
 rules/java.md            | godot java python

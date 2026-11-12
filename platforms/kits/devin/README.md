@@ -9,7 +9,7 @@ Templates for running Devin Cloud sessions reproducibly: one `environment.yaml` 
 3. Attach `playbooks/implement-issue.devin.md` and `playbooks/fix-round.devin.md` to the Devin Playbook library; replace the `<placeholders>` once (owner, backlog repo, schema prefix, loop script).
 4. Read `playbooks/devin-review-autofix.md` before enabling Devin Review autofix.
 
-What a cloud child receives is `plugins/core/AGENTS.md` plus `plugins/*/rules/` (the path-scoped rules), so the critical constraints live there and in the project `AGENTS.md`.
+What a cloud child receives is `plugins/guardrails/AGENTS.md` plus `plugins/*/rules/` (the path-scoped rules), so the critical constraints live there and in the project `AGENTS.md`.
 
 ## Contents
 

@@ -6,7 +6,7 @@ not one of the loop's repositories, and it serves more than one project.
 
 ## Process
 
-A record is for a big change only: a hook, `plugins/core/AGENTS.md`, plugin structure or manifests, a check, gate or
+A record is for a big change only: a hook, `plugins/guardrails/AGENTS.md`, plugin structure or manifests, a check, gate or
 script behavior change, or a new or removed skill. Any other change (a skill, rule, reference, template or doc text
 edit) needs only its `CHANGELOG.md` line, and the PR body carries the why (KIT-040). Records written before KIT-040 stay
 as they are.
@@ -76,5 +76,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-052-plugin-links-and-not-for.md`](KIT-052-plugin-links-and-not-for.md) | done | #184 | #183 |
 | [`KIT-053-guard-git-global-options.md`](KIT-053-guard-git-global-options.md) | done | #186 | #187 |
 | [`KIT-054-guard-command-prefixes.md`](KIT-054-guard-command-prefixes.md) | done | #189 | #190 |
+| [`KIT-055-plugin-renamed-guardrails.md`](KIT-055-plugin-renamed-guardrails.md) | done | #188 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

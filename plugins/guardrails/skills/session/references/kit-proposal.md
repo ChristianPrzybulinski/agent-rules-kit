@@ -21,7 +21,7 @@ Use `read`, `glob`, `grep` and the session evidence to classify only observed si
 
 Not a signal: a sandbox, permission or network error, the session's own shell slip, a one-time flake. Propose only what the next session on a fresh checkout would likely hit again; a new line must save more than it costs every session that loads it.
 
-Before proposing, search `~/.ai-kit/plugins/*/skills`, `~/.ai-kit/plugins/*/rules`, `~/.ai-kit/plugins/core/AGENTS.md` and the kit's closed issues (`gh issue list --state closed --search '<topic>'`). If the material exists, propose improving its reach instead of adding another file; a rejected proposal returns only with new evidence. For a simplification, the search lists every copy of the rule, so the proposal removes them all, keeps any control the step still provides, names what decides the case once the line is gone and checks why it exists (`git log -S '<text>'`). A newer model alone never removes a safety rule, permission boundary, gate or output contract.
+Before proposing, search `~/.ai-kit/plugins/*/skills`, `~/.ai-kit/plugins/*/rules`, `~/.ai-kit/plugins/guardrails/AGENTS.md` and the kit's closed issues (`gh issue list --state closed --search '<topic>'`). If the material exists, propose improving its reach instead of adding another file; a rejected proposal returns only with new evidence. For a simplification, the search lists every copy of the rule, so the proposal removes them all, keeps any control the step still provides, names what decides the case once the line is gone and checks why it exists (`git log -S '<text>'`). A newer model alone never removes a safety rule, permission boundary, gate or output contract.
 
 ## Proposal block
 

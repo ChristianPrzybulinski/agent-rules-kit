@@ -1,4 +1,4 @@
-"""core hooks: the guard's --no-verify pattern and time on contrived input, the SessionStart compact branch and a latency budget per hook."""
+"""guardrails hooks: the guard's --no-verify pattern and time on contrived input, the SessionStart compact branch and a latency budget per hook."""
 import json
 import os
 import subprocess
@@ -8,7 +8,7 @@ import time
 import unittest
 from pathlib import Path
 
-HOOKS = Path(__file__).resolve().parents[3] / "plugins" / "core" / "hooks" / "hooks.json"
+HOOKS = Path(__file__).resolve().parents[3] / "plugins" / "guardrails" / "hooks" / "hooks.json"
 EVENTS = json.loads(HOOKS.read_text(encoding="utf-8"))["hooks"]
 GUARD, POST_EDIT, SESSION_START = (
     EVENTS[event][0]["hooks"][0]["command"] for event in ("PreToolUse", "PostToolUse", "SessionStart"))

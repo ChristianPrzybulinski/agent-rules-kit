@@ -119,7 +119,7 @@ PY
 
 ensure_agents_link() {
   local destination="$HOME/.codex/AGENTS.md"
-  local expected="$KIT/plugins/core/AGENTS.md"
+  local expected="$KIT/plugins/guardrails/AGENTS.md"
   local current
   local backup
   mkdir -p "$HOME/.codex"
@@ -157,7 +157,7 @@ ensure_agents_link() {
 
 ensure_claude_links() {
   local claude_md="$HOME/.claude/CLAUDE.md"
-  local expected_agents="$KIT/plugins/core/AGENTS.md"
+  local expected_agents="$KIT/plugins/guardrails/AGENTS.md"
   local current
   local backup
   local name
@@ -304,8 +304,62 @@ PY
   esac
 }
 
+kit_plugin_names() {
+  local marker="$1"
+  local plugin_dir
+  for plugin_dir in "$KIT"/plugins/*/; do
+    [[ -e "$plugin_dir/$marker" ]] && basename "$plugin_dir"
+  done
+  return 0
+}
+
+# Prints each X with a [plugins."X@ai-kit"] table in Codex config.toml that is not a kit plugin.
+codex_retired_plugins() {
+  local config="$HOME/.codex/config.toml"
+  [[ -f "$config" ]] || return 0
+  python3 - "$config" "$@" <<'PY'
+import re
+import sys
+
+current = set(sys.argv[2:])
+pattern = re.compile(r"""^\s*\[plugins\.(?:"([^"]+)@ai-kit"|'([^']+)@ai-kit')\]\s*$""")
+with open(sys.argv[1], encoding="utf-8") as handle:
+    for line in handle:
+        match = pattern.match(line)
+        if match and (match.group(1) or match.group(2)) not in current:
+            print(match.group(1) or match.group(2))
+PY
+}
+
+# Prints "name scopes" for each installed X@ai-kit that is not a kit plugin.
+claude_retired_plugins() {
+  local payload="$1"
+  shift
+  python3 - "$payload" "$@" <<'PY'
+import json
+import sys
+
+try:
+    entries = json.loads(sys.argv[1])
+except json.JSONDecodeError:
+    raise SystemExit(0)
+current = set(sys.argv[2:])
+scopes = {}
+for entry in entries if isinstance(entries, list) else []:
+    if not isinstance(entry, dict):
+        continue
+    name, _, marketplace = str(entry.get("id", "")).rpartition("@")
+    if marketplace == "ai-kit" and name and name not in current:
+        scopes.setdefault(name, set()).add(str(entry.get("scope") or "user"))
+for name in sorted(scopes):
+    print(name, ",".join(sorted(scopes[name])))
+PY
+}
+
 devin_plugin_record() {
-  python3 - "$1" <<'PY'
+  # The kit's own plugin names come first, then the repository meta-plugin (KIT-055).
+  # shellcheck disable=SC2046
+  python3 - "$1" $(kit_plugin_names .devin-plugin) agent-rules-kit <<'PY'
 import json
 import sys
 
@@ -313,9 +367,11 @@ try:
     data = json.load(open(sys.argv[1], encoding="utf-8"))
 except (OSError, json.JSONDecodeError):
     raise SystemExit(2)
-entry = next((item for item in data.get("resolved", []) if item.get("name") == "core"), None)
-if entry is None:
-    entry = next((item for item in data.get("resolved", []) if item.get("name") == "agent-rules-kit"), None)
+resolved_entries = data.get("resolved", [])
+entry = next(
+    (item for name in sys.argv[2:] for item in resolved_entries if item.get("name") == name),
+    None,
+)
 if entry is None:
     print("MISSING")
 else:
@@ -472,7 +528,7 @@ if [[ -f "$lock" ]]; then
     if grep -q '"name": "ai-kit"' "$lock"; then
       fail "legacy 'ai-kit' plugin installed — run: devin plugins remove ai-kit && devin plugins install ChristianPrzybulinski/agent-rules-kit"
     else
-      fail "core plugin not installed — run: devin plugins install ChristianPrzybulinski/agent-rules-kit"
+      fail "kit plugin not installed — run: devin plugins install ChristianPrzybulinski/agent-rules-kit"
     fi
   else
     ref="${record%%|*}"
@@ -603,10 +659,22 @@ if [[ -n "$codex" ]]; then
     plugin_names+=("$plugin_name")
     plugin_pattern="${plugin_pattern}${plugin_pattern:+|}${plugin_name}"
   done
+  # A kit plugin that was renamed or removed stays enabled in config.toml until removed (KIT-055).
+  for plugin_name in $(codex_retired_plugins "${plugin_names[@]:-}"); do
+    remove_ok=0
+    "$codex" plugin remove "$plugin_name@ai-kit" >/dev/null 2>&1 && remove_ok=1
+    still_retired="$(codex_retired_plugins "${plugin_names[@]:-}")"
+    if [[ "$remove_ok" -eq 1 ]] && ! grep -Fxq "$plugin_name" <<<"$still_retired"; then
+      fix "codex plugin $plugin_name@ai-kit removed (no longer in the kit)"
+    else
+      fail "codex plugin $plugin_name@ai-kit is no longer in the kit and remove failed — run: codex plugin remove $plugin_name@ai-kit"
+    fi
+  done
   missing_plugins=()
   for plugin_name in "${plugin_names[@]:-}"; do
     [[ -n "$plugin_name" ]] || continue
-    if [[ "$plugins" == *"$plugin_name@ai-kit"* ]]; then
+    # A substring match would also accept "<name>@ai-kit  not installed" (KIT-055)
+    if grep -Eq "^[[:space:]]*$plugin_name@ai-kit[[:space:]]+installed" <<<"$plugins"; then
       continue
     fi
     if [[ "$marketplace_ready" -eq 1 ]] && "$codex" plugin add "$plugin_name@ai-kit" >/dev/null 2>&1; then
@@ -681,6 +749,12 @@ if command -v claude >/dev/null 2>&1; then
   else
     warn "cannot compare Claude plugin caches with the kit"
   fi
+  # Claude migrates a renamed plugin through the marketplace renames map; this reports what it left (KIT-055).
+  # shellcheck disable=SC2046
+  while read -r plugin_name plugin_scopes; do
+    [[ -n "$plugin_name" ]] || continue
+    warn "claude plugin $plugin_name@ai-kit is no longer in the kit (scope: $plugin_scopes) — user scope: claude plugin uninstall $plugin_name@ai-kit; project scope: run platforms/tools/sync-project.sh in that repository"
+  done < <(claude_retired_plugins "$claude_plugins" $(kit_plugin_names .claude-plugin))
   ensure_claude_links
   ensure_claude_auto_compact
 
@@ -711,7 +785,7 @@ description_budget="$(awk -F= '/^DESCRIPTIONS_BUDGET = / {gsub(/[[:space:]]/, ""
 if [[ ! "$agents_limit" =~ ^[0-9]+$ || ! "$description_budget" =~ ^[0-9]+$ ]]; then
   fail "cannot read validator limits"
 else
-  agents_lines="$(wc -l < "$KIT/plugins/core/AGENTS.md" | tr -d ' ')"
+  agents_lines="$(wc -l < "$KIT/plugins/guardrails/AGENTS.md" | tr -d ' ')"
   if [[ "$agents_lines" -le "$agents_limit" ]]; then
     ok "AGENTS.md $agents_lines lines (limit $agents_limit)"
   else

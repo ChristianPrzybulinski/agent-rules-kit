@@ -1,12 +1,12 @@
 {
   "name": "agent-rules-kit",
   "version": "11.3.0",
-  "description": "Meta-plugin: installs the ai-kit plugin (core)",
+  "description": "Meta-plugin: installs the ai-kit plugin (guardrails)",
   "requiredPlugins": [
     {
       "source": "git-subdir",
       "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
-      "path": "plugins/core"
+      "path": "plugins/guardrails"
     }
   ]
 }
