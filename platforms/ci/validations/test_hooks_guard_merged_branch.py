@@ -26,6 +26,10 @@ OTHER_SHAPES = (
     f"git branch -D $(echo {BRANCH})",
     f"git branch --delete --force {BRANCH}",
     f"git branch -Df {BRANCH}",
+    # A git global option before the subcommand (KIT-053).
+    f"git -C . branch -D {BRANCH}",
+    f"git --no-pager branch -D {BRANCH}",
+    f"git -c core.x=y branch -D {BRANCH}",
 )
 
 
