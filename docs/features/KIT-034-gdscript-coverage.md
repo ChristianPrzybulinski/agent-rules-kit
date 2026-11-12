@@ -45,45 +45,54 @@ T2 and later from the T1 numbers. Facts re-checked at kit `49b2137` and stratics
 
 ## Change
 
-This PR adds this file, its row in `docs/features/README.md` and one CHANGELOG line. No tool, skill or gate changes
-until the owner approves T2.
+T1 (#144) added this file, its row in `docs/features/README.md` and one CHANGELOG line. T2–T4 add
+`platforms/tools/gd_coverage.py`, `platforms/ci/validations/test_gd_coverage.py`, the tool's row in
+`platforms/tools/README.md` and one CHANGELOG line. No skill or gate changes before T6.
 
-The tool it specifies, `platforms/tools/gd_coverage.py` (Python 3.9+, gdtoolkit 4.5.0, our own code, D3):
+The tool, `platforms/tools/gd_coverage.py` (Python 3.9+, gdtoolkit 4.5.0, our own code, D3), as built in T2–T4:
 
-1. **Copy.** `git archive <ref>` of the project into a new `mktemp -d` folder; the source checkout is never edited.
-   The copy runs `godot --path <copy> --headless --import` first, because a fresh checkout has no class-name cache
-   (`tools/dev.sh:38`–`40`).
-2. **Instrument.** Every `.gd` file of the copy outside `addons/`, `tests/` and `.godot/` is parsed with gdtoolkit and
-   gets probes inserted at the line and column of the statement they precede. Only text goes in, never a newline, so
-   every line number of the copy is the source's. Three kinds of probe:
-   - *block*: the entry of the first statement of each function body, `if`/`elif`/`else` arm, `for`/`while` body and
-     `match` arm;
-   - *continuation*: the statement right after a compound statement (`if`, `for`, `while`, `match`) in its block, so a
-     line after an `if` whose arm returns is not counted from the block's entry;
-   - *condition*: each `if`/`elif`/`while` condition becomes `KitCov.b(N, <condition>)`, which counts the true outcome
-     in slot N and the false one in N + 1 and returns the value unchanged.
-
-   A simple statement takes `KitCov.hit(N); ` in front. A compound statement never does: an `if` entry is the sum of
-   its first condition's two outcomes, a `for` or `match` entry wraps its iterable or subject as `KitCov.v(N, …)`, and a
-   `while` entry is not measured (its condition runs once per iteration). Lambdas are not entered.
-3. **Record.** The copy gains `kit_cov/kit_cov.gd` (`class_name KitCov`, a static `PackedInt64Array` of hit counts) and
-   an autoload `kit_cov/kit_cov_writer.gd`, added first under `[autoload]` of the copy's `project.godot`, that writes
-   `{"reason", "hits"}` to `$KIT_COV_OUT` once, on `_exit_tree` with `NOTIFICATION_PREDELETE` as the fallback. If the
-   autoload proves unreliable under `GdUnitCmdTool`, the writer moves to a gdUnit4 session hook (project setting
-   `gdunit4/hooks/session_hooks`, `addons/gdUnit4/src/core/GdUnitSettings.gd:14`–`15`, base class
-   `src/core/hooks/GdUnitTestSessionHook.gd`).
-4. **Run.** The project's own test command on the copy, with `HOME` pointed at a scratch folder so `user://`, the
-   editor settings and the logs stay out of the owner's home. A run counts only when it exits 0 or 101 and its
-   "Overall Summary" line shows one test case or more; otherwise the tool prints why and reports no coverage.
-5. **Report.** JSON per function: path, name, first and last line, covered and total statement lines (the first line of
-   each statement; a line is covered when the probe that enters its run of statements counted at least once), taken
-   and total branch outcomes (two per `if`/`elif`/`while` condition) and the uncovered lines. `--base REF` limits the
-   report to the functions whose lines changed, read the same way as `complexity.py`. Exit 0 (advisory); a gate waits
-   for T7.
+1. **Copy.** `git archive <ref>` (default `HEAD`) of the Godot project around the current directory goes into a new
+   `tempfile.mkdtemp` folder; the source checkout is never edited. Git LFS pointers in the copy are filled from the
+   local LFS store (`git rev-parse --git-common-dir`/`lfs/objects`) and never fetched; a missing object stays a pointer
+   and is named.
+2. **Instrument.** Every `.gd` file of the copy outside `addons/`, `.godot/`, the test folders (`--tests`, default
+   `res://tests`) and each `--exclude` path (a file or folder) is parsed with gdtoolkit and gets probes inserted as
+   text at the line and column of what they precede. No newline is ever inserted, so every line number of the copy is
+   the source's; a file whose line count changes or that does not parse again is a failure, and a file that fails runs
+   uninstrumented and is named.
+   - A run of simple statements gets `KitCov.hit(N); ` in front of its first statement. A run starts at a function
+     body, a property `get`/`set` body, a `for` body, a `match` arm and the statement after a compound statement, a
+     `return`, `break`, `continue` or `await`.
+   - Each `if`/`elif`/`while` condition C becomes `KitCov.b(N, C)`, which counts the true outcome in slot N and the
+     false one in N + 1 and returns C unchanged. An `if`/`elif`/`else` arm and a `while` body are entered from that
+     count, so they get no probe of their own.
+   - A `for` iterable or `match` subject X that starts a run becomes `(X if KitCov.t(N) else X)`, which keeps X's
+     static type; in a `range(...)` call only the first argument is wrapped, so the loop variable stays an `int`. An X
+     that spans lines leaves that line unmeasured, and so does a run whose first statement carries an annotation.
+   - Lambdas are not entered. Each `match` arm is one branch outcome, read from the counter that enters its body.
+3. **Record.** The copy gains `kit_cov/kit_cov.gd` (`@tool`, `class_name KitCov`, a static `PackedInt64Array` of
+   `SIZE` counters) and the autoload `kit_cov/kit_cov_writer.gd`, added first under `[autoload]` of the copy's
+   `project.godot`, which writes `{"reason", "hits"}` to `$KIT_COV_OUT/hits-<pid>.json` once, on `_exit_tree` with
+   `NOTIFICATION_PREDELETE` as the fallback. The counters of every other Godot process the tests start in the copy
+   are added to the run's own. No gdUnit4 session hook is needed (§ Decisions).
+4. **Run.** One `godot --headless --import` of the instrumented copy, then the project's own test command
+   (`-s addons/gdUnit4/bin/GdUnitCmdTool.gd -a <tests> -c --ignoreHeadlessMode`), both under `nice -n 10` with `HOME`
+   and the `XDG_*` folders inside the temporary folder, each in a process group of its own that is killed after
+   `--timeout` seconds (default 1800). A run counts only when it finishes in time, exits 0 or 101, its last "Overall
+   Summary" line shows one test case or more and its own counters were written; otherwise the tool prints why and the
+   last log lines and exits 2, as it does without godot, gdUnit4 or gdtoolkit, with a bad ref or outside a Godot
+   project.
+5. **Report.** stdout holds one `path:line function lines C/T branches C/T` line per function; `--json FILE` writes the
+   ref, Godot version, test summary and exit code, timings, instrumented and failed files, LFS counts, probe counts
+   and, per function, path, name, first and last line, covered and total statement lines (the first line of each
+   statement; a line is covered when the probe that enters its run counted at least once), taken and total branch
+   outcomes (two per `if`/`elif`/`while` condition, one per `match` arm) and the uncovered lines. `FILE...` limits the
+   report to those files and `--base REF` to the functions whose lines changed in `REF...HEAD`, read by
+   `complexity.py`'s `changed_lines`. `--keep` keeps the temporary folder. Exit 0 (advisory); a gate waits for T7.
 6. **CRAP.** `complexity.py` reads that JSON and fills `Function.coverage` with the line ratio for GDScript, so a
    GDScript function scores CRAP the way a Java one does from JaCoCo (T5).
 
-`plugins/dev-core/skills/testing/SKILL.md:23` and `testable-game-logic.md:28` change only in T6, after the tool exists.
+`plugins/core/skills/testing/SKILL.md:26` and `testable-game-logic.md:28` change only in T6, after the tool exists.
 No CI or loop gate runs it (D2, D5).
 
 ## Tasks
@@ -121,27 +130,100 @@ closes #136; this PR refers to it.
   instruction.
 - 2026-11-11 T1 (#144): chose "Refs #136" over "Closes #136" because `docs/maintenance.md:18` says "the implementing
   PR closes the issue" and this PR implements T1 only.
+- 2026-11-12 T2: chose `(X if KitCov.t(N) else X)` over T1's `KitCov.v(N, X)` for a `for` iterable or `match`
+  subject because `KitCov.v` returns a Variant: Godot 4.7.2 rejected `for i in KitCov.v(1, range(3)): var y := i + 1`
+  and a `match` binding `var z` followed by `var w := z + 1` with "Cannot infer the type of "y" variable because the
+  value doesn't have a set type." A ternary of two copies keeps X's type; on `range(...)` only the first argument is
+  wrapped, because a ternary around the whole call also lost the `int` loop variable.
+- 2026-11-12 T2: chose to count a `for` or `match` line from the run it is in over a probe of its own because a
+  statement after a simple statement of the same run is reached exactly when the run is; only a `for` or `match` that
+  starts a run gets `KitCov.t`.
+- 2026-11-12 T2: chose to end a run after a statement that awaits (outside a lambda) over counting the lines after it
+  from the run's entry because a coroutine suspended at `await` may never resume (the test ends or the object is
+  freed), and those lines would read as covered without running.
+- 2026-11-12 T2: chose to leave a run unmeasured when its first statement carries an annotation over a probe in front
+  of the annotation because gdtoolkit 4.5.0 rejects `KitCov.hit(N); @warning_ignore("integer_division")` followed by
+  the statement on the next line, and the output must parse again. [HYPOTHESIS] a probe after the annotation would
+  take the annotation away from the statement it names. stratics-client `310d002a` has no indented annotation in a
+  `.gd` file outside `addons/` (`git grep -P -c '^\t+@'` matches no file), so no line is lost there today.
+- 2026-11-12 T3: chose the writer autoload alone over adding the gdUnit4 session hook because
+  `test_gd_coverage.py` `GodotTest` runs gdUnit4 6.2.1 under Godot 4.7.2 and the autoload wrote the counters with
+  `"reason": "exit_tree"` on a passing run (exit 0), a failing one (exit 100) and one with an orphan node (exit 101).
+- 2026-11-12 T4: chose exit 2 for a run that does not count (an exit other than 0 or 101, no test case, no counters)
+  over exit 0 with an empty report, so a caller such as T5's `complexity.py` never reads a missing measurement as 0 %
+  coverage.
+- 2026-11-12 T4: chose to fill the copy's Git LFS pointers from the local store (`git rev-parse --git-common-dir`,
+  then `lfs/objects`) over `git lfs fetch` or leaving them because `git archive` writes the pointer files, Godot
+  imports the files themselves, and a fetch is a network effect an advisory tool should not have; a missing object
+  stays a pointer and the tool names the count.
+- 2026-11-12 T4: chose to instrument the copy before its one `--import` over T1's import before and after the probes
+  because the tool needs the copy only once: T1 paid 12.08 s for the first import and 3.61 s for the second.
+- 2026-11-12 T4: chose one counter file per process, `hits-<pid>.json`, summed with the files of the other Godot
+  processes in the copy, over one `$KIT_COV_OUT` file because client tests start Godot on the copy itself
+  (`tests/ui/kit/kit_manifest_test.gd:339`–`346` runs `res://tools/ui/kit_import.gd` with `OS.execute`), and that
+  child's writer would overwrite the run's file. The run's own file must exist: another process's never stands in.
+- 2026-11-12 T4: chose `--timeout` with a process-group kill over waiting on the suite because the first whole-suite
+  run hung (§ Measurements): a test's child Godot waited forever, and killing only the runner would have left it
+  running on the host.
+- 2026-11-12 T4: chose `--exclude PATH` over a built-in list of scripts that tests copy out because the tool cannot
+  see which ones a test copies: `tests/ui/kit/kit_reimport_test.gd:26` and `tests/ui/kit/kit_import_test.gd:62`–`63`
+  copy `tools/ui/kit_import.gd` into a temporary project with no `KitCov`, where an instrumented copy does not compile.
+- 2026-11-12 T4: kept Change step 4's rule, a run counts only on exit 0 or 101, over counting stratics-client's exit
+  100, and took the whole-suite numbers from the kept counters (§ Measurements), because the rule is approved and a red
+  suite's numbers include the lines of tests that stopped part-way; T7 decides whether a run with failing tests counts.
+- 2026-11-12 T2: this record named paths that KIT-042 (#161) and KIT-047 (#177) moved. `docs/maintenance.md:18` is
+  now `CONTRIBUTING.md:46` ("the implementing PR closes the issue"); `plugins/dev-core/skills/testing/SKILL.md:23` is
+  now `plugins/core/skills/testing/SKILL.md:26`. T2's "INDEX rows in `platforms/tools/INDEX.md` and
+  `platforms/ci/validations/INDEX.md`" became the tool's row in `platforms/tools/README.md`, the index of tools;
+  `platforms/ci/README.md` lists validations and has no row for a tool's test (`test_complexity.py` and
+  `test_gd_duplicates.py` have none).
 
 ## Risks
 
-- [FACT] one-line compound statements (`if x: return y`): the client has none outside `addons/` and `tests/` at
-  `f98e0091` (a `git grep` for `if`, `elif`, `else`, `for` or `while` with a body after the colon), so no T1 run put a
-  probe after a colon; T2's tests cover it.
-- [FACT] lambdas are not entered; 106 lines in 43 client files hold one. [HYPOTHESIS] their body lines read as
-  uncovered unless the report leaves them out (T2).
-- [FACT] `@tool` scripts: the client has one, `features/trade/trade_add_button.gd`, and the instrumented whole-project
-  `--import` exited 0 with no parse error in its log. [HYPOTHESIS] that does not show the script ran inside the import
-  with `KitCov` known.
-- [FACT] the `.godot` import cache: the copy that gained `class_name KitCov` always ran one more `--import` (3.16 s for
-  one file, 3.61 s for the whole project); a run without it was not tried. Mutated function bodies loaded with no new
-  import: KIT-035 T1 shows a compile error at line 58 and a runtime error at line 48, the mutated lines.
+- [FACT] one-line compound statements and functions get their probe after the colon: `test_gd_coverage.py` `SOURCE`
+  holds `if i > 4: break` and `func one(a: int) -> int: return a`, and the instrumented text parses again. The client
+  has no one-line compound statement outside `addons/` and `tests/` at `f98e0091` (a `git grep` for `if`, `elif`,
+  `else`, `for` or `while` with a body after the colon).
+- [FACT] lambdas are not entered: a statement is counted by its first line, so the body lines of a lambda belong to the
+  statement that holds it and read as covered when that statement ran, whether or not the lambda was called. 106
+  lines in 43 client files hold one.
+- [FACT] property `get`/`set` bodies are measured as functions named `<var>.get` and `<var>.set` (`hp` in `SOURCE`);
+  class-level `var` initialisers get no probe.
+- [FACT] `@tool` scripts get probes like any other: the client's one `@tool` script,
+  `features/trade/trade_add_button.gd`, ran instrumented in the whole suite with its 32 statement lines and 4 branch
+  outcomes covered and no script error (§ Measurements).
+- [FACT] the `.godot` import cache: the copy is instrumented before its one `--import` (§ Decisions). The whole-suite
+  run logged the same script errors as a plain copy, line for line, and none names `kit_cov` (§ Measurements).
+- [FACT] tests that inspect the project itself see the instrumentation: in stratics-client
+  `tests/app/autoload_order_test.gd` finds the `KitCovWriter` autoload and `tests/architecture/dependency_rules_test.gd`
+  finds every probed file depending on `kit_cov`, so 3 test cases fail on every instrumented run (§ Measurements).
+  gdUnit4 6.2.1 can skip a test suite or case (`-i, --ignore` in `src/core/runners/GdUnitTestCIRunner.gd:40`); the tool
+  does not pass it today, and T7 decides between that and the client accepting the writer.
 - [FACT] `user://` isolation through `HOME` holds on macOS: the real
   `~/Library/Application Support/Godot/app_userdata/Stratics/logs/godot.log` kept mtime 1794305802.564249 across the
   spike, and the runs wrote their logs under the scratch `HOME`.
-- [HYPOTHESIS] property `get`/`set` bodies and class-level `var` initialisers are not function bodies in the gdtoolkit
-  tree, so they get no probe.
 - [FACT] a `while` loop's entry is not measured, and the operands of `and`/`or` are not separate outcomes: the
   condition probe counts the whole condition.
+- [FACT] a script that a test copies into another project runs there without `KitCov` and does not compile. The tool
+  cannot see which scripts a test copies; the first whole-suite run hung on one (§ Measurements), and `--exclude`
+  leaves it without probes.
+- [FACT] tests that start Godot on the copy add their counters to the run's (`hits-<pid>.json`). [HYPOTHESIS] a child
+  that its test kills before it exits writes no file, and what it ran reads as uncovered.
+- [FACT] gdUnit4 builds a mock from the script's source text: `GdScriptParser.gd` `extract_func_signature` joins the
+  rows from the `func` line to the first that ends in `:` (`is_func_end`). A probe never goes on such a row: the first
+  probe of a function goes on the row after a multi-line signature, or after the colon of a one-line function, whose
+  row already does not end in `:`.
+- [FACT] the copy has no sibling folders, so client tests that read the docs repository find it only through
+  `STRATICS_DOCS_DIR`: `tests/support/docs_paths.gd` tries the variable, then a parent that holds `game/protocol`,
+  then `res://../stratics-docs`. The tool passes the caller's environment to Godot.
+- [FACT] a red suite reports no coverage (Change step 4), and stratics-client `main` is red on its own: a plain copy
+  of `310d002a` under Godot 4.7.2 fails every test that mocks `app/network/network.gd`, because gdUnit4 6.2.1 writes
+  the multi-line default `OS.has_feature(RELEASE_FEATURE)` of `resolve_server_url` (lines 325–328) into the mock as
+  `release_feature` and `os` (§ Measurements). T7 decides whether a run with failing tests counts.
+- [FACT] stratics-client `main` stops at `310d002a` ("docs: point readers to the Stratics monorepo (#355)"); the live
+  client is `client/` in stratics-docs, where `resolve_server_url` is one line (`client/app/network/network.gd:350` at
+  `ac649c10c`). The tool archives `<ref>:client` when it runs inside that folder (`extract`); [HYPOTHESIS] it works
+  there, as no run was made on the monorepo.
 
 ## Measurements
 
@@ -199,6 +281,61 @@ reaches through the autoloads: `audio_director.gd` 18 slots, `button_feedback.gd
 script error. A test run loads only the scripts it reaches, so whether the other 231 files with probes compile is
 T4's full-suite question.
 
+T4 ran the whole stratics-client suite on 2026-11-12 on a `git archive` copy of `310d002a` (stratics-client `main`, see
+§ Risks) in a new `mktemp -d` folder under the session's scratchpad; nothing in `stratics-client` was edited. Godot
+4.7.2.stable.official.ed1daf0bf and the client's gdUnit4 6.2.1 ran headless under `nice -n 10` with `HOME` inside the
+temporary folder. No loop gate run was on the host, but the load average was 10 to 15 throughout (a 4-hour `qa.py soak`
+with 100 clients, a Java server and a VM), so the times are upper bounds.
+
+| Run | Result |
+|---|---|
+| 1, `--ref 310d002a` | hung at about 13:26 in `tests/ui/kit/kit_reimport_test.gd` `test_clean_checkout_extracts_pinned_delivery_and_reuses_it`, whose child Godot runs an instrumented `tools/ui/kit_import.gd` in a project with no `KitCov`; stopped by hand at about 13:30. `--timeout` and `--exclude` come from it (§ Decisions) |
+| 2, with `--exclude tools/ui/kit_import.gd` | 577 s, exit 2 ("the suite exited 100"): 2,749 test cases, 610 errors, 696 failures, from two causes that a plain copy shares: the mock failure below and the tests that read the docs repository, which the copy has no sibling of |
+| 3, the same with `STRATICS_DOCS_DIR` | 483 s, exit 2 ("the suite exited 100"); the variable named a scratch folder with the `game/protocol` and `game/content/packs/pilot` of stratics-docs `2eb46d4c4`, its last commit before `310d002a` (2026-10-29 16:29) |
+
+Run 3 against a plain copy of the same commit, imported beforehand in 24.78 s and run with the same variable:
+
+| Measure | Plain copy | Instrumented copy (run 3) |
+|---|---|---|
+| wall time | 388 s, the test run only | 483 s, with archive, LFS fill, instrumentation and `--import` |
+| gdUnit4 "Total execution time" | 6 min 6 s 94 ms | 6 min 54 s 236 ms (+13 %, one run each) |
+| Overall Summary | 2,749 test cases, 269 errors, 12 failures, 1 skipped, 2 orphans; 375/375 suites | 2,749 test cases, 269 errors, 15 failures, 1 skipped, 2 orphans; 375/375 suites |
+| exit | 100 | gdUnit4 100; the tool 2 |
+| failing test cases (`results.xml`) | 68 | the same 68, plus 3 |
+| script error lines | 172 distinct lines, mock file numbers normalised | the same 172 lines; none names `kit_cov` |
+
+Instrumentation: 250 files got probes in 14,174 counter slots (`SIZE` in the copy's `kit_cov/kit_cov.gd`); no file was
+left without probes for a parse error and no LFS object was missing (neither notice was printed). 7 counter files were
+written, all with `"reason": "exit_tree"`: the run's own (12,241 non-zero slots) and 6 from the Godot processes that
+tests started in the copy.
+
+The 68 shared failures are the client's own: every test that mocks `app/network/network.gd` fails with `Parse Error:
+Identifier "release_feature" not declared` and `Identifier "os" not declared` at line 156 of the generated mock, 230
+such lines in each log (§ Risks). The 3 failures only the instrumented copy has are tests that inspect the project
+itself:
+
+- `tests/app/autoload_order_test.gd:15` `test_autoloads_keep_names_order_and_singleton_flag` expects the 6 autoloads
+  and finds `KitCovWriter` in front of them;
+- `tests/app/autoload_order_test.gd:28` `test_every_autoload_script_exists` expects 6 autoloads and finds 7;
+- `tests/architecture/dependency_rules_test.gd:66` `test_runtime_dependencies_obey_the_module_table` lists every probed
+  file as a forbidden dependency on `kit_cov`.
+
+So T4's "no instrumentation failure" holds for the scripts (no parse, compile or runtime error from a probe, the
+`@tool` script included) and not for the suite: those 3 cases fail on every instrumented run of this client (§ Risks).
+
+The tool reports nothing for a red suite (Change step 4), so the coverage below comes from the kept run (`--keep`)
+through a scratch script that loads `gd_coverage.py`, instruments a new `git archive` of `310d002a` with the same
+`--exclude` (the same 14,174 slots) and sums the 7 counter files as `read_hits` does (23.83 s). It includes the lines
+that the 71 failing test cases ran before they failed.
+
+| Measure | Result |
+|---|---|
+| functions | 2,872 in 250 files; 243 files with a covered line |
+| statement lines | 20,918/22,997 (91.0 %) |
+| branch outcomes | 7,076/8,584 (82.4 %) |
+| per function | 2,181 fully covered, 142 with no covered line |
+| `app/update/pack_choice.gd` | 46/54 lines and 32/40 outcomes, function by function the same as T1's table |
+
 ## Proof
 
 Run from the worktree root at `3bdba5c` on 2026-11-11 (the commits after it change only this document and
@@ -218,3 +355,5 @@ Run from the worktree root at `3bdba5c` on 2026-11-11 (the commits after it chan
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
 - 2026-11-11: implementation prompt launched; issue #136; T1 spike run.
 - 2026-11-11: specification and T1 spike in #144, which refers to #136 and leaves it open.
+- 2026-11-12: the owner approved T2 onward in chat ("Sim, KIT-034 primeiro"), and KIT-035 after T4 is merged;
+  T2–T4 implemented and the whole client suite measured.
