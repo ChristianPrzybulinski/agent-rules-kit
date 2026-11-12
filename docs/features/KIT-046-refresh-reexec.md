@@ -4,7 +4,7 @@ title: "refresh.sh runs the pulled version of itself in the same run"
 status: done
 confirmed: "2026-11-12 (owner, chat of the kit review session: session-end kit proposal)"
 issue: "#173"
-pr: ""
+pr: "#175"
 ---
 
 # KIT-046 — refresh.sh runs the pulled version of itself in the same run
