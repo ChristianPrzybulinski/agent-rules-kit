@@ -6,8 +6,13 @@ not one of the loop's repositories, and it serves more than one project.
 
 ## Process
 
-1. A session (a project's improvement notes, an assessment under [`../plans/`](../plans/README.md), a review) proposes a
-   kit change with its evidence. Nothing is written here until the owner confirms it.
+A record is for a big change only: a hook, `plugins/core/AGENTS.md`, plugin structure or manifests, a check, gate or
+script behavior change, or a new or removed skill. Any other change (a skill, rule, reference, template or doc text
+edit) needs only its `CHANGELOG.md` line, and the PR body carries the why (KIT-040). Records written before KIT-040 stay
+as they are.
+
+1. A session (a project's improvement notes, an assessment, a review) proposes a kit change with its evidence. Nothing
+   is written here until the owner confirms it.
 2. On confirmation: copy [`TEMPLATE.md`](TEMPLATE.md) to `KIT-NNN-<slug>.md` (next free number), and open one issue in
    this repository titled `[KIT-NNN] <title>`, label `kit-feature`, that links the file.
 3. The PR that implements it closes the issue (`Closes #N`); its `CHANGELOG.md` line cites `KIT-NNN`. The file's
@@ -57,5 +62,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-037-evals-templates-trim.md`](KIT-037-evals-templates-trim.md) | done | #148 | #149 |
 | [`KIT-038-three-plugins.md`](KIT-038-three-plugins.md) | done | #151 | #153 |
 | [`KIT-039-skill-merges.md`](KIT-039-skill-merges.md) | done | #154 | #155 |
+| [`KIT-040-ceremony-cut.md`](KIT-040-ceremony-cut.md) | done | #150 | #152 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
