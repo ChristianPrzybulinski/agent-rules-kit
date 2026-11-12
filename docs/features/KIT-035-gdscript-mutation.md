@@ -285,6 +285,26 @@ only this document); every command exited 0:
 - `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~71034 bytes (71.03 KB) in
   89ms", "no leaks found".
 
+T2–T4 review fixes: run from the worktree root at `0e0b6a6` on 2026-11-12, on `cd9a632` (`origin/main`, merged in at
+`d70b0ef`; the commits after it change only this document); every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 171 tests in 160.227s", "OK
+  (skipped=5)"; the 25 tests of `test_gd_mutation.py` ran, none skipped. The fifth skip is the `GodotTest` case #193
+  added to `test_gd_coverage.py`, which needs `KIT_GDUNIT4`.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "3 commits scanned.", "scanned ~84268 bytes (84.27 KB) in
+  54.4ms", "no leaks found".
+- The three new tests fail on `gd_mutation.py` as of `aafed4a` (a scratch copy, the tests' `--timeout-constant` left
+  out): "Ran 25 tests in 29.170s", "FAILED (failures=3)". The two raise tests stop at the exit code, 0 where 2 is
+  expected (the raise ended the worker's thread); the timeout test stops at the baseline timeout, 10 × alone.
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
