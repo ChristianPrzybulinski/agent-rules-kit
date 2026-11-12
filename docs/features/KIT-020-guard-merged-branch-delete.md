@@ -56,7 +56,7 @@ the command by hand (#113):
 - `docs/design.md` and `CONTRIBUTING.md` name the exception and its test.
 
 Not covered: `git -C <dir> branch -D <name>` passes the guard on `0124899` already (the pattern needs `git branch`
-next to each other); that gap is older than this change and stays out of its scope.
+next to each other); that gap is older than this change and stays out of its scope. KIT-053 closes it.
 
 ## Proof
 
