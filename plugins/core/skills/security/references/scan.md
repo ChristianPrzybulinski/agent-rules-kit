@@ -32,7 +32,7 @@ git log -p --all -S 'BEGIN PRIVATE KEY' --oneline | head
 
 If gitleaks is unavailable, run a redacted `grep` for key, secret, password and token assignments while excluding `.git`, `target`, `.godot` and `node_modules`; label the result partial.
 
-On a real finding, stop other work, report the type/file/commit without the value, and direct rotation plus a sibling scan in the current session.
+On a real finding, report the type, file and commit without the value, then follow `SKILL.md` § 2.
 
 ## 4. Review changed endpoints
 
