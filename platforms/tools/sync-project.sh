@@ -4,8 +4,8 @@
 #                                                          installs/updates .github/spec-lint/ (repos with docs/spec only),
 #                                                          CLAUDE.md (imports AGENTS.md),
 #                                                          .claude/settings.json (ai-kit marketplace +
-#                                                          enabledPlugins for the repo profile) and
-#                                                          .claude/rules/<plugin>-<rule>.md (the profile's
+#                                                          enabledPlugins core@ai-kit) and
+#                                                          .claude/rules/core-<rule>.md (the profile's
 #                                                          path rules, marked as generated); with
 #                                                          --vendor-skills also .claude/skills/<name>/
 #                                                          (whole skill directories, .agent-rules-kit
@@ -14,29 +14,31 @@
 #                                                          compares all of them with the kit and scans the
 #                                                          repo's *.md for obsolete kit paths;
 #                                                          exit 1 on any divergence or stale citation
-# --profile selects the plugin set written to .claude/settings.json and copied into
-# .claude/rules/ and .claude/skills/. Without it the list that .claude/skills/KIT_MANIFEST.json
+# --profile selects the kit rules copied into .claude/rules/ and the kit skills copied into
+# .claude/skills/: platforms/tools/sync-profiles.txt names the profiles that receive each one
+# (KIT-047). Without it the list that .claude/skills/KIT_MANIFEST.json
 # records is used; a repo without a manifest gets the profile inferred, first match wins:
 # project.godot (godot), pom.xml (java), docs/spec/ (docs). The run prints which source won.
 # <profile> is godot|java|docs|python, optionally followed by :<dir>. A comma list syncs the union
-# of its profiles' plugins, rules and skills, for a monorepo such as
+# of its profiles' rules and skills, for a monorepo such as
 # docs,godot:client,java:server,python:platform. The :<dir> suffix scopes the globs/paths of the rule named
 # after that profile to <dir>/ ("**/*.gd" renders as "client/**/*.gd"; java:server leaves the
-# godot rule alone), and a plugin's other rules to the folders of every profile that includes
-# the plugin. The list is stored sorted and deduplicated, which is the form KIT_MANIFEST.json
+# godot rule alone), and any other rule to the folders of every profile that receives the rule.
+# The list is stored sorted and deduplicated, which is the form KIT_MANIFEST.json
 # records.
 # A .claude/rules/*.md destination that exists without the generated marker refuses
 # the sync before any write; a marked file that falls out of the profile is removed.
-# --vendor-skills copies the profile's plugins/<plugin>/skills/<name>/ directories whole (core's
-# skills excepted: core stays enabled, so they load from the plugin)
+# --vendor-skills copies the profile's plugins/core/skills/<name>/ directories whole (the always-on
+# skills, "-" in the map, excepted: they load from the enabled plugin)
 # into .claude/skills/<name>/, marks each copy with .agent-rules-kit and writes
 # KIT_MANIFEST.json (kit version, profile, plugin, sha256 per file). The manifest is
 # sticky: once it exists a bare sync-project.sh <repo> keeps the vendored mode and the
 # recorded profile list. A
 # .claude/skills/<name>/ directory without the marker is never read, replaced or
-# deleted - its presence refuses the sync before any write. In this mode
-# .claude/settings.json enables only core@ai-kit (the guard hook lives in the
-# plugin only; plugin skills and vendored copies would otherwise load twice).
+# deleted - its presence refuses the sync before any write. Both modes enable only
+# core@ai-kit in .claude/settings.json: the kit ships one plugin (KIT-047) and the guard
+# hook lives in the plugin only, so a local session that trusts the folder also loads
+# each vendored skill from the plugin; the copy serves sessions that load no plugin.
 # --workflow names the CI file that must run check_spec.py. Without it, --check
 # accepts any file under .github/workflows/ containing check_spec.py, and install
 # copies the kit workflow (as spec-lint.yml) only if the project has none.
@@ -88,14 +90,11 @@ kit_files() { # prints "src rel-dest"
   fi
 }
 
-rule_files() { # prints "src rel-dest" for every rules/*.md in the profile's plugins
-  local plugin rule_file
-  while read -r plugin; do
-    for rule_file in "$KIT_DIR/plugins/$plugin/rules/"*.md; do
-      [[ -f "$rule_file" ]] || continue
-      echo "$rule_file .claude/rules/$plugin-${rule_file##*/}"
-    done
-  done < <(profile_plugins "$PROFILE")
+rule_files() { # prints "src rel-dest" for every kit rule the map gives to a profile in $PROFILE
+  local name
+  while read -r name; do
+    echo "$KIT_DIR/plugins/core/rules/$name .claude/rules/core-$name"
+  done < <(map_selected rules)
 }
 
 render_rule() { # $1 = kit rule file, $2 = output path: frontmatter (first --- through the
@@ -190,68 +189,59 @@ profile_entries() { # $1 = normalized profile list; prints "<name> <dir>" per en
   done
 }
 
-base_plugins() { # $1 = one profile name; prints one plugin name per line, in this order
-  case "$1" in
-    # KIT-038: godot and java share the dev plugin; a rule loads only by its own file glob
-    # KIT-045: python too, so python:<dir> scopes rules/python.md to the repo's Python tooling
-    godot)  printf '%s\n' core dev ;;
-    java)   printf '%s\n' core dev ;;
-    python) printf '%s\n' core dev ;;
-    docs)   printf '%s\n' core sdd ;;
-  esac
+PROFILE_MAP="$KIT_DIR/platforms/tools/sync-profiles.txt"
+
+map_entries() { # $1 = skills|rules; prints "<name> <profile>..." per map line of that kind, where the
+  # single profile "-" means no profile receives it (check_kit.py keeps the map complete)
+  awk -F'|' -v kind="$1/" '
+    /^[[:space:]]*(#|$)/ { next }
+    {
+      key = $1; profiles = $2
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", profiles)
+      if (index(key, kind) == 1) print substr(key, length(kind) + 1), profiles
+    }' "$PROFILE_MAP"
 }
 
-profile_plugins() { # $1 = normalized profile list; prints the union of its profiles' plugins,
-  # one per line, each at its first occurrence
-  local name dir plugin seen=" "
+map_selected() { # $1 = skills|rules; prints each name of that kind whose map profiles include a
+  # profile of $PROFILE, in map order
+  local name profiles profile names
+  names=" $(profile_entries "$PROFILE" | cut -d' ' -f1 | tr '\n' ' ')"
+  while read -r name profiles; do
+    for profile in $profiles; do
+      case "$names" in *" $profile "*) echo "$name"; break ;; esac
+    done
+  done < <(map_entries "$1")
+}
+
+rule_scopes() { # $1 = normalized profile list, $2 = kit rule file; a rule named after a profile
+  # (rules/godot.md and profile godot) takes only that profile's folders, so java:server never
+  # scopes the godot rule; any other rule takes the folders of every entry whose profile receives
+  # it in the map, or . when one of them covers the repo root
+  local file="${2##*/}" stack name dir scopes="" receivers
+  stack="${file%.md}"
   while read -r name dir; do
-    while read -r plugin; do
-      case "$seen" in *" $plugin "*) continue ;; esac
-      seen="$seen$plugin "
-      echo "$plugin"
-    done < <(base_plugins "$name")
+    [[ "$name" == "$stack" ]] || continue
+    if [[ "$dir" == . ]]; then echo .; return 0; fi
+    case " $scopes " in *" $dir "*) ;; *) scopes="$scopes${scopes:+ }$dir" ;; esac
   done < <(profile_entries "$1")
-}
-
-plugin_scopes() { # $1 = normalized profile list, $2 = plugin; prints the space-separated folders
-  # of the entries that include the plugin, or . when one of them covers the repo root
-  local name dir scopes=""
+  if [[ -n "$scopes" ]]; then echo "$scopes"; return 0; fi
+  receivers=" $(map_entries rules | awk -v file="$file" '$1 == file { $1 = ""; print }') "
   while read -r name dir; do
-    case " $(base_plugins "$name" | tr '\n' ' ')" in *" $2 "*) ;; *) continue ;; esac
+    case "$receivers" in *" $name "*) ;; *) continue ;; esac
     if [[ "$dir" == . ]]; then echo .; return 0; fi
     case " $scopes " in *" $dir "*) ;; *) scopes="$scopes${scopes:+ }$dir" ;; esac
   done < <(profile_entries "$1")
   echo "${scopes:-.}"
 }
 
-rule_scopes() { # $1 = normalized profile list, $2 = kit rule file; a rule named after a profile
-  # (plugins/dev/rules/godot.md and profile godot) takes only that profile's folders, so java:server
-  # never scopes the godot rule; any other rule takes plugin_scopes of its plugin
-  local rel="${2#"$KIT_DIR"/plugins/}" stack name dir scopes=""
-  stack="${rel##*/}"
-  stack="${stack%.md}"
-  while read -r name dir; do
-    [[ "$name" == "$stack" ]] || continue
-    if [[ "$dir" == . ]]; then echo .; return 0; fi
-    case " $scopes " in *" $dir "*) ;; *) scopes="$scopes${scopes:+ }$dir" ;; esac
-  done < <(profile_entries "$1")
-  if [[ -n "$scopes" ]]; then echo "$scopes"; else plugin_scopes "$1" "${rel%%/*}"; fi
-}
-
-skill_dirs() { # prints "<plugin> <name>" for every plugins/<plugin>/skills/<name>/
-  # in the resolved profile that carries a SKILL.md, in ls order; no skill name
-  # is hard-coded so skill renames and moves cannot stale this list
-  local plugin skill_dir name
-  while read -r plugin; do
-    # core stays enabled in .claude/settings.json (its guard hook lives only in the plugin), so its
-    # skills already load from the plugin; a vendored copy would load them twice (KIT-002)
-    [[ "$plugin" == core ]] && continue
-    for skill_dir in "$KIT_DIR/plugins/$plugin/skills"/*/; do
-      [[ -f "$skill_dir/SKILL.md" ]] || continue
-      name="${skill_dir%/}"
-      echo "$plugin ${name##*/}"
-    done
-  done < <(profile_plugins "$PROFILE")
+skill_dirs() { # prints "core <name>" for every kit skill the map gives to a profile in $PROFILE;
+  # the always-on skills ("-") stay out: core is enabled in .claude/settings.json (its guard hook
+  # lives only in the plugin), so they load from the plugin (KIT-002)
+  local name
+  while read -r name; do
+    echo "core $name"
+  done < <(map_selected skills)
 }
 
 # Obsolete kit paths (layouts 1.x to 9.x). A consumer line that must keep one
@@ -320,10 +310,9 @@ if [[ "$VENDOR_FLAG" == 1 || -f "$REPO/.claude/skills/KIT_MANIFEST.json" ]]; the
 fi
 vendored_skills=0
 vendored_files=0
-# A vendored repo loads skills from its own copy; only core stays enabled for
-# the PreToolUse/PostToolUse guard hooks, which a copied tree cannot carry.
-SETTINGS_PLUGINS="$(profile_plugins "$PROFILE")"
-if [[ "$VENDOR" == 1 ]]; then SETTINGS_PLUGINS="core"; fi
+# The kit ships one plugin (KIT-047); it stays enabled in both modes for the
+# PreToolUse/PostToolUse guard hooks, which a copied tree cannot carry.
+SETTINGS_PLUGINS="core"
 if [[ "$VENDOR" == 1 ]]; then echo "sync: skills=vendored"; else echo "sync: skills=plugins"; fi
 
 if [[ "$MODE" == check ]]; then
@@ -557,7 +546,7 @@ if [[ "$VENDOR" == 1 ]]; then
     [[ -n "$plugin" ]] || continue
     dst="$REPO/.claude/skills/$name"
     if [[ -e "$dst" || -L "$dst" ]] && [[ ! -f "$dst/.agent-rules-kit" ]]; then
-      echo "sync: $dst exists and is not generated; rename it or drop the plugin from the profile"
+      echo "sync: $dst exists and is not generated; rename it or drop the profile that receives it (platforms/tools/sync-profiles.txt)"
       exit 1
     fi
   done < <(skill_dirs)
@@ -594,8 +583,9 @@ if current != text:
         fh.write(text)
 PY
 
-# The profile's path rules render into .claude/rules/<plugin>-<rule>.md; only
-# marker-carrying files the profile no longer enables are removed.
+# The profile's path rules render into .claude/rules/core-<rule>.md; only
+# marker-carrying files the profile no longer receives are removed (dev-*.md and
+# sdd-*.md from kits before KIT-047 among them).
 mkdir -p "$REPO/.claude/rules"
 rules_written=0
 rules_removed=0

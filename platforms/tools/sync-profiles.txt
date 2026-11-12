@@ -1,0 +1,36 @@
+# Which repository profiles receive a copy of each kit skill and rule (KIT-047).
+# Read by platforms/tools/sync-project.sh; platforms/ci/validations/check_kit.py requires exactly one line per
+# plugins/core/skills/<name>/ and plugins/core/rules/<name>.md, and only the profiles godot, java, python and docs.
+# <skills/<name> or rules/<file>> | <profiles, space-separated> or - (always-on skill: core stays enabled for its
+# guard hook, so the skill loads from the plugin and a vendored copy would load it twice, KIT-002)
+rules/godot.md           | godot java python
+rules/java.md            | godot java python
+rules/python.md          | godot java python
+rules/spec.md            | docs
+skills/architecture      | docs
+skills/asset-import      | godot java python
+skills/code-standards    | godot java python
+skills/docker            | godot java python
+skills/git               | -
+skills/godot-standards   | godot java python
+skills/grilling          | docs
+skills/investigate       | godot java python
+skills/java-standards    | godot java python
+skills/krita             | godot java python
+skills/parallelize       | -
+skills/persistence       | godot java python
+skills/protocol-contract | docs
+skills/review            | -
+skills/sdd-check         | docs
+skills/sdd-clarify       | docs
+skills/sdd-constitution  | docs
+skills/sdd-implement     | docs
+skills/sdd-journey       | docs
+skills/sdd-plan          | docs
+skills/sdd-specify       | docs
+skills/sdd-spike         | docs
+skills/sdd-tasks         | docs
+skills/sdd-to-card       | docs
+skills/security          | -
+skills/session           | -
+skills/testing           | godot java python
