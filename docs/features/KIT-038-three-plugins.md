@@ -48,7 +48,8 @@ Measured at `origin/main` 1edc0ab:
 - `bootstrap.sh`, `refresh.sh` and `doctor.sh` loop over `plugins/*` and install a missing plugin, so the rename lands
   without a manual step.
 - `sync-project.sh` maps `godot` and `java` to `core dev` and `docs` to `core sdd`. Rules still load only by their own
-  file glob.
+  file glob, and a `<profile>:<dir>` entry scopes only the rule named after that profile (`godot:client` scopes
+  `dev-godot.md`).
 - `check_kit.py` requires every plugin in the meta-plugin, sorted, with no `optionalPlugins`; `OPTIONAL_PLUGINS` is
   gone.
 - `INDEX.md`, `README.md`, `docs/design.md`, `docs/projects.md`, `docs/maintenance.md`, the kits under
@@ -79,3 +80,5 @@ the dependency chain for those few lines.
 ## History
 
 - 2026-11-11: confirmed (owner, "Sim, Fase 2").
+- 2026-11-11: fix after #153. The stratics-docs sync (`docs,godot:client,java:server`) scoped both `dev` rules to both
+  folders, because folders were taken per plugin. Now a rule is scoped by the profile it is named after.
