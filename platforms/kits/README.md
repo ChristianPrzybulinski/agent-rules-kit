@@ -12,5 +12,5 @@ Scope: configuration and infra templates a project copies (not read by the agent
 | `java-maven/` | parent pom with gates, toolchains, suppressions, `.java-version` | Java/Maven project |
 | `launchd/` | six-hour AI Kit refresh agent for macOS | installed by `platforms/tools/bootstrap.sh` |
 | `review-loop/` | verdict schema, example config (proof allowlist, poll interval, 2 flagged rounds then needs-human, repo list), README with the loop-tool decision | project running the review loop (its skills live in that project) |
-| `sdd/` | `init-spec.sh` — creates `docs/spec/` from `plugins/sdd/templates/spec-*` | spec bootstrap in the project |
+| `sdd/` | `init-spec.sh` — creates `docs/spec/` from `plugins/core/templates/spec-*` | spec bootstrap in the project |
 | `third-party/` | `skills.lock` — external skills pinned by commit | regenerate vendor skills under `plugins/<plugin>/skills/` |

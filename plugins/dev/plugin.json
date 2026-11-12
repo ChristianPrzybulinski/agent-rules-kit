@@ -1,6 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "dev",
-  "version": "11.3.0",
-  "description": "ai-kit dev: code standards, testing, Java, Godot, Docker, Git LFS and persistence"
-}

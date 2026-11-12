@@ -15,7 +15,7 @@ allowed-tools:
 
 # SDD 0 — Constitution
 
-Process: `references/sdd-process.md`. Templates: `../../templates/spec-index.md`; the `project-agents-*` templates live in the `dev` plugin.
+Process: `references/sdd-process.md`. Templates: `../../templates/spec-index.md` and `../../templates/project-agents-*.md`.
 
 ## 1. Inspect before creating
 
