@@ -428,6 +428,25 @@ this document); every command exited 0:
   77ms", "no leaks found".
 - `git merge-tree --write-tree HEAD origin/main` against `3834729` (KIT-054, #190): no conflict.
 
+`--ignore` and the monorepo run: run from the worktree root at `2815bd6` on 2026-11-12 (the commit after it changes
+only this document); every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 146 tests in 117.315s", "OK
+  (skipped=5)"; 4 of the 5 skips are `test_gd_coverage.py` `GodotTest`, which needs `KIT_GDUNIT4`.
+- `env KIT_GDUNIT4=<a gdUnit4 6.2.1 addons/gdUnit4 folder> nice -n 10 python3 -B -m unittest -v test_gd_coverage` in
+  `platforms/ci/validations`, with Godot 4.7.2 and gdtoolkit 4.5.0: "Ran 23 tests in 29.853s", "OK", no skip.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~11867 bytes (11.87 KB) in
+  39.1ms", "no leaks found".
+- `git merge-tree --write-tree HEAD origin/main` against `86a4564` (#191): no conflict.
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
@@ -435,5 +454,5 @@ this document); every command exited 0:
 - 2026-11-11: specification and T1 spike in #144, which refers to #136 and leaves it open.
 - 2026-11-12: the owner approved T2 onward in chat ("Sim, KIT-034 primeiro"), and KIT-035 after T4 is merged;
   T2–T4 implemented and the whole client suite measured in #191, which refers to #136 and leaves it open.
-- 2026-11-12: `--ignore` and a counted run on the monorepo `client/` in #PR_IGNORE, which refers to #136 and leaves it
+- 2026-11-12: `--ignore` and a counted run on the monorepo `client/` in #193, which refers to #136 and leaves it
   open.
