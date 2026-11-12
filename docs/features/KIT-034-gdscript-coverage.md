@@ -376,4 +376,4 @@ this document); every command exited 0:
 - 2026-11-11: implementation prompt launched; issue #136; T1 spike run.
 - 2026-11-11: specification and T1 spike in #144, which refers to #136 and leaves it open.
 - 2026-11-12: the owner approved T2 onward in chat ("Sim, KIT-034 primeiro"), and KIT-035 after T4 is merged;
-  T2–T4 implemented and the whole client suite measured.
+  T2–T4 implemented and the whole client suite measured in #191, which refers to #136 and leaves it open.
