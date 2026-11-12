@@ -570,17 +570,20 @@ else:
         allowed_cases = []
     elif len(allowed_cases) < 10:
         fail(rel(hook_cases_path), "allowed must contain at least 10 cases")
+    # An empty directory outside any repository: the KIT-020 merged-branch check finds no branch there and never calls gh.
+    guard_cwd = tempfile.TemporaryDirectory()
+    guard_env = dict(os.environ, GIT_CEILING_DIRECTORIES=str(Path(guard_cwd.name).resolve().parent))
     for command, timeout in guard_commands:
         for expected, cases in (("blocked", blocked_cases), ("allowed", allowed_cases)):
             for case in cases:
                 if not isinstance(case, str):
                     fail(rel(hook_cases_path), f"{expected} case must be a string: {case!r}")
                     continue
-                payload = json.dumps({"tool_name": "exec", "tool_input": {"command": case}})
+                payload = json.dumps({"tool_name": "exec", "tool_input": {"command": case}, "cwd": guard_cwd.name})
                 try:
                     result = subprocess.run(
                         ["bash", "-c", command], input=payload, text=True,
-                        capture_output=True, timeout=timeout, check=False)
+                        capture_output=True, timeout=timeout, cwd=guard_cwd.name, env=guard_env, check=False)
                 except subprocess.TimeoutExpired:
                     fail(rel(hook_cases_path), f"{expected} case timed out: {case}")
                     continue
@@ -593,6 +596,7 @@ else:
                         fail(rel(hook_cases_path), f"blocked case not blocked: {case}")
                 elif result.returncode != 0 or result.stdout != "":
                     fail(rel(hook_cases_path), f"allowed case not allowed cleanly: {case}")
+    guard_cwd.cleanup()
 
 post_edit_cases_path = KIT / "platforms/ci/validations/hook_post_edit_cases.json"
 post_edit_cases = read_json(post_edit_cases_path) if post_edit_cases_path.exists() else None
