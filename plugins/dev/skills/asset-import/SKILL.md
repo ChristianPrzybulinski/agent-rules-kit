@@ -19,7 +19,7 @@ Reference: `references/director-lingo-glossary.md` for Director/Lingo archive te
 ## 1. Establish provenance
 
 - Keep originals read-only; record each source path, SHA-256 and usage license.
-- Read the `git-lfs-and-binaries` reference in skill `git-lfs`, `.gitattributes` and known archive gaps before producing files.
+- Read the `git-lfs-and-binaries` reference in skill `git`, `.gitattributes` and known archive gaps before producing files.
 - Stop on an input hash mismatch; do not silently choose between divergent source copies.
 
 ## 2. Define the batch manifest

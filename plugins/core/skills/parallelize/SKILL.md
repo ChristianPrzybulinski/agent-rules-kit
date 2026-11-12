@@ -26,7 +26,8 @@ Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/r
 
 - Batch independent `read`, `grep`, `glob`, status and short `exec` calls in one response.
 - Prefer one precise aggregate command over many file-by-file calls.
-- Do not add speculative reads merely to fill a parallel wave; the scope rule in `../tokens/SKILL.md` still applies.
+- Read only the material the outcome needs; broad reading needs a named hypothesis, and no speculative read is added merely to fill a parallel wave.
+- Bulk output (long logs, wide searches, full test runs) goes to a subagent or a file; the main thread keeps the summary and the path.
 
 ## 3. Background long work
 

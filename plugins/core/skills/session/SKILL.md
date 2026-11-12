@@ -1,6 +1,6 @@
 ---
 name: session
-description: Session start, closeout review and handoff record. Use when starting, changing topic, closing or leaving pending work. Not for parallelism (skill parallelize).
+description: Session start, closeout and handoff. Use when starting, switching topic, closing, handing off or a second human joins. Not for parallelism (skill parallelize).
 argument-hint: "[start | review | handoff <topic>]"
 triggers:
   - user
@@ -23,6 +23,7 @@ One skill, three modes: `start` opens and scopes the session, `review` closes it
 - For work spanning three or more files, crossing a layer, or containing ambiguity, propose planning mode before editing; for a one- or two-file mechanical change, proceed directly. Once a plan is approved, execute it without repeatedly reopening the plan.
 - A new topic mid-session is not silently added: ask whether to record it as a follow-up or close and start another session. Keep follow-ups in the issue, PR or handoff record, not conversational memory.
 - Exhausted-session signals: rereading already-read files, compressed context, an outcome already delivered, new unrelated requests, or roughly two hours of work. Suggest the handoff mode and a new session; continue only if the user chooses to.
+- A second human joins the backlog: apply the condition → action rules in `references/two-humans.md`.
 - Match the agent tier: suggest a smaller tier for a mechanical one- or two-file task with no decision or investigation; keep the current tier for architecture, investigation or risk.
 - Close explicitly: run the review mode for the evidence summary and optional kit proposal; when work is pending or transferring to another agent, point to the issue or PR that records its state, and run the handoff mode only when none does. Leave the tree clean or list the dirty paths as a blocker.
 

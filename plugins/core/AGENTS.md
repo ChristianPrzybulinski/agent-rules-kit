@@ -27,13 +27,13 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 ## Craft
 
 - **Everything written is in English** — code, comments, commits, docs, folder names. Only the conversation with the user is in pt-BR.
-- Standards are skills: `code-standards`, `architecture`, `testing`, `branching-and-versioning`, `update-docs`, `git-lfs`. Load the one the task touches; `rules/` loads the Java and Godot sets by file glob.
-- Technical answer: code/diff first, then ≤3 lines; paths, commands and errors byte-for-byte; full prose only for security warnings, irreversible actions and multi-step sequences. Text for people: fluid, no AI clichés, no fabricated facts. Governed documents (specs, CHANGELOG, commits, skills): template and schema, never compressed. Detail: skill `tokens`.
+- Standards are skills: `code-standards` (docs closure included), `architecture`, `testing`, `git` (branches, versions, LFS). Load the one the task touches; `rules/` loads the Java and Godot sets by file glob.
+- Technical answer: code/diff first, then ≤3 lines; paths, commands and errors byte-for-byte; full prose only for security warnings, irreversible actions and multi-step sequences. Text for people: conclusion first, fluid, no AI clichés, no fabricated facts. Governed documents (specs, CHANGELOG, commits, skills): template, schema and `[FACT]`-style tags kept, never compressed, even inside a technical answer. Detail: the `living-docs` reference in skill `code-standards`.
 
 ## Security
 
 - Secret found → stop, warn before any other work; rotate this session; scan for siblings. Tokens come from keychain/env; never typed or echoed in chat/terminal.
-- Every commit: no hardcoded secret, validated input, parameterized queries, authz per action **and** entity, errors that do not leak internals. Detail: skills `secure-development`, `vuln-scan`.
+- Every commit: no hardcoded secret, validated input, parameterized queries, authz per action **and** entity, errors that do not leak internals. Detail: skill `security`.
 
 ## Truth
 
@@ -53,6 +53,6 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 
 | Context without an obvious skill | Load |
 |---|---|
-| new feature end to end | `sdd-specify` → … → `validate-implementation` (process in `sdd-constitution/references/sdd-process.md`) |
+| new feature end to end | `sdd-specify` → … → `review` (process in `sdd-constitution/references/sdd-process.md`) |
 | vague idea before FEAT/DEC | `/grilling`, then `sdd-specify` |
-| legacy or ported code before refactoring | `characterization-tests` |
+| legacy or ported code before refactoring | `testing` (characterization tests) |
