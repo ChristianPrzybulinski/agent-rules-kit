@@ -1,10 +1,10 @@
 ---
 id: KIT-053
 title: "The destructive-command guard sees git commands with global options before the subcommand"
-status: confirmed
+status: done
 confirmed: "2026-11-12 (owner in chat of the KIT-053 implementation session: \"Sim, abrir\" to opening the issue and the PR)"
 issue: "#186"
-pr: ""
+pr: "#187"
 ---
 
 # KIT-053 — The destructive-command guard sees git commands with global options before the subcommand
@@ -71,4 +71,4 @@ On `4044bb5` and after this change, `GIT_DIR=.git git branch -D x`, `/usr/bin/gi
 ## History
 
 - 2026-11-12: found while implementing KIT-020 (#185), left out of its scope.
-- 2026-11-12: confirmed (owner, chat).
+- 2026-11-12: confirmed (owner, chat) and implemented in #187.

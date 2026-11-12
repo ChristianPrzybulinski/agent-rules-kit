@@ -73,6 +73,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-047-one-plugin.md`](KIT-047-one-plugin.md) | done | #176 | #177 |
 | [`KIT-050-hooks-no-verify-compact.md`](KIT-050-hooks-no-verify-compact.md) | done | #180 | #182 |
 | [`KIT-052-plugin-links-and-not-for.md`](KIT-052-plugin-links-and-not-for.md) | done | #184 | #183 |
-| [`KIT-053-guard-git-global-options.md`](KIT-053-guard-git-global-options.md) | confirmed | #186 | — |
+| [`KIT-053-guard-git-global-options.md`](KIT-053-guard-git-global-options.md) | done | #186 | #187 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
