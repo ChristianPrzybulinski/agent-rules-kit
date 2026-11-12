@@ -29,7 +29,7 @@ Parity: every quality check one language has (coverage, mutation, complexity, du
 
 ## 2. Define behavior before implementation
 
-- Bug: add a test that reproduces the symptom and fails for the right reason before the fix.
+- Bug: add a test that reproduces the symptom and fails for the right reason before the fix. When the test came after the fix, revert the fix once and see the test fail for the stated reason.
 - Feature: the failing acceptance/domain test defines the behavior that makes the task done.
 - Business rule: use a parameterized valid/boundary/invalid case table.
 - Legacy or ported code with no spec (refactor or rebalance): pin its current behavior first with characterization tests, `references/characterization.md`; never fix behavior while pinning it.
