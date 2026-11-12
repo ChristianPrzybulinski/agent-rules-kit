@@ -34,7 +34,7 @@ Inspect neighboring code plus `.editorconfig`, `pom.xml` or `project.godot`, and
 
 ## 4. Handle comments and errors
 
-- A comment records a non-obvious reason, invariant or trade-off; delete narration and dead commented code.
+- A comment records a non-obvious reason, invariant or trade-off (deletion test: keep it only if deleting it loses an answer the code cannot give); delete narration, dead commented code and any reference to the PR, review, task or previous version, which belong in the commit.
 - Return or throw specific errors and never swallow one.
 - Prefer a visible failure to a special return code that callers can ignore.
 
@@ -59,9 +59,9 @@ Choose the higher rung when two work; never trade correctness at an edge case fo
 ## 7. Control file growth and review the diff
 
 - Aim for 200–400 lines per feature file; 800 is the maximum before mandatory decomposition.
-- Fewer files win when cohesion remains high. Remove what the change makes unnecessary (dead code, flag, special case, layer) before adding another abstraction.
+- Fewer files win when cohesion remains high. Remove what the change makes unnecessary (dead code, flag, special case, layer) before adding another abstraction; a simplification removes more than it adds, and moving logic into a wrapper is not one.
 - Leave clear, local code alone: no drive-by refactor outside the flow the change touches.
-- Search callers before renaming or changing behavior. Run the repository formatter/linter and its relevant tests; report literal failures rather than adding suppression.
+- Search production callers before renaming, deleting or changing behavior; a generated file (a `GENERATED`/`DO NOT EDIT` header or a path the project lists) changes only through its source or generator. Run the repository formatter/linter and its relevant tests; report literal failures rather than adding suppression.
 - Report the ceiling with `[code] → skipped: X; add when Y.` Delete explanation that exceeds the simple change unless the user requested a report.
 
 ## 8. Design the change before the edit
@@ -69,7 +69,7 @@ Choose the higher rung when two work; never trade correctness at an edge case fo
 - One decision (rule, threshold, mapping) lives in one place; every other site reads it from there.
 - A new or changed function that repeats existing code is merged into one owner every caller uses, or the PR names why the copy stays; in GDScript, `python3 ~/.ai-kit/platforms/tools/gd_duplicates.py --base <base>` lists the pairs at 0.82 or more (advisory).
 - Get the data shape right before the logic: a shape that holds only valid states removes the branches that would repair it.
-- A new requirement is not bolted onto the old design: build the smallest edit of the design you would have made had the requirement been there from the start, and deliver it in pieces.
+- A new requirement is not bolted onto the old design: build the smallest edit of the design you would have made had the requirement been there from the start, and deliver it in pieces. A second special case for the same root cause means the design is wrong: reopen it instead of adding a third.
 - When work is not obvious at a glance, do one unit by hand, then make a tool reproduce it (the hand-done unit is the tool's test); do first what helps every later step.
 
 ## 9. Close the docs in the same PR
