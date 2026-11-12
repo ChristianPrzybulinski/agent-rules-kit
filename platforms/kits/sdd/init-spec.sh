@@ -17,13 +17,13 @@ for d in features requirements/functional requirements/non-functional decisions 
 done
 
 if [[ ! -f "$REPO/docs/spec/spec.md" ]]; then
-  cp "$KIT_DIR/plugins/sdd/templates/spec-index.md" "$REPO/docs/spec/spec.md"
+  cp "$KIT_DIR/plugins/core/templates/spec-index.md" "$REPO/docs/spec/spec.md"
   echo "created docs/spec/spec.md (edit the frontmatter)"
 else
   echo "docs/spec/spec.md already exists; not overwritten"
 fi
 
-[[ -f "$REPO/AGENTS.md" ]] || { echo "init-spec: $REPO/AGENTS.md missing; create it from plugins/dev-*/templates/project-agents-*.md first"; exit 1; }
+[[ -f "$REPO/AGENTS.md" ]] || { echo "init-spec: $REPO/AGENTS.md missing; create it from plugins/core/templates/project-agents-*.md first"; exit 1; }
 
 "$KIT_DIR/platforms/tools/sync-project.sh" "$REPO"
 
