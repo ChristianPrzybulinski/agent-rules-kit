@@ -30,8 +30,6 @@ REFERENCE_MAX_LINES = 60
 RULE_BODY_MAX_LINES = 40
 
 CORE_PLUGIN = "core"
-BUNDLE_PLUGIN = "all"
-OPTIONAL_PLUGINS = {"extras"}  # opt-in content plugins that the 'all' bundle does not require
 REPO_URL = "https://github.com/ChristianPrzybulinski/agent-rules-kit.git"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:[-.][a-z0-9]+)*$")
 
@@ -217,10 +215,6 @@ if PLUGINS_ROOT.exists():
         plugins[entry.name] = entry
         counts["plugins"] += 1
 
-content_plugins = {name: path for name, path in plugins.items() if name != BUNDLE_PLUGIN}
-for optional in sorted(OPTIONAL_PLUGINS - plugins.keys()):
-    fail("plugins", f"OPTIONAL_PLUGINS names '{optional}', which is not a plugin directory")
-
 for name, plugin_dir in plugins.items():
     if not NAME_RE.match(name):
         fail(rel(plugin_dir), f"plugin name '{name}' is not lowercase kebab/dot")
@@ -237,10 +231,6 @@ for name, plugin_dir in plugins.items():
             fail(rel(plugin_dir / "AGENTS.md"), "always-on rules live only in plugins/core/AGENTS.md")
         if (plugin_dir / "hooks").exists():
             fail(rel(plugin_dir / "hooks"), "hooks live only in plugins/core/hooks/")
-    if name == BUNDLE_PLUGIN:
-        for content_dir in ("skills", "rules", "agents", "templates"):
-            if (plugin_dir / content_dir).exists():
-                fail(rel(plugin_dir / content_dir), f"'{BUNDLE_PLUGIN}' is manifest-only")
 
 version = (KIT / "VERSION").read_text(encoding="utf-8").strip() if (KIT / "VERSION").exists() else ""
 if version and not re.match(r"^\d+\.\d+\.\d+$", version):
@@ -296,15 +286,6 @@ for name, plugin_dir in plugins.items():
     if sorted(set(claude_deps)) != dep_graph[name]:
         fail(rel(plugin_dir), "Claude dependencies and Devin requiredPlugins name different plugin sets")
 
-    if name == BUNDLE_PLUGIN and devin_manifest is not None:
-        if devin_manifest.get("skills") != []:
-            fail(rel(plugin_dir / ".devin-plugin/plugin.json"), "'all' must set \"skills\": []")
-        expected = sorted(set(content_plugins) - OPTIONAL_PLUGINS)
-        if dep_graph[name] != expected:
-            fail(rel(plugin_dir / ".devin-plugin/plugin.json"),
-                 f"'all' must require every content plugin except opt-in {sorted(OPTIONAL_PLUGINS)}")
-    if name != BUNDLE_PLUGIN and BUNDLE_PLUGIN in dep_graph[name]:
-        fail(rel(plugin_dir), f"content plugin may not require '{BUNDLE_PLUGIN}'")
 
 # cycle check
 visiting, visited = set(), set()
@@ -342,14 +323,11 @@ if meta_manifest is not None:
         fail(rel(meta_path), "name != 'agent-rules-kit'")
     if meta_manifest.get("version") != version:
         fail(rel(meta_path), f"version '{meta_manifest.get('version')}' != VERSION '{version}'")
-    if meta_manifest.get("requiredPlugins") != [dep_entry(BUNDLE_PLUGIN)]:
-        fail(rel(meta_path), f"requiredPlugins must contain exactly the '{BUNDLE_PLUGIN}' git-subdir entry")
-    expected_optional = sorted(plugins.keys() - {BUNDLE_PLUGIN})
-    optional_paths = sorted(
-        entry.get("path", "") for entry in (meta_manifest.get("optionalPlugins") or [])
-        if isinstance(entry, dict))
-    if optional_paths != [f"plugins/{name}" for name in expected_optional]:
-        fail(rel(meta_path), f"optionalPlugins must list every plugin except '{BUNDLE_PLUGIN}'")
+    # KIT-038: the meta-plugin installs every plugin; there is no bundle and no opt-in plugin
+    if meta_manifest.get("requiredPlugins") != [dep_entry(name) for name in sorted(plugins)]:
+        fail(rel(meta_path), "requiredPlugins must list the git-subdir entry of every plugin, sorted by name")
+    if "optionalPlugins" in meta_manifest:
+        fail(rel(meta_path), "optionalPlugins is not used: every plugin is required")
 
 marketplace = read_json(KIT / ".agents/plugins/marketplace.json") if (KIT / ".agents/plugins/marketplace.json").exists() else None
 if marketplace is not None:

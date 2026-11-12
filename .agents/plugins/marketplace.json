@@ -17,10 +17,10 @@
       "category": "Engineering"
     },
     {
-      "name": "dev-core",
+      "name": "dev",
       "source": {
         "source": "local",
-        "path": "./plugins/dev-core"
+        "path": "./plugins/dev"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",
@@ -29,142 +29,10 @@
       "category": "Engineering"
     },
     {
-      "name": "dev-java",
+      "name": "sdd",
       "source": {
         "source": "local",
-        "path": "./plugins/dev-java"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "dev-godot",
-      "source": {
-        "source": "local",
-        "path": "./plugins/dev-godot"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "architect-core",
-      "source": {
-        "source": "local",
-        "path": "./plugins/architect-core"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "architect-sdd",
-      "source": {
-        "source": "local",
-        "path": "./plugins/architect-sdd"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "quality-core",
-      "source": {
-        "source": "local",
-        "path": "./plugins/quality-core"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "quality-security",
-      "source": {
-        "source": "local",
-        "path": "./plugins/quality-security"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "infra-core",
-      "source": {
-        "source": "local",
-        "path": "./plugins/infra-core"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "infra-persistence",
-      "source": {
-        "source": "local",
-        "path": "./plugins/infra-persistence"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "infra-github",
-      "source": {
-        "source": "local",
-        "path": "./plugins/infra-github"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "extras",
-      "source": {
-        "source": "local",
-        "path": "./plugins/extras"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "process-loop",
-      "source": {
-        "source": "local",
-        "path": "./plugins/process-loop"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "all",
-      "source": {
-        "source": "local",
-        "path": "./plugins/all"
+        "path": "./plugins/sdd"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",

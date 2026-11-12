@@ -136,13 +136,17 @@ if command -v claude >/dev/null 2>&1; then
   fi
 
   claude_plugins="$(claude plugin list --json 2>/dev/null || true)"
-  if json_contains "$claude_plugins" "all@ai-kit"; then
-    printf 'ok: claude bundle all@ai-kit installed\n'
-  elif claude plugin install all@ai-kit --json >/dev/null 2>&1; then
-    printf 'fix: claude bundle all@ai-kit installed\n'
-  else
-    warn "claude bundle all@ai-kit installation failed; run: claude plugin install all@ai-kit"
-  fi
+  for plugin_dir in "$KIT"/plugins/*/; do
+    plugin_name="$(basename "$plugin_dir")"
+    [[ -d "$plugin_dir/.claude-plugin" ]] || continue
+    if json_contains "$claude_plugins" "$plugin_name@ai-kit"; then
+      printf 'ok: claude plugin %s@ai-kit installed\n' "$plugin_name"
+    elif claude plugin install "$plugin_name@ai-kit" --json >/dev/null 2>&1; then
+      printf 'fix: claude plugin %s@ai-kit installed\n' "$plugin_name"
+    else
+      warn "claude plugin $plugin_name@ai-kit installation failed; run: claude plugin install $plugin_name@ai-kit"
+    fi
+  done
 fi
 
 if [[ "${OSTYPE:-}" == darwin* && "${AI_KIT_NO_LAUNCHD:-0}" != "1" ]]; then

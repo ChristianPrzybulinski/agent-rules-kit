@@ -2,5 +2,5 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "core",
   "version": "11.3.0",
-  "description": "ai-kit core: always-on global rules, session discipline and kit templates"
+  "description": "ai-kit core: always-on rules, session discipline, review, GitHub workflow and security"
 }

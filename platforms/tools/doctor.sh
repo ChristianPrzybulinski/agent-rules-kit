@@ -652,14 +652,28 @@ if command -v claude >/dev/null 2>&1; then
   fi
 
   claude_plugins="$(claude plugin list --json 2>/dev/null || true)"
-  if json_contains "$claude_plugins" "all@ai-kit"; then
-    ok "claude bundle all@ai-kit installed"
-  elif [[ "$claude_marketplace_ready" -eq 1 ]] \
-      && claude plugin install all@ai-kit --json >/dev/null 2>&1; then
-    fix "claude bundle all@ai-kit installed"
+  claude_missing=()
+  claude_count=0
+  for plugin_dir in "$KIT"/plugins/*/; do
+    plugin_name="$(basename "$plugin_dir")"
+    [[ -d "$plugin_dir/.claude-plugin" ]] || continue
+    claude_count=$((claude_count + 1))
+    if json_contains "$claude_plugins" "$plugin_name@ai-kit"; then
+      continue
+    fi
+    if [[ "$claude_marketplace_ready" -eq 1 ]] \
+        && claude plugin install "$plugin_name@ai-kit" --json >/dev/null 2>&1; then
+      fix "claude plugin $plugin_name@ai-kit installed"
+    else
+      claude_missing+=("$plugin_name")
+    fi
+  done
+  if [[ "${#claude_missing[@]}" -eq 0 ]]; then
+    ok "claude plugins installed ($claude_count entries)"
   else
-    fail "claude bundle all@ai-kit missing and install failed — run: claude plugin install all@ai-kit"
+    fail "claude plugins missing and install failed: ${claude_missing[*]} — run: claude plugin install <name>@ai-kit"
   fi
+  claude_plugins="$(claude plugin list --json 2>/dev/null || true)"
   if stale_plugins="$(claude_stale_plugins "$claude_marketplaces" "$claude_plugins")"; then
     for plugin_name in $stale_plugins; do
       warn "claude plugin $plugin_name@ai-kit cache differs from the kit — run platforms/tools/refresh.sh"
