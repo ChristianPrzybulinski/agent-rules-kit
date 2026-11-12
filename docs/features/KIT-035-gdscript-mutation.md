@@ -313,6 +313,22 @@ only this document); every command exited 0:
 - `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~71034 bytes (71.03 KB) in
   89ms", "no leaks found".
 
+T5: run from the worktree root at `c164509` on 2026-11-12, on `aafed4a` (#192's head; `origin/main` is `86a4564`);
+the commit after it changes only this document; every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 173 tests in 218.017s", "OK
+  (skipped=4)"; the 29 tests of `test_gd_mutation.py` ran (gdtoolkit 4.5.0 installed), none skipped.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "3 commits scanned.", "scanned ~93707 bytes (93.71 KB) in
+  87ms", "no leaks found".
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
