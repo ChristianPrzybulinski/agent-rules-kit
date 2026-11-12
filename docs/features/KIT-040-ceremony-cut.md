@@ -40,8 +40,8 @@ format and lint, SessionStart synced-folder warning).
    frontmatter with its own parser so PyYAML changes nothing. `check.sh` runs `gen_index.py --check` after
    `check_kit.py`; a stale index fails with the path and `python3 platforms/tools/gen_index.py`. `check_kit.py`
    section 9 now requires only that each plugin has an `INDEX.md` and keeps its eval-case checks. The root
-   `INDEX.md`, `docs/INDEX.md` and `platforms/**/INDEX.md` stay hand-written. All 14 `plugins/*/INDEX.md` are
-   regenerated. `test_gen_index.py` (9 tests, on a throwaway kit) covers skill rows, invocation, `|` escaping, every
+   `INDEX.md`, `docs/INDEX.md` and `platforms/**/INDEX.md` stay hand-written. The three `plugins/*/INDEX.md` (`core`, `dev`, `sdd`)
+   are regenerated. `test_gen_index.py` (9 tests, on a throwaway kit) covers skill rows, invocation, `|` escaping, every
    listed directory, a manifest-only plugin, `--check` on a missing, hand-edited, changed and new plugin, idempotence
    and unreadable files.
 3. **`docs/plans/` deleted.** The directory and its row in `docs/INDEX.md` go, and `docs/features/README.md` no longer
@@ -57,10 +57,11 @@ format and lint, SessionStart synced-folder warning).
 
 ## Proof
 
-- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: exit 0, "check: OK (14 plugins, 46 skills,
-  3 rules, 13 templates, 21 indexes, 96 links, 25 hook cases)", "gen_index: plugin indexes are current", and
-  `claude plugin validate` passed for each plugin and the marketplace.
-- `bash platforms/tools/smoke.sh`: exit 0, "smoke: OK (46 skills, app fallback, cleanup, symlink safety, manifests,
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: exit 0, "check: OK (3 plugins, 38 skills,
+  3 rules, 11 templates, 21 indexes, 86 links, 25 hook cases)", "gen_index: plugin indexes are current", and
+  `claude plugin validate` passed for each plugin and the marketplace. Run on the head that merged `origin/main`
+  (`02382ee`, KIT-038), where the 14 plugins had become `core`, `dev` and `sdd`.
+- `bash platforms/tools/smoke.sh`: exit 0, "smoke: OK (38 skills, app fallback, cleanup, symlink safety, manifests,
   sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
 - `python3 platforms/ci/validations/check_kit.py --links`: exit 0, the same "check: OK" line.
 - `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: exit 0, "Ran 103 tests", "OK
@@ -69,7 +70,7 @@ format and lint, SessionStart synced-folder warning).
   as current.
   `gen_index.py --check` exits 1 and names `plugins/<name>/INDEX.md` and the regenerate command for a missing, a
   hand-edited and a stale index.
-- `gitleaks git --redact --log-opts="origin/main..HEAD"`: exit 0, "no leaks found".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: exit 0, "no leaks found" (2 commits scanned after the merge).
 - Hooks: no hook command changed, so the 25 hook cases still run the same strings. A throwaway plugin with a
   `SessionStart` hook run by `claude -p --plugin-dir` (2.1.287) printed `CLAUDE_PLUGIN_ROOT=<plugin dir>`,
   `CLAUDE_PLUGIN_DATA` and `CLAUDE_PROJECT_DIR`.
@@ -80,3 +81,5 @@ format and lint, SessionStart synced-folder warning).
 
 - 2026-11-11: confirmed (owner, chat of the kit review session, phase 4 of the approved plan); issue #150.
 - 2026-11-11: done in #152. The brief's fourth item (hook commands into script files) was left out, see Change 4.
+- 2026-11-11: merged `origin/main` (`02382ee`, KIT-038, #153) into the branch; the 12 indexes of the retired plugins
+  are gone and the three new ones are generated. No gate or script of this record changed in the merge.
