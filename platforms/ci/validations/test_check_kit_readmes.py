@@ -1,4 +1,5 @@
-"""check_kit.py: root files, optional folder READMEs and INDEX.md placement on a throwaway copy (KIT-042)."""
+"""check_kit.py on a throwaway copy: root files, optional folder READMEs and INDEX.md placement (KIT-042),
+links that leave the plugin and skill descriptions without 'Not for' (KIT-052)."""
 import shutil
 import subprocess
 import sys
@@ -51,6 +52,18 @@ class CheckKitReadmesTest(unittest.TestCase):
         self.assertIn("INDEX.md exists only at plugins/<name>/", output)
         self.assertIn("entry 'unlisted_tool.sh' does not appear in the index", output)
         self.assertIn("CONTRIBUTING.md: layout: required path missing", output)
+
+    def test_a_link_out_of_the_plugin_and_a_missing_not_for_fail(self):
+        skill = self.kit / "plugins" / "core" / "skills" / "session" / "SKILL.md"
+        text = skill.read_text(encoding="utf-8").replace("Not for parallelism", "Never parallelism", 1)
+        skill.write_text(text + "\nSee [design](../../../../docs/design.md).\n", encoding="utf-8")
+        result = self.check()
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("session/SKILL.md: path escapes plugin root: ../../../../docs/design.md", output)
+        self.assertIn("session/SKILL.md: description lacks literal 'Not for'", output)
+        self.assertEqual(output.count("FAIL:"), 2, output)
+
 
 if __name__ == "__main__":
     unittest.main()

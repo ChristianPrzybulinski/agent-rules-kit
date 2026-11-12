@@ -798,7 +798,7 @@ for name, plugin_dir in plugins.items():
             if "Use when" not in description:
                 fail(rel(skill_file), "description lacks literal 'Use when'")
             if "Not for" not in description:
-                warn(rel(skill_file), "description lacks 'Not for'")
+                fail(rel(skill_file), "description lacks literal 'Not for'")
 
     for reference in sorted(skills_root.glob("*/references/*.md")):
         skill_dir = reference.parent.parent
@@ -974,6 +974,11 @@ def vendor_internal(path):
             and (plugins[owner] / "skills" / relative.parts[1] / "VENDOR.md").exists())
 
 
+def escapes_plugin(owner, resolved):
+    """A plugin cache holds only plugins/<owner>/, so a path that leaves it breaks once installed."""
+    return owner is not None and not resolved.is_relative_to(plugins[owner].resolve())
+
+
 for markdown_file in sorted(KIT.rglob("*.md")):
     if ".git" in markdown_file.parts or vendor_internal(markdown_file):
         continue
@@ -991,6 +996,8 @@ for markdown_file in sorted(KIT.rglob("*.md")):
         resolved = (markdown_file.parent / target).resolve()
         if not resolved.exists():
             fail(rel(markdown_file), f"broken link: {target}")
+        elif escapes_plugin(plugin_of(markdown_file), resolved):
+            fail(rel(markdown_file), f"path escapes plugin root: {target}")
 
 backtick_re = re.compile(
     r"`((?:(?:\.\./|\./)+|references/|templates/|platforms/|plugins/)[^`\s]+\.(?:md|sh|json|yml|yaml))`")
@@ -1024,13 +1031,9 @@ for markdown_file in sorted(set(path for path in backtick_files if path.exists()
         if not matches:
             fail(rel(markdown_file), f"broken backtick path: {target}")
             continue
-        if owner is not None and not target.startswith(("platforms/", "plugins/")):
-            for resolved in matches:
-                try:
-                    resolved.relative_to(plugins[owner].resolve())
-                except ValueError:
-                    fail(rel(markdown_file), f"path escapes plugin root: {target}")
-                    break
+        if not target.startswith(("platforms/", "plugins/")) and any(
+                escapes_plugin(owner, resolved) for resolved in matches):
+            fail(rel(markdown_file), f"path escapes plugin root: {target}")
 
 
 # --- 11. Vendor skills lock ---
