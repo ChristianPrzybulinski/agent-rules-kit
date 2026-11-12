@@ -1,0 +1,11 @@
+{
+  "name": "dev",
+  "version": "11.3.0",
+  "description": "ai-kit dev: code standards, testing, Java, Godot, Docker, Git LFS and persistence",
+  "author": {
+    "name": "Christian Przybulinski"
+  },
+  "dependencies": [
+    "core"
+  ]
+}

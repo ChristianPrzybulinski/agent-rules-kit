@@ -1,0 +1,12 @@
+{
+  "name": "dev",
+  "version": "11.3.0",
+  "description": "ai-kit dev: code standards, testing, Java, Godot, Docker, Git LFS and persistence",
+  "requiredPlugins": [
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/core"
+    }
+  ]
+}

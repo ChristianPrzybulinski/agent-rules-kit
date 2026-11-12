@@ -145,6 +145,11 @@ if command -v claude >/dev/null 2>&1; then
       [[ -d "$plugin_dir/.claude-plugin" ]] || continue
       if json_contains "$claude_plugins" "$plugin_name@ai-kit"; then
         run_step "claude plugin update failed for $plugin_name" claude plugin update "$plugin_name@ai-kit" --json
+      else
+        # KIT-038: a plugin renamed in the marketplace's renames map is enabled but not cached until installed once
+        run_step "claude plugin install failed for $plugin_name — run: claude plugin install $plugin_name@ai-kit" \
+          claude plugin install "$plugin_name@ai-kit" --json
+        printf 'refresh: installed Claude plugin %s@ai-kit\n' "$plugin_name"
       fi
     done
     claude_plugins="$(claude plugin list --json 2>/dev/null || true)"

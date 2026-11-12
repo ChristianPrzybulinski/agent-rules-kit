@@ -9,7 +9,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parent.parent.parent / "tools" / "sync-project.sh"
 KIT = SCRIPT.parents[2]
 VERSION = (KIT / "VERSION").read_text(encoding="utf-8").strip()
-DOCS_PLUGINS = {"core", "architect-core", "architect-sdd", "quality-core", "infra-github"}
+DOCS_PLUGINS = {"core", "sdd"}
 
 STALE = "- agent-rules-kit `kits/java-maven/pom-parent.xml` requires [25,26)"
 
@@ -100,7 +100,7 @@ class SyncProjectCheckTest(unittest.TestCase):
     def test_check_detects_enabled_plugins_drift(self):
         settings = self.repo / ".claude" / "settings.json"
         data = json.loads(settings.read_text())
-        data["enabledPlugins"]["dev-java@ai-kit"] = True
+        data["enabledPlugins"]["dev@ai-kit"] = True
         settings.write_text(json.dumps(data, indent=2) + "\n")
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
@@ -177,28 +177,30 @@ class SyncProjectCheckTest(unittest.TestCase):
 
     def test_vendor_skills_check_detects_drift(self):
         self.vendor_install()
-        with (self.repo / ".claude" / "skills" / "github-cli" / "SKILL.md").open("a") as fh:
+        name = self.kit_skills({"sdd"})[0][1]
+        with (self.repo / ".claude" / "skills" / name / "SKILL.md").open("a") as fh:
             fh.write("x")
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("diverges from the manifest", result.stdout)
         self.assertEqual(self.run_sync().returncode, 0)  # resync restores the copy
-        (self.repo / ".claude" / "skills" / "github-cli" / "extra.txt").write_text("x\n")
+        (self.repo / ".claude" / "skills" / name / "extra.txt").write_text("x\n")
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("not in manifest", result.stdout)
 
     def test_vendor_skills_profile_switch(self):
-        self.vendor_install()
+        self.vendor_install("--profile", "docs,godot")
         root = self.repo / ".claude" / "skills"
-        (root / "github-cli" / "extra.txt").write_text("x\n")
+        kept = self.kit_skills({"dev"})[0][1]  # in both profiles, so rewritten whole
+        (root / kept / "extra.txt").write_text("x\n")
         (root / "review-loop").mkdir()
         (root / "review-loop" / "SKILL.md").write_text("mine\n")
         result = self.run_sync("--profile", "godot")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse((root / "sdd-tasks").exists())
         self.assertTrue((root / "godot-standards" / "SKILL.md").is_file())
-        self.assertFalse((root / "github-cli" / "extra.txt").exists())
+        self.assertFalse((root / kept / "extra.txt").exists())
         self.assertEqual((root / "review-loop" / "SKILL.md").read_text(), "mine\n")
         check = self.run_sync("--check", "--profile", "godot")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
@@ -208,20 +210,19 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rules = self.repo / ".claude" / "rules"
         self.assertEqual(sorted(p.name for p in rules.glob("*.md")),
-                         ["architect-sdd-spec.md", "dev-godot-godot.md", "dev-java-java.md"])
-        self.assertIn('  - "client/**/*.gd"', (rules / "dev-godot-godot.md").read_text().splitlines())
-        self.assertIn('  - "server/**/*.java"', (rules / "dev-java-java.md").read_text().splitlines())
-        self.assertIn('  - "docs/spec/**/*.md"', (rules / "architect-sdd-spec.md").read_text().splitlines())
+                         ["dev-godot.md", "dev-java.md", "sdd-spec.md"])
+        self.assertIn('  - "client/**/*.gd"', (rules / "dev-godot.md").read_text().splitlines())
+        self.assertIn('  - "server/**/*.java"', (rules / "dev-java.md").read_text().splitlines())
+        self.assertIn('  - "docs/spec/**/*.md"', (rules / "sdd-spec.md").read_text().splitlines())
         settings = json.loads((self.repo / ".claude" / "settings.json").read_text())
-        godot_java = {"dev-core", "dev-godot", "dev-java", "infra-core", "infra-persistence",
-                      "quality-security"}
+        godot_java = {"dev"}
         self.assertEqual({k for k in settings["enabledPlugins"] if k.endswith("@ai-kit")},
                          {p + "@ai-kit" for p in DOCS_PLUGINS | godot_java})
         check = self.run_sync("--check", "--profile", "docs,godot:client,java:server")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
         single = self.run_sync("--check", "--profile", "docs")
         self.assertEqual(single.returncode, 1)
-        self.assertIn("dev-java-java.md is generated but not in profile", single.stdout)
+        self.assertIn("dev-java.md is generated but not in profile", single.stdout)
 
     def test_multi_profile_rejects_unknown_profile_and_outside_folder(self):
         for value in ("docs,rust", "godot:../client", "godot:/client", "docs,"):
@@ -253,7 +254,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         write = self.run_sync("--profile", "docs")
         self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
         self.assertIn("sync: removed .claude/skills/godot-standards (not in profile)", write.stdout)
-        self.assertFalse((self.repo / ".claude" / "rules" / "dev-godot-godot.md").exists())
+        self.assertFalse((self.repo / ".claude" / "rules" / "dev-godot.md").exists())
         manifest = json.loads((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").read_text())
         self.assertEqual(manifest["profile"], "docs")
         bare = self.run_sync("--check")
@@ -281,7 +282,7 @@ class SyncProjectCheckTest(unittest.TestCase):
             repo = Path(other)
             (repo / "AGENTS.md").write_text("# x\n")
             (repo / "project.godot").write_text("")
-            (repo / ".claude" / "skills" / "github-cli").mkdir(parents=True)
+            (repo / ".claude" / "skills" / "godot-standards").mkdir(parents=True)
             result = self.run_sync("--vendor-skills", repo=repo)
             self.assertEqual(result.returncode, 1)
             self.assertIn("is not generated", result.stdout + result.stderr)

@@ -1,6 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "infra-github",
-  "version": "11.3.0",
-  "description": "ai-kit GitHub: gh workflow, branching and versioning policy"
-}
