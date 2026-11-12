@@ -31,7 +31,7 @@ Cover:
 - tables/columns, `V<n>__slug.sql`, indexes, transaction and idempotency;
 - feature flag name, default and off behavior, or why none is needed;
 - each acceptance criterion's test type/location;
-- logs/metrics, hypotheses with validation, dependencies and blockers.
+- logs/metrics, hypotheses with validation (at most three load-bearing risks, each `Fails if <condition>` with its cheapest test; one that needs code becomes an `sdd-spike`), each external API with its exact signature and the source read this session, dependencies and blockers.
 
 ## 3. Record decisions
 

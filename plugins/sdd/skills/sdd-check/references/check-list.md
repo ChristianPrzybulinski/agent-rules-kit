@@ -9,7 +9,7 @@ Grade each item pass / fail / not-applicable with evidence `path:line`; a securi
 
 ## Testability and completeness
 
-- Q1. Each criterion has happy/sad behavior and names its unit/integration/contract/e2e proof.
+- Q1. Each criterion has happy/sad behavior and names its unit/integration/contract/e2e proof; every name, type, exact text or order a test will assert appears in the FEAT.
 - Q2. Invalid input, missing resource, conflict, timeout and permission errors are defined.
 - Q3. Network reconnect/retry and numeric size/frequency/quantity limits are explicit or hypotheses.
 
