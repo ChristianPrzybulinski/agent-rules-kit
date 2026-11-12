@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -220,6 +221,27 @@ print("\\x1b[1m %s test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 
       % os.environ.get("STUB_CASES", "2"))
 sys.exit(int(action) if action and action.isdigit() else int(os.environ.get("STUB_EXIT", "0")))
 """
+# A stub `ps`: the Nth look shows the Nth of STUB_GATES' gate runs (the last one after), beside lines that never count.
+PS_STUB = """#!{python}
+import os
+from pathlib import Path
+calls = Path(os.environ["STUB_PS_CALLS"])
+seen = len(calls.read_text()) if calls.exists() else 0
+calls.write_text("." * (seen + 1))
+gates = os.environ["STUB_GATES"].split(",")
+print("/bin/zsh -c G=gates; python3 -B loop.py $G --pr 9")
+print("/bin/sh -c /x/MacOS/Python -B loop.py gates --pr 9")
+print("/x/MacOS/Python -B loop.py wait --role claude")
+for pr in range(int(gates[min(seen, len(gates) - 1)])):
+    print("/x/MacOS/Python -B loop.py gates --repo r --pr %d --post" % pr)
+"""
+# The tool's load average and core count, from STUB_LOAD and STUB_CORES: no test reads the real host.
+SITE = """import os
+if os.environ.get("STUB_LOAD"):
+    os.getloadavg = lambda: (float(os.environ["STUB_LOAD"]),) * 3
+if os.environ.get("STUB_CORES"):
+    os.cpu_count = lambda: int(os.environ["STUB_CORES"])
+"""
 STATUSES = [("add", 6, "PRIMITIVE_RETURNS", "invalid"), ("add", 6, "MATH", "killed"),
             ("sign_of", 10, "NEGATE_CONDITIONALS", "timed out"), ("sign_of", 10, "CONDITIONALS_BOUNDARY", "survived"),
             ("sign_of", 11, "PRIMITIVE_RETURNS", "invalid"), ("sign_of", 12, "PRIMITIVE_RETURNS", "error")]
@@ -243,12 +265,22 @@ class RunnerTest(unittest.TestCase):
         stub.parent.mkdir()
         stub.write_text(STUB.format(python=sys.executable))
         stub.chmod(0o755)
+        ps = stub.parent / "ps"
+        ps.write_text(PS_STUB.format(python=sys.executable))
+        ps.chmod(0o755)
+        site = root / "site" / "sitecustomize.py"
+        site.parent.mkdir()
+        site.write_text(SITE)
         self.env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1",
                     "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
                     "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com",
                     "GODOT": str(stub), "TMPDIR": str(self.scratch), "STUB_LOG": str(self.log),
                     "STUB_RULES": json.dumps(RULES), "STUB_CHILD": str(self.child), "STUB_PAUSE": "0.2",
-                    "XDG_CACHE_HOME": str(root / "cache")}
+                    "XDG_CACHE_HOME": str(root / "cache"),
+                    # one gate run holds the host (the cap is 2), 4 cores at load 0.5: no run waits
+                    "PATH": f"{stub.parent}{os.pathsep}{os.environ.get('PATH', '')}", "PYTHONPATH": str(site.parent),
+                    "STUB_PS_CALLS": str(root / "ps.calls"), "STUB_GATES": "1", "STUB_LOAD": "0.5",
+                    "STUB_CORES": "4"}
         self.git("init", "-q", "-b", "main", str(self.repo), cwd=self.tmp.name)
         self.project = self.repo / "client"
         self.write("project.godot", PROJECT)
@@ -340,12 +372,39 @@ class RunnerTest(unittest.TestCase):
     def test_workers_each_get_a_clone_and_keep_leaves_the_files_restored(self):
         result = self.run_tool("app/calc.gd", "--workers", "2", "--keep", "--json", str(self.out))
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.statuses()[1], STATUSES)
+        data, statuses = self.statuses()
+        self.assertEqual(statuses, STATUSES)
         kept = Path(result.stderr.split("gd_mutation: kept ", 1)[1].split()[0])
         for worker in ("w0", "w1"):
             self.assertEqual((kept / worker / "project" / "app" / "calc.gd").read_text(), CALC)
         self.assertEqual({c["args"][1] for c in self.calls()[3:]},
                          {str(kept / "w0" / "project"), str(kept / "w1" / "project")})
+        self.assertEqual(data["host"], {"cores": 4, "gate_cap": 2, "peak": 2, "waits": {"gates": 0, "load": 0},
+                                        "waited": 0.0, "load": [0.5, 0.5], "gates": [1, 1]})
+        self.assertNotIn("waited", result.stderr)
+
+    @NEEDS_PARSER
+    def test_a_loaded_host_runs_one_mutant_at_a_time_and_every_mutant_still_runs(self):
+        result = self.run_tool("app/calc.gd", "--workers", "2", "--json", str(self.out), STUB_LOAD="4.0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data, statuses = self.statuses()
+        self.assertEqual(statuses, STATUSES)
+        self.assertEqual((data["host"]["peak"], data["host"]["waits"]["gates"]), (1, 0))
+        self.assertGreaterEqual(data["host"]["waits"]["load"], 1)
+        self.assertIn("for the load", result.stderr)
+        self.assertIn("at most 1 of 2 worker(s) ran at once", result.stderr)
+        self.assert_no_leftovers()
+
+    @NEEDS_PARSER
+    def test_gate_runs_at_the_cap_hold_the_import_until_one_ends(self):
+        result = self.run_tool("app/calc.gd", "--json", str(self.out), STUB_GATES="2,1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data, statuses = self.statuses()
+        self.assertEqual(statuses, STATUSES)
+        self.assertEqual((data["host"]["waits"], data["host"]["gates"]), ({"gates": 1, "load": 0}, [1, 2]))
+        self.assertGreaterEqual(data["host"]["waited"], gd_mutation.HOST_POLL - 0.1)
+        self.assertIn("1 start(s) waited for the gate cap and 0 for the load", result.stderr)
+        self.assert_no_leftovers()
 
     @NEEDS_PARSER
     def test_mutant_whose_run_raises_is_not_run_the_next_ones_run_and_the_tool_exits_2(self):
@@ -635,6 +694,98 @@ class CacheFileTest(unittest.TestCase):
             path = Path(tmp) / "cache.json"
             gd_mutation.save_cache(path, [mutant(status, status=status) for status in gd_mutation.STATUSES], "s1")
             self.assertEqual(sorted(gd_mutation.load_cache(path)), ["invalid", "killed", "survived"])
+
+
+class HostTest(unittest.TestCase):
+    """The admission of Godot runs by gate runs and load, with stub looks at the host instead of the real one."""
+
+    @staticmethod
+    def host(*looks, cores=4, wait=60):
+        """A host whose Nth look is the Nth (gate runs, load) of looks, the last one after."""
+        found = gd_mutation.Host(poll=0.01, wait=wait)
+        found.cores, left = cores, list(looks)
+        found.probe = lambda: left.pop(0) if len(left) > 1 else left[0]
+        return found
+
+    def test_only_a_python_run_of_a_gate_command_counts(self):
+        lines = ["/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/"
+                 "Python.app/Contents/MacOS/Python -B loop.py gates --repo stratics-docs --pr 4013 --post",
+                 "/usr/bin/python3 -B platform/review-loop/loop.py merge-recheck --pr 3168",
+                 "python3.12 loop.py regate --pr 1", "python3 loop.py main-verify", "python3 loop.py approve --pr 2",
+                 "/x/MacOS/Python -B platform/tools/pr-review/pr_ops.py prove --pr 3",
+                 "/bin/sh -c /x/MacOS/Python -B loop.py gates --pr 9",
+                 "/bin/zsh -c G=gates; python3 -B loop.py $G --pr 9", "pgrep -fl [l]oop.py gates",
+                 "/x/MacOS/Python -B loop.py wait --role claude", "/x/MacOS/Python -B pr_ops.py status --pr 3",
+                 "/usr/bin/python3 -B gd_mutation.py --workers 4", "/x/godot --path loop.py gates", "", "python3 -B"]
+        self.assertEqual(gd_mutation.gate_runs(lines), 6)
+
+    def test_a_look_reads_ps_and_the_load_and_serves_every_worker_a_second(self):
+        found = gd_mutation.Host()
+        ps = subprocess.CompletedProcess([], 0, stdout="python3 loop.py gates\n/bin/sh -c python3 loop.py gates\n")
+        with mock.patch.object(gd_mutation.subprocess, "run", return_value=ps) as run, \
+                mock.patch.object(gd_mutation.os, "getloadavg", return_value=(3.5, 2.0, 1.0)):
+            self.assertEqual(found.probe(), (1, 3.5))
+            self.assertEqual(found.probe(), (1, 3.5))
+        run.assert_called_once_with(gd_mutation.PS, capture_output=True, text=True, check=True, timeout=30)
+
+    def test_gate_runs_at_the_cap_hold_even_the_first_run(self):
+        found = self.host((2, 0.0), (3, 0.0), (1, 0.0))
+        self.assertIs(found.acquire(), True)
+        self.assertEqual((found.running, found.peak, found.waits), (1, 1, {"gates": 1, "load": 0}))
+        self.assertGreater(found.waited, 0)
+
+    def test_load_at_the_cores_holds_only_a_run_beside_another_of_ours(self):
+        found = self.host((0, 4.0))
+        self.assertIs(found.acquire(), True)
+        left = iter([False, False, True])
+        self.assertIsNone(found.acquire(lambda: next(left)))  # it waits until no mutant is left
+        self.assertEqual((found.running, found.peak, found.waits), (1, 1, {"gates": 0, "load": 1}))
+        found.release()
+        self.assertIs(found.acquire(), True)
+        below = self.host((1, 3.99))
+        self.assertEqual((below.acquire(), below.acquire(), below.peak, below.waits), (True, True, 2,
+                                                                                         {"gates": 0, "load": 0}))
+
+    def test_a_run_of_ours_that_ends_wakes_a_waiting_one(self):
+        found = self.host((0, 4.0))
+        found.poll = 60
+        self.assertIs(found.acquire(), True)
+        threading.Timer(0.2, found.release).start()
+        began = time.monotonic()
+        self.assertIs(found.acquire(), True)
+        self.assertLess(time.monotonic() - began, 30)
+
+    def test_gate_runs_at_the_cap_for_the_whole_wait_close_the_host(self):
+        found = self.host((2, 0.0), wait=0.05)
+        with mock.patch.object(gd_mutation, "notice") as told:
+            self.assertIs(found.acquire(), False)
+            self.assertIs(found.acquire(), False)
+        told.assert_called_once_with("2 gate run(s) held the host for 0.05 s: no further Godot run starts")
+        self.assertEqual((found.running, found.closed), (0, True))
+
+    def test_a_host_that_does_not_tell_bounds_no_run_and_says_so_once(self):
+        found = gd_mutation.Host()
+        with mock.patch.object(gd_mutation.subprocess, "run", side_effect=FileNotFoundError("ps")), \
+                mock.patch.object(gd_mutation.os, "getloadavg", side_effect=OSError("no load")), \
+                mock.patch.object(gd_mutation, "HOST_FRESH", 0), mock.patch.object(gd_mutation, "notice") as told:
+            self.assertEqual((found.acquire(), found.acquire()), (True, True))
+        self.assertEqual([call.args[0] for call in told.call_args_list],
+                         ["gate runs not counted: ps -A -ww -o command= failed (FileNotFoundError)",
+                          "load not read: os.getloadavg failed (OSError)"])
+        self.assertEqual({k: v for k, v in found.report().items() if k != "cores"},
+                         {"gate_cap": 2, "peak": 2, "waits": {"gates": 0, "load": 0}, "waited": 0.0, "load": None,
+                          "gates": None})
+
+    def test_a_closed_host_runs_no_mutant_and_each_is_not_run(self):
+        found = self.host((2, 0.0))
+        found.closed = True
+        mutants = [mutant("a", status=""), mutant("b", status="")]
+        worker = gd_mutation.Worker(Path("/nonexistent"), {}, Path("/nonexistent/godot.log"))
+        with mock.patch.object(gd_mutation, "run_godot") as run, mock.patch.object(gd_mutation, "notice") as told:
+            self.assertEqual(gd_mutation.run_mutants("godot", [worker, worker], mutants, {}, {}, found), 2)
+        run.assert_not_called()
+        self.assertEqual([m.status for m in mutants], ["not run", "not run"])
+        told.assert_called_once_with("2 mutant(s) not run: every worker stopped")
 
 
 if __name__ == "__main__":

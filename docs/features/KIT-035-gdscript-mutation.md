@@ -86,8 +86,10 @@ built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T
    file, and its place in the function, so a function whose hash did not change keeps its last result (ub-mode's idea)
    on whatever lines it moves to, a new or changed test makes it run again, and a second run with nothing changed starts
    no Godot. `--cache FILE` moves the cache and `--no-cache` runs every mutant.
-7. **Workers.** Parallel workers, each starting a mutant only while the one-minute load average is below the core
-   count and fewer than 2 gate runs hold the host (the loop's gates count).
+7. **Workers.** Up to `--workers N` parallel workers. Every Godot run (the import, each unmutated run, each mutant)
+   starts only while fewer than 2 gate runs hold the host (the loop's gates count), and a run beside another of ours
+   only while the one-minute load average is below the core count, so one run always goes on when the gate cap allows
+   (§ Decisions, 2026-11-12 T6).
 8. **Output.** One survivor per line on stdout, `path:line function OPERATOR from → to`, then a summary with the score
    on stderr. Exit 0 (advisory); a gate waits for T8.
 
@@ -214,6 +216,35 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
   cut-off write must not leave half a file; a cache that cannot be read or written prints a notice and every mutant
   runs.
 
+- 2026-11-12 T6: chose to bound the load only for a run beside another of ours, so one run always starts when the gate
+  cap allows, over step 7's first wording (each mutant only while the load is below the core count), because this
+  host runs at a load of 5–20 during gates on 10 cores (review of #192, above; 5.9–11.6 while T6 was measured), so the
+  literal rule would hold even one worker for as long as a gate runs, while one run at a time is what the tool did
+  before T6 (T3 and T5, beside a load of 4–6). `--workers N` stays the upper bound; the load decides how many of the N
+  run at once.
+- 2026-11-12 T6: chose to admit every Godot run, the import and each unmutated run included, over mutants only,
+  because the import (22 s in T3) costs the host more than a mutant (1.2 s), and an import or unmutated run that is
+  not admitted leaves its mutants "not run" with exit 2, as a failed one does.
+- 2026-11-12 T6: chose to count a gate run as a Python process whose script is `loop.py` with `gates`, `regate`,
+  `merge-recheck`, `main-verify` or `approve`, or `pr_ops.py` with `prove`, read from one `ps -A -ww -o command=`,
+  over a `pgrep -f` pattern, because a pattern also matches the shell that wraps the run and counts it twice; the
+  names are the subcommands that take the loop's gate slot (`gate_slot` in `platform/review-loop/loop.py` at
+  stratics-docs `9cba4f723`) and the live gate read `…/MacOS/Python -B loop.py gates --repo stratics-docs --pr 4013
+  --post`. The tool reads the owner's cap (2 gate runs on the host, the loop's included) and does not join the loop's
+  admission, which counts only the loop's own records (`admission_runs`, the same file): a gate that starts while one
+  of our runs is going does not wait for it, and our next run waits instead. A new gate command in the loop needs a
+  line in `GATE_COMMANDS`.
+- 2026-11-12 T6: chose one look at the host shared by every worker for 1 s, a poll of 2 s and a wake when a run of ours
+  ends, over one `ps` before each start, because one `ps -A -ww` took 59 to 171 ms (median 65 ms, 5 calls) on the
+  loaded host and a mutant takes about 1.2 s (T3), so a `ps` per start would add about 5 % to every mutant.
+- 2026-11-12 T6: chose to stop starting runs after 3600 s of gate runs at the cap, the rest "not run" and exit 2, over
+  waiting without end, because a gate that hangs would otherwise hold an advisory tool for good, and "not run" with
+  exit 2 already says the score is of a subset (review of #192, above). 3600 s is a judgement, not measured; the
+  clock restarts whenever the gates drop below the cap.
+- 2026-11-12 T6: chose to let a host that does not tell (`ps` fails, no `os.getloadavg`) run as before T6, with one
+  notice for each, over refusing to run, because the tool is advisory and no CI or loop gate runs it (D2, D5), so a
+  host without `ps` has no loop to protect; the cores come from `os.cpu_count()` and nothing names a host.
+
 ## Measurements
 
 T1 ran in the same driver run as KIT-034 T1 (2026-11-11, 10:11:53 to 10:12:43; Godot 4.7.2.stable.official.ed1daf0bf
@@ -315,6 +346,32 @@ there), one worker. No loop gate and no other Godot run held the host (load aver
 - Not run on the client: a change to one function or to the test file, since nothing in the client is edited here.
   `test_gd_mutation.py` covers both with a stub Godot: a moved function keeps its results, a changed one and a changed
   test run again.
+
+T6 (2026-11-12, 20:29:36 to 20:35:05): T3's command with `--no-cache` and `--workers 1`, then `--workers 4`, run one
+after the other with `/usr/bin/python3` (3.9.6) from `client/` of the loop's live checkout `stratics-docs-loop` (at
+`9cba4f723`; the tool reads `ac649c10c`'s Git objects, so the checkout's own commit does not matter), each with
+`TMPDIR` in a new `mktemp -d` folder; Godot 4.7.2.stable.official.ed1daf0bf. The review loop ran throughout: one gate
+run, `loop.py gates --repo stratics-docs --pr 4013 --post`, in every one of 64 looks every 5 s by a separate sampler,
+and no other. 10 cores; load average 5.9 to 11.6 in the sampler's looks.
+
+| Workers | Wall | Generate, import, mutants | Mutant time (min–max, mean) | Peak at once | Starts that waited | Load seen by the tool | Gate runs seen | Statuses | Score |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 224 s | 2.53 s, 33.98 s, 168.72 s | 1.10–2.60 s, 1.623 s | 1 | 0 | 6.76–11.56 | 1 | 92 killed, 7 survived, 1 invalid | 92.9 % |
+| 4 | 105 s | 1.69 s, 22.31 s, 46.99 s | 1.61–2.29 s, 1.856 s | 4 | 0 | 6.21–6.64 | 1 | the same, mutant for mutant | 92.9 % |
+
+- Four workers ran the 100 mutants 3.6 times as fast (168.72 → 46.99 s) and the whole run 2.1 times (224 → 105 s);
+  a mutant took 14 % longer beside three others (mean 1.623 → 1.856 s). Both runs printed the same stdout, T3's 7
+  survivors (lines 19, 64, 79, 90, 107, 109 and 124), and every mutant's status is the same in both.
+- No start waited in either run: one gate run held the host, below the cap of 2, and while the 4-worker run went on
+  the load the tool read stayed between 6.21 and 6.64, below the 10 cores, so all four ran. The 1-worker run saw a load
+  of 11.56 at its peak, which holds only a second run, and it had none. The waits themselves (gate runs at the cap, the
+  load at the cores, a run of ours that ends, the hour that closes the host) were not seen on the host;
+  `test_gd_mutation.py` covers them with a stub `ps` and a stub load.
+- The one-minute load average follows a burst late: the four workers' 47 s did not lift it above 6.64, so a short run
+  can start N runs before the load shows them. `--workers N` stays the bound the caller sets.
+- The unmutated run took 2.12 s and 1.81 s (1.23 s in T3, with no gate), so the timeout was 51.2 and 48.1 s.
+- The loop checkout's `git status --short` was empty after both runs, and both scratch folders were empty (the copy
+  removed).
 
 ## Proof
 
@@ -459,3 +516,6 @@ only this document and its sibling record; every command exited 0:
   `ac2887a`; the review of #195 left "timed out" out of the cache (§ Decisions).
 - 2026-11-12: T7 (skill `testing` § 1 names `gd_mutation.py`, `--coverage` and `--no-cache`; eval case
   `testing-gdscript-mutation-command`) in #196, with KIT-034 T6; it refers to #137 and leaves it open.
+- 2026-11-12: T6 (every Godot run waits while 2 gate runs hold the host, and a second one at once while the load
+  is at the core count) implemented and measured on the client with the loop running (one gate) in its own PR,
+  which refers to #137 and leaves it open; step 7 now reads as § Decisions, 2026-11-12 T6, says.

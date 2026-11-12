@@ -39,6 +39,15 @@ parse or compile error that names the mutated file); killed (exit 100); survived
 or more); error (anything else); not run when writing or running it raised (godot gone, a full disk), and a worker
 that cannot restore its file stops. The score is killed plus timed out over killed, timed out and survived.
 
+Host: every Godot run (the import, each unmutated run, each mutant) starts only while fewer than 2 gate runs hold the
+host, the review loop's included: a Python process running `loop.py` gates, regate, merge-recheck, main-verify or
+approve, or `pr_ops.py prove`, read from `ps` (the shell that wraps one is not counted). A run beside another of ours
+also needs the one-minute load average below the core count, so --workers N is an upper bound and one run always goes
+on when the gate cap allows. A waiting run looks again every 2 s or when a run of ours ends; after 3600 s of gate runs
+at the cap no further run starts and the rest are not run. What the host does not tell (ps fails, no load average)
+does not bound a run, with one notice. --json FILE has the cores, the peak of runs at once, the waits and the load and
+gate runs seen.
+
 Differential: a killed, survived or invalid result is kept in --cache FILE (default
 $XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json, beside gd_duplicates.py's; default ~/.cache) under a hash of the
 function's path, name and text (line ends and trailing blanks aside) with the res:// path and content of each
@@ -115,6 +124,17 @@ SHOWN = 80  # characters of a mutant's from/to text
 # starting together is not proportional to the run's time, and a run stopped too early counts as detected.
 TIMEOUT_FACTOR = 10
 TIMEOUT_CONSTANT = 30
+# The host (KIT-035 step 7): a Godot run of this tool starts only while fewer than GATE_CAP gate runs hold the host,
+# the review loop's own included (the owner's cap of 2), and a second run at once only while the one-minute load
+# average is below the core count. A gate run is a Python process whose script is one of GATE_COMMANDS' files and whose
+# next word is one of its commands; the shell that wraps it is not one (a `pgrep -f` pattern also matches the shell).
+GATE_CAP = 2
+GATE_COMMANDS = {"loop.py": {"gates", "regate", "merge-recheck", "main-verify", "approve"}, "pr_ops.py": {"prove"}}
+PYTHON = re.compile(r"python[0-9.]*", re.I)
+PS = ["ps", "-A", "-ww", "-o", "command="]
+HOST_FRESH = 1  # seconds a look at the host serves every worker (one `ps` takes about 60 ms on a loaded host)
+HOST_POLL = 2  # seconds between two looks while a run waits; a run of ours that ends wakes it sooner
+HOST_WAIT = 3600  # seconds of gate runs at the cap after which no further run starts and the rest are not run
 
 
 def notice(text):
@@ -561,36 +581,150 @@ class Worker:
     log: Path
 
 
-def run_mutants(godot, workers, mutants, sources, timeouts):
-    """Each worker takes the next mutant, writes it into its clone, runs its tests and restores the file.
+def gate_runs(lines):
+    """How many of these `ps` command lines are gate runs: a Python process, then its options, then a script named in
+    GATE_COMMANDS and one of that script's commands. A shell running one (`sh -c`, `zsh -c`) is not counted."""
+    count = 0
+    for line in lines:
+        words = line.split()
+        if not words or not PYTHON.fullmatch(os.path.basename(words[0])):
+            continue
+        script = next((i for i, word in enumerate(words[1:], 1) if not word.startswith("-")), len(words))
+        if script + 1 < len(words) and \
+                words[script + 1] in GATE_COMMANDS.get(os.path.basename(words[script]), ()):
+            count += 1
+    return count
+
+
+class Host:
+    """Admission of this tool's Godot runs: each starts only while fewer than `cap` gate runs hold the host, and a run
+    beside another of ours only while the one-minute load average is below the core count, so one run always goes on
+    when the gate cap allows. What the host does not tell (`ps` fails, no load average) does not bound a run."""
+
+    def __init__(self, cap=GATE_CAP, poll=HOST_POLL, wait=HOST_WAIT):
+        self.cap, self.poll, self.wait = cap, poll, wait
+        self.cores = os.cpu_count() or 1
+        self.changed = threading.Condition()
+        self.running = self.peak = 0
+        self.waits = {"gates": 0, "load": 0}  # starts that waited, by what held them first
+        self.waited = 0.0  # seconds those starts waited, summed over the workers
+        self.loads, self.gates = [], []
+        self.closed = False
+        self.blind = set()
+        self.last = (None, None, None)  # (when, gate runs, load) of the last look
+
+    def tell(self, what, text):
+        if what not in self.blind:
+            self.blind.add(what)
+            notice(text)
+
+    def probe(self):
+        """(gate runs, one-minute load) now, None for what the host does not tell; a look serves HOST_FRESH s."""
+        when, gates, load = self.last
+        if when is not None and time.monotonic() - when < HOST_FRESH:
+            return gates, load
+        try:
+            gates = gate_runs(subprocess.run(PS, capture_output=True, text=True, check=True,
+                                             timeout=30).stdout.splitlines())
+            self.gates.append(gates)
+        except (OSError, subprocess.SubprocessError) as error:
+            gates = None
+            self.tell("gates", f"gate runs not counted: {' '.join(PS)} failed ({type(error).__name__})")
+        try:
+            load = os.getloadavg()[0]
+            self.loads.append(load)
+        except (OSError, AttributeError) as error:
+            load = None
+            self.tell("load", f"load not read: os.getloadavg failed ({type(error).__name__})")
+        self.last = (time.monotonic(), gates, load)
+        return gates, load
+
+    def acquire(self, done=lambda: False):
+        """True when a run may start (release() after it); None as soon as done() is true; False once gate runs held
+        the host at the cap for `wait` s, and for every later call (no further run starts)."""
+        with self.changed:
+            began, first, since = time.monotonic(), None, None
+            while True:
+                if self.closed:
+                    return False
+                if done():
+                    return None
+                gates, load = self.probe()
+                if gates is not None and gates >= self.cap:
+                    held = "gates"
+                elif load is not None and load >= self.cores and self.running:
+                    held = "load"
+                else:
+                    self.running += 1
+                    self.peak = max(self.peak, self.running)
+                    self.waited += time.monotonic() - began if first else 0
+                    return True
+                now = time.monotonic()
+                if first is None:
+                    first = held
+                    self.waits[held] += 1
+                since = (since or now) if held == "gates" else None
+                if since is not None and now - since >= self.wait:
+                    self.closed = True
+                    self.waited += now - began
+                    notice(f"{gates} gate run(s) held the host for {self.wait} s: no further Godot run starts")
+                    self.changed.notify_all()
+                    return False
+                self.changed.wait(self.poll)
+
+    def release(self):
+        with self.changed:
+            self.running -= 1
+            self.changed.notify_all()
+
+    def report(self):
+        def span(values):
+            return [round(min(values), 2), round(max(values), 2)] if values else None
+        return {"cores": self.cores, "gate_cap": self.cap, "peak": self.peak, "waits": dict(self.waits),
+                "waited": round(self.waited, 2), "load": span(self.loads), "gates": span(self.gates)}
+
+
+def run_mutants(godot, workers, mutants, sources, timeouts, host):
+    """Each worker, once the host admits a run, takes the next mutant, writes it into its clone, runs its tests and
+    restores the file.
 
     A mutant whose write or run raises is "not run" and the worker takes the next one; a worker that cannot restore
-    the file stops, since its clone no longer holds the source. Returns how many mutants are "not run"."""
+    the file stops, since its clone no longer holds the source, and so does every worker once the host closes. Returns
+    how many mutants are "not run"."""
     jobs = queue.Queue()
     for mutant in mutants:
         jobs.put(mutant)
 
     def work(worker):
-        while True:
+        while host.acquire(jobs.empty):
             try:
-                mutant = jobs.get_nowait()
-            except queue.Empty:
-                return
-            target, original = worker.folder / mutant.rel, sources[mutant.rel]
-            try:
-                write(target, mutant.apply(original))
-                code, output, seconds, _ = run_godot(godot, test_command(worker.folder, mutant.tests), worker.env,
-                                                     worker.log, timeouts[tuple(mutant.tests)])
-                mutant.exit, mutant.seconds = code, round(seconds, 2)
-                mutant.status = classify(code, output, mutant.rel)
-            except Exception as error:  # the host failed, not the mutant: no status counts it
-                mutant.status = "not run"
-                notice(f"{mutant.path}:{mutant.line} {mutant.operator} not run: {type(error).__name__}: {error}")
-            try:
-                write(target, original)
-            except OSError as error:
-                notice(f"a worker stops: {target} not restored ({type(error).__name__}: {error})")
-                return
+                if not run_one(worker):
+                    return
+            finally:
+                host.release()
+
+    def run_one(worker):
+        """False when the queue is empty or the worker must stop."""
+        try:
+            mutant = jobs.get_nowait()
+        except queue.Empty:
+            return False
+        target, original = worker.folder / mutant.rel, sources[mutant.rel]
+        try:
+            write(target, mutant.apply(original))
+            code, output, seconds, _ = run_godot(godot, test_command(worker.folder, mutant.tests), worker.env,
+                                                 worker.log, timeouts[tuple(mutant.tests)])
+            mutant.exit, mutant.seconds = code, round(seconds, 2)
+            mutant.status = classify(code, output, mutant.rel)
+        except Exception as error:  # the host failed, not the mutant: no status counts it
+            mutant.status = "not run"
+            notice(f"{mutant.path}:{mutant.line} {mutant.operator} not run: {type(error).__name__}: {error}")
+        try:
+            write(target, original)
+        except OSError as error:
+            notice(f"a worker stops: {target} not restored ({type(error).__name__}: {error})")
+            return False
+        return True
 
     threads = [threading.Thread(target=work, args=(w,)) for w in workers]
     for thread in threads:
@@ -605,13 +739,20 @@ def run_mutants(godot, workers, mutants, sources, timeouts):
     return sum(1 for m in mutants if m.status == "not run")
 
 
-def baselines(godot, worker, selections, timeout, constant):
+def baselines(godot, worker, selections, timeout, constant, host):
     """{selection: run} of each test selection unmutated, with its mutants' timeout; `ok` is False when it cannot
-    measure mutants."""
+    measure mutants or the host closed before it."""
     runs = {}
     for tests in selections:
-        code, output, seconds, _ = run_godot(godot, test_command(worker.folder, tests), worker.env, worker.log,
-                                             timeout)
+        if not host.acquire():
+            runs[tests] = {"tests": list(tests), "exit": None, "cases": None, "seconds": None, "timeout": None,
+                           "ok": False}
+            continue
+        try:
+            code, output, seconds, _ = run_godot(godot, test_command(worker.folder, tests), worker.env, worker.log,
+                                                 timeout)
+        finally:
+            host.release()
         summary = test_summary(output)
         ok = code in COUNTED_EXITS and summary is not None and summary["cases"] >= 1
         runs[tests] = {"tests": list(tests), "exit": code, "cases": summary["cases"] if summary else None,
@@ -708,8 +849,15 @@ def measure(args, prefix, sha, wanted, godot, scratch):
     env, log = scratch_env(scratch), scratch / "godot.log"
     data["godot"] = subprocess.run([godot, "--version"], capture_output=True, text=True, env=env,
                                    check=False).stdout.strip()
-    code, _, import_seconds, _ = run_godot(godot, ["--path", str(copy), "--headless", "--import"], env, log,
-                                           args.timeout)
+    host = Host()
+    if not host.acquire():
+        notice("mutants not run: the project was not imported")
+        return 2
+    try:
+        code, _, import_seconds, _ = run_godot(godot, ["--path", str(copy), "--headless", "--import"], env, log,
+                                               args.timeout)
+    finally:
+        host.release()
     if code is None:
         notice(f"mutants not run: the import did not finish in {args.timeout} s")
         return 2
@@ -722,15 +870,19 @@ def measure(args, prefix, sha, wanted, godot, scratch):
         clone(copy, folder / "project")
         workers.append(Worker(folder / "project", scratch_env(folder), folder / "godot.log"))
     runs = baselines(godot, workers[0], sorted({tuple(m.tests) for m in pending}), args.timeout,
-                     args.timeout_constant)
+                     args.timeout_constant, host)
     for mutant in pending:
         if not runs[tuple(mutant.tests)]["ok"]:
             mutant.status = "not run"
     began = time.monotonic()
     failed = run_mutants(godot, workers, [m for m in pending if not m.status], sources,
-                         {tests: run["timeout"] for tests, run in runs.items()})
+                         {tests: run["timeout"] for tests, run in runs.items()}, host)
     data["seconds"].update({"import": round(import_seconds, 2), "mutants": round(time.monotonic() - began, 2)})
     data["baselines"] = list(runs.values())
+    data["host"] = host.report()
+    if any(host.waits.values()):
+        notice(f"{host.waits['gates']} start(s) waited for the gate cap and {host.waits['load']} for the load "
+               f"({host.waited:.0f} s in all); at most {host.peak} of {args.workers} worker(s) ran at once")
     if args.cache:
         save_cache(args.cache, mutants, sha)
     summarize(mutants, args, data)
@@ -745,7 +897,10 @@ def main():
     ap.add_argument("--ref", default="HEAD", help="commit whose tree is mutated (default HEAD)")
     ap.add_argument("--coverage", help="gd_coverage.py --json report of the same ref: uncovered lines are not run")
     ap.add_argument("--tests", action="append", help="gdUnit4 test folder, repeatable (default res://tests)")
-    ap.add_argument("--workers", type=int, default=1, help="parallel Godot runs, each in its own clone (default 1)")
+    ap.add_argument("--workers", type=int, default=1,
+                    help=f"most parallel Godot runs, each in its own clone (default 1); a run starts only while fewer "
+                         f"than {GATE_CAP} gate runs hold the host, one beside another only while the load is below "
+                         "the cores")
     ap.add_argument("--timeout", type=int, default=TIMEOUT,
                     help=f"seconds for the import and each unmutated run (default {TIMEOUT})")
     ap.add_argument("--timeout-constant", type=float, default=TIMEOUT_CONSTANT,
