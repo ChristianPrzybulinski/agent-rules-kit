@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
 """Advisory complexity of changed Java and GDScript functions (KIT-031).
 
-Usage: complexity.py [--base REF] [--jacoco XML]... [--threshold N] [FILE...]
+Usage: complexity.py [--base REF] [--jacoco XML]... [--gd-coverage JSON]... [--threshold N] [FILE...]
 
 Java: per method of a JaCoCo XML report the build already produced, CC = COMPLEXITY missed + covered,
 coverage = INSTRUCTION covered / total and CRAP = CC^2 * (1 - coverage)^3 + CC; reports CRAP >= 10.
 GDScript: runs `gdradon cc` (gdtoolkit) and reports CC > 10. gdradon line numbers do not match the source,
 so its results join the source's own `func` spans by name. A function whose coverage is known scores CRAP and
-any other scores CC, so GDScript coverage (KIT-034) only has to fill `Function.coverage`.
+any other scores CC. `--gd-coverage` reads a `gd_coverage.py --json` report (KIT-034) and fills the coverage of
+the GDScript functions it holds with covered / total statement lines, joined by repository-relative path and
+`func` line, so they score CRAP like Java; a function the report does not hold, or holds with no statement, scores CC.
 
 Without FILE the measured functions are those whose lines changed in `git diff -U0 <base>...HEAD`; with FILE
 every function in those files is measured. stdout holds one `path function metric value` line per finding,
 stderr the notices. Exit 0; with --threshold N, exit 1 when a reported value reaches N and exit 2 when a
-JaCoCo report or gdradon that the change needs is missing. A bad ref exits 2.
+JaCoCo report, a --gd-coverage report or gdradon that the change needs is missing. A bad ref exits 2.
 """
 import argparse
 import bisect
+import json
 import os
 import re
 import shutil
@@ -167,12 +170,46 @@ def gdradon_cc(paths):
     return ccs
 
 
-def gd_functions(wanted, ccs):
+def git_value(*args):
+    """Stripped stdout of a git command, or None when it fails (no repository, no commit)."""
+    result = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def gd_coverage(reports):
+    """{(repository-relative path, func line): line ratio or None} from gd_coverage.py --json files (the first
+    report that holds a function wins), or None when one is missing or is not such a report."""
+    ratios, head = {}, git_value("rev-parse", "HEAD") if reports else None
+    for report in reports:
+        try:
+            data = json.loads(report.read_text(encoding="utf-8"))
+            if data.get("tool") != "gd_coverage" or data.get("version") != 1:
+                raise ValueError("not a gd_coverage.py --json version 1 report")
+            found = {(os.path.normpath(f["path"]), int(f["start"])):
+                     f["lines"]["covered"] / f["lines"]["total"] if f["lines"]["total"] else None
+                     for f in data["functions"]}
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            notice(f"GDScript coverage report {report} not read: {error}")
+            return None
+        if head and data.get("ref") and data["ref"] != head:
+            notice(f"{report} measured {data['ref'][:12]}, not HEAD {head[:12]}; a function keeps its coverage "
+                   "only at the same path and func line")
+        for key, ratio in found.items():
+            ratios.setdefault(key, ratio)
+    return ratios
+
+
+def gd_functions(wanted, ccs, coverage=None):
     found = []
+    top = git_value("rev-parse", "--show-toplevel") if coverage else None
+    top = os.path.realpath(top) if top else None
     for path, lines in wanted.items():
         by_name = ccs.get(os.path.normpath(path), {})
+        # gd_coverage.py writes paths from the repository root; FILE arguments are relative to the current folder.
+        key = os.path.relpath(os.path.realpath(path), top) if top else os.path.normpath(path)
         for name, start, end in gd_spans(path):
-            function = Function(path, name, start, end, by_name.get(name, 0))
+            ratio = coverage.get((key, start)) if coverage else None
+            function = Function(path, name, start, end, by_name.get(name, 0), ratio)
             if name in by_name and touched(function, lines):
                 found.append(function)
     return found
@@ -184,9 +221,12 @@ def main():
     ap.add_argument("--base", default="origin/main", help="ref the change is compared against (default origin/main)")
     ap.add_argument("--jacoco", action="append", default=[],
                     help="JaCoCo XML report (default: target/site/*/jacoco.xml up to two directories down)")
+    ap.add_argument("--gd-coverage", action="append", default=[], metavar="JSON",
+                    help="gd_coverage.py --json report; its GDScript functions score CRAP instead of CC")
     ap.add_argument("--threshold", type=float, help="exit 1 when a reported value reaches N")
     args = ap.parse_args()
     reports = [Path(p).resolve() for p in args.jacoco]
+    gd_reports = [Path(p).resolve() for p in args.gd_coverage]
     if args.files:
         wanted = {p: None for p in args.files}
     else:
@@ -211,12 +251,18 @@ def main():
             notice(f"gdradon not available (pip install gdtoolkit); skipped for {len(gd)} .gd file(s)")
             missing = True
         else:
-            functions += gd_functions(gd, ccs)
+            coverage = gd_coverage(gd_reports)
+            missing = missing or coverage is None
+            measured = gd_functions(gd, ccs, coverage)
+            if gd_reports:
+                scored = sum(1 for f in measured if f.coverage is not None)
+                notice(f"GDScript coverage for {scored} of {len(measured)} measured function(s); the rest score CC")
+            functions += measured
     findings = sorted((f for f in functions if f.above_target()), key=lambda f: (-f.score()[1], f.path, f.name))
     for function in findings:
         print(function.line())
     notice(f"{len(findings)} of {len(functions)} measured function(s) above target "
-           f"(Java CRAP < {CRAP_LIMIT:g}, GDScript CC <= {CC_LIMIT})")
+           f"(CRAP < {CRAP_LIMIT:g} when coverage is known, else GDScript CC <= {CC_LIMIT})")
     if args.threshold is None:
         return 0
     if missing:
