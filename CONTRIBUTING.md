@@ -1,6 +1,6 @@
 # Contributing to agent-rules-kit
 
-How to change the kit: where content goes, versioning, checks and evals. Sessions that work inside this repository read this file before a change; the always-on rules come from the installed `guardrails` plugin, so the root carries no `AGENTS.md` or `CLAUDE.md` (KIT-042).
+How to change the kit: where content goes, versioning, checks and evals. Sessions that work inside this repository read this file before a change; the always-on rules come from the installed `guardrails` plugin, so the root carries no `AGENTS.md` or `CLAUDE.md` (KIT-042). A term you do not know, such as "path rule", "vendor lock" or "layout freeze", is defined in [docs/GLOSSARY.md](docs/GLOSSARY.md).
 
 ## What goes where
 
@@ -13,7 +13,7 @@ How to change the kit: where content goes, versioning, checks and evals. Session
 | subagent profile | `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it |
 | artifact skeleton | `plugins/<plugin>/templates/<prefix>-<name>.md` |
 | executable, schema or project kit | `platforms/` |
-| design principles, consumer layout, KIT records | `docs/` |
+| design principles, glossary, consumer layout, KIT records | `docs/` |
 
 ## Invariants
 

@@ -2,7 +2,7 @@
 
 A plugin-first source of always-on rules, triggered rules, skills, references and templates for Devin Cloud, Devin CLI/Desktop, Codex and Claude Code. Plugin content lives under [`plugins/`](plugins/) — one plugin, `guardrails`, with shared manifests (KIT-047, renamed from `core` by KIT-055); tooling and documentation stay at repository root.
 
-Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md) · Security: [`SECURITY.md`](SECURITY.md)
+Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md) · Glossary: [`GLOSSARY.md`](docs/GLOSSARY.md) · Security: [`SECURITY.md`](SECURITY.md)
 
 ## Layout
 
@@ -10,7 +10,7 @@ Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Cont
 |---|---|
 | [`plugins/guardrails/`](plugins/guardrails/INDEX.md) | the kit's only plugin: always-on rules (`AGENTS.md`), hook guard; Java, Godot, Python and spec path rules; `reviewer` and `researcher` profiles; session, parallelize, review, git, security, code standards, testing, investigate, Java 25/Spring, Godot 2D, asset import, Krita, Docker, persistence, architecture, protocol contracts, grilling, the `sdd-*` pipeline and journeys; project and spec templates |
 | [`platforms/`](platforms/) | machine tools ([`tools/`](platforms/tools/README.md)), validators and schemas ([`ci/`](platforms/ci/README.md)), files projects copy ([`kits/`](platforms/kits/README.md)) |
-| [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |
+| [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`GLOSSARY.md`](docs/GLOSSARY.md) (the terms above and below, each with its source), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |
 | `.devin-plugin/`, `.claude-plugin/`, `.agents/plugins/` | the content-free Devin meta-plugin, which requires `guardrails`, and the Claude Code and Codex marketplace catalogs |
 | `.github/` | on-demand workflows (`ci.yml`: check, shellcheck, install smoke, links; `evals.yml`: `claude plugin eval`; `gitleaks.yml`: secrets scan), `release.yml` (tag `v*` → release), weekly Dependabot action updates, the PR checklist template and `CODEOWNERS` |
 

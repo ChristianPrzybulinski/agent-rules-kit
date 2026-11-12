@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- `docs/GLOSSARY.md`: plain definitions of the terms a newcomer meets (plugin, marketplace, path rule, guard, vendor lock, KIT record, layout freeze, the SDD chain and the rest), each with the file and line that say it, linked from `README.md` and `CONTRIBUTING.md`. Three terms the docs use without defining (`DTEC`/`DGME`/`DPRO`, `P2-15`, Stratics and `DPRO-011`) are listed as open, not guessed. Documentation only: no rule, skill, script or folder changes.
+
 ## [12.0.0] - 2026-11-12
 
 MAJOR: the kit plugin `core` is renamed `guardrails` (KIT-055); see Migration. The marketplace `ai-kit`, the Devin meta-plugin `agent-rules-kit`, the guard prefix `ai-kit guard:` and the install destinations do not change.
