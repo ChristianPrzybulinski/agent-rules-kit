@@ -214,6 +214,9 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertIn('  - "client/**/*.gd"', (rules / "dev-godot.md").read_text().splitlines())
         self.assertIn('  - "server/**/*.java"', (rules / "dev-java.md").read_text().splitlines())
         self.assertIn('  - "docs/spec/**/*.md"', (rules / "sdd-spec.md").read_text().splitlines())
+        # both rules come from plugin dev; each takes only the folder of the profile it is named after
+        self.assertNotIn("server/", (rules / "dev-godot.md").read_text())
+        self.assertNotIn("client/", (rules / "dev-java.md").read_text())
         settings = json.loads((self.repo / ".claude" / "settings.json").read_text())
         godot_java = {"dev"}
         self.assertEqual({k for k in settings["enabledPlugins"] if k.endswith("@ai-kit")},
@@ -223,6 +226,10 @@ class SyncProjectCheckTest(unittest.TestCase):
         single = self.run_sync("--check", "--profile", "docs")
         self.assertEqual(single.returncode, 1)
         self.assertIn("dev-java.md is generated but not in profile", single.stdout)
+        alone = self.run_sync("--profile", "godot:client")
+        self.assertEqual(alone.returncode, 0, alone.stdout + alone.stderr)
+        # no java profile: the java rule takes the folders of every profile that includes plugin dev
+        self.assertIn('  - "client/**/*.java"', (rules / "dev-java.md").read_text().splitlines())
 
     def test_multi_profile_rejects_unknown_profile_and_outside_folder(self):
         for value in ("docs,rust", "godot:../client", "godot:/client", "docs,"):
