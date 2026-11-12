@@ -38,7 +38,7 @@ Measured at `origin/main` 1edc0ab:
     `infra-core` + `infra-persistence` + `krita`.
   - `sdd` (13 skills, rule `spec.md`, the `researcher` profile, requires `core`): `architect-core` + `architect-sdd`.
 - Removed: `all`, `extras` (with `dbeaver`, `find-skills`, `frontend-design`, `skill-creator`) and `process-loop`, whose
-  skills move into stratics-docs `.claude/skills/` in a Stratics PR that merges before this one (the `null` rename
+  skills move into stratics-docs `platform/review-loop/skills/` in a Stratics PR that merges before this one (the `null` rename
   uninstalls `process-loop` at the next session start).
 - `.devin-plugin/plugin.json` requires the three plugins and lists none as optional; both marketplaces list them.
 - `.claude-plugin/marketplace.json` gains a `renames` map from every retired name to its successor (`null` for `all`,

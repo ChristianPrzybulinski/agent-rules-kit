@@ -4,7 +4,7 @@ The model-free half of the orchestrated implement-review-merge loop (a project's
 
 ## How to use
 
-1. Copy the loop skills from the project that already runs the loop into the new project's `.claude/skills/`.
+1. Copy the loop skills and templates from the project that already runs the loop (Stratics: `platform/review-loop/skills/` and `platform/review-loop/templates/`).
 2. Copy `verdict.schema.json` next to the project's loop tool and `config.example.json` to its `config.json`; fill every `<placeholder>` and the repo list, one entry per repo the loop gates (the backlog repo included). Every key the project's loop tool reads is present; placeholders are in angle brackets.
 3. Keep machine paths out of the committed config: `${WORKSPACE_ROOT}` stays a placeholder, and the local clone paths live in an untracked overlay.
 4. Create and pin the batch-log issue, set `batch_log_issue`, then say `start` to the architect session (skill `loop-orchestrate`).
