@@ -1,6 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "architect-sdd",
-  "version": "11.3.0",
-  "description": "ai-kit SDD: spec-driven development pipeline from FEAT to GitHub cards"
-}
