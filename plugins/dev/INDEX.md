@@ -16,7 +16,7 @@ Depends on: `core`
 | `java-standards` | user, model | Java 25, Spring/Quarkus and JUnit standards. Use when editing *.java, pom.xml, Spring/Quarkus code or JUnit tests. Not for general test policy (skill testing). |
 | `krita` | user | Krita pixel-art workflow. Use when editing pixel art, retouching sprites or defining sprite export. Not for Godot import (skill asset-import). |
 | `persistence` | user, model | PostgreSQL and Redis rules. Use when changing a schema, migration or index, reading EXPLAIN or locks, or designing cache keys. Not for Compose (skill docker). |
-| `testing` | user, model | Test policy, gates and characterization tests. Use when setting coverage/mutation gates, choosing tests or pinning legacy code. Not for verdicts (skill review). |
+| `testing` | user, model | Test policy and characterization. Use when reviewing or choosing tests, setting coverage/mutation gates or pinning legacy code. Not for verdicts (skill review). |
 
 ## `rules/`
 

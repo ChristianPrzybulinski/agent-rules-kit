@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Test policy, gates and characterization tests. Use when setting coverage/mutation gates, choosing tests or pinning legacy code. Not for verdicts (skill review).
+description: Test policy and characterization. Use when reviewing or choosing tests, setting coverage/mutation gates or pinning legacy code. Not for verdicts (skill review).
 argument-hint: "[legacy class/method or flow to characterize | empty]"
 triggers:
   - user
