@@ -11,39 +11,27 @@
     "quality-core": "core",
     "quality-security": "core",
     "infra-github": "core",
-    "dev-core": "dev",
-    "dev-java": "dev",
-    "dev-godot": "dev",
-    "infra-core": "dev",
-    "infra-persistence": "dev",
-    "architect-core": "sdd",
-    "architect-sdd": "sdd",
+    "dev-core": "core",
+    "dev-java": "core",
+    "dev-godot": "core",
+    "infra-core": "core",
+    "infra-persistence": "core",
+    "architect-core": "core",
+    "architect-sdd": "core",
     "all": null,
     "extras": null,
-    "process-loop": null
+    "process-loop": null,
+    "dev": "core",
+    "sdd": "core"
   },
   "forceRemoveDeletedPlugins": true,
   "plugins": [
     {
       "name": "core",
       "source": "./plugins/core",
-      "description": "ai-kit core: always-on rules, session discipline, review, GitHub workflow and security",
+      "description": "ai-kit: always-on rules, review, security, code and test standards, Java/Godot stacks and the spec-driven pipeline",
       "version": "11.3.0",
       "category": "productivity"
-    },
-    {
-      "name": "dev",
-      "source": "./plugins/dev",
-      "description": "ai-kit dev: code standards, testing, Java, Godot, Docker, Git LFS and persistence",
-      "version": "11.3.0",
-      "category": "programming"
-    },
-    {
-      "name": "sdd",
-      "source": "./plugins/sdd",
-      "description": "ai-kit SDD: architecture, contracts and the spec-driven pipeline from FEAT to GitHub cards",
-      "version": "11.3.0",
-      "category": "architecture"
     }
   ]
 }

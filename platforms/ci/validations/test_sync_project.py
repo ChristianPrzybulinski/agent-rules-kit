@@ -9,7 +9,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parent.parent.parent / "tools" / "sync-project.sh"
 KIT = SCRIPT.parents[2]
 VERSION = (KIT / "VERSION").read_text(encoding="utf-8").strip()
-DOCS_PLUGINS = {"core", "sdd"}
+MAP = KIT / "platforms" / "tools" / "sync-profiles.txt"  # KIT-047: one plugin, the map picks the copies
 
 STALE = "- agent-rules-kit `kits/java-maven/pom-parent.xml` requires [25,26)"
 
@@ -90,7 +90,7 @@ class SyncProjectCheckTest(unittest.TestCase):
                          {"source": {"source": "github",
                                      "repo": "ChristianPrzybulinski/agent-rules-kit"}})
         ai_kit = {k for k in data["enabledPlugins"] if k.endswith("@ai-kit")}
-        self.assertEqual(ai_kit, {p + "@ai-kit" for p in DOCS_PLUGINS})
+        self.assertEqual(ai_kit, {"core@ai-kit"})
         self.assertTrue(all(data["enabledPlugins"][k] is True for k in ai_kit))
         before = (claude.read_bytes(), settings.read_bytes())
         second = self.run_sync()
@@ -125,10 +125,15 @@ class SyncProjectCheckTest(unittest.TestCase):
             self.assertFalse((repo / ".claude" / "settings.json").exists())
             self.assertFalse((repo / ".github" / "spec-lint").exists())
 
-    def kit_skills(self, plugins):
-        return [(plugin, skill.name) for plugin in sorted(plugins)
-                for skill in sorted((KIT / "plugins" / plugin / "skills").iterdir())
-                if (skill / "SKILL.md").is_file()]
+    def kit_skills(self, profiles):
+        """Skills that sync-profiles.txt sends to any of the profiles; "-" (never vendored) matches "-"."""
+        names = []
+        for line in MAP.read_text().splitlines():
+            if line.startswith("skills/"):
+                entry, receivers = (part.strip() for part in line.split("|"))
+                if set(receivers.split()) & set(profiles):
+                    names.append(entry.split("/", 1)[1])
+        return sorted(names)
 
     def vendor_install(self, *args):
         result = self.run_sync("--vendor-skills", *args)
@@ -136,7 +141,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         return result
 
     def test_vendor_skills_install(self):
-        skills = self.kit_skills(DOCS_PLUGINS - {"core"})  # core loads from the plugin (KIT-002)
+        skills = self.kit_skills({"docs"})
         own = self.repo / ".claude" / "skills" / "review-loop"
         own.mkdir(parents=True)
         (own / "SKILL.md").write_text("mine\n")
@@ -145,14 +150,14 @@ class SyncProjectCheckTest(unittest.TestCase):
         root = self.repo / ".claude" / "skills"
         self.assertEqual(len(list(root.glob("*/.agent-rules-kit"))), len(skills))
         manifest = json.loads((root / "KIT_MANIFEST.json").read_text())
-        kit_files = sum(f.is_file() for plugin, name in skills
-                        for f in (KIT / "plugins" / plugin / "skills" / name).rglob("*"))
+        kit_files = sum(f.is_file() for name in skills
+                        for f in (KIT / "plugins" / "core" / "skills" / name).rglob("*"))
         self.assertEqual((manifest["KIT_VERSION"], manifest["profile"]), (VERSION, "docs"))
         self.assertEqual(len(manifest["skills"]), len(skills))
         self.assertEqual(sum(len(s["files"]) for s in manifest["skills"].values()),
                          kit_files + len(skills))
-        for plugin, name in skills:
-            kit_dir = KIT / "plugins" / plugin / "skills" / name
+        for name in skills:
+            kit_dir = KIT / "plugins" / "core" / "skills" / name
             want = {f.relative_to(kit_dir) for f in kit_dir.rglob("*") if f.is_file()}
             got = {f.relative_to(root / name) for f in (root / name).rglob("*") if f.is_file()}
             self.assertEqual(got - want, {Path(".agent-rules-kit")}, name)
@@ -161,7 +166,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         settings = json.loads((self.repo / ".claude" / "settings.json").read_text())
         self.assertEqual({k for k in settings["enabledPlugins"] if k.endswith("@ai-kit")},
                          {"core@ai-kit"})
-        for _, name in self.kit_skills({"core"}):  # enabled as a plugin, so never vendored too
+        for name in self.kit_skills({"-"}):  # always on: loads from the plugin, so never vendored too
             self.assertFalse((root / name).exists(), name)
 
     def test_vendor_skills_idempotent_and_check_passes(self):
@@ -177,7 +182,7 @@ class SyncProjectCheckTest(unittest.TestCase):
 
     def test_vendor_skills_check_detects_drift(self):
         self.vendor_install()
-        name = self.kit_skills({"sdd"})[0][1]
+        name = self.kit_skills({"docs"})[0]
         with (self.repo / ".claude" / "skills" / name / "SKILL.md").open("a") as fh:
             fh.write("x")
         result = self.run_sync("--check")
@@ -192,7 +197,7 @@ class SyncProjectCheckTest(unittest.TestCase):
     def test_vendor_skills_profile_switch(self):
         self.vendor_install("--profile", "docs,godot")
         root = self.repo / ".claude" / "skills"
-        kept = self.kit_skills({"dev"})[0][1]  # in both profiles, so rewritten whole
+        kept = self.kit_skills({"godot"})[0]  # in both profiles, so rewritten whole
         (root / kept / "extra.txt").write_text("x\n")
         (root / "review-loop").mkdir()
         (root / "review-loop" / "SKILL.md").write_text("mine\n")
@@ -210,39 +215,53 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rules = self.repo / ".claude" / "rules"
         self.assertEqual(sorted(p.name for p in rules.glob("*.md")),
-                         ["dev-godot.md", "dev-java.md", "dev-python.md", "sdd-spec.md"])
-        self.assertIn('  - "client/**/*.gd"', (rules / "dev-godot.md").read_text().splitlines())
-        self.assertIn('  - "server/**/*.java"', (rules / "dev-java.md").read_text().splitlines())
-        self.assertIn('  - "docs/spec/**/*.md"', (rules / "sdd-spec.md").read_text().splitlines())
-        # both rules come from plugin dev; each takes only the folder of the profile it is named after
-        self.assertNotIn("server/", (rules / "dev-godot.md").read_text())
-        self.assertNotIn("client/", (rules / "dev-java.md").read_text())
+                         ["core-godot.md", "core-java.md", "core-python.md", "core-spec.md"])
+        self.assertIn('  - "client/**/*.gd"', (rules / "core-godot.md").read_text().splitlines())
+        self.assertIn('  - "server/**/*.java"', (rules / "core-java.md").read_text().splitlines())
+        self.assertIn('  - "docs/spec/**/*.md"', (rules / "core-spec.md").read_text().splitlines())
+        # the map sends both rules to every godot, java or python profile; each takes only the folder
+        # of the profile it is named after
+        self.assertNotIn("server/", (rules / "core-godot.md").read_text())
+        self.assertNotIn("client/", (rules / "core-java.md").read_text())
         settings = json.loads((self.repo / ".claude" / "settings.json").read_text())
-        godot_java = {"dev"}
         self.assertEqual({k for k in settings["enabledPlugins"] if k.endswith("@ai-kit")},
-                         {p + "@ai-kit" for p in DOCS_PLUGINS | godot_java})
+                         {"core@ai-kit"})
         check = self.run_sync("--check", "--profile", "docs,godot:client,java:server")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
         single = self.run_sync("--check", "--profile", "docs")
         self.assertEqual(single.returncode, 1)
-        self.assertIn("dev-java.md is generated but not in profile", single.stdout)
+        self.assertIn("core-java.md is generated but not in profile", single.stdout)
         alone = self.run_sync("--profile", "godot:client")
         self.assertEqual(alone.returncode, 0, alone.stdout + alone.stderr)
-        # no java profile: the java rule takes the folders of every profile that includes plugin dev
-        self.assertIn('  - "client/**/*.java"', (rules / "dev-java.md").read_text().splitlines())
+        # no java profile: the java rule takes the folders of every profile the map sends it to
+        self.assertIn('  - "client/**/*.java"', (rules / "core-java.md").read_text().splitlines())
 
     def test_python_profile_scopes_the_python_rule(self):  # KIT-045
         result = self.run_sync("--profile", "docs,godot:client,java:server,python:platform,python:tools")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rules = self.repo / ".claude" / "rules"
-        python_rule = (rules / "dev-python.md").read_text().splitlines()
+        python_rule = (rules / "core-python.md").read_text().splitlines()
         for glob in ("platform/**/*.py", "tools/**/*.py", "platform/**/pyproject.toml"):
             self.assertIn(f'  - "{glob}"', python_rule)
         self.assertNotIn("client/", "\n".join(python_rule))
-        self.assertNotIn("platform/", (rules / "dev-godot.md").read_text())
-        self.assertNotIn("platform/", (rules / "dev-java.md").read_text())
+        self.assertNotIn("platform/", (rules / "core-godot.md").read_text())
+        self.assertNotIn("platform/", (rules / "core-java.md").read_text())
         check = self.run_sync("--check", "--profile", "python:tools,docs,python:platform,godot:client,java:server")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    def test_rule_from_the_old_plugin_name_is_replaced(self):  # KIT-047
+        result = self.run_sync("--profile", "docs,godot")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rules = self.repo / ".claude" / "rules"
+        old = rules / "dev-godot.md"
+        old.write_text((rules / "core-godot.md").read_text())
+        check = self.run_sync("--check", "--profile", "docs,godot")
+        self.assertEqual(check.returncode, 1)
+        self.assertIn("dev-godot.md is generated but not in profile", check.stdout)
+        write = self.run_sync("--profile", "docs,godot")
+        self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
+        self.assertFalse(old.exists())
+        self.assertTrue((rules / "core-godot.md").is_file())
 
     def test_multi_profile_rejects_unknown_profile_and_outside_folder(self):
         for value in ("docs,rust", "godot:../client", "godot:/client", "docs,"):
@@ -274,7 +293,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         write = self.run_sync("--profile", "docs")
         self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
         self.assertIn("sync: removed .claude/skills/godot-standards (not in profile)", write.stdout)
-        self.assertFalse((self.repo / ".claude" / "rules" / "dev-godot.md").exists())
+        self.assertFalse((self.repo / ".claude" / "rules" / "core-godot.md").exists())
         manifest = json.loads((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").read_text())
         self.assertEqual(manifest["profile"], "docs")
         bare = self.run_sync("--check")
