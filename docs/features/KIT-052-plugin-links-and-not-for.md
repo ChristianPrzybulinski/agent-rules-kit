@@ -1,9 +1,9 @@
 ---
 id: KIT-052
 title: "check_kit.py fails a link that leaves its plugin and a skill description without 'Not for'"
-status: confirmed
+status: done
 confirmed: "2026-11-12 (owner, kit review of 100 repositories, lane E brief relayed by the coordinating session)"
-issue: ""
+issue: "#184"
 pr: "#183"
 ---
 
