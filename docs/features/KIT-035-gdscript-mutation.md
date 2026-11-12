@@ -45,7 +45,8 @@ re-checked at kit `49b2137`, stratics-client `f98e0091` and stratics-server `5bc
 
 T1 (#145) added this file, its row in `docs/features/README.md` and one CHANGELOG line. T2–T4 add
 `platforms/tools/gd_mutation.py`, `platforms/ci/validations/test_gd_mutation.py`, the tool's row in
-`platforms/tools/README.md` and one CHANGELOG line. No skill or gate changes before T7.
+`platforms/tools/README.md` and one CHANGELOG line. T5 changes the same tool, its test and its row and adds one
+CHANGELOG line. No skill or gate changes before T7.
 
 The tool, `platforms/tools/gd_mutation.py` (Python 3.9+, gdtoolkit 4.5.0, our own code, D3); steps 1–5 and 8 are
 built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T3 has `--workers N`, default 1):
@@ -79,9 +80,11 @@ built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T
    "Overall Summary" of one test case or more), *timed out*, *invalid* (the mutant does not load: exit 105, or a parse
    or compile error before the tests run) and *error* (anything else). The score is killed plus timed out over killed,
    timed out and survived; invalid mutants stay out of it.
-6. **Differential.** Each function's result is cached by a hash of its normalised text together with the hashes of
-   its selected test files, so a function whose hash did not change keeps its last result (ub-mode's idea), and a new
-   test makes it run again.
+6. **Differential.** Each mutant's result is cached under a hash of its function's path, name and text (line ends
+   and trailing blanks aside) together with the `res://` path and content hash of each selected test file, and its
+   place in the function, so a function whose hash did not change keeps its last result (ub-mode's idea) on whatever
+   lines it moves to, a new or changed test makes it run again, and a second run with nothing changed starts no
+   Godot. `--cache FILE` moves the cache and `--no-cache` runs every mutant.
 7. **Workers.** Parallel workers, each starting a mutant only while the one-minute load average is below the core
    count and fewer than 2 gate runs hold the host (the loop's gates count).
 8. **Output.** One survivor per line on stdout, `path:line function OPERATOR from → to`, then a summary with the score
@@ -156,6 +159,27 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
   `end`): a line with a hit runs, a line whose statements all have 0 hits is "no coverage", and a line the report does
   not measure (no statement, or `null` hits) runs and is counted in one notice, over skipping it, because an
   unmeasured line is unknown, not uncovered.
+
+- 2026-11-12 T5: chose one cache file at `$XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json` (default `~/.cache`),
+  beside `gd_duplicates.py`'s `ai-kit/gd-duplicates`, over a file under `.git` or the checkout, because the key holds
+  the function's path from the Git top and its text, not the folder, so clones and worktrees of one repository share
+  results, and the tool still writes nothing in the checkout.
+- 2026-11-12 T5: chose to keep killed, survived, timed out and invalid only over every status, because those are the
+  mutant's verdict against its tests, while error, not run, no coverage and no tests come from the host, the
+  unmutated run or that run's coverage report; a mutant that ended in error runs again.
+- 2026-11-12 T5: chose to leave Godot's version, the rest of the file and the rest of the project out of the key over
+  adding them, because reading Godot's version starts Godot, so a run with nothing changed would start one, and a
+  whole-file hash reruns every function of a file when one changes, which is what the cache avoids. A change
+  elsewhere that turns a result (a helper, a constant, Godot itself) keeps the old result until the function or a
+  selected test changes; `--no-cache` measures again, and `CACHE_VERSION` drops the whole file when an operator or a
+  status rule changes.
+- 2026-11-12 T5: chose the mutant's place as its line offset in the function, column, replaced length, operator and
+  new text over its line number, because a function that moves to other lines (an edit above it) keeps its results;
+  the place still names one edit, so a different gdtoolkit cannot give a cached status to another mutant.
+- 2026-11-12 T5: chose to keep the 5000 functions used last, merged under an `flock` on `cache.json.lock` and replaced
+  whole (`os.replace`), over an unbounded file written in place, because two runs on one host may save at once and a
+  cut-off write must not leave half a file; a cache that cannot be read or written prints a notice and every mutant
+  runs.
 
 ## Measurements
 
@@ -239,6 +263,26 @@ is no longer generated, so T3's done-when holds. Of T3's other mutants:
   two loop batches.
 - No test was added: nothing in the client is edited here.
 
+T5 (2026-11-12, 15:20 to 15:22): T3's command with `--cache <scratch>/cache.json`, run twice in a row from `client/`
+of the same stratics-docs clone at `ac649c10c`, with `GODOT` set to a wrapper that logged each call and then ran Godot
+4.7.2.stable.official.ed1daf0bf; `nice -n 10`, `TMPDIR` in a new `mktemp -d` folder (the tool puts Godot's `HOME`
+there), one worker. No loop gate and no other Godot run held the host (load average 4.2).
+
+| Run | Godot calls | Wall | Statuses | Score |
+|---|---|---|---|---|
+| 1, empty cache | 103: `--version`, one `--import`, one unmutated run, 100 mutants | 142 s (1.13 s generating, 18.62 s import, 111.8 s mutants) | 92 killed, 7 survived, 1 invalid | 92.9 % |
+| 2, nothing changed | 0 | 5 s (1.29 s generating; the rest is the archive, 4,565 LFS pointers filled) | the same, mutant for mutant, each `"cached": true` | 92.9 % |
+
+- Run 2 printed "100 mutant(s) not run: their result is in the cache … and neither their function nor its tests
+  changed"; its stdout (the 7 survivors) is byte for byte run 1's, and its JSON has `"godot": null` and no unmutated
+  run. T5's done-when holds.
+- The cache held 6 functions and 100 mutants in 9,806 bytes, about 1.6 KB per function, so the 5000-function cap is
+  about 8 MB.
+- The clone's `git status --short` was empty after both runs, and so was the scratch folder (the copy removed).
+- Not run on the client: a change to one function or to the test file, since nothing in the client is edited here.
+  `test_gd_mutation.py` covers both with a stub Godot: a moved function keeps its results, a changed one and a changed
+  test run again.
+
 ## Proof
 
 Run from the worktree root at `6614325` on 2026-11-11 (the commits after it change only this document and
@@ -275,5 +319,7 @@ only this document); every command exited 0:
 - 2026-11-11: implementation prompt launched; issue #137; T1 spike run.
 - 2026-11-11: specification and T1 spike in #145, which refers to #137 and leaves it open.
 - 2026-11-12: the owner approved T2 onward of KIT-034 and KIT-035 in chat ("Sim, KIT-034 primeiro"), KIT-035 after
-  KIT-034 T4 merged (`86a4564`, #191); T2–T4 implemented and T3 measured against T1 in this PR, which refers to #137
+  KIT-034 T4 merged (`86a4564`, #191); T2–T4 implemented and T3 measured against T1 in #192, which refers to #137
   and leaves it open.
+- 2026-11-12: T5 (the differential cache) implemented and measured on the client in its own PR, stacked on #192, which
+  refers to #137 and leaves it open.

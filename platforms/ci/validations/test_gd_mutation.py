@@ -1,4 +1,5 @@
-"""gd_mutation.py: PIT's default operators on the GDScript tree, the runner with a stub Godot and the coverage join."""
+"""gd_mutation.py: PIT's default operators on the GDScript tree, the runner with a stub Godot, the coverage join and
+the differential cache."""
 import importlib.util
 import json
 import os
@@ -213,6 +214,7 @@ STATUSES = [("add", 6, "PRIMITIVE_RETURNS", "invalid"), ("add", 6, "MATH", "kill
             ("sign_of", 10, "NEGATE_CONDITIONALS", "timed out"), ("sign_of", 10, "CONDITIONALS_BOUNDARY", "survived"),
             ("sign_of", 11, "PRIMITIVE_RETURNS", "invalid"), ("sign_of", 12, "PRIMITIVE_RETURNS", "error")]
 SURVIVOR = "client/app/calc.gd:10 sign_of CONDITIONALS_BOUNDARY n < 0 → n <= 0"
+NO_ERROR = json.dumps({k: v for k, v in RULES.items() if v != "2"})  # that mutant survives: every result is kept
 
 
 class RunnerTest(unittest.TestCase):
@@ -232,7 +234,8 @@ class RunnerTest(unittest.TestCase):
                     "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com",
                     "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com",
                     "GODOT": str(stub), "TMPDIR": str(self.scratch), "STUB_LOG": str(self.log),
-                    "STUB_RULES": json.dumps(RULES), "STUB_CHILD": str(self.child), "STUB_PAUSE": "0.2"}
+                    "STUB_RULES": json.dumps(RULES), "STUB_CHILD": str(self.child), "STUB_PAUSE": "0.2",
+                    "XDG_CACHE_HOME": str(root / "cache")}
         self.git("init", "-q", "-b", "main", str(self.repo), cwd=self.tmp.name)
         self.project = self.repo / "client"
         self.write("project.godot", PROJECT)
@@ -440,6 +443,121 @@ class RunnerTest(unittest.TestCase):
         self.assertIn("addons/gdUnit4/bin/GdUnitCmdTool.gd is not in the project", result.stderr)
         self.assertEqual(self.calls(), [])
         self.assert_no_leftovers()
+
+    def cached_run(self, *args, **env):
+        """A run of calc.gd that must exit 0, and the Godot calls it made."""
+        before = len(self.calls())
+        result = self.run_tool("app/calc.gd", "--json", str(self.out), *args, **env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result, self.calls()[before:]
+
+    @NEEDS_PARSER
+    def test_second_run_with_nothing_changed_starts_no_godot(self):
+        first, _ = self.cached_run(STUB_RULES=NO_ERROR)
+        second, calls = self.cached_run(STUB_RULES=NO_ERROR)
+        self.assertEqual(calls, [])
+        self.assertEqual(second.stdout, first.stdout)
+        self.assertIn("6 mutant(s) not run: their result is in the cache", second.stderr)
+        data, statuses = self.statuses()
+        self.assertEqual(statuses, STATUSES[:5] + [("sign_of", 12, "PRIMITIVE_RETURNS", "survived")])
+        self.assertEqual([m["exit"] for m in data["mutants"]], [105, 100, None, 0, 1, 0])
+        self.assertTrue(all(m["cached"] for m in data["mutants"]))
+        self.assertEqual((data["godot"], data["cached"], data["baselines"], data["score"]), (None, 6, [], 0.5))
+        self.assertEqual(data["cache"], os.path.join(self.tmp.name, "cache", "ai-kit", "gd-mutation", "cache.json"))
+        self.assert_no_leftovers()
+
+    @NEEDS_PARSER
+    def test_an_error_runs_again(self):
+        self.cached_run()
+        _, (version, imported, unmutated, rerun) = self.cached_run()
+        self.assertIn("-1\n\treturn 0", rerun["text"])
+        self.assertEqual(self.statuses()[1], STATUSES)
+        self.assertEqual([m["cached"] for m in self.statuses()[0]["mutants"]], [True] * 5 + [False])
+
+    @NEEDS_PARSER
+    def test_a_moved_function_keeps_its_results_and_a_changed_function_or_test_runs_again(self):
+        self.cached_run(STUB_RULES=NO_ERROR)
+        self.write("app/calc.gd", CALC.replace("-> int:\n\treturn a + b", "-> int:\n\tvar unused := 0\n\treturn a + b"))
+        self.commit("add changes, sign_of moves one line down")
+        _, calls = self.cached_run(STUB_RULES=NO_ERROR)
+        self.assertEqual(len(calls), 3 + 2)
+        self.assertTrue(all("var unused" in call["text"] and "a + b" not in call["text"] for call in calls[3:]))
+        moved = [("add", 7, "PRIMITIVE_RETURNS", "invalid"), ("add", 7, "MATH", "killed"),
+                 ("sign_of", 11, "NEGATE_CONDITIONALS", "timed out"),
+                 ("sign_of", 11, "CONDITIONALS_BOUNDARY", "survived"), ("sign_of", 12, "PRIMITIVE_RETURNS", "invalid"),
+                 ("sign_of", 13, "PRIMITIVE_RETURNS", "survived")]
+        data, statuses = self.statuses()
+        self.assertEqual(statuses, moved)
+        self.assertEqual([m["cached"] for m in data["mutants"]], [False, False, True, True, True, True])
+        self.write("tests/calc_test.gd", SUITE + "\n\nfunc test_sign() -> void:\n\tpass\n")
+        self.commit("a new test")
+        _, calls = self.cached_run(STUB_RULES=NO_ERROR)
+        self.assertEqual(len(calls), 3 + 6)
+        data, statuses = self.statuses()
+        self.assertEqual((statuses, data["cached"]), (moved, 0))
+
+    @NEEDS_PARSER
+    def test_no_cache_runs_every_mutant_and_leaves_the_cache_alone(self):
+        cache = Path(self.tmp.name) / "own" / "cache.json"
+        self.cached_run("--cache", str(cache), STUB_RULES="{}")
+        kept = cache.read_bytes()
+        _, calls = self.cached_run("--cache", str(cache), "--no-cache", STUB_RULES="{}")
+        self.assertEqual(len(calls), 3 + 6)
+        self.assertEqual(cache.read_bytes(), kept)
+        self.assertEqual((self.statuses()[0]["cache"], self.statuses()[0]["cached"]), (None, 0))
+        self.assertFalse((Path(self.tmp.name) / "cache").exists())
+
+    @NEEDS_PARSER
+    def test_a_cache_that_cannot_be_read_or_written_runs_every_mutant(self):
+        cache = Path(self.tmp.name) / "cache.json"
+        cache.write_text("{")
+        result, calls = self.cached_run("--cache", str(cache), STUB_RULES="{}")
+        self.assertIn("cache.json not read (JSONDecodeError); every mutant runs", result.stderr)
+        self.assertEqual(len(calls), 3 + 6)
+        self.assertEqual(len(gd_mutation.load_cache(cache)), 2)
+        blocked = Path(self.tmp.name) / "a-file" / "cache.json"
+        blocked.parent.write_text("")
+        result, calls = self.cached_run("--cache", str(blocked), STUB_RULES="{}")
+        self.assertIn("not read (NotADirectoryError); every mutant runs", result.stderr)
+        self.assertIn("a-file/cache.json not written: FileExistsError", result.stderr)
+        self.assertEqual(len(calls), 3 + 6)
+
+
+def mutant(key, status="killed", cached=False, span=(1, 2)):
+    found = gd_mutation.Mutant("client/p.gd", "p.gd", "f", 2, 9, "MATH", "a + b", "a - b", 10, 11, "-", span=span,
+                               status=status, exit=100, seconds=1.0, tests=["res://tests/p_test.gd"])
+    found.key, found.cached = key, cached
+    return found
+
+
+class CacheFileTest(unittest.TestCase):
+    """The cache file and the function key, without Godot or gdtoolkit."""
+
+    def test_key_ignores_where_the_function_is_and_trailing_blanks_but_not_its_text_or_tests(self):
+        hashes = {"res://tests/p_test.gd": "1"}
+        key = gd_mutation.function_key(mutant("", span=(2, 3)), ["", "func f():  ", "\treturn a + b\r"], hashes)
+        self.assertEqual(key, gd_mutation.function_key(mutant(""), ["func f():", "\treturn a + b"], hashes))
+        self.assertNotEqual(key, gd_mutation.function_key(mutant(""), ["func f():", "\treturn a+b"], hashes))
+        self.assertNotEqual(key, gd_mutation.function_key(mutant(""), ["func f():", "\treturn a + b"],
+                                                          {"res://tests/p_test.gd": "2"}))
+        self.assertEqual(mutant("", span=(2, 3)).place(), "0:9:1:MATH:-")
+
+    def test_a_save_merges_with_other_runs_and_keeps_the_functions_used_last(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "c" / "cache.json"
+            with mock.patch.object(gd_mutation, "CACHE_FUNCTIONS", 2), \
+                    mock.patch.object(gd_mutation.time, "time", side_effect=[1.0, 2.0, 3.0, 4.0]):
+                gd_mutation.save_cache(path, [mutant("a")], "s1")
+                gd_mutation.save_cache(path, [mutant("b"), mutant("x", status="error")], "s2")
+                gd_mutation.save_cache(path, [mutant("a", status="survived", cached=True)], "s3")
+                gd_mutation.save_cache(path, [mutant("c", status="timed out")], "s4")
+            entries = gd_mutation.load_cache(path)
+            self.assertEqual(sorted(entries), ["a", "c"])
+            self.assertEqual({k: (e["ref"], e["used"]) for k, e in entries.items()}, {"a": ("s1", 3.0),
+                                                                                       "c": ("s4", 4.0)})
+            self.assertEqual(entries["a"]["mutants"], {"1:9:1:MATH:-": {"status": "killed", "exit": 100,
+                                                                         "seconds": 1.0}})
+            self.assertEqual(sorted(p.name for p in path.parent.iterdir()), ["cache.json", "cache.json.lock"])
 
 
 if __name__ == "__main__":
