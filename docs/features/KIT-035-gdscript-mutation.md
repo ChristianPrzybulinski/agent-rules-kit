@@ -417,6 +417,30 @@ T5 after merging `main` `dfaff73` and the review of #195: run from the worktree 
   tests in 62.054s", "FAILED (failures=2, errors=1)". The slow-host test and `save_cache`'s test find "timed out"
   kept; the error-or-timed-out test finds one rerun where two are expected.
 
+T7: run from the worktree root at `06194f0` on 2026-11-12, on `origin/main` `aae87f4`; the commit after it changes
+only this document and its sibling record; every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `env KIT_GDUNIT4=<a gdUnit4 addons/gdUnit4 folder> nice -n 10 python3 -B -m unittest discover -s
+  platforms/ci/validations -p "test_*.py"`: "Ran 183 tests in 333.766s", "OK (skipped=1)".
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~7048 bytes (7.05 KB) in
+  65.2ms", "no leaks found".
+- Size caps: `plugins/core/skills/testing/SKILL.md` 72 lines and `plugins/core/skills/code-standards/SKILL.md` 79
+  (cap 80), `testable-game-logic.md` 29 (cap 60); `git diff aae87f4 -- 'plugins/core/skills/*/SKILL.md' | grep
+  '^[-+]description'` prints nothing.
+- `claude plugin eval plugins --case 'testing-gdscript-mutation-command' --runs 1 --ablation none --no-publish
+  --trust-plugin --output-dir <scratch>`, logged in, Claude Code 2.1.287: "score 1.00"; "✓ command (weight 1): matched
+  gd_mutation\.py", "✓ coverage-report (weight 1): matched --coverage", "✓ no-cache (weight 1): matched --no-cache",
+  "✓ skill-fired (weight 1): Skill called 1x (expected 1..∞)"; the aggregate reads `"partial": false`,
+  `casesPassed: 1`. One run: the case can pass, no pass rate yet.
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
@@ -433,3 +457,5 @@ T5 after merging `main` `dfaff73` and the review of #195: run from the worktree 
   stays out of the cache and the timeout out of the key (§ Decisions).
 - 2026-11-12: #192 merged on `main` as `af9bb69` (squash); `main` `dfaff73` (with #194) merged into T5 at
   `ac2887a`; the review of #195 left "timed out" out of the cache (§ Decisions).
+- 2026-11-12: T7 (skill `testing` § 1 names `gd_mutation.py`, `--coverage` and `--no-cache`; eval case
+  `testing-gdscript-mutation-command`) in #196, with KIT-034 T6; it refers to #137 and leaves it open.

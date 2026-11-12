@@ -508,6 +508,30 @@ command exited 0:
   54.3ms", "no leaks found".
 - `git merge-tree --write-tree HEAD origin/main` against `86a4564`: no conflict.
 
+T6: run from the worktree root at `06194f0` on 2026-11-12, on `origin/main` `aae87f4`; the commit after it changes
+only this document and its sibling record; every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `env KIT_GDUNIT4=<a gdUnit4 addons/gdUnit4 folder> nice -n 10 python3 -B -m unittest discover -s
+  platforms/ci/validations -p "test_*.py"`: "Ran 183 tests in 333.766s", "OK (skipped=1)".
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~7048 bytes (7.05 KB) in
+  65.2ms", "no leaks found".
+- Size caps: `plugins/core/skills/testing/SKILL.md` 72 lines and `plugins/core/skills/code-standards/SKILL.md` 79
+  (cap 80), `testable-game-logic.md` 29 (cap 60); `git diff aae87f4 -- 'plugins/core/skills/*/SKILL.md' | grep
+  '^[-+]description'` prints nothing.
+- `claude plugin eval plugins --case 'testing-gdscript-coverage-command' --runs 1 --ablation none --no-publish
+  --trust-plugin --output-dir <scratch>`, logged in, Claude Code 2.1.287: "score 1.00"; "✓ command (weight 1): matched
+  gd_coverage\.py", "✓ ignore-autoload-suite (weight 1): matched --ignore", "✓ skill-fired (weight 1): Skill called 1x
+  (expected 1..∞)"; the aggregate reads `"partial": false`, `casesPassed: 1`. One run: the case can pass, no pass
+  rate yet.
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
@@ -518,3 +542,5 @@ command exited 0:
 - 2026-11-12: `--ignore` and a counted run on the monorepo `client/` in #193, which refers to #136 and leaves it
   open.
 - 2026-11-12: T5 (`complexity.py --gd-coverage`) in #194, stacked on #193; it refers to #136 and leaves it open.
+- 2026-11-12: T6 (skill `testing` § 1 names `gd_coverage.py`, `code-standards` § 3 reads CRAP for GDScript, eval
+  case `testing-gdscript-coverage-command`) in #196, with KIT-035 T7; it refers to #136 and leaves it open.
