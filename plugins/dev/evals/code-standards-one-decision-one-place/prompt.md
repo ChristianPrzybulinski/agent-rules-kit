@@ -1,6 +1,7 @@
 ---
 description: A threshold copied into two files moves to one owner instead of two edits.
 tags: [ready]
+plugins: [../.., ../../../core]
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---

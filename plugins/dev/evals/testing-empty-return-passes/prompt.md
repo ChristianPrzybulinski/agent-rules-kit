@@ -1,6 +1,7 @@
 ---
 description: A test that passes when the function returns zero is rewritten with the expected value.
 tags: [ready]
+plugins: [../.., ../../../core]
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---

@@ -63,5 +63,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-038-three-plugins.md`](KIT-038-three-plugins.md) | done | #151 | #153 |
 | [`KIT-039-skill-merges.md`](KIT-039-skill-merges.md) | done | #154 | #155 |
 | [`KIT-040-ceremony-cut.md`](KIT-040-ceremony-cut.md) | done | #150 | #152 |
+| [`KIT-041-eval-plugin-deps.md`](KIT-041-eval-plugin-deps.md) | done | #156 | #158 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

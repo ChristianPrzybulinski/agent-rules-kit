@@ -1,6 +1,7 @@
 ---
 description: A passing --quit exit code is not a boot proof.
 tags: [ready]
+plugins: [../.., ../../../core]
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
