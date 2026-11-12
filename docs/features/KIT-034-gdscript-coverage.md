@@ -483,6 +483,26 @@ only this document); every command exited 0:
   39.1ms", "no leaks found".
 - `git merge-tree --write-tree HEAD origin/main` against `86a4564` (#191): no conflict.
 
+T5: run from the worktree root at `581e31a` on 2026-11-12 (the commit after it changes only this document); every
+command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 149 tests in 150.372s", "OK
+  (skipped=5)"; 4 of the 5 skips are `test_gd_coverage.py` `GodotTest`, which needs `KIT_GDUNIT4`.
+  `python3 -B -m unittest test_complexity` in `platforms/ci/validations`: "Ran 12 tests", "OK".
+- `env KIT_GDUNIT4=<a gdUnit4 6.2.1 addons/gdUnit4 folder> nice -n 10 python3 -B -m unittest -v test_gd_coverage` in
+  `platforms/ci/validations`, with Godot 4.7.2 and gdtoolkit 4.5.0: "Ran 23 tests in 40.200s", "OK", no skip.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "3 commits scanned.", "scanned ~25510 bytes (25.51 KB) in
+  54.3ms", "no leaks found".
+- `git merge-tree --write-tree HEAD origin/main` against `86a4564`: no conflict.
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
@@ -492,3 +512,4 @@ only this document); every command exited 0:
   T2–T4 implemented and the whole client suite measured in #191, which refers to #136 and leaves it open.
 - 2026-11-12: `--ignore` and a counted run on the monorepo `client/` in #193, which refers to #136 and leaves it
   open.
+- 2026-11-12: T5 (`complexity.py --gd-coverage`) in #194, stacked on #193; it refers to #136 and leaves it open.
