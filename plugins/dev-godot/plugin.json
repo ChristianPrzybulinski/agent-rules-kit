@@ -1,6 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "dev-godot",
-  "version": "11.3.0",
-  "description": "ai-kit Godot: Godot 2D, GDScript and pixel-art pipeline standards"
-}

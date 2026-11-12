@@ -1,0 +1,12 @@
+{
+  "name": "sdd",
+  "version": "11.3.0",
+  "description": "ai-kit SDD: architecture, contracts and the spec-driven pipeline from FEAT to GitHub cards",
+  "requiredPlugins": [
+    {
+      "source": "git-subdir",
+      "url": "https://github.com/ChristianPrzybulinski/agent-rules-kit.git",
+      "path": "plugins/core"
+    }
+  ]
+}

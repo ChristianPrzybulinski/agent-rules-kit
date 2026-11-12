@@ -1,6 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "extras",
-  "version": "11.3.0",
-  "description": "ai-kit extras: opt-in skills outside the default install (frontend-design, krita, dbeaver, find-skills, skill-creator)"
-}

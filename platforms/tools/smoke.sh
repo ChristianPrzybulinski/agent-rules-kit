@@ -360,10 +360,14 @@ grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-install.out
   || fail "stub exposed-skill count was not reported"
 grep -Fq 'fix: claude marketplace ai-kit registered' "$ROOT/doctor-stub-install.out" \
   || fail "Claude marketplace add was not reported"
-grep -Fq 'fix: claude bundle all@ai-kit installed' "$ROOT/doctor-stub-install.out" \
-  || fail "Claude bundle install was not reported"
-[[ -f "$STUB_STATE/claude-marketplace" && -f "$STUB_STATE/claude-plugins/all" ]] \
-  || fail "Claude stub install markers missing"
+claude_fixes="$(grep -c 'fix: claude plugin .*@ai-kit installed' "$ROOT/doctor-stub-install.out" || true)"
+[[ "$claude_fixes" == "$plugin_total" ]] \
+  || fail "$claude_fixes Claude plugin installs reported, expected $plugin_total"
+for plugin_dir in "$STUB_HOME/.ai-kit"/plugins/*/; do
+  [[ -f "$STUB_STATE/claude-plugins/$(basename "$plugin_dir")" ]] \
+    || fail "Claude stub install marker missing for $(basename "$plugin_dir")"
+done
+[[ -f "$STUB_STATE/claude-marketplace" ]] || fail "Claude stub marketplace marker missing"
 [[ "$(readlink "$STUB_HOME/.claude/CLAUDE.md")" == "$STUB_HOME/.ai-kit/plugins/core/AGENTS.md" ]] \
   || fail "Claude CLAUDE.md symlink has the wrong target"
 grep -Fq "fix: claude autoCompactWindow set to 200k in $STUB_HOME/.claude/settings.json (KIT-010)" \
@@ -452,14 +456,14 @@ grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-remove.out"
   || fail "stub re-exposure count was not reported"
 
 # KIT-013: a cache that differs from the kit without a version bump is reported, then reinstalled.
-printf 'stale\n' >> "$STUB_STATE/claude-cache/all/INDEX.md"
+printf 'stale\n' >> "$STUB_STATE/claude-cache/core/INDEX.md"
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
     AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
     "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-stale.out" 2>&1; then
   cat "$ROOT/doctor-stub-stale.out" >&2
   fail "doctor failed with a stale Claude plugin cache"
 fi
-grep -Fq 'warn: claude plugin all@ai-kit cache differs from the kit — run platforms/tools/refresh.sh' \
+grep -Fq 'warn: claude plugin core@ai-kit cache differs from the kit — run platforms/tools/refresh.sh' \
   "$ROOT/doctor-stub-stale.out" || fail "doctor did not warn about the stale Claude plugin cache"
 
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
@@ -470,12 +474,12 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 [[ -f "$STUB_STATE/upgrade" ]] || fail "refresh did not upgrade the stub marketplace"
 [[ -f "$STUB_STATE/claude-marketplace-update" ]] || fail "refresh did not update the Claude marketplace"
-[[ -f "$STUB_STATE/claude-plugin-updates/all" ]] || fail "refresh did not update the Claude bundle plugin"
-[[ -f "$STUB_STATE/claude-uninstalls/all" && -f "$STUB_STATE/claude-plugins/all" ]] \
-  || fail "refresh did not reinstall the stale Claude bundle plugin"
-grep -Fq 'refresh: reinstalled Claude plugin all@ai-kit (cache differed from the kit)' "$ROOT/refresh-stub.out" \
+[[ -f "$STUB_STATE/claude-plugin-updates/core" ]] || fail "refresh did not update the Claude core plugin"
+[[ -f "$STUB_STATE/claude-uninstalls/core" && -f "$STUB_STATE/claude-plugins/core" ]] \
+  || fail "refresh did not reinstall the stale Claude core plugin"
+grep -Fq 'refresh: reinstalled Claude plugin core@ai-kit (cache differed from the kit)' "$ROOT/refresh-stub.out" \
   || fail "refresh did not report the Claude reinstall"
-diff -rq -x .in_use "$STUB_HOME/.ai-kit/plugins/all" "$STUB_STATE/claude-cache/all" >/dev/null \
+diff -rq -x .in_use "$STUB_HOME/.ai-kit/plugins/core" "$STUB_STATE/claude-cache/core" >/dev/null \
   || fail "reinstalled Claude cache still differs from the kit"
 
 rm -rf "$STUB_STATE/claude-uninstalls"
@@ -570,7 +574,7 @@ cp "$SOURCE/plugins/core/hooks/hooks.json" "$SOURCE/plugins/core/hooks.json"
 expect_validator_failure "root hooks.json" "hooks.json is forbidden"
 rm "$SOURCE/plugins/core/hooks.json"
 
-skill="$SOURCE/plugins/dev-godot/skills/asset-import/SKILL.md"
+skill="$SOURCE/plugins/dev/skills/asset-import/SKILL.md"
 cp "$skill" "$ROOT/asset-import.before"
 python3 - "$skill" <<'PY'
 from pathlib import Path
@@ -581,7 +585,7 @@ PY
 expect_validator_failure "user-only Claude parity" "user-only parity requires"
 cp "$ROOT/asset-import.before" "$skill"
 
-profile="$SOURCE/plugins/architect-sdd/agents/researcher.md"
+profile="$SOURCE/plugins/sdd/agents/researcher.md"
 cp "$profile" "$ROOT/researcher.before"
 python3 - "$profile" <<'PY'
 from pathlib import Path
@@ -603,18 +607,15 @@ repo = "https://github.com/ChristianPrzybulinski/agent-rules-kit.git"
 meta = json.loads((kit / ".devin-plugin/plugin.json").read_text(encoding="utf-8"))
 assert meta["name"] == "agent-rules-kit"
 assert meta["version"] == version
-assert meta["requiredPlugins"] == [{
-    "source": "git-subdir",
-    "url": repo,
-    "path": "plugins/all",
-}]
 plugin_dirs = sorted(
     path for path in (kit / "plugins").iterdir()
     if (path / ".devin-plugin/plugin.json").is_file()
 )
-assert len(plugin_dirs) == 14
-optional = {entry["path"] for entry in meta["optionalPlugins"]}
-assert optional == {f"plugins/{path.name}" for path in plugin_dirs if path.name != "all"}
+assert [path.name for path in plugin_dirs] == ["core", "dev", "sdd"]
+assert meta["requiredPlugins"] == [
+    {"source": "git-subdir", "url": repo, "path": f"plugins/{path.name}"} for path in plugin_dirs
+]
+assert "optionalPlugins" not in meta
 for plugin_dir in plugin_dirs:
     for manifest in (
             plugin_dir / ".devin-plugin/plugin.json",
@@ -624,7 +625,10 @@ for plugin_dir in plugin_dirs:
         assert data["version"] == version, manifest
         assert data["name"] == plugin_dir.name, manifest
 claude_marketplace = json.loads((kit / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
-assert claude_marketplace["renames"] == {"ai-kit": "core"}
+renames = claude_marketplace["renames"]
+assert renames["ai-kit"] == "core"
+assert {target for target in renames.values() if target} <= {path.name for path in plugin_dirs}
+assert claude_marketplace["forceRemoveDeletedPlugins"] is True
 listed = {entry["name"]: entry["source"] for entry in claude_marketplace["plugins"]}
 assert listed == {path.name: f"./plugins/{path.name}" for path in plugin_dirs}
 marketplace = json.loads((kit / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
@@ -654,8 +658,8 @@ if ! "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/proj" >"$ROOT/sync-reinsta
 fi
 [[ "$(shasum -a 256 "$ROOT/proj/CLAUDE.md" "$ROOT/proj/.claude/settings.json")" == "$first_hashes" ]] \
   || fail "sync-project is not idempotent"
-[[ "$(grep -c '@ai-kit' "$ROOT/proj/.claude/settings.json")" == "5" ]] \
-  || fail "godot settings.json does not list exactly 5 @ai-kit plugins"
+[[ "$(grep -c '@ai-kit' "$ROOT/proj/.claude/settings.json")" == "2" ]] \
+  || fail "godot settings.json does not list exactly 2 @ai-kit plugins"
 if ! "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/proj" >"$ROOT/sync-check.out" 2>&1; then
   cat "$ROOT/sync-check.out" >&2
   fail "sync-project --check failed on a generated repo"
@@ -665,7 +669,7 @@ import json, sys
 path = sys.argv[1]
 with open(path, encoding="utf-8") as fh:
     data = json.load(fh)
-data["enabledPlugins"]["dev-java@ai-kit"] = True
+data["enabledPlugins"]["sdd@ai-kit"] = True
 with open(path, "w", encoding="utf-8") as fh:
     fh.write(json.dumps(data, indent=2) + "\n")
 PY
@@ -699,10 +703,10 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-rules.out" >&2
   fail "sync-project rules install failed"
 fi
-[[ -f "$ROOT/proj/.claude/rules/dev-godot-godot.md" ]] \
-  || fail "sync-project did not write .claude/rules/dev-godot-godot.md"
-grep -Fq '<!-- agent-rules-kit: generated from plugins/dev-godot/rules/godot.md' \
-  "$ROOT/proj/.claude/rules/dev-godot-godot.md" || fail "generated rule marker missing"
+[[ -f "$ROOT/proj/.claude/rules/dev-godot.md" ]] \
+  || fail "sync-project did not write .claude/rules/dev-godot.md"
+grep -Fq '<!-- agent-rules-kit: generated from plugins/dev/rules/godot.md' \
+  "$ROOT/proj/.claude/rules/dev-godot.md" || fail "generated rule marker missing"
 first_claude_hashes="$(find "$ROOT/proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
 if ! env PATH="$RESTRICTED_PATH" \
     "$SOURCE/platforms/tools/sync-project.sh" --profile godot "$ROOT/proj" \
@@ -719,7 +723,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-rules-check.out" >&2
   fail "sync-project --check failed on generated .claude/rules"
 fi
-printf 'x\n' >> "$ROOT/proj/.claude/rules/dev-godot-godot.md"
+printf 'x\n' >> "$ROOT/proj/.claude/rules/dev-godot.md"
 set +e
 sync_rules_drift_out="$(env PATH="$RESTRICTED_PATH" \
   "$SOURCE/platforms/tools/sync-project.sh" --check --profile godot "$ROOT/proj" 2>&1)"
@@ -735,10 +739,10 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-rules-docs.out" >&2
   fail "sync-project --profile docs failed"
 fi
-[[ ! -e "$ROOT/proj/.claude/rules/dev-godot-godot.md" ]] \
+[[ ! -e "$ROOT/proj/.claude/rules/dev-godot.md" ]] \
   || fail "stale generated rule survived the profile switch"
-[[ -f "$ROOT/proj/.claude/rules/architect-sdd-spec.md" ]] \
-  || fail "sync-project did not write .claude/rules/architect-sdd-spec.md"
+[[ -f "$ROOT/proj/.claude/rules/sdd-spec.md" ]] \
+  || fail "sync-project did not write .claude/rules/sdd-spec.md"
 [[ "$(cat "$ROOT/proj/.claude/rules/my-own.md")" == "mine" ]] \
   || fail "hand-written .claude/rules file was touched"
 
@@ -746,7 +750,7 @@ fi
 # whole into .claude/skills/ with .agent-rules-kit markers and a hashed
 # KIT_MANIFEST.json. Counts come from the $SOURCE fixture at test time (its
 # rewritten SKILL.md descriptions differ from the live kit).
-godot_plugins="dev-core dev-godot quality-core infra-github" # profile_plugins godot minus core (KIT-002: core loads from the plugin)
+godot_plugins="dev" # profile_plugins godot minus core (KIT-002: core loads from the plugin)
 expected_skills="$(for p in $godot_plugins; do ls "$SOURCE/plugins/$p/skills"; done | wc -l | tr -d ' ')"
 expected_files=$(( $(for p in $godot_plugins; do find "$SOURCE/plugins/$p/skills" -type f; done | wc -l) + expected_skills ))
 mkdir -p "$ROOT/vendor-proj/.claude/skills/review-loop"
@@ -815,7 +819,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-vendor-resync.out" >&2
   fail "vendored resync after the edit failed"
 fi
-printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/git/extra.txt"
+printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/testing/extra.txt"
 set +e
 sync_vendor_extra_out="$(env PATH="$RESTRICTED_PATH" \
   "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" 2>&1)"
@@ -837,9 +841,9 @@ fi
   || fail "sdd-tasks missing after the profile switch"
 [[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
   || fail "hand-written review-loop skill was touched by the profile switch"
-[[ ! -e "$ROOT/vendor-proj/.claude/skills/git/extra.txt" ]] \
-  || fail "extra file survived the git regeneration"
-mkdir -p "$ROOT/vendor-proj2/.claude/skills/git"
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/testing" ]] \
+  || fail "testing survived the switch to a profile without dev"
+mkdir -p "$ROOT/vendor-proj2/.claude/skills/godot-standards"
 printf '# mine\n' > "$ROOT/vendor-proj2/AGENTS.md"
 touch "$ROOT/vendor-proj2/project.godot"
 set +e
@@ -848,7 +852,7 @@ sync_vendor_refuse_out="$(env PATH="$RESTRICTED_PATH" \
 sync_vendor_refuse_status=$?
 set -e
 [[ "$sync_vendor_refuse_status" -eq 1 ]] \
-  || fail "sync-project did not refuse an unmarked .claude/skills/git"
+  || fail "sync-project did not refuse an unmarked .claude/skills/godot-standards"
 [[ "$sync_vendor_refuse_out" == *"is not generated"* ]] \
   || fail "sync-project refusal did not report 'is not generated'"
 [[ ! -e "$ROOT/vendor-proj2/.claude/skills/KIT_MANIFEST.json" ]] \
@@ -869,14 +873,14 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-mono.out" >&2
   fail "multi-profile sync-project install failed"
 fi
-for r in architect-sdd-spec dev-godot-godot dev-java-java; do
+for r in sdd-spec dev-godot dev-java; do
   [[ -f "$ROOT/mono-proj/.claude/rules/$r.md" ]] || fail "multi-profile sync did not write .claude/rules/$r.md"
 done
-grep -Fqx '  - "client/**/*.gd"' "$ROOT/mono-proj/.claude/rules/dev-godot-godot.md" \
+grep -Fqx '  - "client/**/*.gd"' "$ROOT/mono-proj/.claude/rules/dev-godot.md" \
   || fail "godot:client did not scope the godot rule to client/"
-grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/dev-java-java.md" \
+grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/dev-java.md" \
   || fail "java:server did not scope the java rule to server/"
-grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/architect-sdd-spec.md" \
+grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/sdd-spec.md" \
   || fail "the unscoped docs profile changed the spec rule globs"
 for s in sdd-tasks godot-standards java-standards persistence; do
   [[ -f "$ROOT/mono-proj/.claude/skills/$s/.agent-rules-kit" ]] || fail "multi-profile sync did not vendor $s"
@@ -905,7 +909,7 @@ sync_mono_single_out="$(env PATH="$RESTRICTED_PATH" \
 sync_mono_single_status=$?
 set -e
 [[ "$sync_mono_single_status" -eq 1 ]] || fail "single-profile --check accepted the monorepo's extra rules"
-[[ "$sync_mono_single_out" == *"dev-godot-godot.md is generated but not in profile"* ]] \
+[[ "$sync_mono_single_out" == *"dev-godot.md is generated but not in profile"* ]] \
   || fail "single-profile --check did not name the rule it would remove"
 set +e
 sync_mono_escape_out="$(env PATH="$RESTRICTED_PATH" \
@@ -941,8 +945,8 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-mono-plugins.out" >&2
   fail "multi-profile sync-project install without vendoring failed"
 fi
-[[ "$(grep -c '@ai-kit' "$ROOT/mono-plugins-proj/.claude/settings.json")" == "9" ]] \
-  || fail "godot,java settings.json does not enable the 9-plugin union"
+[[ "$(grep -c '@ai-kit' "$ROOT/mono-plugins-proj/.claude/settings.json")" == "2" ]] \
+  || fail "godot,java settings.json does not enable the 2-plugin union (core, dev)"
 
 # sync-project.sh copies the spec validator only into repos with docs/spec: a
 # Java repo without it gets no .github/spec-lint and --check still passes.

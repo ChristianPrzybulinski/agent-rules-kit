@@ -191,9 +191,10 @@ profile_entries() { # $1 = normalized profile list; prints "<name> <dir>" per en
 
 base_plugins() { # $1 = one profile name; prints one plugin name per line, in this order
   case "$1" in
-    godot) printf '%s\n' core dev-core dev-godot quality-core infra-github ;;
-    java)  printf '%s\n' core dev-core dev-java infra-core infra-persistence quality-core quality-security infra-github ;;
-    docs)  printf '%s\n' core architect-core architect-sdd quality-core infra-github ;;
+    # KIT-038: godot and java share the dev plugin; a rule loads only by its own file glob
+    godot) printf '%s\n' core dev ;;
+    java)  printf '%s\n' core dev ;;
+    docs)  printf '%s\n' core sdd ;;
   esac
 }
 
