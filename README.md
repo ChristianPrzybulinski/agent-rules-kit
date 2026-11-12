@@ -2,7 +2,21 @@
 
 A plugin-first source of always-on rules, triggered rules, skills, references and templates for Devin Cloud, Devin CLI/Desktop, Codex and Claude Code. Plugin content lives under [`plugins/`](plugins/) — three plugins (`core`, `dev`, `sdd`) with shared manifests; tooling and documentation stay at repository root.
 
-**Repository layout:** [`INDEX.md`](INDEX.md) · **Maintenance:** [`docs/maintenance.md`](docs/maintenance.md)
+Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md) · Security: [`SECURITY.md`](SECURITY.md)
+
+## Layout
+
+| Path | Purpose |
+|---|---|
+| [`plugins/core/`](plugins/core/INDEX.md) | requires nothing: always-on rules (`AGENTS.md`), hook guard, session, parallelize, review (`reviewer` profile), git, security |
+| [`plugins/dev/`](plugins/dev/INDEX.md) | requires `core`: Java and Godot path rules; code standards, testing, investigate, Java 25/Spring, Godot 2D, asset import, Krita, Docker, persistence |
+| [`plugins/sdd/`](plugins/sdd/INDEX.md) | requires `core`: spec path rule, `researcher` profile; architecture, protocol contracts, grilling, the `sdd-*` pipeline and journeys, spec templates |
+| [`platforms/`](platforms/) | machine tools ([`tools/`](platforms/tools/README.md)), validators and schemas ([`ci/`](platforms/ci/README.md)), files projects copy ([`kits/`](platforms/kits/README.md)) |
+| [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |
+| `.devin-plugin/`, `.claude-plugin/`, `.agents/plugins/` | the content-free Devin meta-plugin, which requires the three plugins, and the Claude Code and Codex marketplace catalogs |
+| [`.github/`](.github/README.md) | on-demand CI, release and security automation |
+
+Each plugin `INDEX.md` is generated from the plugin's files by `platforms/tools/gen_index.py`. `VERSION` is the single source of the kit version: `check_kit.py`, `bump_version.py` and `release.yml` read it.
 
 ## Bootstrap
 
@@ -72,7 +86,7 @@ On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours
 
 ## Maintainers
 
-Each directory under `plugins/` is a plugin with three manifests; the repository root is a content-free meta-plugin. Before a PR, run `platforms/tools/check.sh` and `platforms/tools/smoke.sh`. Content changes follow `docs/maintenance.md`. Never add non-rule files to any `plugins/*/rules/`; `plugins/*/agents/` contains only schema-validated shared profiles, and only `plugins/core/` carries `AGENTS.md` and `hooks/`.
+Changes follow [`CONTRIBUTING.md`](CONTRIBUTING.md): where each kind of content goes, the release steps, and the checks to run before a PR (`platforms/tools/check.sh` and `platforms/tools/smoke.sh`).
 
 ## License
 

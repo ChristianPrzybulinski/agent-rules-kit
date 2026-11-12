@@ -1,24 +1,52 @@
-# Kit maintenance
+# Contributing to agent-rules-kit
+
+How to change the kit: where content goes, versioning, checks and evals. Sessions that work inside this repository read this file before a change; the always-on rules come from the installed `core` plugin, so the root carries no `AGENTS.md` or `CLAUDE.md` (KIT-042).
+
+## What goes where
+
+| Content | Location |
+|---|---|
+| always-on global behavior | `plugins/core/AGENTS.md` |
+| hook guard and format/lint hooks | `plugins/core/hooks/hooks.json` |
+| path-triggered rule | `plugins/<plugin>/rules/<name>.md` in the owning plugin |
+| procedure or reference | `plugins/<plugin>/skills/<name>/` |
+| subagent profile | `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it |
+| artifact skeleton | `plugins/<plugin>/templates/<prefix>-<name>.md` |
+| executable, schema or project kit | `platforms/` |
+| design principles, consumer layout, KIT records | `docs/` |
+
+## Invariants
+
+`platforms/ci/validations/check_kit.py` enforces these:
+
+- The repository root holds no agent-facing content. A root `AGENTS.md` is refused: the root is the Devin meta-plugin, so it would load in every Devin session on top of `plugins/core/AGENTS.md`.
+- `.devin-plugin/plugin.json` requires every plugin and lists none as optional.
+- Every directory under `plugins/` is a plugin with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json` and a generated `INDEX.md`; no other `INDEX.md` exists in the repository.
+- `plugins/core/` is the only plugin with `AGENTS.md` or `hooks/`.
+- Plugin names are unique, and every referenced skill or agent is reachable through the dependency graph.
+- `VERSION`, the meta-plugin manifest and every Devin, Codex and Claude manifest agree.
+- Codex and Claude marketplace source paths are `./plugins/<name>`; plugin content has no managed duplicate.
+- The Claude marketplace `renames` map sends each retired plugin name to its successor (or `null`), so an installed old name migrates on the next session (KIT-038).
 
 ## Versioning
 
-A release sets one version in [`VERSION`](../VERSION), in every manifest `"version"` field and in a [`CHANGELOG.md`](../CHANGELOG.md) heading, then tags `vX.Y.Z`. The steps, in order:
+A release sets one version in [`VERSION`](VERSION), in every manifest `"version"` field and in a [`CHANGELOG.md`](CHANGELOG.md) heading, then tags `vX.Y.Z`. The steps, in order:
 
 1. Bump, on a branch from current `main` with a clean tree: `python3 platforms/tools/bump_version.py X.Y.Z` (KIT-019). It refuses a version that is not SemVer or not above `VERSION`, a dirty tree and an empty `## [Unreleased]`. It writes `VERSION`, replaces `"version": "<current>"` in every tracked `*plugin.json` and `*marketplace.json` (printing the count) and inserts `## [X.Y.Z] - <today>` under `## [Unreleased]` (`--date YYYY-MM-DD` overrides the date). Then run `check.sh`.
 2. Open the release PR `chore(release): publish X.Y.Z`.
 3. After the merge, tag the merge commit on `main` with an annotated tag: `git tag -a vX.Y.Z -m vX.Y.Z <commit>`, then `git push origin vX.Y.Z`.
 4. The tag runs `.github/workflows/release.yml`, which validates tag == `VERSION` and creates the release from the CHANGELOG section. GitHub billing refuses its runs today (run 40978925050 on `v11.2.0`), so when no release appears, publish it by hand with the same notes and the workflow's title format: `python3 platforms/tools/bump_version.py --notes X.Y.Z > /tmp/kit-notes.md`, then `gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file /tmp/kit-notes.md`.
 
-The layout of 10.x, kept unchanged by 11.0.0, is frozen until at least 2027-01-01 (principle "Layout stability" in [design.md](design.md)). A layout or installation-destination change is a SemVer MAJOR change and ships with a deprecation note in the release notes plus a migration in `bootstrap.sh` and `doctor.sh`. A content change is MINOR when it adds a rule, skill, reference, template, validator gate or document, and PATCH when it corrects one without changing routing. There is no separate layout version.
+The layout of 10.x, kept unchanged by 11.0.0, is frozen until at least 2027-01-01 (principle "Layout stability" in [docs/design.md](docs/design.md)). A layout or installation-destination change is a SemVer MAJOR change and ships with a deprecation note in the release notes plus a migration in `bootstrap.sh` and `doctor.sh`. A content change is MINOR when it adds a rule, skill, reference, template, validator gate or document, and PATCH when it corrects one without changing routing. There is no separate layout version.
 
 ## Adding content
 
 | Type | Steps |
 |---|---|
-| kit feature | only for a hook, `plugins/core/AGENTS.md`, plugin structure or manifests, a check, gate or script behavior change, or a new or removed skill: after the owner confirms it, copy [`features/TEMPLATE.md`](features/TEMPLATE.md) to `features/KIT-NNN-<slug>.md`, open issue `[KIT-NNN] <title>` with label `kit-feature`, list it in [`features/README.md`](features/README.md); the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN`. Any other change (a skill, rule, reference, template or doc text edit) needs only a CHANGELOG line, and the PR body carries the why |
-| rule | create `plugins/<plugin>/rules/<name>.md` in the owning plugin with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; body = one pointer line to the owning skill plus 8-12 always/never bullets, at most 40 lines; run `python3 platforms/tools/gen_index.py` to list it in the plugin's `INDEX.md`, and add it to the root `INDEX.md` rules table (never add non-rule files to `rules/` — Devin loads every `.md` there as a rule) |
-| skill | copy [`templates/kit-skill.md`](templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; run `python3 platforms/tools/gen_index.py` (it copies the description into the plugin's `INDEX.md`) |
-| reference | copy [`templates/kit-reference.md`](templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
+| kit feature | only for a hook, `plugins/core/AGENTS.md`, plugin structure or manifests, a check, gate or script behavior change, or a new or removed skill: after the owner confirms it, copy [`docs/features/TEMPLATE.md`](docs/features/TEMPLATE.md) to `docs/features/KIT-NNN-<slug>.md`, open issue `[KIT-NNN] <title>` with label `kit-feature`, list it in [`docs/features/README.md`](docs/features/README.md); the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN`. Any other change (a skill, rule, reference, template or doc text edit) needs only a CHANGELOG line, and the PR body carries the why |
+| rule | create `plugins/<plugin>/rules/<name>.md` in the owning plugin with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; body = one pointer line to the owning skill plus 8-12 always/never bullets, at most 40 lines; run `python3 platforms/tools/gen_index.py` to list it in the plugin's `INDEX.md` (never add non-rule files to `rules/` — Devin loads every `.md` there as a rule) |
+| skill | copy [`docs/templates/kit-skill.md`](docs/templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; run `python3 platforms/tools/gen_index.py` (it copies the description into the plugin's `INDEX.md`) |
+| reference | copy [`docs/templates/kit-reference.md`](docs/templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
 | subagent profile | add `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it (reachable through the dependency graph) with frontmatter validated by `platforms/ci/schemas/agent.schema.json`; profiles are local-Devin only |
 | template | only for a long artifact a skill links (a spec, a project `AGENTS.md`); a short field list goes inline in the skill. Add `plugins/<plugin>/templates/<prefix>-<name>.md` (prefix `spec`, `doc` or `project`), link it from the skill, then run `python3 platforms/tools/gen_index.py` |
 | plugin | create `plugins/<name>/` with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json`, then run `python3 platforms/tools/gen_index.py` for its `INDEX.md`; declare `requiredPlugins`/`dependencies` on the plugins it consumes; register it in the root meta-plugin `requiredPlugins`, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`. Prefer a skill in `core`, `dev` or `sdd`: a new plugin is justified only by a new audience (KIT-038). Renaming or removing a plugin adds the old name to the Claude marketplace `renames` map |
@@ -37,7 +65,7 @@ globs:
 
 `globs` must be a YAML sequence: Devin rejects a comma-separated string (`YAML parse error: globs: invalid type: string ..., expected a sequence`).
 
-Use `templates/kit-index.md` for a directory listing or `templates/kit-readme.md` for explanation; never put both in one directory. The `kit-*` templates shape kit content, so they live in [`templates/`](templates/INDEX.md), outside every plugin.
+A folder gets a `README.md` only when its files need explanation; shape it with [`docs/templates/kit-readme.md`](docs/templates/kit-readme.md). Outside the generated plugin indexes there is no `INDEX.md` (KIT-042). The `kit-*` templates shape kit content, so they live in `docs/templates/`, outside every plugin.
 
 A subagent skill sets Devin `subagent: true` or a shared `agent: <profile>`, plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/<plugin>/agents/` of a plugin reachable through the dependency graph.
 
@@ -90,5 +118,3 @@ After every kit rule change compare two batches, one before and one after, on th
 - Devin CLI/Desktop re-fetches at app start; run `devin plugins update` to force it.
 - Codex and Claude Code refresh through launchd and `platforms/tools/refresh.sh`; run `platforms/tools/doctor.sh` to diagnose local state.
 - In Claude Code, use `/doctor prompt-audit` to inspect loaded instructions and `/context` to inspect token cost.
-
-Machine notes live in `docs/machine.local.md`, git-ignored; see `docs/machine.local.md.example`.
