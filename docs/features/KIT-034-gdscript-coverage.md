@@ -76,19 +76,20 @@ The tool, `platforms/tools/gd_coverage.py` (Python 3.9+, gdtoolkit 4.5.0, our ow
    `NOTIFICATION_PREDELETE` as the fallback. The counters of every other Godot process the tests start in the copy
    are added to the run's own. No gdUnit4 session hook is needed (§ Decisions).
 4. **Run.** One `godot --headless --import` of the instrumented copy, then the project's own test command
-   (`-s addons/gdUnit4/bin/GdUnitCmdTool.gd -a <tests> -c --ignoreHeadlessMode`), both under `nice -n 10` with `HOME`
-   and the `XDG_*` folders inside the temporary folder, each in a process group of its own that is killed after
-   `--timeout` seconds (default 1800). A run counts only when it finishes in time, exits 0 or 101, its last "Overall
-   Summary" line shows one test case or more and its own counters were written; otherwise the tool prints why and the
-   last log lines and exits 2, as it does without godot, gdUnit4 or gdtoolkit, with a bad ref or outside a Godot
-   project.
+   (`-s addons/gdUnit4/bin/GdUnitCmdTool.gd -a <tests> -c --ignoreHeadlessMode`, with `-i <suite>` for each
+   `--ignore`), both under `nice -n 10` with `HOME` and the `XDG_*` folders inside the temporary folder, each in a
+   process group of its own that is killed after `--timeout` seconds (default 1800). A run counts only when it
+   finishes in time, exits 0 or 101, its last "Overall Summary" line shows one test case or more and its own counters
+   were written; otherwise the tool prints why and the last log lines and exits 2, as it does without godot, gdUnit4
+   or gdtoolkit, with a bad ref or outside a Godot project.
 5. **Report.** stdout holds one `path:line function lines C/T branches C/T` line per function; `--json FILE` writes the
-   ref, Godot version, test summary and exit code, timings, instrumented and failed files, LFS counts, probe counts
-   and, per function, path, name, first and last line, covered and total statement lines (the first line of each
-   statement; a line is covered when the probe that enters its run counted at least once), taken and total branch
-   outcomes (two per `if`/`elif`/`while` condition, one per `match` arm) and the uncovered lines. `FILE...` limits the
-   report to those files and `--base REF` to the functions whose lines changed in `REF...HEAD`, read by
-   `complexity.py`'s `changed_lines`. `--keep` keeps the temporary folder. Exit 0 (advisory); a gate waits for T7.
+   ref, Godot version, test summary, exit code and `--ignore` list, timings, instrumented and failed files, LFS
+   counts, probe counts and, per function, path, name, first and last line, covered and total statement lines (the
+   first line of each statement; a line is covered when the probe that enters its run counted at least once), taken
+   and total branch outcomes (two per `if`/`elif`/`while` condition, one per `match` arm) and the uncovered lines.
+   `FILE...` limits the report to those files and `--base REF` to the functions whose lines changed in `REF...HEAD`,
+   read by `complexity.py`'s `changed_lines`. `--keep` keeps the temporary folder. Exit 0 (advisory); a gate waits
+   for T7.
 6. **CRAP.** `complexity.py` reads that JSON and fills `Function.coverage` with the line ratio for GDScript, so a
    GDScript function scores CRAP the way a Java one does from JaCoCo (T5).
 
@@ -162,6 +163,12 @@ closes #136; this PR refers to it.
   processes in the copy, over one `$KIT_COV_OUT` file because client tests start Godot on the copy itself
   (`tests/ui/kit/kit_manifest_test.gd:339`–`346` runs `res://tools/ui/kit_import.gd` with `OS.execute`), and that
   child's writer would overwrite the run's file. The run's own file must exist: another process's never stands in.
+- 2026-11-12 T4: chose a repeatable `--ignore SUITE`, passed to gdUnit4 as `-i SUITE` (a suite name, a path the
+  suite's file contains, or `suite:test`), over a list of the client's tests in the tool and over changing the
+  client's tests, because only the caller knows which tests read a project's own wiring, and a measuring tool must not
+  change the project it measures. Ignored tests do not run, so a line only they reach reads as not covered; the
+  `suite:test` form leaves the suite's other cases running. Asked in the review of #191: without it no instrumented
+  run of the client counts.
 - 2026-11-12 T4: chose `--timeout` with a process-group kill over waiting on the suite because the first whole-suite
   run hung (§ Measurements): a test's child Godot waited forever, and killing only the runner would have left it
   running on the host.
@@ -196,9 +203,12 @@ closes #136; this PR refers to it.
   run logged the same script errors as a plain copy, line for line, and none names `kit_cov` (§ Measurements).
 - [FACT] tests that inspect the project itself see the instrumentation: in stratics-client
   `tests/app/autoload_order_test.gd` finds the `KitCovWriter` autoload and `tests/architecture/dependency_rules_test.gd`
-  finds every probed file depending on `kit_cov`, so 3 test cases fail on every instrumented run (§ Measurements).
-  gdUnit4 6.2.1 can skip a test suite or case (`-i, --ignore` in `src/core/runners/GdUnitTestCIRunner.gd:40`); the tool
-  does not pass it today, and T7 decides between that and the client accepting the writer.
+  finds every probed file depending on `kit_cov`, so 3 test cases fail on every instrumented run (§ Measurements). In
+  the monorepo client at `ac649c10c`, `tests/ui/size_audit_test.gd` adds 2: its audit quotes source lines into its
+  report, and the copy's lines hold the probes (`KitCov.hit(7631); label.autowrap_mode = …`, and a `for` iterable
+  wrapped in `KitCov.t`). gdUnit4 6.2.1 skips a test suite or case named with `-i`
+  (`src/core/runners/GdUnitTestCIRunner.gd:40`, matched in `is_skipped` at :435), and `--ignore` passes it
+  (§ Decisions); the caller names those tests, the tool names none.
 - [FACT] `user://` isolation through `HOME` holds on macOS: the real
   `~/Library/Application Support/Godot/app_userdata/Stratics/logs/godot.log` kept mtime 1794305802.564249 across the
   spike, and the runs wrote their logs under the scratch `HOME`.
@@ -215,15 +225,24 @@ closes #136; this PR refers to it.
   row already does not end in `:`.
 - [FACT] the copy has no sibling folders, so client tests that read the docs repository find it only through
   `STRATICS_DOCS_DIR`: `tests/support/docs_paths.gd` tries the variable, then a parent that holds `game/protocol`,
-  then `res://../stratics-docs`. The tool passes the caller's environment to Godot.
+  then `res://../stratics-docs`. The tool passes the caller's environment to Godot. At `ac649c10c` the monorepo
+  client's tests read `game/`, run `platform/tools/content-projection/project.py` and read the LFS mock
+  `docs/collab/ui-design-2026-10-11/ui-layout-roadmap.json`, so the folder the variable names needs all three
+  (§ Measurements).
+- [FACT] `HOME` inside the temporary folder also hides Python's user site-packages from a test that starts `python3`:
+  the monorepo client's `tests/content/item_category_test.gd` runs the content projection, whose `jsonschema` import
+  failed under the moved `HOME` (run 2 in § Measurements). The caller sets `PYTHONUSERBASE` to the output of
+  `python3 -m site --user-base` and the tool passes it on; the tool does not set it itself.
 - [FACT] a red suite reports no coverage (Change step 4), and stratics-client `main` is red on its own: a plain copy
   of `310d002a` under Godot 4.7.2 fails every test that mocks `app/network/network.gd`, because gdUnit4 6.2.1 writes
   the multi-line default `OS.has_feature(RELEASE_FEATURE)` of `resolve_server_url` (lines 325–328) into the mock as
-  `release_feature` and `os` (§ Measurements). T7 decides whether a run with failing tests counts.
+  `release_feature` and `os` (§ Measurements). The monorepo client at `ac649c10c` is red on a plain copy as well: 4
+  cases of `tests/group/group_menu_invite_test.gd` compare a width such as 158.0 with 157.999969. T7 decides whether a
+  run with failing tests counts.
 - [FACT] stratics-client `main` stops at `310d002a` ("docs: point readers to the Stratics monorepo (#355)"); the live
   client is `client/` in stratics-docs, where `resolve_server_url` is one line (`client/app/network/network.gd:350` at
-  `ac649c10c`). The tool archives `<ref>:client` when it runs inside that folder (`extract`); [HYPOTHESIS] it works
-  there, as no run was made on the monorepo.
+  `ac649c10c`). The tool archives `<ref>:client` when it runs inside that folder (`extract`), and a run there counted
+  with 9 test cases ignored (§ Measurements).
 
 ## Measurements
 
@@ -336,6 +355,45 @@ that the 71 failing test cases ran before they failed.
 | per function | 2,181 fully covered, 142 with no covered line |
 | `app/update/pack_choice.gd` | 46/54 lines and 32/40 outcomes, function by function the same as T1's table |
 
+The monorepo client ran on 2026-11-12 with the tool started in `client/` of a stratics-docs checkout and `--ref
+ac649c10c` (the checkout was only read), each run in a new `mktemp -d` folder under the session's scratchpad: Godot
+4.7.2.stable.official.ed1daf0bf and the client's gdUnit4 6.2.1 headless under `nice -n 10`, `--exclude
+tools/ui/kit_import.gd`, and `STRATICS_DOCS_DIR` at a scratch folder extracted from the same commit. Before each Godot
+run `pgrep` found no `loop.py` and no other Godot. The load average was 4.33 when the counted run started and 9.35 when
+it ended, from other sessions' work, so its times are upper bounds.
+
+| Run | Docs folder | Ignored | Result |
+|---|---|---|---|
+| plain copy, imported beforehand | `game/` | none | 444 s, the test run only; gdUnit4 exit 100: 3,524 test cases, 9 failures in 7 cases, 1 skipped, 461/461 suites; "Total execution time" 7 min 10 s 574 ms |
+| 1 | `game/` | the 3 autoload and dependency cases | 502 s, exit 2 ("the suite exited 100"): 3,521 test cases, 10 failures in 8 cases (the plain copy's 7 and one `size_audit_test.gd` case); 7 min 40 s 353 ms, +6.9 % on the plain copy |
+| 2 | `game/`, the content projection and the UI mock | the 9 below | 530 s, exit 2: 3,515 test cases, 4 failures, all in `item_category_test.gd` (`HOME` hid `jsonschema`, § Risks); 8 min 6 s 823 ms |
+| 3, counted | the same, with `PYTHONUSERBASE` | the same 9 | 596 s, exit 0: 3,515 test cases, 0 errors, 0 failures, 1 skipped; 9 min 4 s 57 ms |
+
+The plain copy's 7 failing cases are the client's or the docs folder's, not the tool's: the 4
+`group_menu_invite_test.gd` cases compare floats (§ Risks); the 2 `item_category_test.gd` cases and
+`size_audit_test.gd` `test_committed_report_is_reproducible_and_covers_every_role` read the content projection and
+the UI mock, which that docs folder lacked ("the mock reference cannot be read"). Run 3 ignores 9 cases, by
+`suite:test`, so the rest of each suite runs:
+
+- the 3 cases above that see the `KitCovWriter` autoload and the `kit_cov` dependency;
+- `size_audit_test.gd` `test_guard_rejects_new_changed_stale_and_duplicate_entries` and
+  `test_committed_report_is_reproducible_and_covers_every_role`, whose audit quotes the probed source (§ Risks);
+- the 4 `group_menu_invite_test.gd` cases that fail on the plain copy too, because a run with failing tests does not
+  count until T7.
+
+The 3 runs' times are not an overhead measure: they ran at different loads, and gdUnit4's test time grew from run 1 to
+run 3 with fewer cases. The one paired measure is the plain copy against run 1, +6.9 %.
+
+| Measure | Run 3 |
+|---|---|
+| functions | 3,280 in 276 of the 283 instrumented files (`tools/ui/kit_import.gd` excluded) |
+| statement lines | 24,766/26,685 (92.8 %) |
+| branch outcomes | 8,310/9,860 (84.3 %) |
+| per function | 2,393 fully covered, 116 with no covered line |
+| probes | 6,463 `hit`, 4,712 `b` and 559 `t` in 16,446 counter slots; 37 lines unmeasured |
+| counter files | the run's own and 6 from the Godot processes that tests started in the copy |
+| tool timings | instrumentation 11.3 s, `--import` 21.7 s, suite 559.1 s; 4,565 LFS pointers filled, 0 missing |
+
 ## Proof
 
 Run from the worktree root at `3bdba5c` on 2026-11-11 (the commits after it change only this document and
@@ -370,6 +428,25 @@ this document); every command exited 0:
   77ms", "no leaks found".
 - `git merge-tree --write-tree HEAD origin/main` against `3834729` (KIT-054, #190): no conflict.
 
+`--ignore` and the monorepo run: run from the worktree root at `2815bd6` on 2026-11-12 (the commit after it changes
+only this document); every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 146 tests in 117.315s", "OK
+  (skipped=5)"; 4 of the 5 skips are `test_gd_coverage.py` `GodotTest`, which needs `KIT_GDUNIT4`.
+- `env KIT_GDUNIT4=<a gdUnit4 6.2.1 addons/gdUnit4 folder> nice -n 10 python3 -B -m unittest -v test_gd_coverage` in
+  `platforms/ci/validations`, with Godot 4.7.2 and gdtoolkit 4.5.0: "Ran 23 tests in 29.853s", "OK", no skip.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "1 commits scanned.", "scanned ~11867 bytes (11.87 KB) in
+  39.1ms", "no leaks found".
+- `git merge-tree --write-tree HEAD origin/main` against `86a4564` (#191): no conflict.
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
@@ -377,3 +454,5 @@ this document); every command exited 0:
 - 2026-11-11: specification and T1 spike in #144, which refers to #136 and leaves it open.
 - 2026-11-12: the owner approved T2 onward in chat ("Sim, KIT-034 primeiro"), and KIT-035 after T4 is merged;
   T2–T4 implemented and the whole client suite measured in #191, which refers to #136 and leaves it open.
+- 2026-11-12: `--ignore` and a counted run on the monorepo `client/` in #193, which refers to #136 and leaves it
+  open.
