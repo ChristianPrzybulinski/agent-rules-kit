@@ -1,10 +1,10 @@
 ---
 id: KIT-044
 title: "Soft rules of core AGENTS.md say what to do instead of what not to do"
-status: confirmed
+status: done
 confirmed: "2026-11-11 (owner's kit review, night brief item 9; recommendations approved in chat until revoked)"
 issue: "#165"
-pr: ""
+pr: "#166"
 ---
 
 # KIT-044 — Soft rules of core AGENTS.md say what to do instead of what not to do
@@ -51,3 +51,4 @@ Kept on purpose:
 ## History
 
 - 2026-11-11: confirmed (owner's kit review); issue #165.
+- 2026-11-11: done in #166.
