@@ -369,6 +369,22 @@ the commit after it changes only this document; every command exited 0:
 - `gitleaks git --redact --log-opts="origin/main..HEAD"`: "3 commits scanned.", "scanned ~93707 bytes (93.71 KB) in
   87ms", "no leaks found".
 
+T5 after #192's review fixes merged in: run from the worktree root at `c15fc79` on 2026-11-12, on `b46e16e` (#192's
+head; `origin/main` is `cd9a632`; the commit after it changes only this document); every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 178 tests in 192.540s", "OK
+  (skipped=5)"; the 32 tests of `test_gd_mutation.py` ran, none skipped, and the fifth skip is #193's `GodotTest` case.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "6 commits scanned.", "scanned ~108675 bytes (108.68 KB) in
+  59.3ms", "no leaks found".
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
@@ -381,3 +397,5 @@ the commit after it changes only this document; every command exited 0:
   refers to #137 and leaves it open.
 - 2026-11-12: the review of #192 asked for `main` merged in (`cd9a632`, #193; the tools README rows of both kept), a
   status for a mutant whose run raises and a floor under the mutant timeout; both are in § Decisions.
+- 2026-11-12: #192's head `b46e16e` (its review fixes and `main` `cd9a632`) merged into T5 at `c15fc79`; "not run"
+  stays out of the cache and the timeout out of the key (§ Decisions).
