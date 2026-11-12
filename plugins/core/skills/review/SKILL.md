@@ -30,6 +30,7 @@ Verifies work someone else claims or proposes and reports a verdict with sources
 - For `FEAT-xxx`, read its acceptance criteria and linked `REQ-*` files.
 - For a path or request, extract verifiable criteria; stop and ask for one to three criteria if none exist.
 - Write the final criterion rows before inspecting the implementation.
+- A reviewer gets the base, the head commit and the claims to check; the author's own verdict and reasoning stay out of its brief, so they cannot anchor the review.
 
 ## 2. Inspect what exists
 
@@ -39,7 +40,7 @@ Verifies work someone else claims or proposes and reports a verdict with sources
 - Validate the pushed head on a clean checkout (`git worktree add --detach <tmp> <sha>`); local uncommitted state never counts. A result the author's report or PR lists is a claim until a record backs it: a CI or gate run, or a log a command wrote, naming the commit it ran on. Re-run there every proof without such a record and every proof whose inputs changed since it ran (files it covers, dependencies, config, environment, or an assumption it tested). Reuse a recorded result whose inputs are unchanged and write it on a `Reused:` line; a new commit hash alone invalidates nothing. A claimed result that neither a command nor a record reproduces is unverified; one that fails there makes the verdict `NOT READY`.
 - After a correction, re-run and re-review the delta plus the assumptions it touches, not the whole change. Test evidence carries over; review authority does not: an approval binds to the head it reviewed, never to a later one, and an acceptance no reviewer gave is never recorded.
 - Create `<tmp>` with `mktemp -d` and always finish with `git worktree remove --force <tmp> && git worktree prune`, even when a proof fails or the validation aborts; before you start, `git worktree list`; remove only a leftover whose path is a `mktemp` directory from an earlier validation, never a worktree you did not create, and report any other extra worktree under Unverified. A validation that leaves a worktree behind is not finished.
-- A proof must be able to fail. A gate that passes on empty input (zero tests, zero schemas) is not proof; show it failing on a broken case.
+- A proof must be able to fail. A gate that passes on empty input (zero tests, zero schemas) is not proof; show it failing on a broken case. Compare the collected test count at the head with the base (the runner's summary line); a drop the PR does not name is a weakened check (agent `reviewer` step 4).
 
 ## 3. Run canonical gates
 
@@ -74,5 +75,6 @@ Next step: <smallest action that changes the verdict>
 - `READY`: every criterion is met and every gate passes. `PARTIAL`: at least one criterion is missing or partial while gates otherwise run. `NOT READY`: a gate fails or the target cannot be validated.
 - When the change touches `.java` or `.gd`, run `python3 ~/.ai-kit/platforms/tools/complexity.py --base <base>` on the clean checkout after the gates (so a JaCoCo report is the one the gate just wrote) and copy its lines to `Advisory:`; they never change the verdict.
 - An ambiguous criterion is a spec gap; route it to `sdd-clarify` rather than guessing.
+- After three review-and-fix rounds that end `NOT READY` on the same criterion, stop: hand the owner the criterion, each attempt and the failing excerpt instead of starting a fourth round.
 
 Done when: every criterion has observed code, proof and documentation status, all gates have literal results, and the verdict follows the rules above (other modes: the reference's own Done line).
