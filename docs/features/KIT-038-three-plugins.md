@@ -62,13 +62,19 @@ the dependency chain for those few lines.
 ## Proof
 
 - `python3 platforms/ci/validations/check_kit.py --links`: OK (3 plugins, 38 skills, 3 rules, 11 templates,
-  24 indexes, 125 links, 25 hook cases).
+  24 indexes, 126 links, 25 hook cases).
 - `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: 94 tests OK, 1 skipped.
 - `bash platforms/tools/check.sh` and `claude plugin validate`: passed for every manifest and both marketplaces.
 - `bash platforms/tools/smoke.sh`: `smoke: OK (38 skills, ...)`, after its `godot,java` check moved from a
   9-plugin to a 2-plugin union (`core`, `dev`).
 - `git grep` for the 14 old names outside `CHANGELOG.md`, `docs/features/` and `docs/plans/` finds only the `renames`
   map and the generated rule names `dev-godot.md`/`dev-java.md` (plugin `dev`, rules `godot`/`java`).
+- `claude plugin eval plugins/<p> --case <name> --runs 1 --ablation none --no-publish --trust-plugin` (Claude Code
+  2.1.287): the `core` cases `branching-squash-body` and `session-closeout-no-rerun` pass.
+  `validate-implementation-claimed-proof-not-rerun` cannot run on the host (the Bash sandbox refuses a `~/.docker`
+  store with a symlink). The four `dev` cases and the `sdd` case fail `skill-fired`: the run reports
+  `dependency-unsatisfied` for `core`, so the plugin under test loads without its skills. The same cases on
+  `origin/main` 1edc0ab (`dev-core`, `architect-core`) fail the same grader, so the gap predates KIT-038.
 
 ## History
 
