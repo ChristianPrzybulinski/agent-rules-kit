@@ -431,6 +431,19 @@ class RunnerTest(unittest.TestCase):
                          {"instrumented": 1, "failed": [], "excluded": ["client/app/network.gd"]})
 
     @NEEDS_PARSER
+    def test_ignored_suites_go_to_gdunit4_and_the_report(self):
+        wiring = "res://tests/architecture/dependency_rules_test.gd"
+        result = self.run_tool("--ignore", "AutoloadOrderTest", "--ignore", f"{wiring}:test_modules",
+                               "--json", "out.json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.calls()[2]["args"][2:], [
+            "--headless", "-s", "addons/gdUnit4/bin/GdUnitCmdTool.gd", "-a", "res://tests",
+            "-i", "AutoloadOrderTest", "-i", f"{wiring}:test_modules", "-c", "--ignoreHeadlessMode"])
+        self.assertIn(f"gdUnit4 leaves out AutoloadOrderTest, {wiring}:test_modules (--ignore)", result.stderr)
+        self.assertEqual(json.loads((self.project / "out.json").read_text())["tests"]["ignored"],
+                         ["AutoloadOrderTest", f"{wiring}:test_modules"])
+
+    @NEEDS_PARSER
     def test_timeout_stops_the_run_and_the_processes_it_started(self):
         child = Path(self.tmp.name) / "child.pid"
         result = self.run_tool("--timeout", "2", STUB_SLEEP=str(child))
@@ -485,6 +498,8 @@ func test_add() -> void:
 func test_sign() -> void:
 \tassert_int(Calc.new().sign_of(5)).is_equal(1)
 {extra}"""
+WIRING_TEST = ("extends GdUnitTestSuite\n\n\nfunc test_wiring() -> void:\n\tassert_int(1).is_equal(2)\n\n\n"
+               "func test_other() -> void:\n\tassert_int(1).is_equal(1)\n")
 ORPHAN = "\n\nfunc test_orphan() -> void:\n\tvar node := Node.new()\n\tassert_object(node).is_not_null()\n"
 
 
@@ -510,12 +525,12 @@ class GodotTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def measure(self, test):
+    def measure(self, test, *args):
         (self.repo / "tests" / "calc_test.gd").write_text(test)
         subprocess.run(["git", "add", "-A"], cwd=self.repo, env=self.env, check=True)
         subprocess.run(["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "t"], cwd=self.repo,
                        env=self.env, check=True)
-        result = subprocess.run([sys.executable, "-B", str(TOOL), "--keep"], cwd=self.repo, env=self.env,
+        result = subprocess.run([sys.executable, "-B", str(TOOL), "--keep", *args], cwd=self.repo, env=self.env,
                                 capture_output=True, text=True, check=False)
         kept = Path(result.stderr.split("gd_coverage: kept ", 1)[1].split()[0])
         self.addCleanup(shutil.rmtree, kept, True)
@@ -541,6 +556,13 @@ class GodotTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("(exit 101)", result.stderr)
         self.assertEqual((written["reason"], written["hits"][1:]), ("exit_tree", [0, 1, 1]))
+
+    def test_ignored_failing_test_lets_the_run_count(self):
+        (self.repo / "tests" / "wiring_test.gd").write_text(WIRING_TEST)
+        result, _ = self.measure(CALC_TEST.format(sum=3, extra=""), "--ignore",
+                                 "res://tests/wiring_test.gd:test_wiring")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("; 3 test case(s) in", result.stderr)
 
 
 if __name__ == "__main__":
