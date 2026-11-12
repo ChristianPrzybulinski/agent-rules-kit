@@ -108,20 +108,29 @@ run_step() {
 
 [[ -d "$KIT/.git" ]] || fail "$KIT is not a git clone — run platforms/tools/bootstrap.sh"
 
-run_step "git fetch origin failed" git -C "$KIT" fetch origin
+# KIT-046: the pull replaces this script, but bash keeps running the copy it opened, so a run that pulls a new
+# refresh.sh would finish with the old logic. Hand over once to the pulled script, which skips the pull.
+if [[ "${AI_KIT_REFRESH_PULLED:-0}" != "1" ]]; then
+  run_step "git fetch origin failed" git -C "$KIT" fetch origin
 
-branch="$(git -C "$KIT" branch --show-current)" || fail "cannot read current branch"
-status="$(git -C "$KIT" status --short)" || fail "cannot read git status"
-if [[ -n "$status" ]]; then
-  printf 'FAIL: refresh: working tree is dirty; refusing to update\n%s\n' "$status" >&2
-  exit 1
+  branch="$(git -C "$KIT" branch --show-current)" || fail "cannot read current branch"
+  status="$(git -C "$KIT" status --short)" || fail "cannot read git status"
+  if [[ -n "$status" ]]; then
+    printf 'FAIL: refresh: working tree is dirty; refusing to update\n%s\n' "$status" >&2
+    exit 1
+  fi
+
+  if [[ "$branch" != "main" ]]; then
+    run_step "cannot checkout main" git -C "$KIT" checkout main
+  fi
+
+  before="$(git -C "$KIT" rev-parse HEAD)" || fail "cannot read HEAD"
+  run_step "git pull --ff-only failed" git -C "$KIT" pull --ff-only
+  if ! git -C "$KIT" diff --quiet "$before" HEAD -- platforms/tools/refresh.sh platforms/tools/codex-bin.sh; then
+    printf 'refresh: the pull changed refresh.sh; running the new version\n'
+    exec env AI_KIT_REFRESH_PULLED=1 bash "$KIT/platforms/tools/refresh.sh" "$@"
+  fi
 fi
-
-if [[ "$branch" != "main" ]]; then
-  run_step "cannot checkout main" git -C "$KIT" checkout main
-fi
-
-run_step "git pull --ff-only failed" git -C "$KIT" pull --ff-only
 
 codex="$(codex_bin || true)"
 if [[ -n "$codex" ]]; then

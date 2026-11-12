@@ -525,6 +525,29 @@ grep -Fq "WARN: CODEX_BIN=$ROOT/no-codex is not an executable file" "$ROOT/refre
   || fail "refresh did not warn about a CODEX_BIN that does not exist"
 [[ ! -e "$STUB_STATE/upgrade" ]] || fail "refresh fell back to PATH despite an explicit CODEX_BIN"
 
+# KIT-046: a pull that changes refresh.sh hands over once to the pulled script, in the same run.
+REEXEC_HOME="$ROOT/reexec-home"
+git clone "$SOURCE" "$ROOT/reexec-origin" >/dev/null 2>&1
+git clone "$ROOT/reexec-origin" "$REEXEC_HOME/.ai-kit" >/dev/null 2>&1
+cat >>"$ROOT/reexec-origin/platforms/tools/refresh.sh" <<'EOF'
+printf 'smoke: pulled refresh.sh ran\n'
+EOF
+git -C "$ROOT/reexec-origin" -c maintenance.auto=false -c gc.auto=0 -c user.name=smoke \
+  -c user.email=smoke@example.invalid commit -qam "smoke: change refresh.sh"
+for run in changed current; do
+  if ! env HOME="$REEXEC_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$REEXEC_HOME/.ai-kit" \
+      "$REEXEC_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-reexec-$run.out" 2>&1; then
+    cat "$ROOT/refresh-reexec-$run.out" >&2
+    fail "refresh failed on the $run refresh.sh"
+  fi
+  [[ "$(grep -c 'smoke: pulled refresh.sh ran' "$ROOT/refresh-reexec-$run.out")" == 1 ]] \
+    || fail "the pulled refresh.sh did not run exactly once ($run)"
+done
+[[ "$(grep -c 'refresh: the pull changed refresh.sh; running the new version' "$ROOT/refresh-reexec-changed.out")" == 1 ]] \
+  || fail "refresh did not hand over to the pulled refresh.sh"
+grep -Fq 'running the new version' "$ROOT/refresh-reexec-current.out" \
+  && fail "refresh handed over although the pull did not change refresh.sh"
+
 FOREIGN_LINK_HOME="$ROOT/foreign-link-home"
 mkdir -p "$FOREIGN_LINK_HOME/.codex"
 git clone "$SOURCE" "$FOREIGN_LINK_HOME/.ai-kit" >/dev/null 2>&1
