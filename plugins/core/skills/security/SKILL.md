@@ -55,5 +55,7 @@ Design rules for a change that crosses a trust boundary (§1–§6). With a scop
 - Dependency: run `mvn dependency-check:check` before the PR (full scan and report: `references/scan.md`).
 - Network message: define size and rate limits in the contract.
 - Commit: inspect the diff for credentials, concatenated SQL, missing authorization and leaked internals.
+- CI or container file: give each job the least `permissions:` it needs, keep secrets and write tokens away from code a fork controls (`pull_request_target`, `workflow_run`), pin third-party actions by commit sha, and run containers without `--privileged` or a root user.
+- Hidden text: `git grep -nP '(*UTF)[\x{202A}-\x{202E}\x{2066}-\x{2069}]'` finds bidirectional control characters that make code read differently from how it runs; a hit in the diff is a blocker unless the PR names why.
 
 Done when: the trust boundary has explicit validation and authorization, secrets are absent, and the CVE/password/token constants above are enforced or reported as blockers (a scan: the Done line of `references/scan.md`).
