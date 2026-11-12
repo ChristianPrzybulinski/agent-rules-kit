@@ -94,7 +94,10 @@ The tool, `platforms/tools/gd_coverage.py` (Python 3.9+, gdtoolkit 4.5.0, our ow
    line ratio for GDScript, joined by repository-relative path and `func` line, so a GDScript function scores CRAP the
    way a Java one does from JaCoCo (T5); a function the report does not hold scores CC as before.
 
-`plugins/core/skills/testing/SKILL.md:26` and `testable-game-logic.md:28` change only in T6, after the tool exists.
+T6 names the tool, its `--ignore` and `--exclude` flags and its exit 2 in `plugins/core/skills/testing/SKILL.md`
+§ 1 (the paragraph after the GDScript one) and in `testable-game-logic.md:28`, and makes
+`plugins/core/skills/code-standards/SKILL.md:33` read CRAP for a GDScript function a report holds (6); eval case
+`plugins/core/evals/testing-gdscript-coverage-command/` checks the answer without naming the skill.
 No CI or loop gate runs it (D2, D5).
 
 ## Tasks
@@ -255,8 +258,10 @@ closes #136; this PR refers to it.
   with 9 test cases ignored (§ Measurements).
 - [FACT] with coverage, a GDScript function reaches the CRAP target sooner than the old CC-only target: CRAP < 10 fails
   for a fully covered function at CC 10 (CRAP 10.0), which `code-standards`
-  (`plugins/core/skills/code-standards/SKILL.md:33`, "CC ≤ 10 (GDScript)") still accepts. 8 of the 62 functions that
-  coverage added on the monorepo client are such functions (§ Measurements). The skill text changes with T6, not T5.
+  (`plugins/core/skills/code-standards/SKILL.md:33`, "CC ≤ 10 (GDScript)") accepted until T6. 8 of the 62 functions
+  that coverage added on the monorepo client are such functions (§ Measurements). Closed by T6: that line now targets
+  CRAP < 10 where coverage is known, GDScript from a `gd_coverage.py --json` report, and CC ≤ 10 only for a GDScript
+  function without one.
 - [FACT] a function that only an ignored test reaches reads as not covered and can become a CRAP finding:
   `client/tools/ui/size_audit.gd` `guard` (CC 9) has 0/20 lines covered in the counted run because its one test,
   `test_guard_rejects_new_changed_stale_and_duplicate_entries`, is ignored, and scores CRAP 90.0, the second worst on

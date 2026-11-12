@@ -74,6 +74,8 @@
 - `review-claimed-proof-not-rerun`
 - `session-closeout-no-rerun`
 - `testing-empty-return-passes`
+- `testing-gdscript-coverage-command`
+- `testing-gdscript-mutation-command`
 
 ## `hooks/`
 

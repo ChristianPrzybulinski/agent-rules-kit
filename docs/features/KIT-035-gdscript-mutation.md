@@ -91,7 +91,9 @@ built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T
 8. **Output.** One survivor per line on stdout, `path:line function OPERATOR from → to`, then a summary with the score
    on stderr. Exit 0 (advisory); a gate waits for T8.
 
-`plugins/dev-core/skills/testing/SKILL.md:23` and `testable-game-logic.md:28` change only in T7, after the tool exists.
+T7 names the tool, its `--coverage` input and the cache's `--no-cache` in `plugins/core/skills/testing/SKILL.md` § 1
+(the paragraph after the GDScript one) and in `testable-game-logic.md:28`; eval case
+`plugins/core/evals/testing-gdscript-mutation-command/` checks the answer without naming the skill.
 No CI or loop gate runs it (D2, D5).
 
 ## Tasks
