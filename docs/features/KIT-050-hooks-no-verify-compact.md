@@ -1,10 +1,10 @@
 ---
 id: KIT-050
 title: "Guard blocks --no-verify, compaction re-injects git state, AGENTS.md shrinks"
-status: confirmed
+status: done
 confirmed: "2026-11-12 (owner's kit review, lane C1; adopt/complement items approved in chat on condition the kit stays as small as possible)"
 issue: "#180"
-pr: ""
+pr: "#182"
 ---
 
 # KIT-050 — Guard blocks --no-verify, compaction re-injects git state, AGENTS.md shrinks
@@ -71,4 +71,4 @@ the name once: Claude Code 2.1.287 loads `AGENTS.md` by default only where the p
 
 ## History
 
-- 2026-11-12: confirmed (owner's kit review, lane C1) and implemented.
+- 2026-11-12: confirmed (owner's kit review, lane C1) and implemented in #182.
