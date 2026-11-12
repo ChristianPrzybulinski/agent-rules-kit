@@ -49,10 +49,10 @@ Never use `Thread.sleep`, `time.sleep` or an engine timer to let a test catch up
 
 ## 5. Keep assertions behavioral
 
-Do not test getters, framework behavior or that collaborator X was called. Assert the externally observable result or state transition. A failing test is fixed with code/test correction, never disabling it.
+Do not test getters, framework behavior or that collaborator X was called. Assert the externally observable result or state transition. A failing test is fixed with code/test correction, never by disabling it; a golden file, snapshot, threshold or case list changes only for an intended behavior change the PR names.
 
 - Call the code through the public entry its user uses (public method, port, message or scene contract) and assert what that user sees; never reach into a private helper.
-- A test that would still pass if every function under test returned null, zero or empty proves nothing: rewrite it with the expected value, or delete it.
+- A test that would still pass if every function under test returned null, zero or empty proves nothing: rewrite it with the expected value, or delete it. The expected value comes from the spec or a worked example, never from running the code under test (characterization excepted); a sad-path test passes every earlier guard (auth, validation, flag) and asserts the specific error its name promises.
 - When an honest test is impractical, write none: record the manual proof (the command or steps and what was observed) in the PR body instead.
 
 ## 6. Run gates
@@ -65,6 +65,6 @@ Size the proof by what the change can affect, never by file extension: agent ins
 | Bounded code: one module, no shared boundary | Reproduce the failure first; run the affected tests; add a regression test where it guards meaningful behavior; one independent review. |
 | Shared integration, authorization, persistence or migration | Boundary and negative tests, then the broad affected suite, then one independent review; owner and security approvals stay. |
 
-Run the narrow checks and the consumer audit first and the broad suite last, once. A recorded result stays valid while the files, dependencies, config, environment and assumptions it ran on are unchanged; a new commit hash alone invalidates nothing. After a correction, re-run what the delta touches and the assumptions it changes; repeat the broad suite only when the delta reaches what it covered. The § 1 domain gates apply in every row. Investigate unit tests over one second or integration tests over ten seconds instead of normalizing the delay.
+Run the narrow checks and the consumer audit first and the broad suite last, once. A recorded result stays valid while the files, dependencies, config, environment and assumptions it ran on are unchanged; a new commit hash alone invalidates nothing. After a correction, re-run what the delta touches and the assumptions it changes; repeat the broad suite only when the delta reaches what it covered. The § 1 domain gates apply in every row. A green run counts only when the runner's summary shows the expected tests executed, not skipped or zero (recheck after a filter such as `-k` or `-Dtest`); a generated file or export is checked by its content, not its exit code. Investigate unit tests over one second or integration tests over ten seconds instead of normalizing the delay.
 
 Done when: required domain percentages and mutation pass (JVM) or every GDScript rule has a scene-free test, every non-trivial non-domain change has one proof, integrations have happy/sad coverage, no test sleeps or asserts implementation calls, no test passes on empty returns, and every surviving mutant on a changed line is killed, deleted or named.
