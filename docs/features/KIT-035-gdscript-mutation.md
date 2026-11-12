@@ -74,11 +74,12 @@ built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T
    worker works on its own APFS clone (`cp -cR`). A mutant is written into the worker's file, run and restored.
 4. **Tests.** The test files under `tests/` that name the mutated file's `class_name` or its `res://` path, run with the
    project's own gdUnit4 command (`stratics-client/tools/dev.sh:42`, one `-a` per file). The timeout is 10 × the
-   baseline time of the same selection.
+   baseline time of the same selection plus 30 s (`--timeout-constant`).
 5. **Status.** Per mutant, from the exit code and the log: *killed* (exit 100), *survived* (exit 0 or 101 with an
    "Overall Summary" of one test case or more), *timed out*, *invalid* (the mutant does not load: exit 105, or a parse
-   or compile error before the tests run) and *error* (anything else). The score is killed plus timed out over killed,
-   timed out and survived; invalid mutants stay out of it.
+   or compile error before the tests run) and *error* (anything else); *not run*, with exit 2, when writing or running
+   the mutant raises. The score is killed plus timed out over killed, timed out and survived; invalid mutants stay out
+   of it.
 6. **Differential.** Each function's result is cached by a hash of its normalised text together with the hashes of
    its selected test files, so a function whose hash did not change keeps its last result (ub-mode's idea), and a new
    test makes it run again.
@@ -156,6 +157,21 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
   `end`): a line with a hit runs, a line whose statements all have 0 hits is "no coverage", and a line the report does
   not measure (no statement, or `null` hits) runs and is counted in one notice, over skipping it, because an
   unmeasured line is unknown, not uncovered.
+- 2026-11-12 review of #192: chose "not run" and exit 2 for a mutant whose write or run raises (an `OSError` from the
+  file write, `Popen` or the log append), with a notice naming the exception, the worker then taking the next mutant,
+  over "error" with exit 0, because "error" measures the mutant (Godot ran and ended outside the known exits) while a
+  raise is the host's failure, and exit 0 would show the score of a subset as the whole. A worker that cannot restore
+  its file stops, since every later mutant in its clone would run against a broken source; the mutants no worker took
+  are "not run".
+- 2026-11-12 review of #192: chose a mutant timeout of 10 × the selection's unmutated time plus `TIMEOUT_CONSTANT`
+  (30 s, `--timeout-constant S`) over 10 × alone, because a run stopped early counts as detected and raises the score.
+  It is PIT's shape: PIT 1.30.0 allows `round(time × factor) + constant`, factor 1.25 and constant 4000 ms
+  (`PercentAndConstantTimeoutStrategy.DEFAULT_CONSTANT` in `pitest-1.30.0.jar`; the Maven plugin's `timeoutConstant`
+  default is 3000 ms in `pitest-maven-1.30.0.jar`'s `plugin.xml`). PIT's constant covers a test in a JVM already
+  started; each run here starts Godot, and a start slowed by host load (5–20 on this host during gates) or by
+  `--workers N` clones starting together does not grow with the run: at T3's 1.2 s, 10 × alone stops a mutant after
+  12 s. 30 s is a judgement, not measured under load; it costs 30 s more per mutant that really hangs (none of T3's
+  100). The stub tests pass `--timeout-constant 0`, except the one that checks the default.
 
 ## Measurements
 
@@ -277,3 +293,5 @@ only this document); every command exited 0:
 - 2026-11-12: the owner approved T2 onward of KIT-034 and KIT-035 in chat ("Sim, KIT-034 primeiro"), KIT-035 after
   KIT-034 T4 merged (`86a4564`, #191); T2–T4 implemented and T3 measured against T1 in this PR, which refers to #137
   and leaves it open.
+- 2026-11-12: the review of #192 asked for `main` merged in (`cd9a632`, #193; the tools README rows of both kept), a
+  status for a mutant whose run raises and a floor under the mutant timeout; both are in § Decisions.
