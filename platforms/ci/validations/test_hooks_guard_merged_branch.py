@@ -30,6 +30,12 @@ OTHER_SHAPES = (
     f"git -C . branch -D {BRANCH}",
     f"git --no-pager branch -D {BRANCH}",
     f"git -c core.x=y branch -D {BRANCH}",
+    # A command prefix or a line break before git (KIT-054).
+    f"GIT_DIR=.git git branch -D {BRANCH}",
+    f"/usr/bin/git branch -D {BRANCH}",
+    f"command git branch -D {BRANCH}",
+    f"nice git branch -D {BRANCH}",
+    f"cd .\ngit branch -D {BRANCH}",
 )
 
 
