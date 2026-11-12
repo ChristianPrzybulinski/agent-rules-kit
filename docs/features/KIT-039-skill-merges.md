@@ -1,10 +1,10 @@
 ---
 id: KIT-039
 title: "Merge overlapping skills: 38 become 27"
-status: confirmed
+status: done
 confirmed: "2026-11-11 (owner, chat of the kit review session: phase 3 list approved)"
 issue: "#154"
-pr: ""
+pr: "#155"
 ---
 
 # KIT-039 — Merge overlapping skills: 38 become 27
@@ -58,12 +58,22 @@ Out of scope: `sdd-clarify`/`sdd-check`, manifests and marketplaces (KIT-038), I
 
 ## Proof
 
-- `python3 platforms/ci/validations/check_kit.py --links`: see the PR body.
-- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: see the PR body.
-- `bash platforms/tools/check.sh` (also with `CI=1`) and `bash platforms/tools/smoke.sh`: see the PR body.
-- Unverified: the eval cases of `session`, `testing`, `code-standards`, `review` and `git` (their descriptions changed;
-  KIT-037 reruns such a case by hand). The CLI was logged out, so no case ran.
+- `python3 platforms/ci/validations/check_kit.py --links`: OK (3 plugins, 27 skills, 3 rules, 11 templates,
+  24 indexes, 127 links, 25 hook cases).
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: 94 tests OK, 1 skipped.
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: passed for every manifest and both
+  marketplaces.
+- `bash platforms/tools/smoke.sh`: `smoke: OK (27 skills, ...)`.
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: no leaks found.
+- Skill counts from `git ls-tree` and the frontmatter: 38 → 27 skills, 12 → 11 user-only, 26 → 16 model-invocable.
+- `claude plugin eval plugins/core --case <name> --runs 1 --ablation none --no-publish --trust-plugin` (Claude Code
+  2.1.287): `git-squash-body` and `session-closeout-no-rerun` pass. `review-claimed-proof-not-rerun` scores 0.33:
+  `skill-fired` passes, `reran-proof` and `verdict` fail because the case grants no Bash; the base's
+  `validate-implementation-claimed-proof-not-rerun` scores the same on this host, so the gap predates KIT-039.
+- Unverified: the `dev` cases of `testing` and `code-standards`; KIT-038 records that every `dev` case fails
+  `skill-fired` with `dependency-unsatisfied` for `core`.
 
 ## History
 
 - 2026-11-11: confirmed (owner, phase 3 list).
+- 2026-11-11: done in #155 (stacked on #153).
