@@ -9,7 +9,7 @@ Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Cont
 | Path | Purpose |
 |---|---|
 | [`plugins/core/`](plugins/core/INDEX.md) | requires nothing: always-on rules (`AGENTS.md`), hook guard, session, parallelize, review (`reviewer` profile), git, security |
-| [`plugins/dev/`](plugins/dev/INDEX.md) | requires `core`: Java and Godot path rules; code standards, testing, investigate, Java 25/Spring, Godot 2D, asset import, Krita, Docker, persistence |
+| [`plugins/dev/`](plugins/dev/INDEX.md) | requires `core`: Java, Godot and Python path rules; code standards, testing, investigate, Java 25/Spring, Godot 2D, asset import, Krita, Docker, persistence |
 | [`plugins/sdd/`](plugins/sdd/INDEX.md) | requires `core`: spec path rule, `researcher` profile; architecture, protocol contracts, grilling, the `sdd-*` pipeline and journeys, spec templates |
 | [`platforms/`](platforms/) | machine tools ([`tools/`](platforms/tools/README.md)), validators and schemas ([`ci/`](platforms/ci/README.md)), files projects copy ([`kits/`](platforms/kits/README.md)) |
 | [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |

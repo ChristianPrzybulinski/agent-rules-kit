@@ -27,7 +27,7 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 ## Craft
 
 - **Everything written is in English** — code, comments, commits, docs, folder names. Only the conversation with the user is in pt-BR.
-- Standards are skills: `code-standards` (docs closure included), `architecture`, `testing`, `git` (branches, versions, LFS). Load the one the task touches; `rules/` loads the Java and Godot sets by file glob.
+- Standards are skills: `code-standards` (docs closure included), `architecture`, `testing`, `git` (branches, versions, LFS). Load the one the task touches; `rules/` loads the Java, Godot and Python sets by file glob.
 - Technical answer: code/diff first, then ≤3 lines; paths, commands and errors byte-for-byte; full prose only for security warnings, irreversible actions and multi-step sequences. Text for people: conclusion first, plain and fluid, every fact sourced. Governed documents (specs, CHANGELOG, commits, skills): template, schema and `[FACT]`-style tags kept whole, even inside a technical answer. Detail: the `living-docs` reference in skill `code-standards`.
 
 ## Security

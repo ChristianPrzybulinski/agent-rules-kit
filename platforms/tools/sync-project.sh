@@ -18,9 +18,9 @@
 # .claude/rules/ and .claude/skills/. Without it the list that .claude/skills/KIT_MANIFEST.json
 # records is used; a repo without a manifest gets the profile inferred, first match wins:
 # project.godot (godot), pom.xml (java), docs/spec/ (docs). The run prints which source won.
-# <profile> is godot|java|docs, optionally followed by :<dir>. A comma list syncs the union
+# <profile> is godot|java|docs|python, optionally followed by :<dir>. A comma list syncs the union
 # of its profiles' plugins, rules and skills, for a monorepo such as
-# docs,godot:client,java:server. The :<dir> suffix scopes the globs/paths of the rule named
+# docs,godot:client,java:server,python:platform. The :<dir> suffix scopes the globs/paths of the rule named
 # after that profile to <dir>/ ("**/*.gd" renders as "client/**/*.gd"; java:server leaves the
 # godot rule alone), and a plugin's other rules to the folders of every profile that includes
 # the plugin. The list is stored sorted and deduplicated, which is the form KIT_MANIFEST.json
@@ -141,7 +141,7 @@ infer_profile() { # $1 = repo dir
   if [[ -f "$1/project.godot" ]]; then echo godot
   elif [[ -f "$1/pom.xml" ]]; then echo java
   elif [[ -d "$1/docs/spec" ]]; then echo docs
-  else echo "sync: cannot infer profile for $1 (no project.godot, pom.xml or docs/spec); pass --profile godot|java|docs" >&2; return 1
+  else echo "sync: cannot infer profile for $1 (no project.godot, pom.xml or docs/spec); pass --profile godot|java|docs|python" >&2; return 1
   fi
 }
 
@@ -166,8 +166,8 @@ normalize_profile() { # $1 = --profile value; prints its entries sorted, dedupli
   printf '%s\n' "$1" | tr ',' '\n' | while IFS= read -r entry; do
     name="${entry%%:*}"
     case "$name" in
-      godot|java|docs) ;;
-      *) echo "sync: unknown profile '$name' (expected godot|java|docs, optionally :<dir>, comma-separated)" >&2; exit 1 ;;
+      godot|java|docs|python) ;;
+      *) echo "sync: unknown profile '$name' (expected godot|java|docs|python, optionally :<dir>, comma-separated)" >&2; exit 1 ;;
     esac
     if [[ "$entry" == *:* ]]; then
       dir="${entry#*:}"
@@ -193,9 +193,11 @@ profile_entries() { # $1 = normalized profile list; prints "<name> <dir>" per en
 base_plugins() { # $1 = one profile name; prints one plugin name per line, in this order
   case "$1" in
     # KIT-038: godot and java share the dev plugin; a rule loads only by its own file glob
-    godot) printf '%s\n' core dev ;;
-    java)  printf '%s\n' core dev ;;
-    docs)  printf '%s\n' core sdd ;;
+    # KIT-045: python too, so python:<dir> scopes rules/python.md to the repo's Python tooling
+    godot)  printf '%s\n' core dev ;;
+    java)   printf '%s\n' core dev ;;
+    python) printf '%s\n' core dev ;;
+    docs)   printf '%s\n' core sdd ;;
   esac
 }
 

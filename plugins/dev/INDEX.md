@@ -22,6 +22,7 @@ Depends on: `core`
 
 - `godot.md`
 - `java.md`
+- `python.md`
 
 ## `templates/`
 
