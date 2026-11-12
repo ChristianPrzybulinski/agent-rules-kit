@@ -45,7 +45,8 @@ re-checked at kit `49b2137`, stratics-client `f98e0091` and stratics-server `5bc
 
 T1 (#145) added this file, its row in `docs/features/README.md` and one CHANGELOG line. T2–T4 add
 `platforms/tools/gd_mutation.py`, `platforms/ci/validations/test_gd_mutation.py`, the tool's row in
-`platforms/tools/README.md` and one CHANGELOG line. No skill or gate changes before T7.
+`platforms/tools/README.md` and one CHANGELOG line. T5 changes the same tool, its test and its row and adds one
+CHANGELOG line. No skill or gate changes before T7.
 
 The tool, `platforms/tools/gd_mutation.py` (Python 3.9+, gdtoolkit 4.5.0, our own code, D3); steps 1–5 and 8 are
 built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T3 has `--workers N`, default 1):
@@ -80,9 +81,11 @@ built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T
    or compile error before the tests run) and *error* (anything else); *not run*, with exit 2, when writing or running
    the mutant raises. The score is killed plus timed out over killed, timed out and survived; invalid mutants stay out
    of it.
-6. **Differential.** Each function's result is cached by a hash of its normalised text together with the hashes of
-   its selected test files, so a function whose hash did not change keeps its last result (ub-mode's idea), and a new
-   test makes it run again.
+6. **Differential.** Each killed, survived or invalid result is cached under a hash of its function's path, name and
+   text (line ends and trailing blanks aside) together with the `res://` path and content hash of each selected test
+   file, and its place in the function, so a function whose hash did not change keeps its last result (ub-mode's idea)
+   on whatever lines it moves to, a new or changed test makes it run again, and a second run with nothing changed starts
+   no Godot. `--cache FILE` moves the cache and `--no-cache` runs every mutant.
 7. **Workers.** Parallel workers, each starting a mutant only while the one-minute load average is below the core
    count and fewer than 2 gate runs hold the host (the loop's gates count).
 8. **Output.** One survivor per line on stdout, `path:line function OPERATOR from → to`, then a summary with the score
@@ -173,6 +176,42 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
   12 s. 30 s is a judgement, not measured under load; it costs 30 s more per mutant that really hangs (none of T3's
   100). The stub tests pass `--timeout-constant 0`, except the one that checks the default.
 
+- 2026-11-12 T5: chose one cache file at `$XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json` (default `~/.cache`),
+  beside `gd_duplicates.py`'s `ai-kit/gd-duplicates`, over a file under `.git` or the checkout, because the key holds
+  the function's path from the Git top and its text, not the folder, so clones and worktrees of one repository share
+  results, and the tool still writes nothing in the checkout.
+- 2026-11-12 T5: chose to keep killed, survived and invalid only over every status, because those are the mutant's
+  verdict against its tests, while error, not run, no coverage and no tests come from the host, the unmutated run or
+  that run's coverage report, and timed out from the host's load too (review of #195, below); a mutant that ended
+  in error or timed out runs again.
+- 2026-11-12 T5: chose to leave Godot's version, the rest of the file and the rest of the project out of the key over
+  adding them, because reading Godot's version starts Godot, so a run with nothing changed would start one, and a
+  whole-file hash reruns every function of a file when one changes, which is what the cache avoids. A change
+  elsewhere that turns a result (a helper, a constant, Godot itself) keeps the old result until the function or a
+  selected test changes; `--no-cache` measures again, and `CACHE_VERSION` drops the whole file when an operator or a
+  status rule changes.
+- 2026-11-12 T5, after #192's review fixes merged in: chose to keep "not run" out of the cache, as "error" is, since a
+  write or run that raised says nothing about the mutant, and to leave the timeout out of the key, since it is 10 × a
+  baseline measured anew on each run plus `--timeout-constant`, so no key fixes it. Since the review of #195 no
+  "timed out" is kept, so a lower constant leaves none behind.
+- 2026-11-12 review of #195: chose to leave "timed out" out of the cache, so such a mutant runs again on each run,
+  over keeping it on the strength of the 30 s constant, because it is the one status the host's load also decides:
+  a run that load (5–20 on this host during gates) or `--workers N` clones slow past 10 × the baseline plus 30 s
+  counts as detected, a kept "timed out" would raise the score until the function or a selected test changes, and
+  nothing in the key tells a mutant that hangs from a slow host. With it out, leaving the timeout out of the key is
+  exact: a run that ended before its timeout ends the same way under a longer one, and a run that reached it is not
+  kept. The cost is one timeout (10 × the baseline plus 30 s) on every run per mutant that really hangs; none of
+  T3's 100 timed out. PIT 1.30.0 sets no precedent either way: its open-source history keeps no result
+  (`NullHistory.analyse` returns `Collections.emptyList()` in `pitest-entry-1.30.0.jar`). `CACHE_VERSION` stays 1:
+  the lookup takes only a status in `CACHED`, so a "timed out" in a file saved before this change runs again.
+- 2026-11-12 T5: chose the mutant's place as its line offset in the function, column, replaced length, operator and
+  new text over its line number, because a function that moves to other lines (an edit above it) keeps its results;
+  the place still names one edit, so a different gdtoolkit cannot give a cached status to another mutant.
+- 2026-11-12 T5: chose to keep the 5000 functions used last, merged under an `flock` on `cache.json.lock` and replaced
+  whole (`os.replace`), over an unbounded file written in place, because two runs on one host may save at once and a
+  cut-off write must not leave half a file; a cache that cannot be read or written prints a notice and every mutant
+  runs.
+
 ## Measurements
 
 T1 ran in the same driver run as KIT-034 T1 (2026-11-11, 10:11:53 to 10:12:43; Godot 4.7.2.stable.official.ed1daf0bf
@@ -255,6 +294,26 @@ is no longer generated, so T3's done-when holds. Of T3's other mutants:
   two loop batches.
 - No test was added: nothing in the client is edited here.
 
+T5 (2026-11-12, 15:20 to 15:22): T3's command with `--cache <scratch>/cache.json`, run twice in a row from `client/`
+of the same stratics-docs clone at `ac649c10c`, with `GODOT` set to a wrapper that logged each call and then ran Godot
+4.7.2.stable.official.ed1daf0bf; `nice -n 10`, `TMPDIR` in a new `mktemp -d` folder (the tool puts Godot's `HOME`
+there), one worker. No loop gate and no other Godot run held the host (load average 4.2).
+
+| Run | Godot calls | Wall | Statuses | Score |
+|---|---|---|---|---|
+| 1, empty cache | 103: `--version`, one `--import`, one unmutated run, 100 mutants | 142 s (1.13 s generating, 18.62 s import, 111.8 s mutants) | 92 killed, 7 survived, 1 invalid | 92.9 % |
+| 2, nothing changed | 0 | 5 s (1.29 s generating; the rest is the archive, 4,565 LFS pointers filled) | the same, mutant for mutant, each `"cached": true` | 92.9 % |
+
+- Run 2 printed "100 mutant(s) not run: their result is in the cache … and neither their function nor its tests
+  changed"; its stdout (the 7 survivors) is byte for byte run 1's, and its JSON has `"godot": null` and no unmutated
+  run. T5's done-when holds.
+- The cache held 6 functions and 100 mutants in 9,806 bytes, about 1.6 KB per function, so the 5000-function cap is
+  about 8 MB.
+- The clone's `git status --short` was empty after both runs, and so was the scratch folder (the copy removed).
+- Not run on the client: a change to one function or to the test file, since nothing in the client is edited here.
+  `test_gd_mutation.py` covers both with a stub Godot: a moved function keeps its results, a changed one and a changed
+  test run again.
+
 ## Proof
 
 Run from the worktree root at `6614325` on 2026-11-11 (the commits after it change only this document and
@@ -305,13 +364,70 @@ T2–T4 review fixes: run from the worktree root at `0e0b6a6` on 2026-11-12, on 
   out): "Ran 25 tests in 29.170s", "FAILED (failures=3)". The two raise tests stop at the exit code, 0 where 2 is
   expected (the raise ended the worker's thread); the timeout test stops at the baseline timeout, 10 × alone.
 
+T5: run from the worktree root at `c164509` on 2026-11-12, on `aafed4a` (#192's head; `origin/main` is `86a4564`);
+the commit after it changes only this document; every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 173 tests in 218.017s", "OK
+  (skipped=4)"; the 29 tests of `test_gd_mutation.py` ran (gdtoolkit 4.5.0 installed), none skipped.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "3 commits scanned.", "scanned ~93707 bytes (93.71 KB) in
+  87ms", "no leaks found".
+
+T5 after #192's review fixes merged in: run from the worktree root at `c15fc79` on 2026-11-12, on `b46e16e` (#192's
+head; `origin/main` is `cd9a632`; the commit after it changes only this document); every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 178 tests in 192.540s", "OK
+  (skipped=5)"; the 32 tests of `test_gd_mutation.py` ran, none skipped, and the fifth skip is #193's `GodotTest` case.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "6 commits scanned.", "scanned ~108675 bytes (108.68 KB) in
+  59.3ms", "no leaks found".
+
+T5 after merging `main` `dfaff73` and the review of #195: run from the worktree root at `ef41fa4` on 2026-11-12, on
+`origin/main` `dfaff73`; the commit after it changes only this document; every command exited 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "check: OK (1 plugins, 27 skills, 4 rules,
+  11 templates, 14 readmes, 83 links, 25 hook cases)", then "✔ Validation passed" twice and no skip line.
+- `bash platforms/tools/smoke.sh`: "smoke: OK (27 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/ci/validations/check_kit.py --links`: the same "check: OK" line.
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 183 tests in 173.667s", "OK
+  (skipped=5)"; the 34 tests of `test_gd_mutation.py` ran (alone: "Ran 34 tests in 68.250s", "OK"), none skipped.
+- `python3 platforms/tools/gen_index.py --check`: "gen_index: plugin indexes are current".
+- `bash platforms/tools/vendor.sh --check`: "vendor: lock consistent".
+- `claude plugin validate plugins/core`: "✔ Validation passed".
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: "8 commits scanned.", "scanned ~118918 bytes (118.92 KB) in
+  64.5ms", "no leaks found".
+- The three tests new or changed in `ef41fa4` fail on `gd_mutation.py` as of `ac2887a` (a scratch copy): "Ran 34
+  tests in 62.054s", "FAILED (failures=2, errors=1)". The slow-host test and `save_cache`'s test find "timed out"
+  kept; the error-or-timed-out test finds one rerun where two are expected.
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
 - 2026-11-11: implementation prompt launched; issue #137; T1 spike run.
 - 2026-11-11: specification and T1 spike in #145, which refers to #137 and leaves it open.
 - 2026-11-12: the owner approved T2 onward of KIT-034 and KIT-035 in chat ("Sim, KIT-034 primeiro"), KIT-035 after
-  KIT-034 T4 merged (`86a4564`, #191); T2–T4 implemented and T3 measured against T1 in this PR, which refers to #137
+  KIT-034 T4 merged (`86a4564`, #191); T2–T4 implemented and T3 measured against T1 in #192, which refers to #137
   and leaves it open.
+- 2026-11-12: T5 (the differential cache) implemented and measured on the client in its own PR, stacked on #192, which
+  refers to #137 and leaves it open.
 - 2026-11-12: the review of #192 asked for `main` merged in (`cd9a632`, #193; the tools README rows of both kept), a
   status for a mutant whose run raises and a floor under the mutant timeout; both are in § Decisions.
+- 2026-11-12: #192's head `b46e16e` (its review fixes and `main` `cd9a632`) merged into T5 at `c15fc79`; "not run"
+  stays out of the cache and the timeout out of the key (§ Decisions).
+- 2026-11-12: #192 merged on `main` as `af9bb69` (squash); `main` `dfaff73` (with #194) merged into T5 at
+  `ac2887a`; the review of #195 left "timed out" out of the cache (§ Decisions).

@@ -2,7 +2,7 @@
 """Advisory mutation testing of GDScript functions under gdUnit4, with PIT's default operators (KIT-035).
 
 Usage: gd_mutation.py [--base REF] [--ref REF] [--coverage JSON] [--tests RES_DIR]... [--workers N]
-                      [--timeout S] [--timeout-constant S] [--json FILE] [--keep] [FILE...]
+                      [--timeout S] [--timeout-constant S] [--cache FILE | --no-cache] [--json FILE] [--keep] [FILE...]
 
 `git archive <ref>` (default HEAD) of the Godot project around the current directory goes into a new temporary
 folder, as gd_coverage.py makes it; the checkout is never edited. Each asked .gd file of the copy outside addons/,
@@ -39,12 +39,23 @@ parse or compile error that names the mutated file); killed (exit 100); survived
 or more); error (anything else); not run when writing or running it raised (godot gone, a full disk), and a worker
 that cannot restore its file stops. The score is killed plus timed out over killed, timed out and survived.
 
+Differential: a killed, survived or invalid result is kept in --cache FILE (default
+$XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json, beside gd_duplicates.py's; default ~/.cache) under a hash of the
+function's path, name and text (line ends and trailing blanks aside) with the res:// path and content of each
+selected test file, and the mutant's place in the function. A later run takes such a mutant's result from the cache
+without a run, so a second run with nothing changed starts no Godot; the function moving to other lines keeps it, a
+change to its text or to a selected test file runs it again. A timed-out mutant runs again, since host load can
+stop a run that would end. The rest of the file, the project and Godot's version are not in the hash: --no-cache
+runs every mutant and leaves the cache alone. The cache keeps the 5000 functions used last.
+
 stdout holds one survivor per line, `path:line function OPERATOR from → to`; stderr the "no coverage" lines, the
 counts, the score and the notices; --json FILE writes every mutant with its status, the unmutated runs and the
 score. Exit 0 (advisory); 2 when godot, gdUnit4 or gdtoolkit is missing, a ref or the coverage report is bad, the
 import does not finish, an unmutated run fails or a mutant is not run.
 """
 import argparse
+import fcntl
+import hashlib
 import json
 import os
 import queue
@@ -95,6 +106,9 @@ CLASS_NAME = re.compile(r"^\s*class_name\s+(\w+)", re.M)
 INNER_CLASS = re.compile(r"^\s*class\s+(\w+)", re.M)
 ENUM = re.compile(r"^\s*enum\s+(\w+)", re.M)
 STATUSES = ("killed", "survived", "timed out", "invalid", "error", "no coverage", "no tests", "not run")
+CACHED = {"killed", "survived", "invalid"}  # the mutant's own verdict; "timed out" also depends on host load
+CACHE_VERSION = 1  # raise when an operator or a status rule changes: an older cache is then dropped
+CACHE_FUNCTIONS = 5000
 SHOWN = 80  # characters of a mutant's from/to text
 # A mutant's run is stopped after TIMEOUT_FACTOR x its selection's unmutated time plus --timeout-constant seconds,
 # PIT's shape (round(time x timeoutFactor) + timeoutConstant): a Godot start slowed by host load or by workers
@@ -142,17 +156,24 @@ class Mutant:
     stop: int
     text: str
     status: str = ""
+    span: tuple = (0, 0)  # first and last line of its function
     exit: Optional[int] = None
     seconds: Optional[float] = None
     tests: List[str] = field(default_factory=list)
+    key: str = ""  # its function's cache key
+    cached: bool = False
 
     def apply(self, source):
         return source[:self.start] + self.text + source[self.stop:]
 
+    def place(self):
+        """The mutant inside its function, the same while the function's text is, on whatever lines it moves to."""
+        return f"{self.line - self.span[0]}:{self.column}:{self.stop - self.start}:{self.operator}:{self.text}"
+
     def report(self):
         return {"path": self.path, "line": self.line, "column": self.column, "function": self.function,
                 "operator": self.operator, "from": self.before, "to": self.after, "status": self.status,
-                "exit": self.exit, "seconds": self.seconds, "tests": self.tests}
+                "exit": self.exit, "seconds": self.seconds, "tests": self.tests, "cached": self.cached}
 
 
 def kind(node):
@@ -222,7 +243,7 @@ class Generator:
         line, column = start(node)
         text += "\n" * max(self.text.count("\n", first, stop) - text.count("\n"), 0)
         self.mutants.append(Mutant(self.path, self.rel, self.function, line, column, operator, shown(before),
-                                   shown(after), first, stop, text))
+                                   shown(after), first, stop, text, span=self.functions[-1][1:]))
 
     def walk_class(self, statements, prefix=""):
         """Functions named as gd_coverage.py names them: Inner.f, var.get, var.set."""
@@ -437,6 +458,77 @@ def covered(statements, mutant):
     return False if hits and all(h == 0 for h in hits) else None
 
 
+def function_key(mutant, lines, hashes):
+    """Hash of the function's path, name and text (line ends and trailing blanks aside) and its selected tests."""
+    first, last = mutant.span
+    text = "\n".join(line.rstrip() for line in lines[first - 1:last])
+    blob = json.dumps([mutant.path, mutant.function, text, [[t, hashes[t]] for t in mutant.tests]])
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def load_cache(path, quiet=False):
+    """{function key: entry} of the cache file; empty when it is missing, unreadable or of another version."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as error:
+        if not quiet:
+            notice(f"cache {path} not read ({type(error).__name__}); every mutant runs")
+        return {}
+    ours = isinstance(data, dict) and data.get("tool") == "gd_mutation" and data.get("version") == CACHE_VERSION
+    functions = data.get("functions") if ours else None
+    if not isinstance(functions, dict):
+        return {}
+    return {key: entry for key, entry in functions.items() if isinstance(entry, dict)
+            and isinstance(entry.get("mutants"), dict) and isinstance(entry.get("used"), (int, float))}
+
+
+def use_cache(path, mutants, sources, copy):
+    """Gives each mutant its function's key and the cached result of the mutants still to run; returns how many."""
+    entries, hits = load_cache(path), 0
+    hashes = {t: hashlib.sha256((copy / t[len("res://"):]).read_bytes()).hexdigest()
+              for t in {t for m in mutants for t in m.tests}}
+    lines = {rel: text.split("\n") for rel, text in sources.items()}
+    for mutant in mutants:
+        mutant.key = function_key(mutant, lines[mutant.rel], hashes)
+        found = entries.get(mutant.key, {"mutants": {}})["mutants"].get(mutant.place())
+        if not mutant.status and isinstance(found, dict) and found.get("status") in CACHED:
+            mutant.status, mutant.exit, mutant.seconds = found["status"], found.get("exit"), found.get("seconds")
+            mutant.cached, hits = True, hits + 1
+    if hits:
+        notice(f"{hits} mutant(s) not run: their result is in the cache {path} and neither their function nor its "
+               "tests changed")
+    return hits
+
+
+def save_cache(path, mutants, sha):
+    """Merges this run's results into the cache file under a lock and keeps the CACHE_FUNCTIONS used last."""
+    now, path = round(time.time(), 3), Path(path)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path.with_name(path.name + ".lock"), "w", encoding="utf-8") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)  # another run may save at the same time
+            entries = load_cache(path, quiet=True)
+            for mutant in mutants:
+                if not mutant.cached and mutant.status not in CACHED:
+                    continue
+                entry = entries.setdefault(mutant.key, {"path": mutant.path, "function": mutant.function,
+                                                        "ref": sha, "used": now, "mutants": {}})
+                entry["used"] = now
+                if not mutant.cached:
+                    entry["ref"] = sha
+                    entry["mutants"][mutant.place()] = {"status": mutant.status, "exit": mutant.exit,
+                                                        "seconds": mutant.seconds}
+            kept = dict(sorted(entries.items(), key=lambda item: -item[1]["used"])[:CACHE_FUNCTIONS])
+            temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+            temporary.write_text(json.dumps({"tool": "gd_mutation", "version": CACHE_VERSION, "functions": kept},
+                                            ensure_ascii=False) + "\n", encoding="utf-8")
+            os.replace(temporary, path)
+    except OSError as error:
+        notice(f"cache {path} not written: {type(error).__name__}: {error}")
+
+
 def classify(code, output, rel):
     if code is None:
         return "timed out"
@@ -597,16 +689,20 @@ def measure(args, prefix, sha, wanted, godot, scratch):
         state = covered(statements, mutant) if args.coverage else None
         unmeasured += args.coverage is not None and state is None
         mutant.status = "no coverage" if state is False else "no tests" if not mutant.tests else ""
+    hits = use_cache(args.cache, mutants, sources, copy) if args.cache else 0
     generate_seconds = time.monotonic() - began
     if dropped:
         notice(f"{dropped} mutant(s) dropped: they did not parse again or changed a line number")
     if unmeasured:
         notice(f"{unmeasured} mutant(s) on lines the coverage report does not measure are run")
     data = {"tool": "gd_mutation", "version": 1, "ref": sha, "project": prefix or ".", "godot": None,
-            "coverage": args.coverage, "workers": args.workers, "lfs": {"filled": filled, "missing": missing},
+            "coverage": args.coverage, "cache": args.cache, "cached": hits, "workers": args.workers,
+            "lfs": {"filled": filled, "missing": missing},
             "seconds": {"generate": round(generate_seconds, 2)}, "baselines": []}
     pending = [m for m in mutants if not m.status]
     if not pending:
+        if args.cache:
+            save_cache(args.cache, mutants, sha)
         summarize(mutants, args, data)
         return 0
     env, log = scratch_env(scratch), scratch / "godot.log"
@@ -635,6 +731,8 @@ def measure(args, prefix, sha, wanted, godot, scratch):
                          {tests: run["timeout"] for tests, run in runs.items()})
     data["seconds"].update({"import": round(import_seconds, 2), "mutants": round(time.monotonic() - began, 2)})
     data["baselines"] = list(runs.values())
+    if args.cache:
+        save_cache(args.cache, mutants, sha)
     summarize(mutants, args, data)
     return 2 if failed or any(not run["ok"] for run in runs.values()) else 0
 
@@ -653,6 +751,12 @@ def main():
     ap.add_argument("--timeout-constant", type=float, default=TIMEOUT_CONSTANT,
                     help=f"seconds added to {TIMEOUT_FACTOR} x the unmutated time to stop a mutant's run "
                          f"(default {TIMEOUT_CONSTANT})")
+    ap.add_argument("--cache", default=str(Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+                                           / "ai-kit" / "gd-mutation" / "cache.json"),
+                    help="file of earlier results by function and test hashes (default "
+                         "$XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json; default ~/.cache)")
+    ap.add_argument("--no-cache", dest="cache", action="store_const", const=None,
+                    help="run every mutant and leave the cache alone")
     ap.add_argument("--json", help="write every mutant and its status to this file")
     ap.add_argument("--keep", action="store_true", help="keep the temporary copy, clones and logs")
     args = ap.parse_args()
@@ -664,6 +768,7 @@ def main():
     files = [os.path.realpath(p) for p in args.files]
     args.json = os.path.abspath(args.json) if args.json else None
     args.coverage = os.path.abspath(args.coverage) if args.coverage else None
+    args.cache = os.path.abspath(args.cache) if args.cache else None
     project = find_project(Path.cwd())
     if project is None:
         notice("no project.godot in the current directory or above")
