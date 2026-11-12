@@ -25,5 +25,5 @@ sources:
 
 ## Policy and fixtures
 
-- Coverage policy: every game rule has a scene-free test; there is no numeric gate for GDScript.
+- Coverage policy: every game rule has a scene-free test; there is no numeric gate for GDScript yet. Advisory measures, run from the project folder: `python3 ~/.ai-kit/platforms/tools/gd_coverage.py` (line and branch coverage per function) and `python3 ~/.ai-kit/platforms/tools/gd_mutation.py` (surviving mutants); skill `testing` § 1 says when and with which flags.
 - Test fixtures live next to the suites (protocol fixtures per `./network-codec.md`); generated `*.uid` files next to test scripts are committed - see `./scenes-and-generated-files.md`.
