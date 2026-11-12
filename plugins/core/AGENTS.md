@@ -6,13 +6,12 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 
 - **Always**: run the project checks the change's impact requires (skill `testing` § 6) before saying "done"; read the repo's `AGENTS.md`/README before changing.
 - **Ask first**: add/remove a dependency; change an applied migration; force-push; delete files you did not create; any operation with external effect (deploy, e-mail, payment).
-- **Never**: commit `.env`/secrets; disable a failing test to go green; rewrite public history without authorization; invent command output or an API.
+- **Never**: commit `.env`/secrets; disable or weaken a failing test or check to go green (skip, looser assertion, longer timeout, `--no-verify`); rewrite public history without authorization; invent command output or an API.
 - **Scope**: the task scope is the issue's `Files` cell (or the request when there is no issue). A change needed outside it → stop and name the exact path before touching it.
 
 ## Session
 
-- Start: read the repo's `AGENTS.md`; name **the** outcome of this session in one sentence.
-- One session, one outcome; one PR, one concern. Request on another topic → say so and offer a follow-up or a new session before starting it.
+- Start: name **the** outcome in one sentence. One session, one outcome; one PR, one concern; a request on another topic → say so and offer a follow-up or a new session before starting it.
 - End: summary (done · unverified · concrete next step) + at most **one** kit proposal (a gap, or a rule or step to simplify) with evidence from this session, asked before written. Detail: skill `session`.
 - When compacting or summarizing context, preserve the list of modified files and the test commands verbatim, so the next turn can re-run the proof; after a compaction, every number, path and line a deliverable cites that the summary does not list as verified is re-checked before the deliverable is sent.
 
@@ -27,7 +26,6 @@ Always-on discipline only. Procedures, standards and facts live in skills (loade
 ## Craft
 
 - **Everything written is in English** — code, comments, commits, docs, folder names. Only the conversation with the user is in pt-BR.
-- Standards are skills: `code-standards` (docs closure included), `architecture`, `testing`, `git` (branches, versions, LFS). Load the one the task touches; `rules/` loads the Java, Godot and Python sets by file glob.
 - Technical answer: code/diff first, then ≤3 lines; paths, commands and errors byte-for-byte; full prose only for security warnings, irreversible actions and multi-step sequences. Text for people: conclusion first, plain and fluid, every fact sourced. Governed documents (specs, CHANGELOG, commits, skills): template, schema and `[FACT]`-style tags kept whole, even inside a technical answer. Detail: the `living-docs` reference in skill `code-standards`.
 
 ## Security
