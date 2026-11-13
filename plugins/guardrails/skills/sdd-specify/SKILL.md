@@ -23,7 +23,7 @@ If the idea is still vague or the user wants it stress-tested, run `/grilling` f
 
 ## 2. Select identifiers
 
-Read `docs/spec/spec.md` and existing features. Choose the next unused `FEAT-nnn`; record collisions, dependencies and related features rather than duplicating them.
+Read `docs/spec/spec.md` and existing features. Choose the next unused `FEAT-nnn` — or, when the session prompt reserves a block, the first unused id of that block; the same applies to the `REQ` ids you create. Record collisions, dependencies and related features rather than duplicating them.
 
 ## 3. Write the feature
 
@@ -39,6 +39,6 @@ Set `status: proposed`, requirements, `flag: null`, `card: null` and creation da
 
 ## 4. Validate
 
-Run `platforms/tools/check.sh --spec docs/spec`. Every criterion must name an automated test or reproducible proof, and every requirement must be linked from a feature.
+Run the project spec validator (`python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas`; in this kit, `platforms/tools/check.sh --spec docs/spec`). Every criterion must name an automated test or reproducible proof, and every requirement must be linked from a feature.
 
 Done when: a described feature has valid FEAT/REQ files, happy/sad criteria, classified claims and no implementation decision.
