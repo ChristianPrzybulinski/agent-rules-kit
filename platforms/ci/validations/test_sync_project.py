@@ -66,11 +66,38 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("stale kit path: docs/x.md", result.stdout)
 
+    def test_11x_plugin_layouts_fail(self):  # KIT-061: the 11.x plugin folders before guardrails
+        self.write_md("docs/x.md", "- Process: agent-rules-kit `plugins/sdd/skills/sdd-constitution/references/sdd-process.md`\n"
+                      "- Java: `plugins/dev/skills/java-standards/SKILL.md`\n"
+                      "- Templates: `plugins/architect-sdd/templates/spec-journey.md`\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        for line in (1, 2, 3):
+            self.assertIn(f"stale kit path: docs/x.md:{line}:", result.stdout)
+
+    def test_older_plugin_folders_fail(self):  # KIT-062: every plugins/ folder of the kit's history before guardrails
+        folders = ["all/x.md", "dev-core/x.md", "dev-godot/x.md", "dev-java/x.md", "extras/x.md", "infra-core/x.md",
+                   "infra-github/x.md", "infra-persistence/x.md", "process-loop/x.md", "quality-core/x.md",
+                   "quality-security/x.md"]
+        self.write_md("docs/x.md", "".join(f"- agent-rules-kit `plugins/{f}`\n" for f in folders))
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        for line in range(1, len(folders) + 1):
+            self.assertIn(f"stale kit path: docs/x.md:{line}:", result.stdout)
+
+    def test_current_plugin_layout_passes(self):  # KIT-061
+        self.write_md("docs/x.md", "- Process: agent-rules-kit `plugins/guardrails/skills/sdd-constitution/references/sdd-process.md`\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_synced_folder_warning(self):  # KIT-021
         home = self.repo / "home"
         repo = home / "Library" / "CloudStorage" / "Dropbox" / "repo"
         (repo / "docs" / "spec").mkdir(parents=True)
         (repo / "AGENTS.md").write_text("# x\n")
+        # The hook warns only for a repository (KIT-058), so both targets get a .git entry.
+        (repo / ".git").mkdir()
+        (self.repo / ".git").mkdir()
         for args in ((), ("--check",)):
             result = self.run_sync(*args, repo=repo, home=home)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -215,8 +242,11 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rules = self.repo / ".claude" / "rules"
         self.assertEqual(sorted(p.name for p in rules.glob("*.md")),
-                         ["guardrails-godot.md", "guardrails-java.md", "guardrails-python.md", "guardrails-spec.md"])
+                         ["guardrails-godot.md", "guardrails-java.md", "guardrails-json.md", "guardrails-python.md",
+                          "guardrails-spec.md"])
         self.assertIn('  - "client/**/*.gd"', (rules / "guardrails-godot.md").read_text().splitlines())
+        # json is named after no profile and docs covers the root, so it keeps the whole repository (KIT-059)
+        self.assertIn('  - "**/*.json"', (rules / "guardrails-json.md").read_text().splitlines())
         self.assertIn('  - "server/**/*.java"', (rules / "guardrails-java.md").read_text().splitlines())
         self.assertIn('  - "docs/spec/**/*.md"', (rules / "guardrails-spec.md").read_text().splitlines())
         # the map sends both rules to every godot, java or python profile; each takes only the folder

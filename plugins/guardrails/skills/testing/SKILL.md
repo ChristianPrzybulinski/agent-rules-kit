@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Test policy and characterization. Use when reviewing or choosing tests, setting coverage/mutation gates or pinning legacy code. Not for verdicts (skill review).
+description: Test policy. Use when choosing or reviewing tests, setting coverage/mutation gates or before refactoring legacy or ported code. Not for verdicts (skill review).
 argument-hint: "[legacy class/method or flow to characterize | empty]"
 triggers:
   - user
@@ -32,7 +32,7 @@ Parity: every quality check one language has (coverage, mutation, complexity, du
 ## 2. Define behavior before implementation
 
 - Bug: add a test that reproduces the symptom and fails for the right reason before the fix. When the test came after the fix, revert the fix once and see the test fail for the stated reason.
-- Feature: the failing acceptance/domain test defines the behavior that makes the task done.
+- Feature: write the acceptance or domain test before the implementation exists, run it, and keep its failing line for the PR's Proof; that test defines the behavior that makes the task done.
 - Business rule: use a parameterized valid/boundary/invalid case table.
 - Legacy or ported code with no spec (refactor or rebalance): pin its current behavior first with characterization tests, `references/characterization.md`; never fix behavior while pinning it.
 
@@ -54,7 +54,9 @@ Never use `Thread.sleep`, `time.sleep` or an engine timer to let a test catch up
 Do not test getters, framework behavior or that collaborator X was called. Assert the externally observable result or state transition. A failing test is fixed with code/test correction, never by disabling it; a golden file, snapshot, threshold or case list changes only for an intended behavior change the PR names.
 
 - Call the code through the public entry its user uses (public method, port, message or scene contract) and assert what that user sees; never reach into a private helper.
-- A test that would still pass if every function under test returned null, zero or empty proves nothing: rewrite it with the expected value, or delete it. The expected value comes from the spec or a worked example, never from running the code under test (characterization excepted); a sad-path test passes every earlier guard (auth, validation, flag) and asserts the specific error its name promises.
+- A test that would still pass if every function under test returned null, zero or empty, or if the rule it names were removed, proves nothing: rewrite it with the expected value, or delete it. The expected value comes from the spec or a worked example, never from running the code under test (characterization excepted); a sad-path test passes every earlier guard (auth, validation, flag) and asserts the specific error its name promises.
+- A test asserts what the spec or task asked for; one that pins behavior nobody asked for is deleted, or the behavior goes into the spec first (characterization excepted).
+- Each test builds and removes its own data and passes alone and in any order; a test that sets shared state (a database row, a static field, a file) resets it.
 - When an honest test is impractical, write none: record the manual proof (the command or steps and what was observed) in the PR body instead.
 
 ## 6. Run gates

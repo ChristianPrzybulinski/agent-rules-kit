@@ -1,10 +1,10 @@
 {
-  "_format": "cases[]: name (str), dirs (folders created under a throwaway HOME), links (symlink -> target, both under HOME), files (path -> text; @HOME@ becomes the HOME path), xattr (folder -> com.apple.file-provider-domain-id value, answered by a stub xattr; macOS only), env (variable -> folder under HOME), cwd (payload cwd under HOME) or stdin (raw payload), warn (true: a systemMessage naming the cloud-synced folder; false: empty stdout); every case exits 0",
+  "_format": "cases[]: name (str), dirs (folders created under a throwaway HOME), links (symlink -> target, both under HOME), files (path -> text; @HOME@ becomes the HOME path), xattr (folder -> com.apple.file-provider-domain-id value, answered by a stub xattr; macOS only), env (variable -> folder under HOME), cwd (payload cwd under HOME) or stdin (raw payload), warn (true: a systemMessage naming the cloud-synced folder, given only when the folder holds the root of the repository around cwd, the nearest folder with a .git entry; false: empty stdout); every case exits 0",
   "cases": [
     {
       "name": "unsynced folder",
       "dirs": [
-        "Developer/repo"
+        "Developer/repo/.git"
       ],
       "cwd": "Developer/repo",
       "warn": false
@@ -12,7 +12,7 @@
     {
       "name": "iCloud Drive",
       "dirs": [
-        "Library/Mobile Documents/com~apple~CloudDocs/repo"
+        "Library/Mobile Documents/com~apple~CloudDocs/repo/.git"
       ],
       "cwd": "Library/Mobile Documents/com~apple~CloudDocs/repo",
       "warn": true
@@ -20,7 +20,7 @@
     {
       "name": "File Provider client",
       "dirs": [
-        "Library/CloudStorage/Dropbox/repo"
+        "Library/CloudStorage/Dropbox/repo/.git"
       ],
       "cwd": "Library/CloudStorage/Dropbox/repo",
       "warn": true
@@ -28,7 +28,7 @@
     {
       "name": "symlink into a synced folder",
       "dirs": [
-        "Library/CloudStorage/GoogleDrive-x/repo"
+        "Library/CloudStorage/GoogleDrive-x/repo/.git"
       ],
       "links": {
         "Developer/repo": "Library/CloudStorage/GoogleDrive-x/repo"
@@ -39,7 +39,7 @@
     {
       "name": "Documents without the iCloud attribute",
       "dirs": [
-        "Documents/repo"
+        "Documents/repo/.git"
       ],
       "cwd": "Documents/repo",
       "warn": false
@@ -47,7 +47,7 @@
     {
       "name": "iCloud Documents",
       "dirs": [
-        "Documents/repo"
+        "Documents/repo/.git"
       ],
       "xattr": {
         "Documents": "com.apple.CloudDocs.iCloudDriveFileProvider/00000000-0000-0000-0000-000000000000"
@@ -58,7 +58,7 @@
     {
       "name": "iCloud Desktop",
       "dirs": [
-        "Desktop/repo"
+        "Desktop/repo/.git"
       ],
       "xattr": {
         "Desktop": "com.apple.CloudDocs.iCloudDriveFileProvider/00000000-0000-0000-0000-000000000000"
@@ -69,7 +69,7 @@
     {
       "name": "iCloud Documents symlink to an unsynced folder",
       "dirs": [
-        "Developer/GitHub/repo",
+        "Developer/GitHub/repo/.git",
         "Documents"
       ],
       "xattr": {
@@ -84,7 +84,7 @@
     {
       "name": "OneDrive variable",
       "dirs": [
-        "OneDrive - Org/repo"
+        "OneDrive - Org/repo/.git"
       ],
       "env": {
         "OneDriveCommercial": "OneDrive - Org"
@@ -96,7 +96,7 @@
       "name": "OneDrive name prefix only",
       "dirs": [
         "OneDrive",
-        "OneDrive2/repo"
+        "OneDrive2/repo/.git"
       ],
       "env": {
         "OneDrive": "OneDrive"
@@ -107,7 +107,7 @@
     {
       "name": "Dropbox info.json",
       "dirs": [
-        "Dropbox (Personal)/repo"
+        "Dropbox (Personal)/repo/.git"
       ],
       "files": {
         ".dropbox/info.json": "{\"personal\": {\"path\": \"@HOME@/Dropbox (Personal)\"}}"
@@ -118,12 +118,46 @@
     {
       "name": "corrupt Dropbox info.json",
       "dirs": [
-        "Developer/repo"
+        "Developer/repo/.git"
       ],
       "files": {
         ".dropbox/info.json": "not json"
       },
       "cwd": "Developer/repo",
+      "warn": false
+    },
+    {
+      "name": "iCloud Drive folder that is not a repository",
+      "dirs": [
+        "Library/Mobile Documents/com~apple~CloudDocs/notes"
+      ],
+      "cwd": "Library/Mobile Documents/com~apple~CloudDocs/notes",
+      "warn": false
+    },
+    {
+      "name": "subfolder of a repository in iCloud Drive",
+      "dirs": [
+        "Library/Mobile Documents/com~apple~CloudDocs/repo/.git",
+        "Library/Mobile Documents/com~apple~CloudDocs/repo/src"
+      ],
+      "cwd": "Library/Mobile Documents/com~apple~CloudDocs/repo/src",
+      "warn": true
+    },
+    {
+      "name": "worktree in iCloud Drive (.git file)",
+      "files": {
+        "Library/Mobile Documents/com~apple~CloudDocs/wt/.git": "gitdir: @HOME@/Developer/repo/.git/worktrees/wt\n"
+      },
+      "cwd": "Library/Mobile Documents/com~apple~CloudDocs/wt",
+      "warn": true
+    },
+    {
+      "name": "repository root above the synced folder",
+      "dirs": [
+        ".git",
+        "Library/CloudStorage/Dropbox/notes"
+      ],
+      "cwd": "Library/CloudStorage/Dropbox/notes",
       "warn": false
     },
     {

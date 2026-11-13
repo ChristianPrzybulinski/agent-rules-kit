@@ -7,7 +7,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/codex-bin.sh"
 HEADER="# Global Rules — AI Kit"
 FAILURES=0
 ORIGIN_SHA=""
-AUTO_COMPACT_WINDOW="200k"
+AUTO_COMPACT_WINDOW=300000
 
 ok() {
   printf 'ok: %s\n' "$*"
@@ -243,8 +243,10 @@ ensure_claude_links() {
   done
 }
 
-# KIT-010: Claude Code compacts a conversation at its context window; the kit caps it at 200k so a long session
-# stops re-reading up to 1M tokens on every turn. An explicit owner value is kept and reported.
+# KIT-010: Claude Code compacts a conversation at its context window; the kit caps it at 300000 tokens so a long
+# session stops re-reading up to 1M tokens on every turn. Claude Code 2.1.287 reads the setting only as an integer
+# from 100000 to 1000000 and silently drops any other value, so the kit writes a number. The string "200k" an older
+# doctor wrote was never applied and is replaced; any other explicit owner value is kept and reported.
 ensure_claude_auto_compact() {
   local settings="$HOME/.claude/settings.json"
   local result
@@ -254,17 +256,32 @@ ensure_claude_auto_compact() {
   if ! result="$(python3 - "$settings" "$AUTO_COMPACT_WINDOW" <<'PY'
 import json
 import os
-import re
 import sys
 
-path, kit_value = sys.argv[1], sys.argv[2]
+path, kit_window = sys.argv[1], int(sys.argv[2])
+# Bounds of the Claude Code 2.1.287 settings schema (int, min 1e5, max 1e6, invalid -> dropped).
+MIN_WINDOW, MAX_WINDOW = 100_000, 1_000_000
+# The value an older doctor.sh wrote; a string, so Claude Code never applied it.
+LEGACY_KIT_VALUE = "200k"
 
-def tokens(value):
-    match = re.fullmatch(r"(\d+(?:\.\d+)?)([kKmM]?)", str(value).strip())
-    if not match:
+def applied_window(value):
+    """The window Claude Code applies for this settings value, or None when it drops the value."""
+    if isinstance(value, bool):
         return None
-    scale = {"": 1, "k": 1_000, "m": 1_000_000}[match.group(2).lower()]
-    return float(match.group(1)) * scale
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    if isinstance(value, int) and MIN_WINDOW <= value <= MAX_WINDOW:
+        return value
+    return None
+
+def write(settings):
+    settings["autoCompactWindow"] = kit_window
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temp = path + ".ai-kit-tmp"
+    with open(temp, "w", encoding="utf-8") as handle:
+        json.dump(settings, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+    os.replace(temp, path)
 
 try:
     with open(path, encoding="utf-8") as handle:
@@ -278,19 +295,21 @@ if not isinstance(settings, dict):
     print(f"fail {path} is not a JSON object; autoCompactWindow not checked")
     raise SystemExit(0)
 current = settings.get("autoCompactWindow")
+window = applied_window(current)
+shown = json.dumps(current, ensure_ascii=False)
 if current is None:
-    settings["autoCompactWindow"] = kit_value
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    temp = path + ".ai-kit-tmp"
-    with open(temp, "w", encoding="utf-8") as handle:
-        json.dump(settings, handle, indent=2, ensure_ascii=False)
-        handle.write("\n")
-    os.replace(temp, path)
-    print(f"fix claude autoCompactWindow set to {kit_value} in {path} (KIT-010)")
-elif tokens(current) is not None and tokens(current) <= tokens(kit_value):
-    print(f"ok claude autoCompactWindow {current}")
+    write(settings)
+    print(f"fix claude autoCompactWindow set to {kit_window} in {path} (KIT-010)")
+elif current == LEGACY_KIT_VALUE:
+    write(settings)
+    print(f"fix claude autoCompactWindow {shown}, a string Claude Code ignores, replaced by {kit_window} in {path} (KIT-010)")
+elif window is None:
+    print(f"warn claude autoCompactWindow {shown} is not an integer from {MIN_WINDOW} to {MAX_WINDOW}, "
+          f"so Claude Code ignores it — kept; write a number such as {kit_window}")
+elif window <= kit_window:
+    print(f"ok claude autoCompactWindow {window}")
 else:
-    print(f"warn claude autoCompactWindow '{current}' is above the kit's {kit_value} — kept (owner's choice)")
+    print(f"warn claude autoCompactWindow {window} is above the kit's {kit_window} — kept (owner's choice)")
 PY
 )"; then
     fail "cannot check autoCompactWindow in $settings"
