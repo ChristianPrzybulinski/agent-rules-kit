@@ -19,7 +19,7 @@ PostgreSQL (§1–§5) remains the source of truth for inventory, progression an
 
 ## 1. Create migrations
 
-Use the next immutable `V<n>__slug.sql` under `src/main/resources/db/migration/`; never edit an applied migration. Keep one logical change per file and run `CREATE INDEX CONCURRENTLY` outside a transaction.
+Use the next immutable `V<n>__slug.sql` under `src/main/resources/db/migration/`; editing an applied migration is ask-first (`AGENTS.md` Boundaries). Keep one logical change per file and run `CREATE INDEX CONCURRENTLY` outside a transaction.
 
 A migration keeps the previous application release working, so a rollback or a still-running instance survives it: add first (expand), and drop, rename or narrow a column or table in a later release, once no deployed version reads it (contract).
 

@@ -8,7 +8,7 @@ Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Cont
 
 | Path | Purpose |
 |---|---|
-| [`plugins/guardrails/`](plugins/guardrails/INDEX.md) | the kit's only plugin: always-on rules (`AGENTS.md`), hook guard; Java, Godot, Python and spec path rules; `reviewer` and `researcher` profiles; session, parallelize, review, git, security, code standards, testing, investigate, Java 25/Spring, Godot 2D, asset import, Krita, Docker, persistence, architecture, protocol contracts, grilling, the `sdd-*` pipeline and journeys; project and spec templates |
+| [`plugins/guardrails/`](plugins/guardrails/INDEX.md) | the kit's only plugin: always-on rules (`AGENTS.md`), hook guard; Java, Godot, Python, spec and JSON path rules; `reviewer` and `researcher` profiles; session, parallelize, review, git, security, code standards, testing, investigate, Java 25/Spring, Godot 2D, asset import, Krita, Docker, persistence, architecture, protocol contracts, grilling, the `sdd-*` pipeline and journeys; project and spec templates |
 | [`platforms/`](platforms/) | machine tools ([`tools/`](platforms/tools/README.md)), validators and schemas ([`ci/`](platforms/ci/README.md)), files projects copy ([`kits/`](platforms/kits/README.md)) |
 | [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |
 | `.devin-plugin/`, `.claude-plugin/`, `.agents/plugins/` | the content-free Devin meta-plugin, which requires `guardrails`, and the Claude Code and Codex marketplace catalogs |
@@ -39,7 +39,7 @@ User-level rule symlinks are opt-in with `AI_KIT_USER_RULES=1` (a rule present i
 |---|---|---|---|---|
 | Devin Cloud | no | `globs` | managed Devins | `triggers: [user]` |
 | Devin CLI/Desktop | PreToolUse guard, PostToolUse format/lint, SessionStart synced-folder warning and git state after compaction, best effort | `globs` | shared profiles | `triggers: [user]` |
-| Codex | no | description routing | no | `agents/openai.yaml` policy |
+| Codex | no | read from the repo's `.claude/rules/` on the `AGENTS.md` Boundaries line | no | `agents/openai.yaml` policy |
 | Claude Code | PreToolUse guard, PostToolUse format/lint, SessionStart synced-folder warning and git state after compaction, best effort | `paths` | shared profiles | `disable-model-invocation: true` |
 
 ## Devin plugin
