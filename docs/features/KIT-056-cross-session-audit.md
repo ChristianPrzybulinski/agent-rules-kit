@@ -4,7 +4,7 @@ title: "A weekly cross-session audit keeps agent memory current and promotes rec
 status: done
 confirmed: "2026-11-12 (owner, chat of the session 'agent-rules-kit | new | architecture | cross-session learning audit': questions Q1-Q5, then \"Sim, abrir\" to opening the issue after runs A and B)"
 issue: "#204"
-pr: ""
+pr: "#205"
 ---
 
 # KIT-056 — A weekly cross-session audit keeps agent memory current and promotes recurring lessons
@@ -85,4 +85,4 @@ No always-on line is added (`docs/design.md:16`). Nothing from transcripts enter
 
 - 2026-11-12: confirmed (owner, Q1-Q5 of the design proposal).
 - 2026-11-12: evidence refreshed from runs A and B; the owner approved opening the issue (#204).
-- 2026-11-12: done; the `audit` mode, the reference, `session_audit.py` with `test_session_audit.py` and the `refresh.sh` call ship in one PR.
+- 2026-11-12: done; the `audit` mode, the reference, `session_audit.py` with `test_session_audit.py` and the `refresh.sh` call ship in one PR (#205).
