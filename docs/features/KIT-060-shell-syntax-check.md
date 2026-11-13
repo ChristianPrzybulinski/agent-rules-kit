@@ -4,7 +4,7 @@ title: "check_kit.py parses every kit shell script with bash -n"
 status: done
 confirmed: "2026-11-12 (owner, chat of the KIT-010 300000 session: \"Aprovo\")"
 issue: "#211"
-pr: ""
+pr: "#212"
 ---
 
 # KIT-060 — check_kit.py parses every kit shell script with bash -n
