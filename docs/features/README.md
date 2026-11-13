@@ -28,7 +28,7 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-001-pre-existing-needs-a-baseline.md`](KIT-001-pre-existing-needs-a-baseline.md) | done | #69 | #68 |
 | [`KIT-002-no-vendored-core-skills.md`](KIT-002-no-vendored-core-skills.md) | done | #71 | #72 |
 | [`KIT-003-smoke-fixture-no-auto-maintenance.md`](KIT-003-smoke-fixture-no-auto-maintenance.md) | done | #73 | #74 |
-| [`KIT-004-parallel-spec-id-blocks.md`](KIT-004-parallel-spec-id-blocks.md) | confirmed | #75 | — |
+| [`KIT-004-parallel-spec-id-blocks.md`](KIT-004-parallel-spec-id-blocks.md) | done | #75 | #214 |
 | [`KIT-005-gates-need-a-full-checkout.md`](KIT-005-gates-need-a-full-checkout.md) | done | #77 | #78 |
 | [`KIT-006-spec-check-rejects-conflict-markers.md`](KIT-006-spec-check-rejects-conflict-markers.md) | done | #79 | #80 |
 | [`KIT-007-shell-zsh-traps.md`](KIT-007-shell-zsh-traps.md) | done | #81 | #84 |
@@ -81,5 +81,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-058-hooks-review.md`](KIT-058-hooks-review.md) | done | #206 | #208 |
 | [`KIT-059-path-rules-review.md`](KIT-059-path-rules-review.md) | done | #209 | #210 |
 | [`KIT-060-shell-syntax-check.md`](KIT-060-shell-syntax-check.md) | done | #211 | #212 |
+| [`KIT-061-skills-review.md`](KIT-061-skills-review.md) | done | #213 | #214 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

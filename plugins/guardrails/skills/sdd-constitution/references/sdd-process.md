@@ -11,7 +11,7 @@ Entry points: vague idea → `/grilling` first, then `sdd-specify` when problem/
 
 ## Flow
 
-Repeat `implement → validate` per issue until READY. Run `to-card` after `tasks` to cut one issue per task row (wave order) and after delivery to close; `implement` runs in one worktree per issue and opens one PR per issue, which the architect reviews before merge.
+Repeat `implement → review` per issue until READY. Run `to-card` after `tasks` to cut one issue per task row (wave order) and after delivery to close; `implement` runs in one worktree per issue and opens one PR per issue, which the architect reviews before merge.
 
 | Step | Skill | Input | Output |
 |---|---|---|---|
@@ -28,6 +28,8 @@ Repeat `implement → validate` per issue until READY. Run `to-card` after `task
 ## Identifiers and status
 
 `FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `J-nn` → `journeys/`. Number sequentially per kind namespace (DTEC, DGME, DPRO); never reuse.
+
+When two or more spec sessions run against one specification at the same time, each session's prompt reserves a block of ids for every kind it may create (`FEAT`, `REQ-F`, `REQ-NF`, `DTEC`/`DGME`/`DPRO`, `DEBT`, `J`); a session takes ids only from its own block. A reserved id left unused stays a gap and is never reused.
 
 Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). From `in-progress` on the value is derived (see Regimes). During implementation the executor's state is `docs/spec/progress/FEAT-nnn.json` (`passes` per task, set only after the literal proof output); after merge the task row and FEAT status derived from GitHub are the source of truth and the progress file is advisory. `delivered` means merged to `main` with no flag or the flag on. Journeys: `proposed → approved` (or `retired`).
 

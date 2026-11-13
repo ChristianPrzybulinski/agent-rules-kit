@@ -29,7 +29,7 @@ Branch, commit and version policy (§1–§5), the `gh` workflow (§6–§9) and
 
 ## 3. Commit atomically
 
-Use `<type>(<scope>): <imperative description>` with `Refs: FEAT-nnn`, `Closes #n` or `BREAKING CHANGE:` as applicable. One commit represents one coherent change, staged by explicit path (`git add <paths>`), never `git add -A`, `git add .` or `git commit -a`. No AI attribution in the title (a co-author footer only if the project requires it). The squash commit body states why, what changed, any approach rejected and why, and the proof (the command and its result). After the first review, add each fix as a new commit instead of rewriting reviewed ones.
+Use `<type>(<scope>): <imperative description>` with `Refs: FEAT-nnn`, `Closes #n` or `BREAKING CHANGE:` as applicable. One commit represents one coherent change, staged by explicit path (`git add <paths>`), never `git add -A`, `git add .` or `git commit -a`. No AI attribution in the title; a co-author footer follows the project's or the agent platform's attribution setting. The squash commit body states why, what changed, any approach rejected and why, and the proof (the command and its result). After the first review, add each fix as a new commit instead of rewriting reviewed ones.
 
 ## 4. Integrate without rewriting history
 

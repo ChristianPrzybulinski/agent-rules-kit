@@ -20,7 +20,7 @@ Read the FEAT and linked requirements. Collect clarification markers, criteria w
 
 ## 2. Ask one focused round
 
-Prioritize scope/risk questions. Ask at most five per round in one call of the runtime's ask tool (`AskUserQuestion`, `ask_user_question`), else as a numbered text list; each has one-line context, two to four options, consequences and a marked recommendation.
+Prioritize scope/risk questions. Ask at most five per round, one question per call of the runtime's ask tool (`AskUserQuestion`, `ask_user_question`), else as a numbered text list; each has one-line context with a concrete example, two to four options, consequences and a marked recommendation.
 
 Do not answer a product, cost or risk choice yourself. Route a technical decision to `sdd-plan` and a DEC.
 

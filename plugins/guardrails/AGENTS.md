@@ -25,7 +25,7 @@ Always-on discipline only: each line must hold before any skill could load. Proc
 
 - Plan before coding when the change touches 3+ files, crosses a layer, rests on a spec's "should"/"probably", or fixes a bug with no named root cause. Otherwise start.
 - Send independent steps in the same turn or run them in the background; sequence only what depends on a result, shares a resource or has an external effect. Detail: skill `parallelize`.
-- Two fixes failed the same check → before a third, undo them and write in your reply the premise both shared, in one sentence; test it with the cheapest check that could prove it false. A third failure → stop and report the attempts and premises, or load skill `investigate`.
+- Two fixes failed the same check → before a third, undo them and write in your reply the premise both shared, in one sentence; test it with the cheapest check that could prove it false. A third failure → stop and report the attempts and premises, or load skill `investigate` with the symptom, each attempt's failing output and the shared premise.
 - Shell (zsh, the macOS default): put text with backticks in a file or a `<<'EOF'` heredoc, and write loops over pairs, JSON handling and edits of several files in Python, because zsh runs a backtick inside double quotes as a command, keeps an unquoted `$x` as one word and runs a leading `=` as a command lookup.
 
 ## Security

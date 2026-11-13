@@ -250,7 +250,7 @@ skill_dirs() { # prints "<plugin> <name>" for every kit skill the map gives to a
 # (historical citation) appends the marker "<!-- kit-path-ok -->".
 # .claude/ is skipped: generated kit copies there are verified by their own
 # manifest and repo-owned content under .claude/ is not a kit citation.
-STALE_KIT_PATHS='agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|rules/git/|kits/java-maven/|kits/github/|platforms/install/|knowledge/|processes/sdd/|plugins/ai-kit/|plugins/core/'
+STALE_KIT_PATHS='agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|rules/git/|kits/java-maven/|kits/github/|platforms/install/|knowledge/|processes/sdd/|plugins/ai-kit/|plugins/core/|plugins/sdd/|plugins/dev/|plugins/architect-'
 STALE_OPT_OUT='<!-- kit-path-ok -->'
 
 scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; returns 1 if any

@@ -1,6 +1,6 @@
 ---
 name: asset-import
-description: Godot asset import with manifests and reproducible transforms. Use when bringing sprites, tilesets or maps into Godot. Not for drawing art (skill krita).
+description: Godot asset import with manifests and reproducible transforms. Use when bringing sprites, tilesets or maps into Godot. Not for drawing or retouching art.
 argument-hint: "[batch: path to originals | FEAT-xxx]"
 triggers:
   - user
@@ -40,6 +40,7 @@ Track `origin_path, origin_sha256, cast, number, name, aliases, width, height, p
 - Put only the batch needed by the FEAT under `res://`; do not copy the archive.
 - Configure pixel-art filtering and mipmaps at project import level.
 - Generate atlases, tilesets or `SpriteFrames` with a reproducible script and record its command and hashes.
+- Sprite sheets from exported frames: `python3 ~/.ai-kit/platforms/kits/godot/scripts/make_spritesheet.py <frames-dir> <output.png>` writes the sheet and `<output.png>.manifest.json` (frames, size, order, sha256); record `hframes`/`vframes` and the pivot in the batch manifest.
 
 ## 5. Verify and report
 

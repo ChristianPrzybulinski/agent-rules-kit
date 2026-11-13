@@ -60,7 +60,6 @@ Choose the higher rung when two work; never trade correctness at an edge case fo
 
 - Aim for 200–400 lines per feature file; 800 is the maximum before mandatory decomposition.
 - Fewer files win when cohesion remains high. Remove what the change makes unnecessary (dead code, flag, special case, layer) before adding another abstraction; a simplification removes more than it adds, and moving logic into a wrapper is not one.
-- Leave clear, local code alone: no drive-by refactor outside the flow the change touches.
 - Search production callers before renaming, deleting or changing behavior; a generated file (a `GENERATED`/`DO NOT EDIT` header or a path the project lists) changes only through its source or generator. Run the repository formatter/linter and its relevant tests; report literal failures rather than adding suppression.
 - Report the ceiling with `[code] → skipped: X; add when Y.` Delete explanation that exceeds the simple change unless the user requested a report.
 
@@ -74,6 +73,6 @@ Choose the higher rung when two work; never trade correctness at an edge case fo
 
 ## 9. Close the docs in the same PR
 
-Run the closure checklist in `references/living-docs.md` (README and `AGENTS.md` commands, CHANGELOG, public API docs, decision, debt and feature records, prose for people); observed code wins over a contradicting doc.
+Run the closure checklist in `references/living-docs.md` (README and `AGENTS.md` commands, CHANGELOG, public API docs, decision, debt and feature records, prose for people).
 
 Done when: names are literal, functions have one purpose, comments explain only why, errors remain visible, touched files respect the size ceiling, the solution stops at the earliest safe rung with no speculative dependency or abstraction, any deliberate ceiling records its evolution trigger, each decision lives in one place, and every applicable living-docs item is updated in the same PR.
