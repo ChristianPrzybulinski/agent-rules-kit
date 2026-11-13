@@ -1,7 +1,7 @@
 ---
 name: session
 description: Session start, closeout and handoff. Use when starting, switching topic, closing, handing off or a second human joins. Not for parallelism (skill parallelize).
-argument-hint: "[start | review | handoff <topic>]"
+argument-hint: "[start | review | handoff <topic> | audit]"
 triggers:
   - user
   - model
@@ -15,7 +15,7 @@ allowed-tools:
 
 # Session
 
-One skill, three modes: `start` opens and scopes the session, `review` closes it with evidence, `handoff <topic>` writes the continuation record.
+One skill, four modes: `start` opens and scopes the session, `review` closes it with evidence, `handoff <topic>` writes the continuation record, `audit` reviews many sessions at once.
 
 ## start
 
@@ -43,10 +43,17 @@ One skill, three modes: `start` opens and scopes the session, `review` closes it
 - Save to the project-defined location or `docs/sessions/YYYY-MM-DD-topic.md`. Link specs, decisions, commits and reports instead of copying them.
 - Before writing, run `references/handoff-record.md`: collect the observed state, name exactly one executable first task, and confirm completeness before closing.
 
+## audit
+
+- Read and follow `references/cross-session-audit.md`. The input is the redacted extract of `python3 ~/.ai-kit/platforms/tools/session_audit.py`, never a raw transcript.
+- Classify memory entries and recurring failures, re-check every claim before the report, and sort actions by the number of sessions that cite them.
+- It only proposes, with one exception: expired one-night, one-batch or one-session memory entries older than 7 days move to `memory/archive/`. Every other memory change, a repository `AGENTS.md` promotion (a PR) and a kit promotion (a `Kit [PROPOSAL]` block) waits for the user's yes.
+
 ## Rules
 
 - The handoff record is written only when invoked as session handoff <topic>, or when the user asks for a handoff in words; a model-triggered load runs start or review and may only suggest handoff.
 - Do not edit the kit in the same turn as the proposal.
 - A dirty tree is a blocker: list every path.
+- The audit mode runs only when invoked as `session audit`, by the weekly scheduled task, or when the user asks for the cross-session audit in words.
 
 Done when: one outcome stayed in scope, the review delivered verified status with unverified items and one next step, and any requested handoff record names one unambiguous first action.

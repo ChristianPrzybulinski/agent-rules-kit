@@ -80,7 +80,7 @@ Every repository enables only `guardrails@ai-kit` in `.claude/settings.json` (th
 
 ## Refresh and diagnosis
 
-On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours. `platforms/tools/doctor.sh` repairs clone, plugin and symlink state, warns when a Claude plugin cache differs from the kit (`refresh.sh` reinstalls it, KIT-013), and sets Claude Code's `autoCompactWindow` to the number `300000` when `~/.claude/settings.json` has none or holds the `"200k"` an older doctor wrote (KIT-010). Nothing refreshes at agent session start.
+On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours. `platforms/tools/doctor.sh` repairs clone, plugin and symlink state, warns when a Claude plugin cache differs from the kit (`refresh.sh` reinstalls it, KIT-013), and sets Claude Code's `autoCompactWindow` to the number `300000` when `~/.claude/settings.json` has none or holds the `"200k"` an older doctor wrote (KIT-010). When its last run is 7 or more days old, `refresh.sh` also runs `platforms/tools/session_audit.py`, the weekly cross-session audit pre-filter that skill `session` reads in `audit` mode; it prints counts only, and `AI_KIT_SESSION_AUDIT=0` turns it off (KIT-056). Nothing refreshes at agent session start.
 
 ## Maintainers
 

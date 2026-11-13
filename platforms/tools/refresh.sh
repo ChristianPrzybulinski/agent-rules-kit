@@ -193,6 +193,12 @@ if [[ -n "$broken_link" ]]; then
   "$KIT/platforms/tools/doctor.sh" || warn "doctor.sh reported failures — run platforms/tools/doctor.sh"
 fi
 
+# KIT-056: weekly cross-session audit pre-filter; prints counts only and never fails the refresh.
+if [[ "${AI_KIT_SESSION_AUDIT:-1}" != "0" ]]; then
+  python3 "$KIT/platforms/tools/session_audit.py" --if-older-days 7 \
+    || warn "session_audit.py failed — run python3 $KIT/platforms/tools/session_audit.py"
+fi
+
 sha="$(git -C "$KIT" rev-parse --short HEAD)" || fail "cannot read HEAD"
 date="$(git -C "$KIT" show -s --format=%cs HEAD)" || fail "cannot read commit date"
 printf 'refresh: %s %s main\n' "$sha" "$date"
