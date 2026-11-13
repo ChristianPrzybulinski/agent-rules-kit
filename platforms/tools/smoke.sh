@@ -9,7 +9,7 @@ TEST_HOME="$ROOT/home"
 RESTRICTED_PATH="/usr/bin:/bin"
 export AI_KIT_NO_CODEX_CLI=1
 # KIT-056: refresh runs session_audit.py, which honors these; keep it on the throwaway homes, never the real state.
-unset XDG_STATE_HOME CODEX_HOME
+unset XDG_STATE_HOME CODEX_HOME CODEX_SQLITE_HOME
 
 cleanup() {
   rm -rf "$ROOT"

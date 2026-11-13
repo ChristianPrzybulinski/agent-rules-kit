@@ -54,7 +54,7 @@ SECRET_PATTERNS = [
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"AGE-SECRET-KEY-[0-9A-Z]+"),
     re.compile(r"""(?i)\b(password|passwd|senha|secret|token|api[_-]?key)\b"""
-               r"""((?:\s+[\w-]+){0,3}?\s*(?:[:=]|\s(?:is|was|é|e|era)\s)\s*)(?:"[^"\n]*"|'[^'\n]*'|\S+)"""),
+               r"""((?:\s+[\w-]+){0,3}?\s*(?:[:=]\s*(?:(?:is|was|é|e|era)\s+)?|\s(?:is|was|é|e|era)\s+))(?:"[^"\n]*"|'[^'\n]*'|\S+)"""),
     re.compile(r"\b[A-Fa-f0-9]{32,}\b"),
     re.compile(r"\b[A-Za-z0-9+/_-]{40,}={0,2}"),
 ]
@@ -652,11 +652,6 @@ def main(argv=None) -> int:
         counters["files"] += 1
         record = offsets.get(sid)
         size = path.stat().st_size
-        if source == "codex" and excludes and not titles_ok and sid not in skipped:
-            # Codex titles could not be read, so a title in exclude.txt cannot be matched: leave it for a later run.
-            if record is None or (record.get("offset"), record.get("inode")) != (size, path.stat().st_ino):
-                counters["codex_deferred"] += 1
-            continue
         if record is None:
             record = offsets[sid] = {"offset": 0}
             if path.stat().st_mtime < since_epoch:
@@ -680,6 +675,11 @@ def main(argv=None) -> int:
                 record.update(offset=size, inode=path.stat().st_ino)
                 continue
         if not grew:
+            continue
+        if source == "codex" and excludes and not titles_ok:
+            # Codex titles could not be read, so a title in exclude.txt cannot be matched yet: the new lines wait
+            # for a later run (the keyword and id checks above already ran). A new file keeps its offset-0 record.
+            counters["codex_deferred"] += 1
             continue
         counters["files_read"] += 1
         session = Session(sid, title_of(sid, record))

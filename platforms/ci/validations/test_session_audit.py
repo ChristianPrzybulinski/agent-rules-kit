@@ -206,10 +206,22 @@ class SessionAuditTest(unittest.TestCase):
 
     def test_excluded_id_reaches_kept_session_whose_transcript_is_gone(self):
         first = self.kept_then_gone("de novo, rode os testes")
+        offsets = json.loads((self.state / "offsets.json").read_text(encoding="utf-8"))
+        self.assertIn(CLAUDE_IDS["kept"], offsets)
         (self.state / "exclude.txt").write_text(CLAUDE_IDS["kept"][:8] + "\n", encoding="utf-8")
         self.assertEqual(self.counts()["skipped_sessions"], 1)
         self.assertEqual(json.loads(first.read_text(encoding="utf-8"))["owner"], [])
         self.assertNotIn(CLAUDE_IDS["kept"], first.read_text(encoding="utf-8"))
+
+    def test_excluded_id_reaches_kept_session_without_offset_record(self):
+        first = self.kept_then_gone("de novo, rode os testes")
+        offsets_path = self.state / "offsets.json"
+        offsets = json.loads(offsets_path.read_text(encoding="utf-8"))
+        del offsets[CLAUDE_IDS["kept"]]
+        offsets_path.write_text(json.dumps(offsets), encoding="utf-8")
+        (self.state / "exclude.txt").write_text(CLAUDE_IDS["kept"][:8] + "\n", encoding="utf-8")
+        self.assertEqual(self.counts()["skipped_sessions"], 1)
+        self.assertEqual(json.loads(first.read_text(encoding="utf-8"))["owner"], [])
 
     def test_keyword_change_purges_kept_session_whose_transcript_is_gone(self):
         first = self.kept_then_gone("de novo, rode os testes")
@@ -250,6 +262,45 @@ class SessionAuditTest(unittest.TestCase):
         counts = self.counts()
         self.assertEqual((counts["sessions"], counts["codex_deferred"]), (0, 1))
         self.assertEqual(self.extract()["owner"], [])
+
+    def test_keyword_recheck_runs_while_codex_titles_are_unreadable(self):
+        self.codex_session(CODEX_IDS[0], codex_user("errado de novo em Lisboa"))
+        self.counts()
+        first = sorted(self.state.glob("extract-*.json"))[-1]
+        self.assertEqual(len(json.loads(first.read_text(encoding="utf-8"))["owner"]), 1)
+        (self.state / "exclude.txt").write_text("zzzzzzzz-unrelated\n", encoding="utf-8")
+        (self.state / "keywords.txt").write_text("lisboa\n", encoding="utf-8")
+        (self.codex.parent / "state_5.sqlite").write_bytes(b"not a database" * 100)
+        time.sleep(1.1)
+        self.assertEqual(self.counts()["skipped_sessions"], 1)
+        self.assertEqual(json.loads(first.read_text(encoding="utf-8"))["owner"], [])
+
+    def test_deferred_new_codex_rollout_is_read_later(self):
+        self.state.mkdir()
+        (self.state / "exclude.txt").write_text("zzzzzzzz-unrelated\n", encoding="utf-8")
+        database = self.codex.parent / "state_5.sqlite"
+        database.write_bytes(b"not a database" * 100)
+        self.codex_session(CODEX_IDS[0], codex_user("errado de novo"))
+        self.assertEqual(self.counts()["codex_deferred"], 1)
+        database.unlink()
+        time.sleep(1.1)
+        counts = self.counts()
+        self.assertEqual((counts["files_read"], counts["sessions"], counts["codex_deferred"]), (1, 1, 0))
+
+    def test_codex_titles_from_config_sqlite_home(self):
+        import sqlite3
+        db_home = self.root / "configured-db"
+        db_home.mkdir()
+        with sqlite3.connect(db_home / "state_5.sqlite") as con:
+            con.execute("create table threads (id text primary key, title text)")
+            con.execute("insert into threads values (?, ?)", (CODEX_IDS[0], "Pessoal — viagem"))
+        con.close()
+        (self.codex.parent / "config.toml").write_text(f'model = "x"\nsqlite_home = "{db_home}"\n', encoding="utf-8")
+        self.state.mkdir()
+        (self.state / "exclude.txt").write_text("pessoal\n", encoding="utf-8")
+        self.codex_session(CODEX_IDS[0], codex_user("errado de novo"))
+        counts = self.counts()
+        self.assertEqual((counts["skipped_sessions"], counts["sessions"]), (1, 0))
 
     def test_codex_titles_from_index_and_state_database_are_excluded(self):
         import sqlite3
@@ -337,7 +388,7 @@ class SessionAuditTest(unittest.TestCase):
     def test_password_in_prose_is_redacted(self):
         module = load_module()
         for text in ("my password is hunter2!", "a senha é hunter2!", "token = hunter2!", "a senha do wifi é hunter2",
-                     "the token for prod is hunter2", "password is 'hunter 2'", 'password: "hunter 2"'):
+                     "the token for prod is hunter2", "password is 'hunter 2'", 'password: "hunter 2"', "password: is hunter2"):
             redacted = module.redact(text)
             self.assertNotIn("hunter", redacted, text)
             self.assertNotIn(" 2", redacted, text)
