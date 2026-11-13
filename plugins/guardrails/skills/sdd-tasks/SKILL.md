@@ -36,7 +36,7 @@ Each row contains `T-nn`, imperative title, exact rooted files (tests included),
 ```
 
 States: `todo`, `doing`, `done`, `blocked`.
-Waves: contracts, schemas and DECs go to wave 0, sequential; two tasks share a wave only when their file sets are disjoint and neither reads the other's output; wave numbers are FEAT-local and a cross-FEAT dependency points to a task cut earlier.
+Waves: `references/waves-and-models.md` (wave 0, shared files, cross-FEAT order); wave numbers are FEAT-local and a cross-FEAT dependency points to a task cut earlier.
 
 ## 4. Check coverage
 
