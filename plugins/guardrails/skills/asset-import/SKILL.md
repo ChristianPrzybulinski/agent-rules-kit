@@ -14,8 +14,6 @@ allowed-tools:
 
 # Asset Import
 
-Reference: `references/director-lingo-glossary.md` for Director/Lingo archive terms.
-
 ## 1. Establish provenance
 
 - Keep originals read-only; record each source path, SHA-256 and usage license.
@@ -24,7 +22,7 @@ Reference: `references/director-lingo-glossary.md` for Director/Lingo archive te
 
 ## 2. Define the batch manifest
 
-Track `origin_path, origin_sha256, cast, number, name, aliases, width, height, pivot_x, pivot_y, origin_format, derived_path, derived_sha256, transformations, status, reason`.
+Track `origin_path, origin_sha256, origin_group, origin_index, name, aliases, width, height, pivot_x, pivot_y, origin_format, derived_path, derived_sha256, transformations, status, reason`.
 
 - Stages are originals → normalized → derived → Godot-imported; every row points back to the prior stage.
 - Identical hashes share one derivative and preserve all aliases; divergent pairs use `status: review`.

@@ -14,7 +14,7 @@ TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "gd_coverage.py
 HAS_GDTOOLKIT = importlib.util.find_spec("gdtoolkit") is not None
 NEEDS_PARSER = unittest.skipUnless(HAS_GDTOOLKIT, "gdtoolkit is not installed (pip install gdtoolkit==4.5.0)")
 GODOT = os.environ.get("GODOT") or shutil.which("godot")
-GDUNIT4 = os.environ.get("KIT_GDUNIT4", "")  # an addons/gdUnit4 folder, e.g. from a stratics-client git archive
+GDUNIT4 = os.environ.get("KIT_GDUNIT4", "")  # an addons/gdUnit4 folder, e.g. from a Godot project's git archive
 NEEDS_GODOT = unittest.skipUnless(HAS_GDTOOLKIT and GODOT and Path(GDUNIT4, "bin", "GdUnitCmdTool.gd").is_file(),
                                   "needs gdtoolkit, godot and KIT_GDUNIT4 set to an addons/gdUnit4 folder")
 sys.path.insert(0, str(TOOL.parent))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The no-model PR gates — importable module and CI entry point (upstreamed from stratics-docs R-07).
+"""The no-model PR gates — importable module and CI entry point (upstreamed from a consumer project's PR gates).
 
 A review loop imports the pure rule functions from here so the loop and the `pr-contract` GitHub
 Actions check enforce the same code. Run as a script it needs no `gh` CLI and no checkout: the report

@@ -106,7 +106,7 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 
 `platforms/tools/kpi.py <ledger.csv>` prints one line per review-loop batch. The loop's `note` column carries space-separated tokens on `kind=review` rows: `verdict=<approved|flagged|needs-product|needs-human>`, `findings=<n>`, `spec=<n>` (findings owned by `spec`); without them only rounds per PR is available.
 
-- first-pass approval >= 60% (39% on the 33 PRs reviewed up to 2026-10-05, stratics-docs DPRO-011)
+- first-pass approval >= 60% (39% on the 33 PRs a consumer project's loop reviewed up to 2026-10-05)
 - spec-owned findings <= 25%
 
 After every kit rule change compare two batches, one before and one after, on these numbers: if they do not move, the hypothesis that contradictions cost review rounds is refuted.
