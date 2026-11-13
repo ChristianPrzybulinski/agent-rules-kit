@@ -4,7 +4,7 @@ title: "CodeQL on dispatch and secret scanning with push protection for the publ
 status: done
 confirmed: "2026-11-13 (owner, chat of the CodeQL evaluation session: \"Sim, pode\")"
 issue: "#221"
-pr: ""
+pr: "#222"
 ---
 
 # KIT-063 — CodeQL on dispatch and secret scanning with push protection for the public kit
