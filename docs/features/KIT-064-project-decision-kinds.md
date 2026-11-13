@@ -1,10 +1,10 @@
 ---
 id: KIT-064
 title: "Each project declares its decision kinds and id prefixes; the kit names none of its own"
-status: confirmed
+status: done
 confirmed: "2026-11-13 (owner, chat of the session that removed the consumer project's names from the kit: \"Sim, começar aqui\" for the MINOR with configurable decision prefixes and a neutral default)"
 issue: "#225"
-pr: ""
+pr: "#226"
 ---
 
 # KIT-064 — Each project declares its decision kinds and id prefixes; the kit names none of its own
@@ -63,3 +63,4 @@ body.
 ## History
 
 - 2026-11-13: confirmed (owner, chat).
+- 2026-11-13: done (PR #226).
