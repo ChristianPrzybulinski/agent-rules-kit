@@ -190,7 +190,9 @@ if "--path" in args:
         log.chmod(0o644)
 if os.environ.get("STUB_LOG"):
     with open(os.environ["STUB_LOG"], "a") as out:
-        call = {{"args": args, "home": os.environ["HOME"], "nice": os.getpriority(os.PRIO_PROCESS, 0), "text": text}}
+        looks = Path(os.environ.get("STUB_PS_CALLS", os.devnull))
+        call = {{"args": args, "home": os.environ["HOME"], "nice": os.getpriority(os.PRIO_PROCESS, 0), "text": text,
+                "looks": len(looks.read_text()) if looks.is_file() else 0}}
         out.write(json.dumps(call) + "\\n")
 if args == ["--version"]:
     print("4.7.2.stub")
@@ -404,6 +406,8 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual((data["host"]["waits"], data["host"]["gates"]), ({"gates": 1, "load": 0}, [1, 2]))
         self.assertGreaterEqual(data["host"]["waited"], gd_mutation.HOST_POLL - 0.1)
         self.assertIn("1 start(s) waited for the gate cap and 0 for the load", result.stderr)
+        imported, = [call for call in self.calls() if "--import" in call["args"]]
+        self.assertEqual(imported["looks"], 2)  # it started after the second look, the one that found 1 gate run
         self.assert_no_leftovers()
 
     @NEEDS_PARSER
@@ -712,12 +716,14 @@ class HostTest(unittest.TestCase):
                  "Python.app/Contents/MacOS/Python -B loop.py gates --repo stratics-docs --pr 4013 --post",
                  "/usr/bin/python3 -B platform/review-loop/loop.py merge-recheck --pr 3168",
                  "python3.12 loop.py regate --pr 1", "python3 loop.py main-verify", "python3 loop.py approve --pr 2",
-                 "/x/MacOS/Python -B platform/tools/pr-review/pr_ops.py prove --pr 3",
+                 "/x/MacOS/Python -B platform/tools/pr-review/pr_ops.py prove --pr 3", "python3 loop.py merge --pr 4",
+                 "/x/MacOS/Python loop.py proof-check --repo r --issue 5 --run", "python3 pr_ops.py merge --pr 6",
+                 "python3 pr_ops.py merge-check --pr 6",
                  "/bin/sh -c /x/MacOS/Python -B loop.py gates --pr 9",
                  "/bin/zsh -c G=gates; python3 -B loop.py $G --pr 9", "pgrep -fl [l]oop.py gates",
                  "/x/MacOS/Python -B loop.py wait --role claude", "/x/MacOS/Python -B pr_ops.py status --pr 3",
                  "/usr/bin/python3 -B gd_mutation.py --workers 4", "/x/godot --path loop.py gates", "", "python3 -B"]
-        self.assertEqual(gd_mutation.gate_runs(lines), 6)
+        self.assertEqual(gd_mutation.gate_runs(lines), 8)
 
     def test_a_look_reads_ps_and_the_load_and_serves_every_worker_a_second(self):
         found = gd_mutation.Host()
@@ -726,7 +732,19 @@ class HostTest(unittest.TestCase):
                 mock.patch.object(gd_mutation.os, "getloadavg", return_value=(3.5, 2.0, 1.0)):
             self.assertEqual(found.probe(), (1, 3.5))
             self.assertEqual(found.probe(), (1, 3.5))
-        run.assert_called_once_with(gd_mutation.PS, capture_output=True, text=True, check=True, timeout=30)
+        run.assert_called_once_with(gd_mutation.PS, capture_output=True, text=True, errors="replace", check=True,
+                                    timeout=30)
+
+    def test_a_process_whose_command_is_not_utf8_does_not_stop_the_look(self):
+        with tempfile.TemporaryDirectory() as folder:
+            ps = Path(folder) / "ps"
+            ps.write_text(f"#!{sys.executable}\nimport sys\n"
+                          "sys.stdout.buffer.write(b'python3 -c caf\\xe9\\npython3 loop.py gates --pr 1\\n')\n")
+            ps.chmod(0o755)
+            path = f"{folder}{os.pathsep}{os.environ.get('PATH', '')}"
+            with mock.patch.dict(os.environ, {"PATH": path}), \
+                    mock.patch.object(gd_mutation.os, "getloadavg", return_value=(0.5, 0.5, 0.5)):
+                self.assertEqual(gd_mutation.Host().probe(), (1, 0.5))
 
     def test_gate_runs_at_the_cap_hold_even_the_first_run(self):
         found = self.host((2, 0.0), (3, 0.0), (1, 0.0))
@@ -775,6 +793,18 @@ class HostTest(unittest.TestCase):
         self.assertEqual({k: v for k, v in found.report().items() if k != "cores"},
                          {"gate_cap": 2, "peak": 2, "waits": {"gates": 0, "load": 0}, "waited": 0.0, "load": None,
                           "gates": None})
+
+    def test_a_closed_host_runs_no_unmutated_selection(self):
+        found = self.host((2, 0.0))
+        found.closed = True
+        worker = gd_mutation.Worker(Path("/nonexistent"), {}, Path("/nonexistent/godot.log"))
+        with mock.patch.object(gd_mutation, "run_godot", return_value=(0, "", 1.0, None)) as run, \
+                mock.patch.object(gd_mutation, "notice"):
+            runs = gd_mutation.baselines("godot", worker, [("res://tests/a_test.gd",)], 60, 30, found)
+        run.assert_not_called()
+        self.assertEqual(runs, {("res://tests/a_test.gd",): {"tests": ["res://tests/a_test.gd"], "exit": None,
+                                                             "cases": None, "seconds": None, "timeout": None,
+                                                             "ok": False}})
 
     def test_a_closed_host_runs_no_mutant_and_each_is_not_run(self):
         found = self.host((2, 0.0))

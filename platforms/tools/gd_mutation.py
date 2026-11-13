@@ -40,13 +40,13 @@ or more); error (anything else); not run when writing or running it raised (godo
 that cannot restore its file stops. The score is killed plus timed out over killed, timed out and survived.
 
 Host: every Godot run (the import, each unmutated run, each mutant) starts only while fewer than 2 gate runs hold the
-host, the review loop's included: a Python process running `loop.py` gates, regate, merge-recheck, main-verify or
-approve, or `pr_ops.py prove`, read from `ps` (the shell that wraps one is not counted). A run beside another of ours
-also needs the one-minute load average below the core count, so --workers N is an upper bound and one run always goes
-on when the gate cap allows. A waiting run looks again every 2 s or when a run of ours ends; after 3600 s of gate runs
-at the cap no further run starts and the rest are not run. What the host does not tell (ps fails, no load average)
-does not bound a run, with one notice. --json FILE has the cores, the peak of runs at once, the waits and the load and
-gate runs seen.
+host, the review loop's included: a Python process running `loop.py` gates, merge-recheck, main-verify, approve, merge
+or proof-check, or `pr_ops.py` prove or merge, read from `ps` (the shell that wraps one is not counted). A run beside
+another of ours also needs the one-minute load average below the core count, so --workers N is an upper bound and one
+run always goes on when the gate cap allows. A waiting run looks again every 2 s or when a run of ours ends; after
+3600 s of gate runs at the cap no further run starts and the rest are not run. What the host does not tell (ps fails,
+no load average) does not bound a run, with one notice. --json FILE has the cores, the peak of runs at once, the waits
+and the load and gate runs seen.
 
 Differential: a killed, survived or invalid result is kept in --cache FILE (default
 $XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json, beside gd_duplicates.py's; default ~/.cache) under a hash of the
@@ -128,8 +128,11 @@ TIMEOUT_CONSTANT = 30
 # the review loop's own included (the owner's cap of 2), and a second run at once only while the one-minute load
 # average is below the core count. A gate run is a Python process whose script is one of GATE_COMMANDS' files and whose
 # next word is one of its commands; the shell that wraps it is not one (a `pgrep -f` pattern also matches the shell).
+# The commands are those that can take the loop's gate slot: approve and merge take it only to re-check a stale merge
+# result and proof-check only with --run, and each is counted whenever it runs (a short wait over a missed gate run).
 GATE_CAP = 2
-GATE_COMMANDS = {"loop.py": {"gates", "regate", "merge-recheck", "main-verify", "approve"}, "pr_ops.py": {"prove"}}
+GATE_COMMANDS = {"loop.py": {"gates", "merge-recheck", "main-verify", "approve", "merge", "proof-check"},
+                 "pr_ops.py": {"prove", "merge"}}
 PYTHON = re.compile(r"python[0-9.]*", re.I)
 PS = ["ps", "-A", "-ww", "-o", "command="]
 HOST_FRESH = 1  # seconds a look at the host serves every worker (one `ps` takes about 60 ms on a loaded host)
@@ -624,7 +627,7 @@ class Host:
         if when is not None and time.monotonic() - when < HOST_FRESH:
             return gates, load
         try:
-            gates = gate_runs(subprocess.run(PS, capture_output=True, text=True, check=True,
+            gates = gate_runs(subprocess.run(PS, capture_output=True, text=True, errors="replace", check=True,
                                              timeout=30).stdout.splitlines())
             self.gates.append(gates)
         except (OSError, subprocess.SubprocessError) as error:

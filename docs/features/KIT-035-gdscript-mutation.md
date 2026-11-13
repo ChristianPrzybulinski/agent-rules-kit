@@ -225,15 +225,20 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
 - 2026-11-12 T6: chose to admit every Godot run, the import and each unmutated run included, over mutants only,
   because the import (22 s in T3) costs the host more than a mutant (1.2 s), and an import or unmutated run that is
   not admitted leaves its mutants "not run" with exit 2, as a failed one does.
-- 2026-11-12 T6: chose to count a gate run as a Python process whose script is `loop.py` with `gates`, `regate`,
-  `merge-recheck`, `main-verify` or `approve`, or `pr_ops.py` with `prove`, read from one `ps -A -ww -o command=`,
-  over a `pgrep -f` pattern, because a pattern also matches the shell that wraps the run and counts it twice; the
-  names are the subcommands that take the loop's gate slot (`gate_slot` in `platform/review-loop/loop.py` at
-  stratics-docs `9cba4f723`) and the live gate read `…/MacOS/Python -B loop.py gates --repo stratics-docs --pr 4013
-  --post`. The tool reads the owner's cap (2 gate runs on the host, the loop's included) and does not join the loop's
-  admission, which counts only the loop's own records (`admission_runs`, the same file): a gate that starts while one
-  of our runs is going does not wait for it, and our next run waits instead. A new gate command in the loop needs a
-  line in `GATE_COMMANDS`.
+- 2026-11-12 T6: chose to count a gate run as a Python process whose script is `loop.py` with `gates`,
+  `merge-recheck`, `main-verify`, `approve`, `merge` or `proof-check`, or `pr_ops.py` with `prove` or `merge`, read
+  from one `ps -A -ww -o command=`, over a `pgrep -f` pattern, because a pattern also matches the shell that wraps the
+  run and counts it twice; the names are the subcommands that can take the loop's gate slot (`gate_slot` and
+  `admitted_proof` in `platform/review-loop/loop.py` at stratics-docs `31a6c863f`: `run_gates`, `run_proof`,
+  `run_main_rows`, `merge-recheck` and `proof-check --run`; `approve` and both `merge` commands reach `run_proof`
+  through `stale_merge_result` when the merge result is stale; `regate` only asks for a re-gate) and the live gate
+  read `…/MacOS/Python -B loop.py gates --repo stratics-docs --pr 4013 --post`. `approve`, `merge` and `proof-check`
+  are counted whenever they run, over only when they hold the slot, which `ps` does not show: a short wait of ours
+  over a gate run missed. The review of #200 found the first list (`regate` in, `merge` and `proof-check` out). The
+  tool reads the owner's cap (2 gate runs on the host, the loop's included) and does not join the loop's admission,
+  which counts only the loop's own records (`admission_runs`, the same file): a gate that starts while one of our runs
+  is going does not wait for it, and our next run waits instead. A new gate command in the loop needs a line in
+  `GATE_COMMANDS`.
 - 2026-11-12 T6: chose one look at the host shared by every worker for 1 s, a poll of 2 s and a wake when a run of ours
   ends, over one `ps` before each start, because one `ps -A -ww` took 59 to 171 ms (median 65 ms, 5 calls) on the
   loaded host and a mutant takes about 1.2 s (T3), so a `ps` per start would add about 5 % to every mutant.
@@ -536,3 +541,7 @@ only this document; every command exited 0:
 - 2026-11-12: T6 (every Godot run waits while 2 gate runs hold the host, and a second one at once while the load
   is at the core count) implemented and measured on the client with the loop running (one gate) in its own PR,
   which refers to #137 and leaves it open; step 7 now reads as § Decisions, 2026-11-12 T6, says.
+- 2026-11-13: the review of #200 at `a4a7cd1` found a `ps` line that is not UTF-8 raising `UnicodeDecodeError` out
+  of the look (now decoded with `errors="replace"`), `GATE_COMMANDS` missing `merge` and `proof-check` and listing
+  `regate` (§ Decisions, 2026-11-12 T6), and no test failing when the import or an unmutated run skips admission
+  (now `looks` in the stub's log and `test_a_closed_host_runs_no_unmutated_selection`).
