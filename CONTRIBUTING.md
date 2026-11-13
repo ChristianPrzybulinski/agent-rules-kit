@@ -11,6 +11,7 @@ This section is for people outside the project; the rest of the file is the proc
 - Open a pull request only after the maintainer agrees to the change in its issue; a pull request without one may be closed unreviewed. Link the issue, keep to one concern, add a line under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md), run `platforms/tools/check.sh` and fill in the PR checklist. The rest of this file says where each kind of content goes.
 - A contribution is licensed under the repository's [MIT license](LICENSE).
 - Report a vulnerability privately, as [`SECURITY.md`](SECURITY.md) says, never in an issue or pull request.
+- Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md), the Contributor Covenant 3.0.
 
 ## What goes where
 
