@@ -1,4 +1,6 @@
-"""guardrails guard (KIT-020): git branch -D passes only for one branch whose tip is a merged PR's head; anything else fails closed."""
+"""guardrails guard (KIT-020): git branch -D passes only for one branch whose tip is a merged PR's head; anything else fails closed.
+
+KIT-058: a deny whose only match is git branch -D names that path, so the agent can retry the bare command."""
 import json
 import shutil
 import subprocess
@@ -14,6 +16,7 @@ GUARD, GUARD_TIMEOUT = GUARD_HOOK["command"], GUARD_HOOK["timeout"]
 BRANCH = "feat/kit-020"
 OTHER_SHA = "0" * 40
 GH_ARGS = ["pr", "list", "--head", BRANCH, "--state", "merged", "--json", "headRefOid"]
+HINT = "The branch of a merged PR passes when `git branch -D <branch>` runs as its own command."
 # Each command names the merged branch, yet is not exactly `git branch -D <one name>`: the guard denies it without asking gh.
 OTHER_SHAPES = (
     f"git branch -D {BRANCH} other",
@@ -129,6 +132,22 @@ class MergedBranchGuardTest(unittest.TestCase):
             with self.subTest(command=command):
                 self.assert_denied(self.guard(command))
                 self.assertFalse(self.calls.exists())
+
+    def test_deny_reason_names_the_bare_command_only_when_branch_delete_is_the_only_match(self):
+        self.stub_gh("printf '[]'")
+        cases = (
+            (f"git worktree remove ../wt && git branch -D {BRANCH}", True),
+            (f"git branch -D {BRANCH}", True),
+            (f"git branch -D {BRANCH}; rm -rf build", False),
+            ("git reset --hard", False),
+        )
+        for command, hinted in cases:
+            with self.subTest(command=command):
+                result = self.guard(command)
+                self.assert_denied(result)
+                reason = json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+                self.assertEqual(reason.endswith(HINT), hinted, reason)
+                self.assertEqual(result.stderr.strip(), reason)
 
 
 if __name__ == "__main__":

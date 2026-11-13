@@ -1,4 +1,7 @@
-"""guardrails hooks: the guard's --no-verify pattern and time on contrived input, the SessionStart compact branch and a latency budget per hook."""
+"""guardrails hooks: the guard's --no-verify pattern and time on contrived input, the SessionStart compact branch and a latency budget per hook.
+
+KIT-058: after compaction the hook also reports up to two repositories of the files the session edited most recently,
+read from the last 4 MB of the payload's transcript_path; without a readable transcript it reports the cwd alone."""
 import json
 import os
 import subprocess
@@ -135,13 +138,89 @@ class HooksTest(unittest.TestCase):
         result = self.session_start("compact", self.dir)
         self.assertEqual((result.returncode, result.stdout), (0, ""))
 
+    def make_repo(self, name, branch):
+        repo = self.dir / name
+        self.git("init", "-q", "-b", branch, str(repo))
+        (repo / "a.txt").write_text("a\n", encoding="utf-8")
+        self.git("-C", str(repo), "add", "a.txt")
+        self.git("-C", str(repo), "commit", "-qm", "init")
+        return repo
+
+    def write_transcript(self, *edited):
+        """A Claude Code transcript whose assistant records edit the given files, oldest first."""
+        lines = ['{"type":"user","message":{"role":"user","content":"start"}}', "not json"]
+        for index, path in enumerate(edited):
+            name = ("Edit", "Write", "NotebookEdit")[index % 3]
+            key = "notebook_path" if name == "NotebookEdit" else "file_path"
+            lines.append(json.dumps({"type": "assistant", "message": {"role": "assistant", "content": [
+                {"type": "text", "text": "editing"},
+                {"type": "tool_use", "id": f"t{index}", "name": name, "input": {key: str(path)}}]}}))
+            lines.append(json.dumps({"type": "user", "message": {"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": f"t{index}", "content": "ok"}]}}))
+        transcript = self.dir / "transcript.jsonl"
+        transcript.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return transcript
+
+    def compact_with_transcript(self, cwd, transcript):
+        return self.run_hook(SESSION_START, {"hook_event_name": "SessionStart", "source": "compact", "cwd": str(cwd),
+                                             "transcript_path": str(transcript)})
+
+    def test_compact_adds_repositories_of_edited_files(self):  # KIT-058
+        work = self.make_repo("work", "feat/edited")
+        (work / "a.txt").write_text("changed\n", encoding="utf-8")
+        older = self.make_repo("older", "feat/older")
+        oldest = self.make_repo("oldest", "feat/oldest")
+        shell = self.make_repo("shell", "main")
+        (self.dir / "scratch").mkdir()
+        transcript = self.write_transcript(
+            oldest / "a.txt", older / "a.txt", shell / "a.txt", self.dir / "scratch" / "n.txt",
+            work / "a.txt", self.dir / "gone" / "x.txt", "relative/path.txt")
+
+        result = self.compact_with_transcript(shell, transcript)
+
+        self.assertEqual(result.returncode, 0)
+        context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+        head = self.git("-C", str(work), "rev-parse", "--short", "HEAD")
+        self.assertTrue(context.startswith(
+            "ai-kit: git state after compaction; check the summary against it. " + str(shell) + " at "), context)
+        self.assertIn(str(work) + " at " + head + " (edited in this session):\n## feat/edited\n M a.txt", context)
+        self.assertIn(str(older) + " at ", context)
+        self.assertNotIn(str(oldest), context)  # two repositories at most, most recent edit first
+        self.assertEqual(context.count(str(shell) + " at "), 1)
+
+    def test_compact_outside_git_reports_edited_repositories(self):  # KIT-058
+        work = self.make_repo("work", "feat/edited")
+        result = self.compact_with_transcript(self.dir, self.write_transcript(work / "a.txt"))
+        context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(str(work) + " at ", context)
+        self.assertIn("(edited in this session):\n## feat/edited", context)
+
+    def test_compact_without_a_readable_transcript_reports_cwd_only(self):  # KIT-058
+        work = self.make_repo("work", "feat/edited")
+        (self.dir / "bad.jsonl").write_bytes(b"\xff\xfe" + b"{" * 1000)
+        for transcript in (self.dir / "missing.jsonl", self.dir / "bad.jsonl", self.dir):
+            with self.subTest(transcript=transcript.name):
+                result = self.compact_with_transcript(work, transcript)
+                context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+                self.assertNotIn("edited in this session", context)
+                self.assertIn(str(work) + " at ", context)
+        result = self.compact_with_transcript(self.dir, self.dir / "missing.jsonl")
+        self.assertEqual((result.returncode, result.stdout), (0, ""))
+
     def test_each_hook_within_budget(self):
         (self.dir / "notes.txt").touch()
+        # Worst case for the KIT-058 read: more than the 4 MB tail, every line an edit outside any repository.
+        record = json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Edit", "input": {
+            "file_path": str(self.dir / "notes.txt"), "old_string": "a" * 300, "new_string": "b" * 300}}]}})
+        transcript = self.dir / "transcript.jsonl"
+        transcript.write_text((record + "\n") * (6_000_000 // len(record)), encoding="utf-8")
         cases = (
             ("guard", GUARD, {"tool_name": "Bash", "tool_input": {"command": "git status"}}),
             ("post-edit", POST_EDIT, {"tool_name": "Edit", "tool_input": {"file_path": "notes.txt"}, "cwd": str(self.dir)}),
             ("session-start", SESSION_START, {"hook_event_name": "SessionStart", "source": "startup", "cwd": str(self.dir)}),
             ("compact", SESSION_START, {"hook_event_name": "SessionStart", "source": "compact", "cwd": str(self.dir)}),
+            ("compact-transcript", SESSION_START, {"hook_event_name": "SessionStart", "source": "compact",
+                                                   "cwd": str(self.dir), "transcript_path": str(transcript)}),
         )
         for name, command, payload in cases:
             with self.subTest(hook=name):

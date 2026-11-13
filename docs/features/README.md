@@ -78,5 +78,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-054-guard-command-prefixes.md`](KIT-054-guard-command-prefixes.md) | done | #189 | #190 |
 | [`KIT-055-plugin-renamed-guardrails.md`](KIT-055-plugin-renamed-guardrails.md) | done | #188 | #197 |
 | [`KIT-057-always-on-rules-review.md`](KIT-057-always-on-rules-review.md) | done | #202 | #203 |
+| [`KIT-058-hooks-review.md`](KIT-058-hooks-review.md) | confirmed | #206 | — |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

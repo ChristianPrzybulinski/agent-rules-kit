@@ -71,6 +71,9 @@ class SyncProjectCheckTest(unittest.TestCase):
         repo = home / "Library" / "CloudStorage" / "Dropbox" / "repo"
         (repo / "docs" / "spec").mkdir(parents=True)
         (repo / "AGENTS.md").write_text("# x\n")
+        # The hook warns only for a repository (KIT-058), so both targets get a .git entry.
+        (repo / ".git").mkdir()
+        (self.repo / ".git").mkdir()
         for args in ((), ("--check",)):
             result = self.run_sync(*args, repo=repo, home=home)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
