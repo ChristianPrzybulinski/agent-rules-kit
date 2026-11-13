@@ -37,7 +37,7 @@ NAME_RE = re.compile(r"^[a-z0-9]+(?:[-.][a-z0-9]+)*$")
 failures = []
 warnings = []
 counts = {"plugins": 0, "skills": 0, "rules": 0, "templates": 0, "readmes": 0, "links": 0,
-          "hook_cases": 0}
+          "hook_cases": 0, "shell_scripts": 0}
 
 try:
     import yaml
@@ -1140,9 +1140,30 @@ for markdown_file in sorted(set(duplication_files)):
             else:
                 seen_paragraphs[paragraph] = rel(markdown_file)
 
+# --- 13. Shell syntax (KIT-060) ---
+# A kit script runs under the bash on PATH (`#!/usr/bin/env bash`). On macOS that is /bin/bash 3.2, which rejects
+# what bash 5 and shellcheck accept, such as an odd number of apostrophes in a heredoc inside "$(...)".
+shell_bash = shutil.which("bash")
+if shell_bash is None:
+    warn("check_kit.py", "bash not in PATH; shell syntax not checked")
+else:
+    for script in sorted(KIT.rglob("*.sh")):
+        if ".git" in script.parts:
+            continue
+        try:
+            result = subprocess.run([shell_bash, "-n", str(script)], capture_output=True, text=True,
+                                    timeout=10, check=False)
+        except subprocess.TimeoutExpired:
+            fail(rel(script), f"bash -n timed out under {shell_bash}")
+            continue
+        counts["shell_scripts"] += 1
+        if result.returncode != 0:
+            message = (result.stderr.strip().splitlines() or ["no message"])[0].replace(f"{script}: ", "")
+            fail(rel(script), f"bash -n failed under {shell_bash}: {message}")
+
 
 print(f"check: {'OK' if not failures else 'failed'} ({counts['plugins']} plugins, {counts['skills']} skills, "
       f"{counts['rules']} rules, {counts['templates']} templates, "
       f"{counts['readmes']} readmes, {counts['links']} links, "
-      f"{counts['hook_cases']} hook cases)")
+      f"{counts['hook_cases']} hook cases, {counts['shell_scripts']} shell scripts)")
 sys.exit(1 if failures else 0)
