@@ -529,6 +529,11 @@ grep -Fq 'refresh: reinstalled Claude plugin guardrails@ai-kit (cache differed f
   || fail "refresh did not report the Claude reinstall"
 diff -rq -x .in_use "$STUB_HOME/.ai-kit/plugins/guardrails" "$STUB_STATE/claude-cache/guardrails" >/dev/null \
   || fail "reinstalled Claude cache still differs from the kit"
+# KIT-056: refresh runs the cross-session audit pre-filter, which prints counts only, then waits 7 days.
+grep -Fq '{"ran": 1,' "$ROOT/refresh-stub.out" || fail "refresh did not run session_audit.py"
+[[ "$(python3 -c 'import os, sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o777))' \
+  "$STUB_HOME/.local/state/ai-kit/session-audit/last-run" 2>/dev/null)" == 0o600 ]] \
+  || fail "session_audit.py did not write its stamp with mode 0600"
 
 rm -rf "$STUB_STATE/claude-uninstalls"
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
@@ -540,6 +545,7 @@ fi
 [[ ! -e "$STUB_STATE/claude-uninstalls" ]] || fail "refresh reinstalled an up-to-date Claude plugin cache"
 grep -Fq 'reinstalled' "$ROOT/refresh-stub-current.out" && fail "refresh reported a reinstall of an up-to-date cache"
 grep -Fq 'running doctor.sh' "$ROOT/refresh-stub-current.out" && fail "refresh ran the doctor with no broken kit link"
+grep -Fq '{"ran": 0,' "$ROOT/refresh-stub-current.out" || fail "refresh ran session_audit.py again within 7 days"
 
 # KIT-055: an installed <name>@ai-kit that the kit no longer ships is reported with its remedy.
 touch "$STUB_STATE/claude-plugins/core"
