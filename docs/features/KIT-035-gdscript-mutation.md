@@ -520,6 +520,25 @@ only this document; every command exited 0:
 - `gitleaks git --redact --log-opts=origin/main..HEAD`: "1 commits scanned.", "scanned ~28296 bytes (28.30 KB) in
   45.8ms", "no leaks found".
 
+T6 review fixes: run from the worktree root at `425b8d0` (the fixes `8afdcad` and `main` `48ff5dc` merged in) on
+2026-11-13; the commit after it changes only this document; every command exited 0:
+
+- Red runs, each new test against a copy without its fix: the `HostTest` cases on the tool at `a4a7cd1`,
+  `UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe9`, `AssertionError: 6 != 8` and the `ps` call's
+  arguments; the import admitted without `acquire`, `AssertionError: 0 != 2`; an unmutated run without `acquire`,
+  "Expected 'run_godot' to not have been called. Called 1 times."
+- `python3 -B -m unittest platforms/ci/validations/test_gd_mutation.py`: "Ran 46 tests in 112.443s", "OK".
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "✔ Validation passed" twice each.
+- `python3 platforms/ci/validations/check_kit.py --links`: "check: OK (1 plugins, 26 skills, 5 rules, 11 templates,
+  14 readmes, 90 links, 28 hook cases, 11 shell scripts)".
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 206 tests in 268.403s", "OK
+  (skipped=5)".
+- `bash platforms/tools/smoke.sh`: "smoke: OK (26 skills, app fallback, cleanup, symlink safety, manifests,
+  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
+- `python3 platforms/tools/gen_index.py --check`: current; `bash platforms/tools/vendor.sh --check`: "vendor: lock
+  consistent".
+- `gitleaks git --redact --log-opts=origin/main..HEAD`: "3 commits scanned.", "no leaks found".
+
 ## History
 
 - 2026-11-10: confirmed (owner, ub-mode evaluation decisions D3 and D5).
