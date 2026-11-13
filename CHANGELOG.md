@@ -26,6 +26,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Fixed
 - `docs/design.md` no longer calls `AI_KIT_USER_RULES=1` the default (`doctor.sh` defaults to `0` since P2-15, as `README.md` says), and `CONTRIBUTING.md` no longer calls subagent profiles local-Devin only (the README platform table lists Devin CLI/Desktop and Claude Code). Both were found while sourcing the glossary of #201, which was closed.
+- `CONTRIBUTING.md` § Versioning step 4 no longer says GitHub billing refuses `release.yml` runs and that the maintainer publishes each release by hand: the tag push creates the release, and the manual `gh release create` is the fallback only when the run ends without one. Why: kit runs have executed since the repository became public on 2026-11-02 (KIT-025), for example gitleaks run 43194770838 and two Dependabot runs, all green. The `v12.0.0` tag run 43326631020 passed every step up to `gh release create`, which failed with `HTTP 422: Validation Failed` / `Release.tag_name already exists`: the release had already been published by hand at 2026-11-12T23:10:56Z, the second the run was created, 6 s before the step ran.
 
 ## [12.0.0] - 2026-11-12
 
