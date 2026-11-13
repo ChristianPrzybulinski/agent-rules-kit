@@ -4,7 +4,7 @@ title: "Advisory GDScript mutation testing of changed, covered functions, with P
 status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D3 and D5 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#137"
-pr: "#192, #195, #196, #200"
+pr: "#192, #195, #196, #200, #218"
 ---
 
 # KIT-035 — Advisory GDScript mutation testing of changed, covered functions, with PIT's default operators
@@ -576,4 +576,4 @@ T6 review fixes: run from the worktree root at `61d3115` (the count from the loo
   stub's log records when each Godot run started, and `test_a_closed_host_runs_no_unmutated_selection` covers the
   unmutated runs.
 - 2026-11-13: done: the owner kept the tool advisory with no gate ("Advisory only, close") and cancelled T8; skill
-  `testing` § 1 now says so.
+  `testing` § 1 now says so (#218).

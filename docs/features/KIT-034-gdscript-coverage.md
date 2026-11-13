@@ -4,7 +4,7 @@ title: "GDScript line and branch coverage per function, from our own probe instr
 status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D3 and D5 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#136"
-pr: "#191, #193, #194, #196"
+pr: "#191, #193, #194, #196, #218"
 ---
 
 # KIT-034 — GDScript line and branch coverage per function, from our own probe instrumenter
@@ -551,4 +551,4 @@ only this document and its sibling record; every command exited 0:
 - 2026-11-12: T6 (skill `testing` § 1 names `gd_coverage.py`, `code-standards` § 3 reads CRAP for GDScript, eval
   case `testing-gdscript-coverage-command`) in #196, with KIT-035 T7; it refers to #136 and leaves it open.
 - 2026-11-13: done: the owner kept the tool advisory with no gate ("Advisory only, close") and cancelled T7; skill
-  `testing` § 1 now says so.
+  `testing` § 1 now says so (#218).

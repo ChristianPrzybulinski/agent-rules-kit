@@ -58,8 +58,8 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-031-complexity-signal.md`](KIT-031-complexity-signal.md) | done | #133 | #141 |
 | [`KIT-032-process-sharpenings-and-decisions.md`](KIT-032-process-sharpenings-and-decisions.md) | done | #134 | #142 |
 | [`KIT-033-gdscript-duplicate-finder.md`](KIT-033-gdscript-duplicate-finder.md) | done | #135 | #143 |
-| [`KIT-034-gdscript-coverage.md`](KIT-034-gdscript-coverage.md) | done | #136 | #191, #193, #194, #196 |
-| [`KIT-035-gdscript-mutation.md`](KIT-035-gdscript-mutation.md) | done | #137 | #192, #195, #196, #200 |
+| [`KIT-034-gdscript-coverage.md`](KIT-034-gdscript-coverage.md) | done | #136 | #191, #193, #194, #196, #218 |
+| [`KIT-035-gdscript-mutation.md`](KIT-035-gdscript-mutation.md) | done | #137 | #192, #195, #196, #200, #218 |
 | [`KIT-036-eval-login-check.md`](KIT-036-eval-login-check.md) | done | #146 | #147 |
 | [`KIT-037-evals-templates-trim.md`](KIT-037-evals-templates-trim.md) | done | #148 | #149 |
 | [`KIT-038-three-plugins.md`](KIT-038-three-plugins.md) | done | #151 | #153 |
