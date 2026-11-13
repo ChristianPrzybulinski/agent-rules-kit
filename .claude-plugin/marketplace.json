@@ -31,7 +31,7 @@
       "name": "guardrails",
       "source": "./plugins/guardrails",
       "description": "ai-kit: always-on rules, review, security, code and test standards, Java/Godot stacks and the spec-driven pipeline",
-      "version": "12.0.0",
+      "version": "12.1.0",
       "category": "productivity"
     }
   ]
