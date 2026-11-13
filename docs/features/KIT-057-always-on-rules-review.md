@@ -1,10 +1,10 @@
 ---
 id: KIT-057
 title: "The always-on rules are rewritten after the owner's section-by-section review"
-status: confirmed
+status: done
 confirmed: "2026-11-12 (owner, chat of the kit always-on review session: \"Aceito todas\" per section, \"Tirar os dois\", \"Comparação visível\", \"Yes, Scope clause\")"
 issue: "#202"
-pr: ""
+pr: "#203"
 ---
 
 # KIT-057 — The always-on rules are rewritten after the owner's section-by-section review
@@ -98,3 +98,4 @@ legacy code; `claude plugin eval` is billed and was not run.
 ## History
 
 - 2026-11-12: confirmed (owner, chat, section by section); Scope clause added on the owner's "Mudanças atômicas" proposal.
+- 2026-11-12: done (PR #203).
