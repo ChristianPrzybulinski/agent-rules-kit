@@ -34,13 +34,13 @@ Verifies work someone else claims or proposes and reports a verdict with sources
 
 ## 2. Inspect what exists
 
-- Run `git diff <base>...HEAD --stat` and inspect the changed files; report cited files absent from the diff and changed behavior no criterion asked for.
+- Run `git diff <base>...HEAD --stat` and inspect the changed files in risk order (security, input validation, control flow, public interfaces); report cited files absent from the diff, changed behavior no criterion asked for and changed code no test exercises.
 - For each criterion, locate implementation, executable proof and required documentation.
 - A criterion without an executable test or reproducible command is not met.
 - Validate the pushed head on a clean checkout (`git worktree add --detach <tmp> <sha>`); local uncommitted state never counts. A result the author's report or PR lists is a claim until a record backs it: a CI or gate run, or a log a command wrote, naming the commit it ran on. Re-run there every proof without such a record and every proof whose inputs changed since it ran (files it covers, dependencies, config, environment, or an assumption it tested). Reuse a recorded result whose inputs are unchanged and write it on a `Reused:` line; a new commit hash alone invalidates nothing. A claimed result that neither a command nor a record reproduces is unverified; one that fails there makes the verdict `NOT READY`.
 - After a correction, re-run and re-review the delta plus the assumptions it touches, not the whole change. Test evidence carries over; review authority does not: an approval binds to the head it reviewed, never to a later one, and an acceptance no reviewer gave is never recorded.
 - Create `<tmp>` with `mktemp -d` and always finish with `git worktree remove --force <tmp> && git worktree prune`, even when a proof fails or the validation aborts; before you start, `git worktree list`; remove only a leftover whose path is a `mktemp` directory from an earlier validation, never a worktree you did not create, and report any other extra worktree under Unverified. A validation that leaves a worktree behind is not finished.
-- A proof must be able to fail. A gate that passes on empty input (zero tests, zero schemas) is not proof; show it failing on a broken case. Compare the collected test count at the head with the base (the runner's summary line); a drop the PR does not name is a weakened check (agent `reviewer` step 4).
+- A proof must be able to fail. A gate that passes on empty input (zero tests, zero schemas) is not proof; show it failing on a broken case. Compare the collected test count at the head with the base (the runner's summary line) and read the diff of every test file; a dropped count, a deleted or skipped test or a loosened assertion the PR does not name is a weakened check (agent `reviewer` step 4).
 
 ## 3. Run canonical gates
 
