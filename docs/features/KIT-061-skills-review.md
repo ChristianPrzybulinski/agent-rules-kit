@@ -1,7 +1,7 @@
 ---
 id: KIT-061
 title: "The skills change after the owner's skill-by-skill review"
-status: confirmed
+status: done
 confirmed: "2026-11-13 (owner, chat of the kit review session: one answer per item, from \"Sim, aplicar\" for java-standards to \"Sim, fechar\" for the five skills kept as they are; the proposal from the owner's 57 links was accepted on 2026-11-12 with \"tome suas recomendacoes como aceitas ate segunda ordem\" (take your recommendations as accepted until further notice) and reviewed item by item here)"
 issue: "#213"
 pr: "#214"
@@ -182,3 +182,4 @@ that changed (`sdd-journey`, `asset-import`) have no case.
 ## History
 
 - 2026-11-13: confirmed (owner, chat, item by item).
+- 2026-11-13: done (PR #214).
