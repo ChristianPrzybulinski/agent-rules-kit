@@ -5,11 +5,11 @@ kind: detail
 
 # Characterization tests
 
-Pin what legacy or ported code does today, so a refactor or rebalance must change an explicit expectation. Argument: a legacy class/method or a flow (damage, evolution, encounter...).
+Pin what legacy or ported code does today, so a refactor or rebalance must change an explicit expectation. Argument: a legacy class/method or a flow (pricing, a discount, a schedule...).
 
 ## 1. Delimit one rule
 
-- Select one input-to-output rule such as damage, capture chance, XP or price.
+- Select one input-to-output rule such as a price, a discount, a fee or a score.
 - If I/O obscures it, introduce only the smallest seam for RNG, clock or repository without changing behavior.
 - Record the current source at `file:line` and any original port source actually read.
 

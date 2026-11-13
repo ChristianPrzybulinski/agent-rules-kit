@@ -20,7 +20,7 @@ Rules, skills, references and templates are authored **in the kit** under `plugi
 | `infra/` / compose | `platforms/kits/docker/` | `infra/compose.yml` (`name: <project>`) |
 | `.gitattributes` (LFS) | `platforms/kits/git-lfs/` | the repo's first commit |
 
-IDs in `docs/spec/`: `FEAT-nnn`, `REQ-F-nnn`, `REQ-NF-nnn`, `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn`, `DEBT-nnn` — sequential numbering, `id` = the file name's prefix, status in frontmatter (`proposed`/`approved`/`delivered`…). Process: `plugins/guardrails/skills/sdd-constitution/references/sdd-process.md`.
+IDs in `docs/spec/`: `FEAT-nnn`, `REQ-F-nnn`, `REQ-NF-nnn`, `DEC-nnn` (or one prefix per decision kind that `spec.md` `decision_kinds` declares), `DEBT-nnn` — sequential numbering, `id` = the file name's prefix, status in frontmatter (`proposed`/`approved`/`delivered`…). Process: `plugins/guardrails/skills/sdd-constitution/references/sdd-process.md`.
 
 ## What does NOT go to the project
 

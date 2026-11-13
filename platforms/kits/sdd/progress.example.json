@@ -4,7 +4,7 @@
   "updated": "2026-10-06",
   "tasks": [
     {"id": "T1", "title": "Character-entry contract", "files": ["protocol/schemas/**", "protocol/errors.json", "protocol/examples/**"], "proof": "each example validates or fails against the schemas as intended", "passes": false, "notes": ""},
-    {"id": "T2", "title": "`V3__characters.sql`", "files": ["server/src/main/resources/db/migration/V3__characters.sql"], "proof": "`flyway migrate` green on postgres:18 on top of V1 and V2; constraint names per DTEC-013", "passes": true, "notes": "proof output in PR #21 How I tested"},
+    {"id": "T2", "title": "`V3__characters.sql`", "files": ["server/src/main/resources/db/migration/V3__characters.sql"], "proof": "`flyway migrate` green on postgres:18 on top of V1 and V2; constraint names per DEC-013", "passes": true, "notes": "proof output in PR #21 How I tested"},
     {"id": "T3", "title": "Client `CharacterCreate` (E1; narrowed 2026-10-05, owner re-plan)", "files": ["client/ui/character/**", "client/autoload/session.gd", "client/autoload/network.gd", "client/tests/network/**", "client/resources/i18n/**", "client/tests/character/**", "client/tests/i18n/errors.json"], "proof": "gdUnit4 scene tests: the appearance and starter pickers offer exactly the options the FEAT lists", "passes": false, "notes": ""}
   ]
 }

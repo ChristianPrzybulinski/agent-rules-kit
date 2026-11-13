@@ -11,7 +11,7 @@ Always/never for governed documents under `docs/spec`. Procedures: the `sdd-*` s
 
 - Always: start from the governed template (`spec-feature.md`, `spec-requirement-functional.md`, `spec-requirement-non-functional.md`, `spec-decision.md`, `spec-debt.md`, `spec-index.md`) and keep every section.
 - Never: compress, summarize or drop a template section.
-- Always: ids namespaced and sequential (`FEAT-nnn`, `REQ-F-nnn`, `REQ-NF-nnn`, `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn`, `DEBT-nnn`), the file name carries the id, and a retired id is never reused.
+- Always: ids namespaced and sequential (`FEAT-nnn`, `REQ-F-nnn`, `REQ-NF-nnn`, `DEC-nnn` or the prefixes `spec.md` `decision_kinds` declares, `DEBT-nnn`), the file name carries the id, and a retired id is never reused.
 - Always: every claim tagged `[FACT]` (with source), `[DECISION]`, `[PROPOSAL]`, `[HYPOTHESIS]` or `[BLOCKER]`; an untagged assertion counts as `[HYPOTHESIS]`.
 - Always: a FEAT lists its REQs and each REQ lists that FEAT; a one-sided link fails `check_spec.py`.
 - Never: edit a `status` field by hand when the repo's tooling derives it from GitHub; otherwise only the architect edits it and the PR says why.

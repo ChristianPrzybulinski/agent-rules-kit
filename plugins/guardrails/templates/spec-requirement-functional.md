@@ -4,7 +4,7 @@ title: "[The system must ... — 1 testable sentence]"
 type: functional
 priority: must
 features: []
-source: "[product | legacy:<path> | DTEC/DGME/DPRO-nnn]"
+source: "[product | legacy:<path> | <decision id>]"
 created: "YYYY-MM-DD"
 ---
 

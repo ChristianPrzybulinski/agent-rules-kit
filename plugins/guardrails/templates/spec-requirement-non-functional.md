@@ -15,7 +15,7 @@ created: "YYYY-MM-DD"
 
 ## Statement
 
-[E.g.: The server must process a battle action in ≤ 100 ms (p95) with 50 simultaneous battles.]
+[E.g.: The server must process a client action in ≤ 100 ms (p95) with 50 simultaneous sessions.]
 
 ## Metric and target
 

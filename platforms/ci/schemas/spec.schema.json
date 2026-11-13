@@ -10,6 +10,13 @@
     "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$" },
     "protocol_version": { "type": "integer", "minimum": 1 },
     "card_project": { "type": ["integer", "null"], "minimum": 1 },
+    "decision_kinds": {
+      "description": "Decision kind -> id prefix; without it decision ids are DEC-nnn",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{1,7}$" }
+    },
     "updated": { "type": "string", "format": "date" }
   }
 }

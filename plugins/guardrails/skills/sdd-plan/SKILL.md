@@ -35,7 +35,7 @@ Cover:
 
 ## 3. Record decisions
 
-A choice with a rejected reasonable alternative gets `DTEC-nnn-slug.md` (or `DGME-`/`DPRO-` per kind) with `status: proposed`; an already-approved product choice records its source and may be approved. Do not hide a kit-rule exception in prose—record a blocker or explicit DEC.
+A choice with a rejected reasonable alternative gets a decision record (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`) with `status: proposed`; an already-approved product choice records its source and may be approved. Do not hide a kit-rule exception in prose—record a blocker or explicit DEC.
 
 ## 4. Check restraint and consistency
 

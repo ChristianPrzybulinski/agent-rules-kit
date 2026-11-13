@@ -42,14 +42,14 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertIn("consistent with kit", result.stdout)
 
     def test_stale_citation_fails(self):
-        self.write_md("docs/spec/decisions/DTEC-001-x.md", "# DTEC-001\n\n" + STALE + "\n")
+        self.write_md("docs/spec/decisions/DEC-001-x.md", "# DEC-001\n\n" + STALE + "\n")
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("stale kit path: docs/spec/decisions/DTEC-001-x.md:3", result.stdout)
+        self.assertIn("stale kit path: docs/spec/decisions/DEC-001-x.md:3", result.stdout)
 
     def test_opt_out_marker_passes(self):
-        self.write_md("docs/spec/decisions/DTEC-001-x.md",
-                      "# DTEC-001\n\n" + STALE + " <!-- kit-path-ok -->\n")
+        self.write_md("docs/spec/decisions/DEC-001-x.md",
+                      "# DEC-001\n\n" + STALE + " <!-- kit-path-ok -->\n")
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

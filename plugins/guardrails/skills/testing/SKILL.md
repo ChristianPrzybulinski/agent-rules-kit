@@ -17,7 +17,7 @@ allowed-tools:
 
 ## 1. Classify the behavior
 
-Domain rules involving business logic, money, inventory, rewards, battle or authorization require 100% line and branch coverage plus mutation score ≥80%. These gates are never reduced.
+Domain rules involving business logic, money, inventory, rewards, game rules or authorization require 100% line and branch coverage plus mutation score ≥80%. These gates are never reduced.
 
 Every surviving mutant on a changed line is killed by a new assertion, deleted as dead code, or named as equivalent in the PR body; a green 80% gate does not excuse it.
 
