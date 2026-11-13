@@ -143,6 +143,71 @@ class SessionAuditTest(unittest.TestCase):
         self.assertEqual(json.loads(first.read_text(encoding="utf-8"))["owner"], [])
         self.assertEqual(stat.S_IMODE(first.stat().st_mode), 0o600)
 
+    def test_late_personal_session_leaves_no_error_or_guard_in_older_extract(self):
+        failure = "make: *** No rule to make target 'viagem-lisboa'."
+        self.claude_session(CLAUDE_IDS["kept"], tool_error("toolu_k1", failure))
+        path = self.claude_session(CLAUDE_IDS["personal"], tool_error("toolu_p1", failure)
+                                   + bash("toolu_p2", "rm -rf build/") + tool_error("toolu_p2", GUARD_RM))
+        self.counts()
+        first = sorted(self.state.glob("extract-*.json"))[-1]
+        before = json.loads(first.read_text(encoding="utf-8"))
+        self.assertEqual((before["errors"][0]["sessions"], before["guard"][0]["blocks"]), (2, 1))
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(human("meu salario caiu"))
+        time.sleep(1.1)
+        self.assertEqual(self.counts()["skipped_sessions"], 1)
+        after = json.loads(first.read_text(encoding="utf-8"))
+        self.assertEqual((after["errors"], after["guard"], after["sessions"]), ([], [], 1))
+        self.assertNotIn("viagem", first.read_text(encoding="utf-8"))
+        self.assertNotIn(CLAUDE_IDS["personal"], first.read_text(encoding="utf-8"))
+
+    def test_codex_message_starting_with_markup_is_checked_for_personal_words(self):
+        self.codex_session(CODEX_IDS[0], codex_user("# notas\nmeu salario caiu") + codex_user("errado de novo"))
+        self.codex_session(CODEX_IDS[1], codex_user("<p>meu holerite</p>") + codex_user("errado de novo"))
+        counts = self.counts()
+        self.assertEqual((counts["skipped_sessions"], counts["sessions"]), (2, 0))
+        self.assertEqual(self.extract()["owner"], [])
+
+    def test_keyword_added_later_applies_to_sessions_already_read(self):
+        self.claude_session(CLAUDE_IDS["kept"], human("de novo, rode os testes") + human("vou para Lisboa amanha"))
+        self.counts()
+        first = sorted(self.state.glob("extract-*.json"))[-1]
+        self.assertEqual(len(json.loads(first.read_text(encoding="utf-8"))["owner"]), 1)
+        (self.state / "keywords.txt").write_text("lisboa\n", encoding="utf-8")
+        time.sleep(1.1)
+        counts = self.counts()
+        self.assertEqual((counts["skipped_sessions"], counts["sessions"]), (1, 0))
+        self.assertEqual(json.loads(first.read_text(encoding="utf-8"))["owner"], [])
+
+    def test_resumed_old_session_is_checked_from_its_start(self):
+        path = self.claude_session(CLAUDE_IDS["personal"], human("meu salario caiu"))
+        month_ago = time.time() - 30 * 86400
+        os.utime(path, (month_ago, month_ago))
+        self.assertEqual(self.counts()["files_read"], 0)
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(human("de novo, rode os testes"))
+        counts = self.counts()
+        self.assertEqual((counts["skipped_sessions"], counts["sessions"]), (1, 0))
+        self.assertEqual(self.extract()["owner"], [])
+
+    def test_codex_titles_from_index_and_state_database_are_excluded(self):
+        import sqlite3
+        home = self.codex.parent
+        (home / "session_index.jsonl").write_text(line({"id": CODEX_IDS[0], "thread_name": "Pessoal — viagem",
+                                                        "updated_at": "2026-11-01T00:00:00Z"}), encoding="utf-8")
+        with sqlite3.connect(home / "state_5.sqlite") as con:
+            con.execute("create table threads (id text primary key, title text, name text)")
+            con.execute("insert into threads values (?, ?, ?)", (CODEX_IDS[1], "rode os testes", "Finanças da casa"))
+        con.close()
+        self.state.mkdir()
+        (self.state / "exclude.txt").write_text("pessoal\nfinancas\n", encoding="utf-8")
+        for sid in CODEX_IDS:
+            self.codex_session(sid, codex_user("errado de novo"))
+        self.claude_session(CLAUDE_IDS["kept"], human("de novo, rode os testes"))
+        counts = self.counts()
+        self.assertEqual((counts["skipped_sessions"], counts["sessions"]), (2, 1))
+        self.assertEqual({entry["s"] for entry in self.extract()["owner"]}, {CLAUDE_IDS["kept"]})
+
     def test_work_meaning_keyword_without_confirming_word_does_not_skip(self):
         self.claude_session(CLAUDE_IDS["kept"], human("de novo: o banco de dados caiu e o banco está lento")
                             + human("foi um investimento de tempo, de novo"))
@@ -208,6 +273,11 @@ class SessionAuditTest(unittest.TestCase):
         self.assertEqual((guard["git push --force"]["temp"], guard["git push --force"]["other"]), (0, 0))
         self.assertEqual(self.extract()["errors"], [])
 
+    def test_password_in_prose_is_redacted(self):
+        module = load_module()
+        for text in ("my password is hunter2!", "a senha é hunter2!", "token = hunter2!"):
+            self.assertNotIn("hunter2", module.redact(text), text)
+
     def test_target_classes(self):
         module = load_module()
         cases = {
@@ -219,6 +289,9 @@ class SessionAuditTest(unittest.TestCase):
             ('find "$TMPDIR/x" -name "*.o" -delete', "find"): "temp",
             ("find . -delete", "find"): "other",
             ("rm -rf 'unbalanced", "rm"): "other",
+            ("rm -rf /tmpfoo", "rm"): "other",
+            ('rm -rf "$TMPDIRX/a"', "rm"): "other",
+            ("rm -rf /tmp", "rm"): "temp",
         }
         for (command, tool), expected in cases.items():
             self.assertEqual(module.classify_targets(command, tool), expected, command)

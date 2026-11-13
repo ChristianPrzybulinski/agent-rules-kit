@@ -12,7 +12,7 @@ The `audit` mode turns many sessions into a short list of memory and rule action
 - The newest `extract-*.json` in `${XDG_STATE_HOME:-~/.local/state}/ai-kit/session-audit/`. `refresh.sh` refreshes it when its stamp is 7 or more days old (`AI_KIT_SESSION_AUDIT=0` turns that off); when it is missing or older, run `python3 ~/.ai-kit/platforms/tools/session_audit.py --if-older-days 7`.
 - Extract fields: `owner` (correction excerpts), `kit` (`Kit [PROPOSAL]` blocks), `errors` (normalized tool errors in 2 or more sessions), `memory` (entries cited, read and written, by session count) and `guard` (blocked destructive commands; `rm -rf` and `find -delete` split into `temp` and `other` targets).
 - Each Claude memory folder (`~/.claude/projects/*/memory/` with its `MEMORY.md` index) and the `AGENTS.md` of every repository the excerpts name.
-- To skip a session, add its id prefix (8 or more characters) or a title substring to `exclude.txt` in the state folder. `keywords.txt` there adds personal-topic words: `word`, or `word: confirm, confirm` for a word that also has a work meaning.
+- To skip a session, add its id prefix (8 or more characters) or a substring of its Claude title or Codex thread name to `exclude.txt` in the state folder. `keywords.txt` there adds personal-topic words: `word`, or `word: confirm, confirm` for a word that also has a work meaning; a change re-checks the sessions of the kept extracts from their first line.
 
 ## Steps
 

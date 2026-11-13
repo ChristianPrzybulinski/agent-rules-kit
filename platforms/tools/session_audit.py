@@ -9,10 +9,13 @@ for the `session` skill's `audit` mode:
   errors  normalized tool errors seen in 2 or more sessions: session count and example session ids
   memory  Claude memory entries cited, read and written: session counts
   guard   commands the `ai-kit guard` hook blocked: count per kind; `rm -rf` and `find -delete` by target class
-A session listed in <state>/exclude.txt (id prefix or title substring, one per line) or with a personal-topic
-keyword in an owner message is skipped whole, and its entries leave the older extracts too. A keyword with a work
-meaning counts only next to a word that confirms the personal meaning; <state>/keywords.txt adds `word` or
-`word: confirm, confirm` lines. Prints one JSON line of counts only. Every file it writes has mode 0600.
+A session listed in <state>/exclude.txt (id prefix or title substring, one per line; Claude titles from the
+transcript, Codex titles from <codex-dir>/../session_index.jsonl and state_*.sqlite) or with a personal-topic keyword
+in any owner message, from the session's first line, is skipped whole, and its entries leave the older extracts too:
+each extract has an index-<stamp>.json of what every session added, so its counts are rebuilt without it. A keyword
+with a work meaning counts only next to a word that confirms the personal meaning; <state>/keywords.txt adds `word`
+or `word: confirm, confirm` lines, and a change to it re-checks the sessions in the kept extracts. Prints one JSON
+line of counts only. Every file it writes has mode 0600.
 
 Usage: session_audit.py [--state DIR] [--claude-dir DIR] [--codex-dir DIR] [--if-older-days N] [--first-run-days N]
 """
@@ -21,10 +24,12 @@ from __future__ import annotations
 import argparse
 import collections
 import glob
+import hashlib
 import json
 import os
 import re
 import shlex
+import sqlite3
 import sys
 import time
 import unicodedata
@@ -45,7 +50,7 @@ SECRET_PATTERNS = [
     re.compile(r"xox[abprs]-[A-Za-z0-9-]{10,}"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"AGE-SECRET-KEY-[0-9A-Z]+"),
-    re.compile(r"(?i)\b(password|passwd|senha|secret|token|api[_-]?key)\b(\s*[:=]\s*)\S+"),
+    re.compile(r"(?i)\b(password|passwd|senha|secret|token|api[_-]?key)\b(\s*[:=]\s*|\s+(?:is|was|=|é|e|era)\s+)\S+"),
     re.compile(r"\b[A-Fa-f0-9]{32,}\b"),
     re.compile(r"\b[A-Za-z0-9+/_-]{40,}={0,2}"),
 ]
@@ -80,7 +85,7 @@ GUARD = re.compile(r"ai-kit guard: ([a-z][a-z0-9 <>|.-]{0,30}?) is destructive",
 KIT_BLOCK = re.compile(r"(?m)^[ \t>*`_-]*Kit \[PROPOSAL\]")
 TOOL_ID = re.compile(r'"id":"(toolu_[A-Za-z0-9_]+)"')
 CODEX_ID = re.compile(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$")
-TEMP_PREFIXES = ("/tmp", "/private/tmp", "/var/folders", "$TMPDIR", "${TMPDIR")
+TEMP_PATH = re.compile(r"^(?:/tmp|/private/tmp|/var/folders|\$TMPDIR|\$\{TMPDIR(?:[:-][^}]*)?\})(?:/|$)")
 ASSIGN = re.compile(r"(?:^|[\s;&|(])(?:export\s+|local\s+|readonly\s+)?([A-Za-z_]\w*)=[\"']?(\$\(\s*mktemp\b[^)]*\)|[^\s;&|\"']*)")
 SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "|&", ";;"}
 REDIRECT = re.compile(r"^[<>&]*[<>][<>&]*$")
@@ -137,6 +142,12 @@ def load_keywords(state: Path):
     return [re.compile(r"\b" + re.escape(word) + r"\b") for word in plain], confirm
 
 
+def keywords_digest(keywords) -> str:
+    plain, confirm = keywords
+    payload = json.dumps([sorted(p.pattern for p in plain), sorted((k, sorted(v)) for k, v in confirm.items())])
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
 def is_personal(text: str, keywords) -> bool:
     plain, confirm = keywords
     folded = WORK_PHRASES.sub(" ", fold(text))
@@ -158,6 +169,34 @@ def load_excludes(state: Path):
     return [entry for entry in entries if entry]
 
 
+def codex_titles(home: Path) -> dict:
+    """Codex thread names by id: session_index.jsonl (older threads) and the threads table of state_*.sqlite."""
+    titles = collections.defaultdict(list)
+    index = home / "session_index.jsonl"
+    if index.is_file():
+        for raw in index.read_text(encoding="utf-8", errors="replace").splitlines():
+            try:
+                data = json.loads(raw)
+            except ValueError:
+                continue
+            if isinstance(data, dict) and data.get("id") and data.get("thread_name"):
+                titles[str(data["id"])].append(str(data["thread_name"]))
+    for db in sorted(home.glob("state_*.sqlite")):
+        try:
+            con = sqlite3.connect(db.resolve().as_uri() + "?mode=ro", uri=True)
+            try:
+                columns = [c for c in ("name", "title")
+                           if c in {row[1] for row in con.execute("pragma table_info(threads)")}]
+                if columns:
+                    for row in con.execute("select id, " + ", ".join(columns) + " from threads"):
+                        titles[str(row[0])].extend(str(value) for value in row[1:] if value)
+            finally:
+                con.close()
+        except sqlite3.Error:
+            continue
+    return {sid: " | ".join(names) for sid, names in titles.items()}
+
+
 def excluded(sid: str, title: str, entries) -> bool:
     """An entry of 8 or more characters matches a session id prefix; any entry matches a title substring."""
     bare = sid[3:] if sid.startswith("cx-") else sid
@@ -167,7 +206,7 @@ def excluded(sid: str, title: str, entries) -> bool:
 
 
 def temp_target(target: str, temp_vars) -> bool:
-    if target.startswith(TEMP_PREFIXES) or "scratchpad" in target:
+    if TEMP_PATH.match(target) or "scratchpad" in target:
         return True
     var = re.match(r"\$\{?([A-Za-z_]\w*)", target)
     return bool(var) and var.group(1) in temp_vars
@@ -230,10 +269,13 @@ class Session:
         self.written = set()
         self.guard = []
 
-    def owner_text(self, text: str, keywords):
-        self.owner_msgs += 1
+    def owner_text(self, text: str, keywords, injected: bool = False):
+        """Every owner message is checked for personal words; an injected one (instructions) gives no excerpt."""
         if is_personal(text, keywords):
             self.personal = True
+        if injected:
+            return
+        self.owner_msgs += 1
         if len(text) <= OWNER_MAX and CUE.search(fold(text)):
             excerpt = redact(text.strip())[:EXCERPT_MAX]
             if excerpt not in self.owner:
@@ -253,8 +295,8 @@ class Session:
                 self.errors.add(key)
 
 
-def read_new_lines(path: Path, record: dict):
-    """Yields complete lines after the stored offset; updates the record in place."""
+def read_new_lines(path: Path, record: dict, end=None):
+    """Yields complete lines after the stored offset, up to `end` when given; updates the record in place."""
     stat = path.stat()
     if record.get("inode") != stat.st_ino or stat.st_size < record.get("offset", 0):
         record["offset"] = 0
@@ -262,15 +304,15 @@ def read_new_lines(path: Path, record: dict):
     with open(path, "rb") as handle:
         handle.seek(record["offset"])
         for raw in handle:
-            if not raw.endswith(b"\n"):
+            if (end is not None and record["offset"] >= end) or not raw.endswith(b"\n"):
                 break
             record["offset"] += len(raw)
             yield raw.decode("utf-8", errors="replace")
 
 
-def scan_claude(path: Path, session: Session, record: dict, slugs, keywords, counters):
+def scan_claude(path: Path, session: Session, record: dict, slugs, keywords, counters, end=None):
     pending = collections.OrderedDict()
-    for line in read_new_lines(path, record):
+    for line in read_new_lines(path, record, end):
         counters["lines"] += 1
         assistant = '"type":"assistant"' in line
         if assistant and slugs is not None:
@@ -341,8 +383,8 @@ def guard_class(name: str, tool_id, pending) -> str:
     return "other"
 
 
-def scan_codex(path: Path, session: Session, record: dict, keywords, counters):
-    for line in read_new_lines(path, record):
+def scan_codex(path: Path, session: Session, record: dict, keywords, counters, end=None):
+    for line in read_new_lines(path, record, end):
         counters["lines"] += 1
         if not any(key in line for key in ("user_message", "UserMessage", "Kit [PROPOSAL]", "CommandExecution")):
             continue
@@ -361,8 +403,8 @@ def scan_codex(path: Path, session: Session, record: dict, keywords, counters):
                 session.kit_text(text)
         elif isinstance(item, dict) and item.get("type") == "UserMessage":
             text = "\n".join(texts(item.get("content")))
-            if text.strip() and not text.lstrip().startswith(("#", "<")):
-                session.owner_text(text, keywords)
+            if text.strip():
+                session.owner_text(text, keywords, injected=text.lstrip().startswith(("#", "<")))
         elif isinstance(item, dict) and item.get("type") == "AgentMessage":
             for text in texts(item.get("content")):
                 session.kit_text(text)
@@ -388,18 +430,47 @@ def read_json(path: Path, default):
         return default
 
 
+def index_path(extract: Path) -> Path:
+    return extract.with_name("index-" + extract.name[len("extract-"):])
+
+
+def retained_sids(state: Path) -> set:
+    """Sessions that reached a kept extract: its owner and kit entries and every session its index lists."""
+    sids = set()
+    for path in state.glob("extract-*.json"):
+        data = read_json(path, {})
+        if isinstance(data, dict):
+            sids.update(entry.get("s") for key in ("owner", "kit") for entry in data.get(key, [])
+                        if isinstance(entry, dict))
+        index = read_json(index_path(path), {})
+        if isinstance(index, dict):
+            sids.update(index)
+    return sids
+
+
 def purge_extracts(state: Path, sids: set):
-    """Removes the entries of newly skipped sessions from the extracts of earlier runs."""
+    """Removes newly skipped sessions from the extracts of earlier runs and rebuilds their counts from the index.
+
+    An extract without its index cannot be rebuilt exactly, so it is deleted.
+    """
     for path in sorted(state.glob("extract-*.json")):
         data = read_json(path, None)
-        if not isinstance(data, dict):
+        index = read_json(index_path(path), None)
+        if not isinstance(data, dict) or not isinstance(index, dict):
+            path.unlink(missing_ok=True)
+            index_path(path).unlink(missing_ok=True)
+            continue
+        owner_kit = {entry.get("s") for key in ("owner", "kit") for entry in data.get(key, []) if isinstance(entry, dict)}
+        if not sids & (owner_kit | index.keys()):
             continue
         for key in ("owner", "kit"):
             data[key] = [entry for entry in data.get(key, []) if entry.get("s") not in sids]
-        for key in ("errors", "memory"):
-            for entry in data.get(key, []):
-                entry["examples"] = [sid for sid in entry.get("examples", []) if sid not in sids]
+        for sid in sids:
+            index.pop(sid, None)
+        data["sessions"] = len(index)
+        data.update(aggregate(index))
         write_private(path, data)
+        write_private(index_path(path), index)
 
 
 def memory_slugs(claude_dir: Path):
@@ -407,33 +478,28 @@ def memory_slugs(claude_dir: Path):
     return re.compile(r"\b(" + "|".join(map(re.escape, slugs)) + r")\b") if slugs else None
 
 
-def build_extract(sessions, since):
+def aggregate(index: dict) -> dict:
+    """The errors, memory and guard sections from what each session added."""
     errors = collections.defaultdict(list)
     memory = collections.defaultdict(lambda: {"cited": [], "read": 0, "written": 0})
     guard = collections.defaultdict(lambda: {"blocks": 0, "sessions": set(), "temp": 0, "other": 0})
-    for s in sessions:
-        for key in s.errors:
-            errors[key].append(s.sid)
-        for slug in s.cited:
-            memory[slug]["cited"].append(s.sid)
-        for slug in s.read:
+    for sid, added in index.items():
+        for key in added.get("errors", []):
+            errors[key].append(sid)
+        for slug in added.get("cited", []):
+            memory[slug]["cited"].append(sid)
+        for slug in added.get("read", []):
             memory[slug]["read"] += 1
-        for slug in s.written:
+        for slug in added.get("written", []):
             memory[slug]["written"] += 1
-        for name, target in s.guard:
+        for name, target in added.get("guard", []):
             entry = guard[name]
             entry["blocks"] += 1
-            entry["sessions"].add(s.sid)
+            entry["sessions"].add(sid)
             if target in ("temp", "other"):
                 entry[target] += 1
     repeated = sorted(((k, v) for k, v in errors.items() if len(v) >= 2), key=lambda kv: (-len(kv[1]), kv[0]))
     return {
-        "version": 1,
-        "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "since": since,
-        "sessions": len(sessions),
-        "owner": [{"s": s.sid, "t": t} for s in sessions for t in s.owner],
-        "kit": [{"s": s.sid, "t": t} for s in sessions for t in s.kit],
         "errors": [{"e": k, "sessions": len(v), "examples": v[:EXAMPLES]} for k, v in repeated[:ERRORS_MAX]],
         "memory": sorted(
             ({"slug": k, "cited": len(v["cited"]), "read": v["read"], "written": v["written"],
@@ -446,6 +512,36 @@ def build_extract(sessions, since):
             key=lambda entry: -entry["blocks"],
         ),
     }
+
+
+def build_extract(sessions, since):
+    """The extract and its index: what each session added, error keys limited to those the extract lists."""
+    index = {s.sid: {"errors": sorted(s.errors), "cited": sorted(s.cited), "read": sorted(s.read),
+                     "written": sorted(s.written), "guard": [list(g) for g in s.guard]} for s in sessions}
+    extract = {
+        "version": 1,
+        "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "since": since,
+        "sessions": len(sessions),
+        "owner": [{"s": s.sid, "t": t} for s in sessions for t in s.owner],
+        "kit": [{"s": s.sid, "t": t} for s in sessions for t in s.kit],
+        **aggregate(index),
+    }
+    kept = {entry["e"] for entry in extract["errors"]}
+    for added in index.values():
+        added["errors"] = [key for key in added["errors"] if key in kept]
+    return extract, index
+
+
+def check_prefix(path: Path, sid: str, source: str, end: int, keywords) -> Session:
+    """Reads lines [0, end) of a session again for its title and personal words only; nothing else is kept."""
+    session = Session(sid)
+    record = {"offset": 0, "inode": path.stat().st_ino}
+    if source == "claude":
+        scan_claude(path, session, record, None, keywords, collections.Counter(), end)
+    else:
+        scan_codex(path, session, record, keywords, collections.Counter(), end)
+    return session
 
 
 def default_state() -> Path:
@@ -484,7 +580,13 @@ def main(argv=None) -> int:
     since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(since_epoch)) if stamp.is_file() else None
     excludes = load_excludes(state)
     keywords = load_keywords(state)
+    digest = keywords_digest(keywords)
+    titles = codex_titles(args.codex_dir.parent)
+    retained = retained_sids(state)
     slugs = memory_slugs(args.claude_dir)
+
+    def title_of(sid: str, record: dict) -> str:
+        return titles.get(sid[3:], "") if sid.startswith("cx-") else record.get("title", "")
     files = [(p, p.stem, "claude") for p in sorted(args.claude_dir.glob("*/*.jsonl"))]
     for p in sorted(Path(f) for f in glob.glob(str(args.codex_dir / "**" / "rollout-*.jsonl"), recursive=True)):
         match = CODEX_ID.search(p.name)
@@ -492,7 +594,7 @@ def main(argv=None) -> int:
     counters = collections.Counter()
     sessions, newly_skipped = [], set()
     for sid, record in offsets.items():
-        if sid not in skipped and excluded(sid, record.get("title", ""), excludes):
+        if sid not in skipped and excluded(sid, title_of(sid, record), excludes):
             skipped[sid] = "excluded"
             newly_skipped.add(sid)
     for path, sid, source in files:
@@ -507,16 +609,30 @@ def main(argv=None) -> int:
         if sid in skipped:
             record.update(offset=size, inode=path.stat().st_ino)
             continue
-        if size == record.get("offset") and path.stat().st_ino == record.get("inode"):
+        grew = not (size == record.get("offset") and path.stat().st_ino == record.get("inode"))
+        before = record.get("offset", 0) if path.stat().st_ino == record.get("inode") else 0
+        # The lines before the offset were never checked under these keywords (a new keyword, or a file first seen
+        # mid-way): check them before new lines reach an extract, and now for a session a kept extract holds.
+        if record.get("checked") != digest and before > 0 and (grew or sid in retained):
+            prior = check_prefix(path, sid, source, before, keywords)
+            if source == "claude" and prior.title:
+                record["title"] = prior.title
+            record["checked"] = digest
+            if prior.personal or excluded(sid, title_of(sid, record), excludes):
+                skipped[sid] = "personal" if prior.personal else "excluded"
+                newly_skipped.add(sid)
+                record.update(offset=size, inode=path.stat().st_ino)
+                continue
+        if not grew:
             continue
         counters["files_read"] += 1
-        before = record.get("offset", 0) if path.stat().st_ino == record.get("inode") else 0
-        session = Session(sid, record.get("title", ""))
+        session = Session(sid, title_of(sid, record))
         if source == "claude":
             scan_claude(path, session, record, slugs, keywords, counters)
         else:
             scan_codex(path, session, record, keywords, counters)
         counters["bytes"] += max(record["offset"] - before, 0)
+        record["checked"] = digest
         counters["owner_msgs"] += session.owner_msgs
         if excluded(sid, session.title, excludes) or session.personal:
             skipped[sid] = "personal" if session.personal else "excluded"
@@ -525,11 +641,13 @@ def main(argv=None) -> int:
         sessions.append(session)
     if newly_skipped:
         purge_extracts(state, newly_skipped)
-    extract = build_extract(sessions, since)
+    extract, index = build_extract(sessions, since)
     name = "extract-" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime(now)) + ".json"
+    write_private(index_path(state / name), index)
     extract_bytes = write_private(state / name, extract)
     for old in sorted(state.glob("extract-*.json"))[:-KEEP_EXTRACTS]:
         old.unlink()
+        index_path(old).unlink(missing_ok=True)
     live = {sid for _, sid, _ in files}
     write_private(state / "offsets.json", {sid: rec for sid, rec in offsets.items() if sid in live})
     write_private(state / "skipped.json", skipped)
