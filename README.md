@@ -1,5 +1,9 @@
 # agent-rules-kit
 
+Shared rules, skills and guard hooks for AI coding agents: Devin Cloud, Devin CLI/Desktop, Codex and Claude Code load the same always-on rules and the same skills from one install. One person maintains the kit for their own work (Java 25, Godot 4 with GDScript, Python and a spec-driven workflow), so its defaults follow those stacks; anyone may use or fork it under the [MIT license](LICENSE).
+
+Issues are welcome: a bug, a question or a proposal for a rule or skill ([new issue](https://github.com/ChristianPrzybulinski/agent-rules-kit/issues/new/choose)). Open a pull request only after its issue exists and the maintainer has agreed to the change there, as [`CONTRIBUTING.md`](CONTRIBUTING.md#outside-contributors) says. Answers come as time allows; there is no support commitment. Report a vulnerability privately, as [`SECURITY.md`](SECURITY.md) says, never in an issue.
+
 A plugin-first source of always-on rules, triggered rules, skills, references and templates for Devin Cloud, Devin CLI/Desktop, Codex and Claude Code. Plugin content lives under [`plugins/`](plugins/) — one plugin, `guardrails`, with shared manifests (KIT-047, renamed from `core` by KIT-055); tooling and documentation stay at repository root.
 
 Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md) · Security: [`SECURITY.md`](SECURITY.md)
@@ -12,7 +16,7 @@ Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Cont
 | [`platforms/`](platforms/) | machine tools ([`tools/`](platforms/tools/README.md)), validators and schemas ([`ci/`](platforms/ci/README.md)), files projects copy ([`kits/`](platforms/kits/README.md)) |
 | [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |
 | `.devin-plugin/`, `.claude-plugin/`, `.agents/plugins/` | the content-free Devin meta-plugin, which requires `guardrails`, and the Claude Code and Codex marketplace catalogs |
-| `.github/` | on-demand workflows (`ci.yml`: check, shellcheck, install smoke, links; `evals.yml`: `claude plugin eval`; `gitleaks.yml`: secrets scan), `release.yml` (tag `v*` → release), weekly Dependabot action updates, the PR checklist template and `CODEOWNERS` |
+| `.github/` | on-demand workflows (`ci.yml`: check, shellcheck, install smoke, links; `evals.yml`: `claude plugin eval`; `gitleaks.yml`: secrets scan), `release.yml` (tag `v*` → release), weekly Dependabot action updates, the PR checklist template, the issue forms (`ISSUE_TEMPLATE/`: bug report, rule or skill proposal, and a link to private vulnerability reporting) and `CODEOWNERS` |
 
 `plugins/guardrails/INDEX.md` is generated from the plugin's files by `platforms/tools/gen_index.py`. `VERSION` is the single source of the kit version: `check_kit.py`, `bump_version.py` and `release.yml` read it.
 
