@@ -79,7 +79,7 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-055-plugin-renamed-guardrails.md`](KIT-055-plugin-renamed-guardrails.md) | done | #188 | #197 |
 | [`KIT-057-always-on-rules-review.md`](KIT-057-always-on-rules-review.md) | done | #202 | #203 |
 | [`KIT-058-hooks-review.md`](KIT-058-hooks-review.md) | done | #206 | #208 |
-| [`KIT-059-path-rules-review.md`](KIT-059-path-rules-review.md) | confirmed | #209 | #210 |
+| [`KIT-059-path-rules-review.md`](KIT-059-path-rules-review.md) | done | #209 | #210 |
 | [`KIT-060-shell-syntax-check.md`](KIT-060-shell-syntax-check.md) | done | #211 | #212 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

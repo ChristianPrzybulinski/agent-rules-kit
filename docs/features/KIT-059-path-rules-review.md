@@ -1,7 +1,7 @@
 ---
 id: KIT-059
 title: "The path rules change after the owner's rule-by-rule review"
-status: confirmed
+status: done
 confirmed: "2026-11-12 (owner, chat of the kit always-on review session: \"Sim, linha always-on\" (yes, the always-on line) for Codex reach; then \"tome suas recomendacoes como aceitas ate segunda ordem\" (take your recommendations as accepted until further notice) for the java, godot, spec and python items and for the proposal from the owner's links, which asked for rules for java, godot, python, spec and json, \"criando as que nao existem\" (creating the ones that do not exist))"
 issue: "#209"
 pr: "#210"
@@ -113,3 +113,4 @@ root; the previous expectation failed on the new rule.
 ## History
 
 - 2026-11-12: confirmed (owner, chat, rule by rule).
+- 2026-11-13: done (PR #210).
