@@ -1,0 +1,58 @@
+name: Bug report
+description: A hook, install or sync tool, check, rule or skill of the kit does the wrong thing.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report a security vulnerability privately instead, through the repository's **Security** tab (see `SECURITY.md`). Keep tokens, passwords and personal data out of this form.
+  - type: input
+    id: version
+    attributes:
+      label: Kit version
+      description: The content of `VERSION` in your clone (`cat ~/.ai-kit/VERSION`), or the plugin version your agent lists; add the commit if you run `main`.
+      placeholder: "12.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      description: Every agent where you saw it.
+      multiple: true
+      options:
+        - Claude Code
+        - Codex
+        - Devin CLI/Desktop
+        - Devin Cloud
+        - No agent (a kit tool run by hand)
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Agent version and operating system
+      placeholder: "Claude Code 2.1.x on macOS 15"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The command or prompt, the output (secrets removed) and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+  - type: textarea
+    id: doctor
+    attributes:
+      label: doctor.sh output
+      description: For an install or refresh problem, the output of `~/.ai-kit/platforms/tools/doctor.sh`.
+      render: text

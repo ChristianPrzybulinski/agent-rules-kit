@@ -1,0 +1,45 @@
+name: Rule or skill proposal
+description: Propose a new rule, skill, reference or template, or a change to an existing one.
+title: "proposal: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The kit keeps one owner per topic: a topic a skill already covers is extended there, not given a new skill. Search [`plugins/guardrails/INDEX.md`](https://github.com/ChristianPrzybulinski/agent-rules-kit/blob/main/plugins/guardrails/INDEX.md) first. The maintainer decides, and a pull request waits until they agree here.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Change to an existing rule or skill
+        - New rule
+        - New skill
+        - Reference or template
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Rule or skill it touches
+      placeholder: "skill testing, rules/java.md"
+  - type: textarea
+    id: problem
+    attributes:
+      label: What goes wrong today
+      description: What an agent did or failed to do, with the agent and the kit version. A transcript excerpt or a count helps more than a principle.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed text or step
+      description: The rule line or skill step as the agent would read it.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Doing less counts, such as a project rule instead of a kit rule.

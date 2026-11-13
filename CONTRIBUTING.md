@@ -2,6 +2,17 @@
 
 How to change the kit: where content goes, versioning, checks and evals. Sessions that work inside this repository read this file before a change; the always-on rules come from the installed `guardrails` plugin, so the root carries no `AGENTS.md` or `CLAUDE.md` (KIT-042).
 
+## Outside contributors
+
+This section is for people outside the project; the rest of the file is the procedure the maintainer and agent sessions follow.
+
+- One person maintains the kit for their own projects, so a change is weighed against the setups it already serves. Answers come as time allows.
+- Start with an issue, using the [bug report](https://github.com/ChristianPrzybulinski/agent-rules-kit/issues/new?template=bug_report.yml) or the [rule or skill proposal](https://github.com/ChristianPrzybulinski/agent-rules-kit/issues/new?template=rule_or_skill_proposal.yml) form. A bug report names the kit `VERSION`, the agent with its version and the operating system.
+- Open a pull request only after the maintainer agrees to the change in its issue; a pull request without one may be closed unreviewed. Link the issue, keep to one concern, add a line under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md), run `platforms/tools/check.sh` and fill in the PR checklist. The rest of this file says where each kind of content goes.
+- A contribution is licensed under the repository's [MIT license](LICENSE).
+- Report a vulnerability privately, as [`SECURITY.md`](SECURITY.md) says, never in an issue or pull request.
+- Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md), the Contributor Covenant 3.0.
+
 ## What goes where
 
 | Content | Location |
