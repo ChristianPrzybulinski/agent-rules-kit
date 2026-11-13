@@ -190,9 +190,8 @@ if "--path" in args:
         log.chmod(0o644)
 if os.environ.get("STUB_LOG"):
     with open(os.environ["STUB_LOG"], "a") as out:
-        looks = Path(os.environ.get("STUB_PS_CALLS", os.devnull))
         call = {{"args": args, "home": os.environ["HOME"], "nice": os.getpriority(os.PRIO_PROCESS, 0), "text": text,
-                "looks": len(looks.read_text()) if looks.is_file() else 0}}
+                "at": time.time()}}
         out.write(json.dumps(call) + "\\n")
 if args == ["--version"]:
     print("4.7.2.stub")
@@ -222,20 +221,6 @@ print("Overall Summary:")
 print("\\x1b[1m %s test cases | 0 errors | 0 failures | 0 flaky | 0 skipped | 0 orphans |\\x1b[0m"
       % os.environ.get("STUB_CASES", "2"))
 sys.exit(int(action) if action and action.isdigit() else int(os.environ.get("STUB_EXIT", "0")))
-"""
-# A stub `ps`: the Nth look shows the Nth of STUB_GATES' gate runs (the last one after), beside lines that never count.
-PS_STUB = """#!{python}
-import os
-from pathlib import Path
-calls = Path(os.environ["STUB_PS_CALLS"])
-seen = len(calls.read_text()) if calls.exists() else 0
-calls.write_text("." * (seen + 1))
-gates = os.environ["STUB_GATES"].split(",")
-print("/bin/zsh -c G=gates; python3 -B loop.py $G --pr 9")
-print("/bin/sh -c /x/MacOS/Python -B loop.py gates --pr 9")
-print("/x/MacOS/Python -B loop.py wait --role claude")
-for pr in range(int(gates[min(seen, len(gates) - 1)])):
-    print("/x/MacOS/Python -B loop.py gates --repo r --pr %d --post" % pr)
 """
 # The tool's load average and core count, from STUB_LOAD and STUB_CORES: no test reads the real host.
 SITE = """import os
@@ -267,9 +252,6 @@ class RunnerTest(unittest.TestCase):
         stub.parent.mkdir()
         stub.write_text(STUB.format(python=sys.executable))
         stub.chmod(0o755)
-        ps = stub.parent / "ps"
-        ps.write_text(PS_STUB.format(python=sys.executable))
-        ps.chmod(0o755)
         site = root / "site" / "sitecustomize.py"
         site.parent.mkdir()
         site.write_text(SITE)
@@ -281,8 +263,8 @@ class RunnerTest(unittest.TestCase):
                     "XDG_CACHE_HOME": str(root / "cache"),
                     # one gate run holds the host (the cap is 2), 4 cores at load 0.5: no run waits
                     "PATH": f"{stub.parent}{os.pathsep}{os.environ.get('PATH', '')}", "PYTHONPATH": str(site.parent),
-                    "STUB_PS_CALLS": str(root / "ps.calls"), "STUB_GATES": "1", "STUB_LOAD": "0.5",
-                    "STUB_CORES": "4"}
+                    "XDG_STATE_HOME": str(root / "state"), "STUB_LOAD": "0.5", "STUB_CORES": "4"}
+        self.loop_state(gates=[os.getpid()])
         self.git("init", "-q", "-b", "main", str(self.repo), cwd=self.tmp.name)
         self.project = self.repo / "client"
         self.write("project.godot", PROJECT)
@@ -308,6 +290,13 @@ class RunnerTest(unittest.TestCase):
     def commit(self, message):
         self.git("add", "-A")
         self.git("-c", "commit.gpgsign=false", "commit", "-q", "-m", message)
+
+    def loop_state(self, gates=(), proofs=()):
+        """The review loop's children.json, with a gate-slot record per process of `gates` and of `proofs`."""
+        state = Path(self.env["XDG_STATE_HOME"]) / "stratics-review-loop" / "children.json"
+        state.parent.mkdir(parents=True, exist_ok=True)
+        state.write_text(json.dumps({"gates": {"running": {f"r#{pid}": {"pid": pid} for pid in gates}},
+                                     "proofs": {f"r:proof:{pid}": {"pid": pid} for pid in proofs}}))
 
     def run_tool(self, *args, cwd=None, constant="0", **env):
         """The tool with --timeout-constant 0, so a timed-out stub mutant waits 10 x the unmutated run only;
@@ -399,7 +388,24 @@ class RunnerTest(unittest.TestCase):
 
     @NEEDS_PARSER
     def test_gate_runs_at_the_cap_hold_the_import_until_one_ends(self):
-        result = self.run_tool("app/calc.gd", "--json", str(self.out), STUB_GATES="2,1")
+        proof = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+        self.addCleanup(proof.wait)
+        self.addCleanup(proof.kill)
+        self.loop_state(gates=[os.getpid()], proofs=[proof.pid])
+        ended = []
+
+        def end():  # the proof ends half a second after `godot --version`, the call just before the first look
+            while not (self.log.exists() and '["--version"]' in self.log.read_text()):
+                time.sleep(0.05)
+            time.sleep(0.5)
+            proof.kill()
+            proof.wait()
+            ended.append(time.time())
+
+        ender = threading.Thread(target=end, daemon=True)
+        ender.start()
+        result = self.run_tool("app/calc.gd", "--json", str(self.out))
+        ender.join(10)
         self.assertEqual(result.returncode, 0, result.stderr)
         data, statuses = self.statuses()
         self.assertEqual(statuses, STATUSES)
@@ -407,7 +413,7 @@ class RunnerTest(unittest.TestCase):
         self.assertGreaterEqual(data["host"]["waited"], gd_mutation.HOST_POLL - 0.1)
         self.assertIn("1 start(s) waited for the gate cap and 0 for the load", result.stderr)
         imported, = [call for call in self.calls() if "--import" in call["args"]]
-        self.assertEqual(imported["looks"], 2)  # it started after the second look, the one that found 1 gate run
+        self.assertGreater(imported["at"], ended[0])
         self.assert_no_leftovers()
 
     @NEEDS_PARSER
@@ -711,40 +717,34 @@ class HostTest(unittest.TestCase):
         found.probe = lambda: left.pop(0) if len(left) > 1 else left[0]
         return found
 
-    def test_only_a_python_run_of_a_gate_command_counts(self):
-        lines = ["/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/"
-                 "Python.app/Contents/MacOS/Python -B loop.py gates --repo stratics-docs --pr 4013 --post",
-                 "/usr/bin/python3 -B platform/review-loop/loop.py merge-recheck --pr 3168",
-                 "python3.12 loop.py regate --pr 1", "python3 loop.py main-verify", "python3 loop.py approve --pr 2",
-                 "/x/MacOS/Python -B platform/tools/pr-review/pr_ops.py prove --pr 3", "python3 loop.py merge --pr 4",
-                 "/x/MacOS/Python loop.py proof-check --repo r --issue 5 --run", "python3 pr_ops.py merge --pr 6",
-                 "python3 pr_ops.py merge-check --pr 6",
-                 "/bin/sh -c /x/MacOS/Python -B loop.py gates --pr 9",
-                 "/bin/zsh -c G=gates; python3 -B loop.py $G --pr 9", "pgrep -fl [l]oop.py gates",
-                 "/x/MacOS/Python -B loop.py wait --role claude", "/x/MacOS/Python -B pr_ops.py status --pr 3",
-                 "/usr/bin/python3 -B gd_mutation.py --workers 4", "/x/godot --path loop.py gates", "", "python3 -B"]
-        self.assertEqual(gd_mutation.gate_runs(lines), 8)
-
-    def test_a_look_reads_ps_and_the_load_and_serves_every_worker_a_second(self):
-        found = gd_mutation.Host()
-        ps = subprocess.CompletedProcess([], 0, stdout="python3 loop.py gates\n/bin/sh -c python3 loop.py gates\n")
-        with mock.patch.object(gd_mutation.subprocess, "run", return_value=ps) as run, \
-                mock.patch.object(gd_mutation.os, "getloadavg", return_value=(3.5, 2.0, 1.0)):
-            self.assertEqual(found.probe(), (1, 3.5))
-            self.assertEqual(found.probe(), (1, 3.5))
-        run.assert_called_once_with(gd_mutation.PS, capture_output=True, text=True, errors="replace", check=True,
-                                    timeout=30)
-
-    def test_a_process_whose_command_is_not_utf8_does_not_stop_the_look(self):
+    def test_only_the_live_gate_slot_records_of_each_loop_count(self):
+        gone = subprocess.Popen([sys.executable, "-c", "pass"])
+        gone.wait()
+        live = os.getpid()
         with tempfile.TemporaryDirectory() as folder:
-            ps = Path(folder) / "ps"
-            ps.write_text(f"#!{sys.executable}\nimport sys\n"
-                          "sys.stdout.buffer.write(b'python3 -c caf\\xe9\\npython3 loop.py gates --pr 1\\n')\n")
-            ps.chmod(0o755)
-            path = f"{folder}{os.pathsep}{os.environ.get('PATH', '')}"
-            with mock.patch.dict(os.environ, {"PATH": path}), \
-                    mock.patch.object(gd_mutation.os, "getloadavg", return_value=(0.5, 0.5, 0.5)):
-                self.assertEqual(gd_mutation.Host().probe(), (1, 0.5))
+            docs, other = Path(folder) / "docs.json", Path(folder) / "other.json"
+            docs.write_text(json.dumps({
+                "gates": {"running": {"stratics-docs#1": {"pid": live}, "stratics-docs#2": {"pid": gone.pid}}},
+                "rechecks": {"running": {"stratics-docs#3": {"pid": live}},
+                             "failed": {"stratics-docs#4": {"pid": live}}},
+                "proofs": {"stratics-docs:proof-check:5": {"pid": live}, "stratics-docs:merge:6": {"pid": None}},
+                "running": {"implement-7": {"pid": live}}, "reviews": {"running": {"review-8": {"pid": live}}}}))
+            other.write_text(json.dumps({"proofs": {"stratics-client:run_proof:9": {"pid": live}}}))
+            self.assertEqual((gd_mutation.gate_runs([docs]), gd_mutation.gate_runs([docs, other])), (3, 4))
+
+    def test_a_look_reads_the_loop_state_and_the_load_and_serves_every_worker_a_second(self):
+        with tempfile.TemporaryDirectory() as folder:
+            state = Path(folder) / "stratics-review-loop" / "children.json"
+            state.parent.mkdir()
+            state.write_text(json.dumps({"gates": {"running": {"r#1": {"pid": os.getpid()}}}}))
+            found = gd_mutation.Host()
+            with mock.patch.dict(os.environ, {"XDG_STATE_HOME": folder}), \
+                    mock.patch.object(gd_mutation.os, "getloadavg", return_value=(3.5, 2.0, 1.0)):
+                self.assertEqual(found.probe(), (1, 3.5))
+                state.write_text("{}")
+                self.assertEqual(found.probe(), (1, 3.5))
+                with mock.patch.object(gd_mutation, "HOST_FRESH", 0):
+                    self.assertEqual(found.probe(), (0, 3.5))
 
     def test_gate_runs_at_the_cap_hold_even_the_first_run(self):
         found = self.host((2, 0.0), (3, 0.0), (1, 0.0))
@@ -782,14 +782,20 @@ class HostTest(unittest.TestCase):
         self.assertEqual((found.running, found.closed), (0, True))
 
     def test_a_host_that_does_not_tell_bounds_no_run_and_says_so_once(self):
-        found = gd_mutation.Host()
-        with mock.patch.object(gd_mutation.subprocess, "run", side_effect=FileNotFoundError("ps")), \
+        found, unreadable = gd_mutation.Host(), gd_mutation.Host()
+        with tempfile.TemporaryDirectory() as folder, mock.patch.dict(os.environ, {"XDG_STATE_HOME": folder}), \
                 mock.patch.object(gd_mutation.os, "getloadavg", side_effect=OSError("no load")), \
                 mock.patch.object(gd_mutation, "HOST_FRESH", 0), mock.patch.object(gd_mutation, "notice") as told:
             self.assertEqual((found.acquire(), found.acquire()), (True, True))
+            state = Path(folder) / "stratics-review-loop" / "children.json"
+            state.parent.mkdir()
+            state.write_text('{"gates": ')  # a state the tool cannot read
+            self.assertIs(unreadable.acquire(), True)
         self.assertEqual([call.args[0] for call in told.call_args_list],
-                         ["gate runs not counted: ps -A -ww -o command= failed (FileNotFoundError)",
-                          "load not read: os.getloadavg failed (OSError)"])
+                         [f"gate runs not counted: no *-review-loop/children.json under {folder}",
+                          "load not read: os.getloadavg failed (OSError)",
+                          "gate runs not counted: *-review-loop/children.json unreadable (JSONDecodeError) under "
+                          f"{folder}", "load not read: os.getloadavg failed (OSError)"])
         self.assertEqual({k: v for k, v in found.report().items() if k != "cores"},
                          {"gate_cap": 2, "peak": 2, "waits": {"gates": 0, "load": 0}, "waited": 0.0, "load": None,
                           "gates": None})

@@ -225,30 +225,31 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
 - 2026-11-12 T6: chose to admit every Godot run, the import and each unmutated run included, over mutants only,
   because the import (22 s in T3) costs the host more than a mutant (1.2 s), and an import or unmutated run that is
   not admitted leaves its mutants "not run" with exit 2, as a failed one does.
-- 2026-11-12 T6: chose to count a gate run as a Python process whose script is `loop.py` with `gates`,
-  `merge-recheck`, `main-verify`, `approve`, `merge` or `proof-check`, or `pr_ops.py` with `prove` or `merge`, read
-  from one `ps -A -ww -o command=`, over a `pgrep -f` pattern, because a pattern also matches the shell that wraps the
-  run and counts it twice; the names are the subcommands that can take the loop's gate slot (`gate_slot` and
-  `admitted_proof` in `platform/review-loop/loop.py` at stratics-docs `31a6c863f`: `run_gates`, `run_proof`,
-  `run_main_rows`, `merge-recheck` and `proof-check --run`; `approve` and both `merge` commands reach `run_proof`
-  through `stale_merge_result` when the merge result is stale; `regate` only asks for a re-gate) and the live gate
-  read `…/MacOS/Python -B loop.py gates --repo stratics-docs --pr 4013 --post`. `approve`, `merge` and `proof-check`
-  are counted whenever they run, over only when they hold the slot, which `ps` does not show: a short wait of ours
-  over a gate run missed. The review of #200 found the first list (`regate` in, `merge` and `proof-check` out). The
-  tool reads the owner's cap (2 gate runs on the host, the loop's included) and does not join the loop's admission,
-  which counts only the loop's own records (`admission_runs`, the same file): a gate that starts while one of our runs
-  is going does not wait for it, and our next run waits instead. A new gate command in the loop needs a line in
-  `GATE_COMMANDS`.
-- 2026-11-12 T6: chose one look at the host shared by every worker for 1 s, a poll of 2 s and a wake when a run of ours
-  ends, over one `ps` before each start, because one `ps -A -ww` took 59 to 171 ms (median 65 ms, 5 calls) on the
-  loaded host and a mutant takes about 1.2 s (T3), so a `ps` per start would add about 5 % to every mutant.
+- 2026-11-12 T6, changed 2026-11-13 by the review of #200: chose to count the gate runs from the review loop's own
+  admission records, the records of `gates` and `rechecks` running and of `proofs` in each
+  `$XDG_STATE_HOME/*-review-loop/children.json` (default `~/.local/state`) whose process is alive, over a list of
+  `loop.py` and `pr_ops.py` subcommands read from one `ps -A -ww -o command=` (T6's first choice). The loop grants the
+  slot in `gate_slot`, reached through `admitted_proof` (`run_gates`, `run_proof`, `run_main_rows`) and directly by
+  `gates`, `merge-recheck` and `proof-check --run` (`platform/review-loop/loop.py` at stratics-docs `31a6c863f`), and
+  its `admission_runs` counts exactly these records, so they hold every holder; the names missed entry points twice:
+  the review at `a4a7cd1` found `merge` and `proof-check` missing and `regate` taking no slot, and the one at
+  `c7be81e` found `coordinate integrate`, `evidence approve` (a profile's plugin) and `pr_ops.py owner-docs-merge`. A
+  record whose process is gone is not counted (the loop reclaims it later), and a nested proof adds none (it reuses
+  its parent's). The tool reads the file without the loop's lock (the loop replaces it whole) and does not join the
+  admission: a gate that starts while one of our runs is going does not wait for it, and our next run waits instead. A
+  change of the place or shape of those records in the loop needs this reader changed.
+- 2026-11-12 T6: chose one look at the host shared by every worker for 1 s, a poll of 2 s and a wake when a run of
+  ours ends, over one look before each start, because the first look ran `ps -A -ww`, which took 59 to 171 ms (median
+  65 ms, 5 calls) on the loaded host, and a mutant takes about 1.2 s (T3), so a `ps` per start would have added about
+  5 % to every mutant. The look now reads the loop's state instead (not measured); the shared look stays.
 - 2026-11-12 T6: chose to stop starting runs after 3600 s of gate runs at the cap, the rest "not run" and exit 2, over
   waiting without end, because a gate that hangs would otherwise hold an advisory tool for good, and "not run" with
   exit 2 already says the score is of a subset (review of #192, above). 3600 s is a judgement, not measured; the
   clock restarts whenever the gates drop below the cap.
-- 2026-11-12 T6: chose to let a host that does not tell (`ps` fails, no `os.getloadavg`) run as before T6, with one
-  notice for each, over refusing to run, because the tool is advisory and no CI or loop gate runs it (D2, D5), so a
-  host without `ps` has no loop to protect; the cores come from `os.cpu_count()` and nothing names a host.
+- 2026-11-12 T6: chose to let a host that does not tell (no loop state or one that cannot be read, no `os.getloadavg`)
+  run as before T6, with one notice for each, over refusing to run, because the tool is advisory and no CI or loop
+  gate runs it (D2, D5), so a host without the loop's state has no loop to protect; the cores come from
+  `os.cpu_count()` and nothing names a host.
 
 ## Measurements
 
@@ -371,7 +372,7 @@ and no other. 10 cores; load average 5.9 to 11.6 in the sampler's looks.
   the load the tool read stayed between 6.21 and 6.64, below the 10 cores, so all four ran. The 1-worker run saw a load
   of 11.56 at its peak, which holds only a second run, and it had none. The waits themselves (gate runs at the cap, the
   load at the cores, a run of ours that ends, the hour that closes the host) were not seen on the host;
-  `test_gd_mutation.py` covers them with a stub `ps` and a stub load.
+  `test_gd_mutation.py` covers them with a stub loop state and a stub load.
 - The one-minute load average follows a burst late: the four workers' 47 s did not lift it above 6.64, so a short run
   can start N runs before the load shows them. `--workers N` stays the bound the caller sets.
 - The unmutated run took 2.12 s and 1.81 s (1.23 s in T3, with no gate), so the timeout was 51.2 and 48.1 s.
@@ -560,7 +561,9 @@ T6 review fixes: run from the worktree root at `425b8d0` (the fixes `8afdcad` an
 - 2026-11-12: T6 (every Godot run waits while 2 gate runs hold the host, and a second one at once while the load
   is at the core count) implemented and measured on the client with the loop running (one gate) in its own PR,
   which refers to #137 and leaves it open; step 7 now reads as § Decisions, 2026-11-12 T6, says.
-- 2026-11-13: the review of #200 at `a4a7cd1` found a `ps` line that is not UTF-8 raising `UnicodeDecodeError` out
-  of the look (now decoded with `errors="replace"`), `GATE_COMMANDS` missing `merge` and `proof-check` and listing
-  `regate` (§ Decisions, 2026-11-12 T6), and no test failing when the import or an unmutated run skips admission
-  (now `looks` in the stub's log and `test_a_closed_host_runs_no_unmutated_selection`).
+- 2026-11-13: the review of #200 at `a4a7cd1` found a `ps` line that is not UTF-8 raising `UnicodeDecodeError` out of
+  the look, `GATE_COMMANDS` missing `merge` and `proof-check` and listing `regate`, and no test failing when the
+  import or an unmutated run skips admission; the re-review at `c7be81e` found three more slot holders the names
+  missed. The gate runs are now the loop's own admission records (§ Decisions, 2026-11-12 T6), with no `ps`; the
+  stub's log records when each Godot run started, and `test_a_closed_host_runs_no_unmutated_selection` covers the
+  unmutated runs.

@@ -40,13 +40,13 @@ or more); error (anything else); not run when writing or running it raised (godo
 that cannot restore its file stops. The score is killed plus timed out over killed, timed out and survived.
 
 Host: every Godot run (the import, each unmutated run, each mutant) starts only while fewer than 2 gate runs hold the
-host, the review loop's included: a Python process running `loop.py` gates, merge-recheck, main-verify, approve, merge
-or proof-check, or `pr_ops.py` prove or merge, read from `ps` (the shell that wraps one is not counted). A run beside
-another of ours also needs the one-minute load average below the core count, so --workers N is an upper bound and one
-run always goes on when the gate cap allows. A waiting run looks again every 2 s or when a run of ours ends; after
-3600 s of gate runs at the cap no further run starts and the rest are not run. What the host does not tell (ps fails,
-no load average) does not bound a run, with one notice. --json FILE has the cores, the peak of runs at once, the waits
-and the load and gate runs seen.
+host, the review loop's included: the loop's own admission records (the `gates` and `rechecks` running and the
+`proofs` of each $XDG_STATE_HOME/*-review-loop/children.json, default ~/.local/state) whose process is alive. A run
+beside another of ours also needs the one-minute load average below the core count, so --workers N is an upper bound
+and one run always goes on when the gate cap allows. A waiting run looks again every 2 s or when a run of ours ends;
+after 3600 s of gate runs at the cap no further run starts and the rest are not run. What the host does not tell (no
+loop state or one that cannot be read, no load average) does not bound a run, with one notice. --json FILE has the
+cores, the peak of runs at once, the waits and the load and gate runs seen.
 
 Differential: a killed, survived or invalid result is kept in --cache FILE (default
 $XDG_CACHE_HOME/ai-kit/gd-mutation/cache.json, beside gd_duplicates.py's; default ~/.cache) under a hash of the
@@ -126,16 +126,12 @@ TIMEOUT_FACTOR = 10
 TIMEOUT_CONSTANT = 30
 # The host (KIT-035 step 7): a Godot run of this tool starts only while fewer than GATE_CAP gate runs hold the host,
 # the review loop's own included (the owner's cap of 2), and a second run at once only while the one-minute load
-# average is below the core count. A gate run is a Python process whose script is one of GATE_COMMANDS' files and whose
-# next word is one of its commands; the shell that wraps it is not one (a `pgrep -f` pattern also matches the shell).
-# The commands are those that can take the loop's gate slot: approve and merge take it only to re-check a stale merge
-# result and proof-check only with --run, and each is counted whenever it runs (a short wait over a missed gate run).
+# average is below the core count. The gate runs are the review loop's own admission records, the slots its
+# `gate_slot` grants every command that runs gates or a proof: the records of `gates` and `rechecks` running and of
+# `proofs` in each LOOP_STATE file under $XDG_STATE_HOME (default ~/.local/state) whose process is alive.
 GATE_CAP = 2
-GATE_COMMANDS = {"loop.py": {"gates", "merge-recheck", "main-verify", "approve", "merge", "proof-check"},
-                 "pr_ops.py": {"prove", "merge"}}
-PYTHON = re.compile(r"python[0-9.]*", re.I)
-PS = ["ps", "-A", "-ww", "-o", "command="]
-HOST_FRESH = 1  # seconds a look at the host serves every worker (one `ps` takes about 60 ms on a loaded host)
+LOOP_STATE = "*-review-loop/children.json"
+HOST_FRESH = 1  # seconds a look at the host serves every worker
 HOST_POLL = 2  # seconds between two looks while a run waits; a run of ours that ends wakes it sooner
 HOST_WAIT = 3600  # seconds of gate runs at the cap after which no further run starts and the rest are not run
 
@@ -584,25 +580,39 @@ class Worker:
     log: Path
 
 
-def gate_runs(lines):
-    """How many of these `ps` command lines are gate runs: a Python process, then its options, then a script named in
-    GATE_COMMANDS and one of that script's commands. A shell running one (`sh -c`, `zsh -c`) is not counted."""
+def state_home():
+    return Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
+
+
+def alive(pid):
+    """True while process `pid` exists (one that exited counts until its parent reaps it)."""
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def gate_runs(paths):
+    """How many gate slots the review loops of these children.json files hold: their records of `gates` and
+    `rechecks` running and of `proofs` (the loop's `admission_runs`) whose process is alive."""
     count = 0
-    for line in lines:
-        words = line.split()
-        if not words or not PYTHON.fullmatch(os.path.basename(words[0])):
-            continue
-        script = next((i for i, word in enumerate(words[1:], 1) if not word.startswith("-")), len(words))
-        if script + 1 < len(words) and \
-                words[script + 1] in GATE_COMMANDS.get(os.path.basename(words[script]), ()):
-            count += 1
+    for path in paths:
+        state = json.loads(path.read_text(encoding="utf-8"))
+        records = [*state.get("gates", {}).get("running", {}).values(),
+                   *state.get("rechecks", {}).get("running", {}).values(), *state.get("proofs", {}).values()]
+        count += sum(alive(record.get("pid")) for record in records)
     return count
 
 
 class Host:
     """Admission of this tool's Godot runs: each starts only while fewer than `cap` gate runs hold the host, and a run
     beside another of ours only while the one-minute load average is below the core count, so one run always goes on
-    when the gate cap allows. What the host does not tell (`ps` fails, no load average) does not bound a run."""
+    when the gate cap allows. What the host does not tell (no loop state, no load average) does not bound a run."""
 
     def __init__(self, cap=GATE_CAP, poll=HOST_POLL, wait=HOST_WAIT):
         self.cap, self.poll, self.wait = cap, poll, wait
@@ -626,13 +636,17 @@ class Host:
         when, gates, load = self.last
         if when is not None and time.monotonic() - when < HOST_FRESH:
             return gates, load
+        paths = sorted(state_home().glob(LOOP_STATE))
         try:
-            gates = gate_runs(subprocess.run(PS, capture_output=True, text=True, errors="replace", check=True,
-                                             timeout=30).stdout.splitlines())
+            gates = gate_runs(paths) if paths else None
+        except (OSError, ValueError, AttributeError, TypeError) as error:
+            gates, why = None, f"{LOOP_STATE} unreadable ({type(error).__name__})"
+        else:
+            why = f"no {LOOP_STATE}"
+        if gates is None:
+            self.tell("gates", f"gate runs not counted: {why} under {state_home()}")
+        else:
             self.gates.append(gates)
-        except (OSError, subprocess.SubprocessError) as error:
-            gates = None
-            self.tell("gates", f"gate runs not counted: {' '.join(PS)} failed ({type(error).__name__})")
         try:
             load = os.getloadavg()[0]
             self.loads.append(load)
