@@ -66,6 +66,20 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("stale kit path: docs/x.md", result.stdout)
 
+    def test_11x_plugin_layouts_fail(self):  # KIT-061: the 11.x plugin folders before guardrails
+        self.write_md("docs/x.md", "- Process: agent-rules-kit `plugins/sdd/skills/sdd-constitution/references/sdd-process.md`\n"
+                      "- Java: `plugins/dev/skills/java-standards/SKILL.md`\n"
+                      "- Templates: `plugins/architect-sdd/templates/spec-journey.md`\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        for line in (1, 2, 3):
+            self.assertIn(f"stale kit path: docs/x.md:{line}:", result.stdout)
+
+    def test_current_plugin_layout_passes(self):  # KIT-061
+        self.write_md("docs/x.md", "- Process: agent-rules-kit `plugins/guardrails/skills/sdd-constitution/references/sdd-process.md`\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_synced_folder_warning(self):  # KIT-021
         home = self.repo / "home"
         repo = home / "Library" / "CloudStorage" / "Dropbox" / "repo"

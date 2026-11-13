@@ -11,7 +11,7 @@ Entry points: vague idea → `/grilling` first, then `sdd-specify` when problem/
 
 ## Flow
 
-Repeat `implement → validate` per issue until READY. Run `to-card` after `tasks` to cut one issue per task row (wave order) and after delivery to close; `implement` runs in one worktree per issue and opens one PR per issue, which the architect reviews before merge.
+Repeat `implement → review` per issue until READY. Run `to-card` after `tasks` to cut one issue per task row (wave order) and after delivery to close; `implement` runs in one worktree per issue and opens one PR per issue, which the architect reviews before merge.
 
 | Step | Skill | Input | Output |
 |---|---|---|---|
