@@ -89,9 +89,11 @@ class SessionAuditTest(unittest.TestCase):
         path.write_text(text, encoding="utf-8")
         return path
 
-    def run_audit(self, *args):
-        env = {key: value for key, value in os.environ.items() if key not in ("XDG_STATE_HOME", "CODEX_HOME")}
+    def run_audit(self, *args, **extra_env):
+        env = {key: value for key, value in os.environ.items()
+               if key not in ("XDG_STATE_HOME", "CODEX_HOME", "CODEX_SQLITE_HOME")}
         env["HOME"] = str(self.root)
+        env.update(extra_env)
         result = subprocess.run(
             [sys.executable, "-B", str(TOOL), "--state", str(self.state), "--claude-dir", str(self.claude),
              "--codex-dir", str(self.codex), *args],
@@ -100,8 +102,8 @@ class SessionAuditTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return result
 
-    def counts(self, *args):
-        return json.loads(self.run_audit(*args).stdout)
+    def counts(self, *args, **extra_env):
+        return json.loads(self.run_audit(*args, **extra_env).stdout)
 
     def extract(self):
         return json.loads(sorted(self.state.glob("extract-*.json"))[-1].read_text(encoding="utf-8"))
@@ -190,6 +192,65 @@ class SessionAuditTest(unittest.TestCase):
         self.assertEqual((counts["skipped_sessions"], counts["sessions"]), (1, 0))
         self.assertEqual(self.extract()["owner"], [])
 
+    def kept_then_gone(self, text):
+        """Run 1 reads a session, its transcript leaves the disk, run 2 sees no file: returns run 1's extract."""
+        path = self.claude_session(CLAUDE_IDS["kept"], human(text))
+        self.counts()
+        first = sorted(self.state.glob("extract-*.json"))[-1]
+        self.assertEqual(len(json.loads(first.read_text(encoding="utf-8"))["owner"]), 1)
+        path.unlink()
+        time.sleep(1.1)
+        self.counts()
+        time.sleep(1.1)
+        return first
+
+    def test_excluded_id_reaches_kept_session_whose_transcript_is_gone(self):
+        first = self.kept_then_gone("de novo, rode os testes")
+        (self.state / "exclude.txt").write_text(CLAUDE_IDS["kept"][:8] + "\n", encoding="utf-8")
+        self.assertEqual(self.counts()["skipped_sessions"], 1)
+        self.assertEqual(json.loads(first.read_text(encoding="utf-8"))["owner"], [])
+        self.assertNotIn(CLAUDE_IDS["kept"], first.read_text(encoding="utf-8"))
+
+    def test_keyword_change_purges_kept_session_whose_transcript_is_gone(self):
+        first = self.kept_then_gone("de novo, rode os testes")
+        (self.state / "keywords.txt").write_text("lisboa\n", encoding="utf-8")
+        self.assertEqual(self.counts()["skipped_sessions"], 1)
+        self.assertEqual(json.loads(first.read_text(encoding="utf-8"))["owner"], [])
+        self.assertNotIn(CLAUDE_IDS["kept"], first.read_text(encoding="utf-8"))
+
+    def test_no_private_leftovers_after_a_failed_write(self):
+        module = load_module()
+        self.state.mkdir()
+        target = self.state / "extract-20200101T000000Z.json"
+        with self.assertRaises(TypeError):
+            module.write_private(target, {"bad": object()})
+        self.assertEqual(sorted(p.name for p in self.state.iterdir()), [])
+        (self.state / "index-20200101T000000Z.json").write_text("{}", encoding="utf-8")
+        (self.state / "extract-20200102T000000Z.json.tmp").write_text("{}", encoding="utf-8")
+        self.counts()
+        names = sorted(p.name for p in self.state.iterdir())
+        self.assertFalse([n for n in names if n.endswith(".tmp") or n == "index-20200101T000000Z.json"], names)
+
+    def test_codex_titles_from_sqlite_home_and_unreadable_database(self):
+        import sqlite3
+        db_home = self.root / "codex-db"
+        db_home.mkdir()
+        with sqlite3.connect(db_home / "state_5.sqlite") as con:
+            con.execute("create table threads (id text primary key, title text, name text)")
+            con.execute("insert into threads values (?, ?, ?)", (CODEX_IDS[0], "Pessoal — viagem", ""))
+        con.close()
+        self.state.mkdir()
+        (self.state / "exclude.txt").write_text("pessoal\n", encoding="utf-8")
+        self.codex_session(CODEX_IDS[0], codex_user("errado de novo"))
+        counts = self.counts(CODEX_SQLITE_HOME=str(db_home))
+        self.assertEqual((counts["skipped_sessions"], counts["sessions"]), (1, 0))
+        (self.codex.parent / "state_5.sqlite").write_bytes(b"not a database" * 100)
+        self.codex_session(CODEX_IDS[1], codex_user("errado de novo"))
+        time.sleep(1.1)
+        counts = self.counts()
+        self.assertEqual((counts["sessions"], counts["codex_deferred"]), (0, 1))
+        self.assertEqual(self.extract()["owner"], [])
+
     def test_codex_titles_from_index_and_state_database_are_excluded(self):
         import sqlite3
         home = self.codex.parent
@@ -275,8 +336,11 @@ class SessionAuditTest(unittest.TestCase):
 
     def test_password_in_prose_is_redacted(self):
         module = load_module()
-        for text in ("my password is hunter2!", "a senha é hunter2!", "token = hunter2!"):
-            self.assertNotIn("hunter2", module.redact(text), text)
+        for text in ("my password is hunter2!", "a senha é hunter2!", "token = hunter2!", "a senha do wifi é hunter2",
+                     "the token for prod is hunter2", "password is 'hunter 2'", 'password: "hunter 2"'):
+            redacted = module.redact(text)
+            self.assertNotIn("hunter", redacted, text)
+            self.assertNotIn(" 2", redacted, text)
 
     def test_target_classes(self):
         module = load_module()
@@ -292,6 +356,9 @@ class SessionAuditTest(unittest.TestCase):
             ("rm -rf /tmpfoo", "rm"): "other",
             ('rm -rf "$TMPDIRX/a"', "rm"): "other",
             ("rm -rf /tmp", "rm"): "temp",
+            ('rm -rf "${TMPDIR:+/}"', "rm"): "other",
+            ("rm -rf /tmp/../etc", "rm"): "other",
+            ('rm -rf "${TMPDIR-/tmp}/x"', "rm"): "temp",
         }
         for (command, tool), expected in cases.items():
             self.assertEqual(module.classify_targets(command, tool), expected, command)

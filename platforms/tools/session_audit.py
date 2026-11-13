@@ -10,12 +10,15 @@ for the `session` skill's `audit` mode:
   memory  Claude memory entries cited, read and written: session counts
   guard   commands the `ai-kit guard` hook blocked: count per kind; `rm -rf` and `find -delete` by target class
 A session listed in <state>/exclude.txt (id prefix or title substring, one per line; Claude titles from the
-transcript, Codex titles from <codex-dir>/../session_index.jsonl and state_*.sqlite) or with a personal-topic keyword
-in any owner message, from the session's first line, is skipped whole, and its entries leave the older extracts too:
-each extract has an index-<stamp>.json of what every session added, so its counts are rebuilt without it. A keyword
-with a work meaning counts only next to a word that confirms the personal meaning; <state>/keywords.txt adds `word`
-or `word: confirm, confirm` lines, and a change to it re-checks the sessions in the kept extracts. Prints one JSON
-line of counts only. Every file it writes has mode 0600.
+transcript, Codex titles from <codex-dir>/../session_index.jsonl and state_*.sqlite, also under $CODEX_SQLITE_HOME or
+`sqlite_home`) or with a personal-topic keyword in any owner message, from the session's first line, is skipped
+whole, and its entries leave the older extracts too: each extract has an index-<stamp>.json of what every session
+added, so its counts are rebuilt without it. A keyword with a work meaning counts only next to a word that confirms
+the personal meaning; <state>/keywords.txt adds `word` or `word: confirm, confirm` lines, and a change to it
+re-checks the sessions in the kept extracts (one whose transcript is gone is dropped). Exclusions reach kept sessions
+whose transcript is gone too. When exclude.txt has entries and the Codex titles cannot be read, Codex files wait for
+a later run (`codex_deferred`). Prints one JSON line of counts only. Every file it writes has mode 0600, and a run
+deletes the temporary files and orphan indexes an interrupted one left.
 
 Usage: session_audit.py [--state DIR] [--claude-dir DIR] [--codex-dir DIR] [--if-older-days N] [--first-run-days N]
 """
@@ -50,7 +53,8 @@ SECRET_PATTERNS = [
     re.compile(r"xox[abprs]-[A-Za-z0-9-]{10,}"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"AGE-SECRET-KEY-[0-9A-Z]+"),
-    re.compile(r"(?i)\b(password|passwd|senha|secret|token|api[_-]?key)\b(\s*[:=]\s*|\s+(?:is|was|=|é|e|era)\s+)\S+"),
+    re.compile(r"""(?i)\b(password|passwd|senha|secret|token|api[_-]?key)\b"""
+               r"""((?:\s+[\w-]+){0,3}?\s*(?:[:=]|\s(?:is|was|é|e|era)\s)\s*)(?:"[^"\n]*"|'[^'\n]*'|\S+)"""),
     re.compile(r"\b[A-Fa-f0-9]{32,}\b"),
     re.compile(r"\b[A-Za-z0-9+/_-]{40,}={0,2}"),
 ]
@@ -85,7 +89,9 @@ GUARD = re.compile(r"ai-kit guard: ([a-z][a-z0-9 <>|.-]{0,30}?) is destructive",
 KIT_BLOCK = re.compile(r"(?m)^[ \t>*`_-]*Kit \[PROPOSAL\]")
 TOOL_ID = re.compile(r'"id":"(toolu_[A-Za-z0-9_]+)"')
 CODEX_ID = re.compile(r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$")
-TEMP_PATH = re.compile(r"^(?:/tmp|/private/tmp|/var/folders|\$TMPDIR|\$\{TMPDIR(?:[:-][^}]*)?\})(?:/|$)")
+TEMP_ROOT = r"(?:/tmp|/private/tmp|/var/folders)"
+TEMP_PATH = re.compile(r"^(?:" + TEMP_ROOT + r"|\$TMPDIR|\$\{TMPDIR(?::?-" + TEMP_ROOT + r"[^}]*)?\})(?:/|$)")
+PARENT_STEP = re.compile(r"(?:^|/)\.\.(?:/|$)")
 ASSIGN = re.compile(r"(?:^|[\s;&|(])(?:export\s+|local\s+|readonly\s+)?([A-Za-z_]\w*)=[\"']?(\$\(\s*mktemp\b[^)]*\)|[^\s;&|\"']*)")
 SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "|&", ";;"}
 REDIRECT = re.compile(r"^[<>&]*[<>][<>&]*$")
@@ -169,9 +175,29 @@ def load_excludes(state: Path):
     return [entry for entry in entries if entry]
 
 
-def codex_titles(home: Path) -> dict:
-    """Codex thread names by id: session_index.jsonl (older threads) and the threads table of state_*.sqlite."""
+def codex_db_homes(home: Path) -> list:
+    """Where Codex keeps state_*.sqlite: its home, $CODEX_SQLITE_HOME and `sqlite_home` in config.toml."""
+    homes = [home]
+    if os.environ.get("CODEX_SQLITE_HOME"):
+        homes.append(Path(os.path.expanduser(os.environ["CODEX_SQLITE_HOME"])))
+    try:
+        found = re.search(r"(?m)^\s*sqlite_home\s*=\s*[\"']([^\"']+)[\"']",
+                          (home / "config.toml").read_text(encoding="utf-8"))
+    except OSError:
+        found = None
+    if found:
+        homes.append(Path(os.path.expanduser(found.group(1))))
+    return homes
+
+
+def codex_titles(homes: list):
+    """Codex thread names by id from session_index.jsonl (older threads) and the threads table of state_*.sqlite.
+
+    The second value is False when a database exists but its titles cannot be read.
+    """
     titles = collections.defaultdict(list)
+    ok = True
+    home = homes[0]
     index = home / "session_index.jsonl"
     if index.is_file():
         for raw in index.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -181,20 +207,21 @@ def codex_titles(home: Path) -> dict:
                 continue
             if isinstance(data, dict) and data.get("id") and data.get("thread_name"):
                 titles[str(data["id"])].append(str(data["thread_name"]))
-    for db in sorted(home.glob("state_*.sqlite")):
+    for db in sorted({db.resolve() for folder in homes for db in folder.glob("state_*.sqlite")}):
         try:
-            con = sqlite3.connect(db.resolve().as_uri() + "?mode=ro", uri=True)
+            con = sqlite3.connect(db.as_uri() + "?mode=ro", uri=True)
             try:
                 columns = [c for c in ("name", "title")
                            if c in {row[1] for row in con.execute("pragma table_info(threads)")}]
-                if columns:
-                    for row in con.execute("select id, " + ", ".join(columns) + " from threads"):
-                        titles[str(row[0])].extend(str(value) for value in row[1:] if value)
+                if not columns:
+                    ok = False
+                for row in con.execute("select id, " + ", ".join(columns) + " from threads") if columns else ():
+                    titles[str(row[0])].extend(str(value) for value in row[1:] if value)
             finally:
                 con.close()
         except sqlite3.Error:
-            continue
-    return {sid: " | ".join(names) for sid, names in titles.items()}
+            ok = False
+    return {sid: " | ".join(names) for sid, names in titles.items()}, ok
 
 
 def excluded(sid: str, title: str, entries) -> bool:
@@ -206,6 +233,8 @@ def excluded(sid: str, title: str, entries) -> bool:
 
 
 def temp_target(target: str, temp_vars) -> bool:
+    if PARENT_STEP.search(target):
+        return False
     if TEMP_PATH.match(target) or "scratchpad" in target:
         return True
     var = re.match(r"\$\{?([A-Za-z_]\w*)", target)
@@ -416,11 +445,24 @@ def scan_codex(path: Path, session: Session, record: dict, keywords, counters, e
 def write_private(path: Path, data) -> int:
     tmp = path.with_name(path.name + ".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    os.fchmod(fd, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=1)
-    os.replace(tmp, path)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            os.fchmod(handle.fileno(), 0o600)
+            json.dump(data, handle, ensure_ascii=False, indent=1)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
     return path.stat().st_size
+
+
+def remove_leftovers(state: Path):
+    """Deletes what an interrupted run left: temporary files and an index whose extract was never written."""
+    for path in state.glob("*.tmp"):
+        path.unlink(missing_ok=True)
+    for path in state.glob("index-*.json"):
+        if not path.with_name("extract-" + path.name[len("index-"):]).is_file():
+            path.unlink(missing_ok=True)
 
 
 def read_json(path: Path, default):
@@ -440,11 +482,11 @@ def retained_sids(state: Path) -> set:
     for path in state.glob("extract-*.json"):
         data = read_json(path, {})
         if isinstance(data, dict):
-            sids.update(entry.get("s") for key in ("owner", "kit") for entry in data.get(key, [])
-                        if isinstance(entry, dict))
+            sids.update(entry["s"] for key in ("owner", "kit") for entry in data.get(key, [])
+                        if isinstance(entry, dict) and isinstance(entry.get("s"), str))
         index = read_json(index_path(path), {})
         if isinstance(index, dict):
-            sids.update(index)
+            sids.update(sid for sid in index if isinstance(sid, str))
     return sids
 
 
@@ -581,7 +623,8 @@ def main(argv=None) -> int:
     excludes = load_excludes(state)
     keywords = load_keywords(state)
     digest = keywords_digest(keywords)
-    titles = codex_titles(args.codex_dir.parent)
+    remove_leftovers(state)
+    titles, titles_ok = codex_titles(codex_db_homes(args.codex_dir.parent))
     retained = retained_sids(state)
     slugs = memory_slugs(args.claude_dir)
 
@@ -593,14 +636,27 @@ def main(argv=None) -> int:
         files.append((p, "cx-" + (match.group(1) if match else p.stem), "codex"))
     counters = collections.Counter()
     sessions, newly_skipped = [], set()
-    for sid, record in offsets.items():
-        if sid not in skipped and excluded(sid, title_of(sid, record), excludes):
+    present = {sid for _, sid, _ in files}
+    for sid in sorted(set(offsets) | retained):
+        if sid in skipped:
+            continue
+        record = offsets.get(sid, {})
+        if excluded(sid, title_of(sid, record), excludes):
             skipped[sid] = "excluded"
+            newly_skipped.add(sid)
+        elif sid in retained and sid not in present and record.get("checked") != digest:
+            # A kept session whose transcript left the disk cannot be checked against new keywords: drop it.
+            skipped[sid] = "gone"
             newly_skipped.add(sid)
     for path, sid, source in files:
         counters["files"] += 1
         record = offsets.get(sid)
         size = path.stat().st_size
+        if source == "codex" and excludes and not titles_ok and sid not in skipped:
+            # Codex titles could not be read, so a title in exclude.txt cannot be matched: leave it for a later run.
+            if record is None or (record.get("offset"), record.get("inode")) != (size, path.stat().st_ino):
+                counters["codex_deferred"] += 1
+            continue
         if record is None:
             record = offsets[sid] = {"offset": 0}
             if path.stat().st_mtime < since_epoch:
@@ -648,7 +704,7 @@ def main(argv=None) -> int:
     for old in sorted(state.glob("extract-*.json"))[:-KEEP_EXTRACTS]:
         old.unlink()
         index_path(old).unlink(missing_ok=True)
-    live = {sid for _, sid, _ in files}
+    live = present | retained_sids(state)
     write_private(state / "offsets.json", {sid: rec for sid, rec in offsets.items() if sid in live})
     write_private(state / "skipped.json", skipped)
     fd = os.open(stamp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -669,6 +725,7 @@ def main(argv=None) -> int:
         "error_kinds_2plus": len(extract["errors"]),
         "memory_slugs_cited": sum(1 for entry in extract["memory"] if entry["cited"]),
         "guard_blocks": sum(entry["blocks"] for entry in extract["guard"]),
+        "codex_deferred": counters["codex_deferred"],
         "extract_bytes": extract_bytes,
         "seconds": round(time.monotonic() - started, 2),
     }))
