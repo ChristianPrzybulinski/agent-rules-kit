@@ -1,0 +1,29 @@
+name: codeql
+
+on: workflow_dispatch  # KIT-014: no automatic runs; dispatch before a release or after a Python or workflow change (KIT-063)
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # upload the SARIF to code scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        # java-kotlin is detected only from platforms/kits/docker/Dockerfile.java, a Dockerfile; CodeQL has no shell support
+        language: [python, actions]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066  # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066  # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}

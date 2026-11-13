@@ -84,5 +84,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-060-shell-syntax-check.md`](KIT-060-shell-syntax-check.md) | done | #211 | #212 |
 | [`KIT-061-skills-review.md`](KIT-061-skills-review.md) | done | #213 | #214 |
 | [`KIT-062-stale-plugin-folders.md`](KIT-062-stale-plugin-folders.md) | done | #215 | #216 |
+| [`KIT-063-codeql-secret-scanning.md`](KIT-063-codeql-secret-scanning.md) | done | #221 | — |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
