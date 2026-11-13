@@ -12,7 +12,7 @@ TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "gd_duplicates.
 HAS_GDTOOLKIT = importlib.util.find_spec("gdtoolkit") is not None
 NEEDS_PARSER = unittest.skipUnless(HAS_GDTOOLKIT, "gdtoolkit is not installed (pip install gdtoolkit==4.5.0)")
 
-# Copied from stratics-client app/network/group_validator.gd and stats_validator.gd at f98e0091.
+# Copied from two validators of a consumer Godot client (group and stats validation).
 INTEGER = """static func _integer(value: Variant, minimum: int, maximum: int) -> bool:
 \tif typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
 \t\treturn false

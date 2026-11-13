@@ -25,7 +25,7 @@ or a directory beside it — clones sit side by side on the machine that writes 
 a file in it; other roots are format-checked only until the project's journey CI runs them.
 
 Run it after the frontmatter lint (`check_spec.py`), which this file is synced next to by
-platforms/tools/sync-project.sh. Upstreamed from the stratics-docs tools/spec-trace implementation;
+platforms/tools/sync-project.sh. Upstreamed from a consumer project's tools/spec-trace implementation;
 the generated matrix text is byte-stable on purpose so a synced copy and a project-owned copy compare
 equal.
 """

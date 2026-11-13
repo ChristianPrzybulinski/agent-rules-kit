@@ -54,7 +54,7 @@
     "protocol/**",
     ".github/workflows/**",
     "docs/spec/**",
-    "platform/review-loop/**",
+    "<loop-tool-dir>/**",
     ".claude/**"
   ],
   "generated_neighbours": [
@@ -148,7 +148,7 @@
     }
   },
   "owner_merge_paths": [
-    "platform/review-loop/**",
+    "<loop-tool-dir>/**",
     ".claude/**"
   ],
   "max_poll_failures": 12,

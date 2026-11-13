@@ -293,7 +293,7 @@ class RunnerTest(unittest.TestCase):
 
     def loop_state(self, gates=(), proofs=()):
         """The review loop's children.json, with a gate-slot record per process of `gates` and of `proofs`."""
-        state = Path(self.env["XDG_STATE_HOME"]) / "stratics-review-loop" / "children.json"
+        state = Path(self.env["XDG_STATE_HOME"]) / "demo-review-loop" / "children.json"
         state.parent.mkdir(parents=True, exist_ok=True)
         state.write_text(json.dumps({"gates": {"running": {f"r#{pid}": {"pid": pid} for pid in gates}},
                                      "proofs": {f"r:proof:{pid}": {"pid": pid} for pid in proofs}}))
@@ -724,17 +724,17 @@ class HostTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             docs, other = Path(folder) / "docs.json", Path(folder) / "other.json"
             docs.write_text(json.dumps({
-                "gates": {"running": {"stratics-docs#1": {"pid": live}, "stratics-docs#2": {"pid": gone.pid}}},
-                "rechecks": {"running": {"stratics-docs#3": {"pid": live}},
-                             "failed": {"stratics-docs#4": {"pid": live}}},
-                "proofs": {"stratics-docs:proof-check:5": {"pid": live}, "stratics-docs:merge:6": {"pid": None}},
+                "gates": {"running": {"demo-docs#1": {"pid": live}, "demo-docs#2": {"pid": gone.pid}}},
+                "rechecks": {"running": {"demo-docs#3": {"pid": live}},
+                             "failed": {"demo-docs#4": {"pid": live}}},
+                "proofs": {"demo-docs:proof-check:5": {"pid": live}, "demo-docs:merge:6": {"pid": None}},
                 "running": {"implement-7": {"pid": live}}, "reviews": {"running": {"review-8": {"pid": live}}}}))
-            other.write_text(json.dumps({"proofs": {"stratics-client:run_proof:9": {"pid": live}}}))
+            other.write_text(json.dumps({"proofs": {"demo-client:run_proof:9": {"pid": live}}}))
             self.assertEqual((gd_mutation.gate_runs([docs]), gd_mutation.gate_runs([docs, other])), (3, 4))
 
     def test_a_look_reads_the_loop_state_and_the_load_and_serves_every_worker_a_second(self):
         with tempfile.TemporaryDirectory() as folder:
-            state = Path(folder) / "stratics-review-loop" / "children.json"
+            state = Path(folder) / "demo-review-loop" / "children.json"
             state.parent.mkdir()
             state.write_text(json.dumps({"gates": {"running": {"r#1": {"pid": os.getpid()}}}}))
             found = gd_mutation.Host()
@@ -787,7 +787,7 @@ class HostTest(unittest.TestCase):
                 mock.patch.object(gd_mutation.os, "getloadavg", side_effect=OSError("no load")), \
                 mock.patch.object(gd_mutation, "HOST_FRESH", 0), mock.patch.object(gd_mutation, "notice") as told:
             self.assertEqual((found.acquire(), found.acquire()), (True, True))
-            state = Path(folder) / "stratics-review-loop" / "children.json"
+            state = Path(folder) / "demo-review-loop" / "children.json"
             state.parent.mkdir()
             state.write_text('{"gates": ')  # a state the tool cannot read
             self.assertIs(unreadable.acquire(), True)

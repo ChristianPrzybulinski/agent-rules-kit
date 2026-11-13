@@ -42,6 +42,6 @@ checked out or pushed.
 
 ## Example
 
-[FACT] Stratics, 2026-10-07: 30 task PRs of four batches; 21 independent (70 %), 0 of 48 pairs conflicting although
-they shared files (`README.md` in 6 of 8 P1 PRs), 9 dependent. Its tool is `platform/tools/parallel-sim/sim.py` in
-stratics-docs (`--commits <sha> …` or `--batch <id>`).
+[FACT] KIT-008, a consumer project, 2026-10-07: 30 task PRs of four batches; 21 independent (70 %), 0 of 48 pairs
+conflicting although they shared files (`README.md` in 6 of 8 PRs of one batch), 9 dependent. A script that takes the
+batch's commits runs the three steps above.

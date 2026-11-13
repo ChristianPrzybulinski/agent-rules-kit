@@ -6,8 +6,8 @@ kind: detail
 # Read ahead: prepare agents feed the implementer
 
 Use it when implementers spend much of their time reading before the first edit and wait for a slot or a dependency
-anyway. [FACT] Stratics, P1 batch (2026-10-07): the implementers spent 62 % of their time before their first edit
-(66 of 106 min), 93 % of it on model turns.
+anyway. [FACT] KIT-009, one batch of a consumer project (2026-10-07): the implementers spent 62 % of their time
+before their first edit (66 of 106 min), 93 % of it on model turns.
 
 ## Roles
 
@@ -28,7 +28,7 @@ Each reader writes one file for its area; the pipeline joins them under three he
 
 ## Rules
 
-- A reader never commits, pushes, runs the proof or writes outside its note; a timeout ends it (Stratics: 20 min).
+- A reader never commits, pushes, runs the proof or writes outside its note; a timeout ends it (for example 20 min).
 - Readers take no implement slot: start them while the task waits for a slot or a dependency, or while a batch is
   held for audit.
 - A reader that fails or times out never blocks the task: the implementer reads the code itself.
@@ -38,12 +38,12 @@ Each reader writes one file for its area; the pipeline joins them under three he
 
 ## Measure
 
-Record each reader's wall time and, per implement launch, how long its slot stood free while its readers still ran
-(Stratics: `waited_for_prepare_s`), and compare the time to the first edit before and after.
-[HYPOTHESIS] Stratics expects the critical-path time per task to fall from about 10.8 to 6–7 min; no batch has
+Record each reader's wall time and, per implement launch, how long its slot stood free while its readers still ran,
+and compare the time to the first edit before and after.
+[HYPOTHESIS] KIT-009 expects the critical-path time per task to fall from about 10.8 to 6–7 min; no batch has
 measured it yet.
 
 ## Example
 
-Stratics review loop, stratics-docs FEAT-053 T23 (stratics-docs#755): `dispatch.max_prepare_children`, one
-`.loop/context-<area>.md` per reader joined into `.loop/context.md`, which the implement prompt reads first.
+A review loop: a dispatch setting caps the readers running at once, and each reader writes one
+`.loop/context-<area>.md`, joined into `.loop/context.md`, which the implement prompt reads first.

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "verdict.schema.json",
-  "title": "Review-loop verdict (DPRO-011)",
+  "title": "Review-loop verdict",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "pr", "issue", "head_sha", "verdict", "risk", "round", "findings"],
