@@ -30,7 +30,8 @@ Read `project.godot`, scene ownership and neighboring scripts before editing. Co
 
 ## 3. Separate scene responsibilities and respect the movement model
 
-- Prefer scene composition and signals over deep inheritance or parent traversal for game rules.
+- Prefer scene composition and signals over deep inheritance or parent traversal for game rules; a node gets what it needs through an `@export` or a `Callable` its parent sets.
+- Gameplay reads discrete input in `_unhandled_input`, so an event the UI handles does not also act on the game; `_input` is for a handler that must see an event before the GUI; poll `Input` for held actions in `_physics_process` (physics bodies) or `_process`.
 - Keep visuals, physics and rules separate; domain state stays in pure classes/autoload services that tests can instantiate without a scene.
 - The movement model is a project decision, declared in the repository `AGENTS.md` (a "Movement model" section or a movement pattern line) and its decision record. Read it before writing or reviewing movement code; if it is missing, ask, do not assume physics.
   - Option A, physics bodies: `CharacterBody2D`/`RigidBody2D`, velocity set and `move_and_slide()` called in `_physics_process(delta)`; collision via named layers/masks; visuals and animation in `_process`.
@@ -42,7 +43,8 @@ Read `project.godot`, scene ownership and neighboring scripts before editing. Co
 
 - Use `preload` for fixed reusable resources and `load` for dynamic choices.
 - Use `TileMapLayer`/TileSet for maps rather than manually placed tiles.
-- Centralize true global state in a small autoload; persist versioned JSON/Resource data, never Node references.
+- A new autoload only for a self-contained system that manages its own data and changes no other node's; helpers go in `static func` on a `class_name` script and shared data in a Resource or `static var`. Persist versioned JSON/Resource data, never Node references.
+- Unsaved data with no Inspector use is a `RefCounted`; saved or Inspector-edited data is a `Resource`; a `Node` only when it needs the scene tree (process callbacks, children, rendering).
 
 ## 5. Verify
 
