@@ -42,6 +42,7 @@
 
 - `godot.md`
 - `java.md`
+- `json.md`
 - `python.md`
 - `spec.md`
 

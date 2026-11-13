@@ -4,7 +4,7 @@ Always-on discipline only: each line must hold before any skill could load. Proc
 
 ## Boundaries
 
-- **Always**: read the repo's `AGENTS.md` and README before changing it; run the checks the change's impact requires (skill `testing` § 6) before saying "done".
+- **Always**: read the repo's `AGENTS.md` and README before changing it, and before editing a file, each `.claude/rules/*.md` whose `paths` match it unless it is already in your context; run the checks the change's impact requires (skill `testing` § 6) before saying "done".
 - **Ask first**, since these are hard to undo or reach past the session:
   - adding or removing a dependency; changing an applied migration;
   - rewriting pushed history (force-push, amend, `filter-repo`); deleting files you did not create;

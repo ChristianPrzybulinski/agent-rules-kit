@@ -5,6 +5,7 @@
 # guard hook, so the skill loads from the plugin and a vendored copy would load it twice, KIT-002)
 rules/godot.md           | godot java python
 rules/java.md            | godot java python
+rules/json.md            | godot java python docs
 rules/python.md          | godot java python
 rules/spec.md            | docs
 skills/architecture      | docs

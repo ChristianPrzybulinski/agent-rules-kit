@@ -218,8 +218,11 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rules = self.repo / ".claude" / "rules"
         self.assertEqual(sorted(p.name for p in rules.glob("*.md")),
-                         ["guardrails-godot.md", "guardrails-java.md", "guardrails-python.md", "guardrails-spec.md"])
+                         ["guardrails-godot.md", "guardrails-java.md", "guardrails-json.md", "guardrails-python.md",
+                          "guardrails-spec.md"])
         self.assertIn('  - "client/**/*.gd"', (rules / "guardrails-godot.md").read_text().splitlines())
+        # json is named after no profile and docs covers the root, so it keeps the whole repository (KIT-059)
+        self.assertIn('  - "**/*.json"', (rules / "guardrails-json.md").read_text().splitlines())
         self.assertIn('  - "server/**/*.java"', (rules / "guardrails-java.md").read_text().splitlines())
         self.assertIn('  - "docs/spec/**/*.md"', (rules / "guardrails-spec.md").read_text().splitlines())
         # the map sends both rules to every godot, java or python profile; each takes only the folder
