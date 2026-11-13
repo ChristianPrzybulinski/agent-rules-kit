@@ -4,7 +4,7 @@ title: "The stale kit path scan covers every plugins/ folder of the kit's histor
 status: confirmed
 confirmed: "2026-11-13 (owner, chat of the kit review session: \"Sim, fazer\" for adding `plugins/infra-` to the scan; the other missing folders follow the same rule and the PR waits for the owner's merge)"
 issue: "#215"
-pr: ""
+pr: "#216"
 ---
 
 # KIT-062 — The stale kit path scan covers every plugins/ folder of the kit's history
