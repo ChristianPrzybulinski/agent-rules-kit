@@ -521,24 +521,26 @@ only this document; every command exited 0:
 - `gitleaks git --redact --log-opts=origin/main..HEAD`: "1 commits scanned.", "scanned ~28296 bytes (28.30 KB) in
   45.8ms", "no leaks found".
 
-T6 review fixes: run from the worktree root at `425b8d0` (the fixes `8afdcad` and `main` `48ff5dc` merged in) on
-2026-11-13; the commit after it changes only this document; every command exited 0:
+T6 review fixes: run from the worktree root at `61d3115` (the count from the loop's records, after `8afdcad` and
+`main` `48ff5dc` merged in at `425b8d0`) on 2026-11-13; the commit after it changes only this document:
 
-- Red runs, each new test against a copy without its fix: the `HostTest` cases on the tool at `a4a7cd1`,
-  `UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe9`, `AssertionError: 6 != 8` and the `ps` call's
-  arguments; the import admitted without `acquire`, `AssertionError: 0 != 2`; an unmutated run without `acquire`,
-  "Expected 'run_godot' to not have been called. Called 1 times."
-- `python3 -B -m unittest platforms/ci/validations/test_gd_mutation.py`: "Ran 46 tests in 112.443s", "OK".
-- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "✔ Validation passed" twice each.
+- Red runs, each new test against a copy without its fix: the name-list tool of `c7be81e`, `AttributeError:
+  'PosixPath' object has no attribute 'split'` and two `HostTest` failures; dead records counted, `(5, 6) != (3, 4)`;
+  `gates` alone counted, `(1, 1) != (3, 4)`; the import admitted without `acquire`, it started before the proof
+  process ended (`1794578602.376538 not greater than 1794578602.872757`); an unmutated run without `acquire`,
+  "Expected 'run_godot' to not have been called. Called 1 times." (at `8afdcad`).
+- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 205 tests in 211.344s", "OK
+  (skipped=5)"; `test_gd_mutation.py` has 45 tests, none skipped.
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`: "✔ Validation passed" twice each, exit 0.
 - `python3 platforms/ci/validations/check_kit.py --links`: "check: OK (1 plugins, 26 skills, 5 rules, 11 templates,
   14 readmes, 90 links, 28 hook cases, 11 shell scripts)".
-- `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"`: "Ran 206 tests in 268.403s", "OK
-  (skipped=5)".
-- `bash platforms/tools/smoke.sh`: "smoke: OK (26 skills, app fallback, cleanup, symlink safety, manifests,
-  sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)".
 - `python3 platforms/tools/gen_index.py --check`: current; `bash platforms/tools/vendor.sh --check`: "vendor: lock
   consistent".
-- `gitleaks git --redact --log-opts=origin/main..HEAD`: "3 commits scanned.", "no leaks found".
+- `gitleaks git --redact --log-opts=origin/main..HEAD`: "5 commits scanned.", "no leaks found".
+- `bash platforms/tools/smoke.sh`: exit 1 in the sequential run, "FAIL: smoke: a bare sync dropped the manifest's
+  profile list", while a loop gate and another worktree's suite ran on the host; run again alone right after, exit 0,
+  "smoke: OK (26 skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy, vendored skills,
+  multi-profile sync, no-spec repo)" in 86 s. This PR changes no file that step reads, and the cause is not found.
 
 ## History
 
