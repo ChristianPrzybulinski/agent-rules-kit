@@ -22,7 +22,7 @@ kind: detail
 |---|---|
 | Command | action must be validated, queued or audited |
 | State Machine | named states have constrained transitions |
-| Strategy | multiple algorithms are selected at runtime |
+| Strategy | multiple algorithms are selected at runtime; start with a function value (GDScript `Callable`, Java lambda or functional interface, Python function), a class only when the algorithm carries state or several methods |
 | Specification | validation rules must be named and composed |
 | Transactional Outbox | an event must publish iff its transaction commits |
 | Idempotency Key | a retried command must not repeat its effect |
