@@ -17,7 +17,6 @@ skills/godot-standards   | godot java python
 skills/grilling          | docs
 skills/investigate       | godot java python
 skills/java-standards    | godot java python
-skills/krita             | godot java python
 skills/parallelize       | -
 skills/persistence       | godot java python
 skills/protocol-contract | docs

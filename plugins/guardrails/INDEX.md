@@ -11,7 +11,7 @@
 | Skill | Invoked by | Description |
 |---|---|---|
 | `architecture` | user, model | Layers, ports, DDD blocks and pattern choice. Use when placing a class, defining an aggregate or picking a pattern. Not for contracts (skill protocol-contract). |
-| `asset-import` | user | Godot asset import with manifests and reproducible transforms. Use when bringing sprites, tilesets or maps into Godot. Not for drawing art (skill krita). |
+| `asset-import` | user | Godot asset import with manifests and reproducible transforms. Use when bringing sprites, tilesets or maps into Godot. Not for drawing or retouching art. |
 | `code-standards` | user, model | Code names, functions, errors, YAGNI and doc closure. Use when writing or reviewing code, adding a dependency or updating docs. Not for tests (skill testing). |
 | `docker` | user, model | Docker, Compose and Twelve-Factor config. Use when editing compose, Dockerfile, env or deploy config, or fixing a container. Not for data (skill persistence). |
 | `git` | user, model | Branch, commit, PR, `gh`, release and LFS policy. Use when creating a branch, commit, PR or release, or adding a large binary. Not for PR gates (skill review). |
@@ -19,7 +19,6 @@
 | `grilling` | user, model | Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases. |
 | `investigate` | user, model | Root-cause investigation with reproduction. Use when a bug, slow behavior or incident has no named cause. Not for implementing fixes (skill sdd-implement). |
 | `java-standards` | user, model | Java 25, Spring/Quarkus and JUnit standards. Use when editing *.java, pom.xml, Spring/Quarkus code or JUnit tests. Not for general test policy (skill testing). |
-| `krita` | user | Krita pixel-art workflow. Use when editing pixel art, retouching sprites or defining sprite export. Not for Godot import (skill asset-import). |
 | `parallelize` | user, model | Parallel planning for tool calls, long commands and [P] tasks. Use when work has independent steps. Not for product concurrency (skill testing). |
 | `persistence` | user, model | PostgreSQL and Redis rules. Use when changing a schema, migration or index, reading EXPLAIN or locks, or designing cache keys. Not for Compose (skill docker). |
 | `protocol-contract` | user, model | Client↔server contracts. Use when adding a message or field, changing a payload or fixing a client/server mismatch. Not for transport choice (skill sdd-plan). |
