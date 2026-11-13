@@ -1,7 +1,7 @@
 ---
 id: KIT-062
 title: "The stale kit path scan covers every plugins/ folder of the kit's history"
-status: confirmed
+status: done
 confirmed: "2026-11-13 (owner, chat of the kit review session: \"Sim, fazer\" for adding `plugins/infra-` to the scan; the other missing folders follow the same rule and the PR waits for the owner's merge)"
 issue: "#215"
 pr: "#216"
@@ -46,3 +46,4 @@ Consequence for Stratics (its next sync to 12.x, outside the kit): each of the 2
 ## History
 
 - 2026-11-13: confirmed (owner, chat).
+- 2026-11-13: done (PR #216; owner "Sim, merge" for all 11 folders).
