@@ -36,7 +36,7 @@
 | `sdd-to-card` | user | SDD step 8 — one GitHub issue per task row plus the FEAT card. Use when cutting issues or closing a FEAT. Not for PR operations (skill git). |
 | `security` | user, model | Security design and CVE, secret and endpoint scans. Use when changing a trust boundary or preparing a sensitive PR or release. Not for verdicts (skill review). |
 | `session` | user, model | Session start, closeout and handoff. Use when starting, switching topic, closing, handing off or a second human joins. Not for parallelism (skill parallelize). |
-| `testing` | user, model | Test policy and characterization. Use when reviewing or choosing tests, setting coverage/mutation gates or pinning legacy code. Not for verdicts (skill review). |
+| `testing` | user, model | Test policy. Use when choosing or reviewing tests, setting coverage/mutation gates or before refactoring legacy or ported code. Not for verdicts (skill review). |
 
 ## `rules/`
 

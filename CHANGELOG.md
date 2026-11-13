@@ -4,6 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- KIT-057: `plugins/guardrails/AGENTS.md` is rewritten after the owner's section-by-section review (57 → 58 lines). Craft and Skepticism become Communication and Decisions. Boundaries: rewriting pushed history moves to `**Ask first**`, each `**Never**` names its safe path, the duplicate "invent command output or an API" goes, and Scope limits the change inside it to what the task needs (no unrequested refactor, rename, reformat or "improvement"). Work loop: two failed fixes of the same check → undo them, write the shared premise, test it cheaply, and stop at a third failure. Security: the secret warning never repeats the value. Truth: what was not tested, run or read is reported as "unverified". Decisions: every proposal, the user's or the agent's, opens with a verdict and is set against its 2 strongest alternatives (doing less counts) and what would prove it wrong. Communication: the user's language, the worst fact first, the short code-first format only for answers that deliver code, and a concrete example when the user must decide. Removed: the browser preference (reverses KIT-018) and the "Context without an obvious skill" table.
+- Skill `testing`: its description reads "Test policy. Use when choosing or reviewing tests, setting coverage/mutation gates or before refactoring legacy or ported code. Not for verdicts (skill review)." (KIT-057).
+
 ## [12.0.0] - 2026-11-12
 
 MAJOR: the kit plugin `core` is renamed `guardrails` (KIT-055); see Migration. The marketplace `ai-kit`, the Devin meta-plugin `agent-rules-kit`, the guard prefix `ai-kit guard:` and the install destinations do not change.
