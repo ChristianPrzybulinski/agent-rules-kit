@@ -22,7 +22,7 @@ Time spent: [hours]
 
 ## Decision proposal
 
-[DGME-nnn or DTEC-nnn and a one-sentence proposal, or `none`]
+[the proposed decision id and a one-sentence proposal, or `none`]
 
 ## Discard / keep
 

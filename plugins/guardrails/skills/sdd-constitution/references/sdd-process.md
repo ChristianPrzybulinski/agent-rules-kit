@@ -7,7 +7,7 @@ kind: detail
 
 Adapted from [github/spec-kit](https://github.com/github/spec-kit) as repository skills; project artifacts live under `docs/spec/`, never in the kit.
 
-Entry points: vague idea → `/grilling` first, then `sdd-specify` when problem/value is describable; described feature → `sdd-specify`; new project/principles → `sdd-constitution`; one user-visible flow → `sdd-journey`; vague feel question (movement, camera, battle feedback, UI) → `sdd-spike`, whose report feeds `sdd-specify` and whose branch never merges.
+Entry points: vague idea → `/grilling` first, then `sdd-specify` when problem/value is describable; described feature → `sdd-specify`; new project/principles → `sdd-constitution`; one user-visible flow → `sdd-journey`; vague feel question (motion, camera, feedback, UI) → `sdd-spike`, whose report feeds `sdd-specify` and whose branch never merges.
 
 ## Flow
 
@@ -27,9 +27,9 @@ Repeat `implement → review` per issue until READY. Run `to-card` after `tasks`
 
 ## Identifiers and status
 
-`FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `J-nn` → `journeys/`. Number sequentially per kind namespace (DTEC, DGME, DPRO); never reuse.
+`FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DEC-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `J-nn` → `journeys/`. A project that numbers decisions per kind declares `decision_kinds` (kind → prefix) in `spec.md`; each decision then carries its `kind` and that kind's prefix. Number sequentially inside each prefix; never reuse.
 
-When two or more spec sessions run against one specification at the same time, each session's prompt reserves a block of ids for every kind it may create (`FEAT`, `REQ-F`, `REQ-NF`, `DTEC`/`DGME`/`DPRO`, `DEBT`, `J`); a session takes ids only from its own block. A reserved id left unused stays a gap and is never reused.
+When two or more spec sessions run against one specification at the same time, each session's prompt reserves a block of ids for every kind it may create (`FEAT`, `REQ-F`, `REQ-NF`, `DEC` or each declared decision prefix, `DEBT`, `J`); a session takes ids only from its own block. A reserved id left unused stays a gap and is never reused.
 
 Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). From `in-progress` on the value is derived (see Regimes). During implementation the executor's state is `docs/spec/progress/FEAT-nnn.json` (`passes` per task, set only after the literal proof output); after merge the task row and FEAT status derived from GitHub are the source of truth and the progress file is advisory. `delivered` means merged to `main` with no flag or the flag on. Journeys: `proposed → approved` (or `retired`).
 
@@ -38,7 +38,7 @@ Every spec/decision classifies claims as `[FACT]`, `[DECISION]`, `[PROPOSAL]`, `
 ## Regimes
 
 Two regimes, after Böckeler/Thoughtworks (2025-10: spec-first, spec-anchored, spec-as-source; the kit has no spec-as-source):
-- spec-anchored: maintained and validated for the life of the product: `protocol/` schemas and examples, content schemas, decisions (DTEC/DGME/DPRO), requirements (REQ-F/REQ-NF), journeys (where the project has them) and the `spec.md` index. Every change is a reviewed PR.
+- spec-anchored: maintained and validated for the life of the product: `protocol/` schemas and examples, content schemas, decisions, requirements (REQ-F/REQ-NF), journeys (where the project has them) and the `spec.md` index. Every change is a reviewed PR.
 - spec-first: FEAT bodies and task tables. Written to cut the work, frozen as history once delivered; FEAT `status` and task `State` are derived by tooling from GitHub, never edited by hand.
 
 ## Project layout
@@ -48,7 +48,7 @@ docs/spec/
 ├── spec.md
 ├── features/FEAT-nnn-slug.md
 ├── requirements/{functional,non-functional}/REQ-*.md
-├── decisions/DTEC-nnn-slug.md
+├── decisions/DEC-nnn-slug.md
 ├── debts/DEBT-nnn-slug.md
 ├── progress/FEAT-nnn.json
 └── journeys/J-nn.md

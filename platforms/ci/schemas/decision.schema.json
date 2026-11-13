@@ -1,24 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/decision.schema.json",
-  "title": "Frontmatter of a decision record (DTEC/DGME/DPRO)",
+  "title": "Frontmatter of a decision record (DEC-nnn, or the prefixes spec.md decision_kinds declares)",
   "type": "object",
-  "required": ["id", "title", "status", "date", "kind"],
+  "required": ["id", "title", "status", "date"],
   "additionalProperties": false,
   "properties": {
-    "id": { "type": "string", "pattern": "^(DTEC|DGME|DPRO)-[0-9]{3,}$" },
+    "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{1,7}-[0-9]{3,}$" },
     "title": { "type": "string", "minLength": 5, "maxLength": 120 },
     "status": { "type": "string", "enum": ["proposed", "approved", "rejected", "superseded"] },
     "date": { "type": "string", "format": "date" },
-    "kind": { "type": "string", "enum": ["tech", "game", "process"] },
+    "kind": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "deciders": { "type": "string" },
     "features": {
       "type": "array",
       "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
       "uniqueItems": true
     },
-    "supersedes": { "type": ["string", "null"], "pattern": "^(DTEC|DGME|DPRO)-[0-9]{3,}$" },
-    "superseded_by": { "type": ["string", "null"], "pattern": "^(DTEC|DGME|DPRO)-[0-9]{3,}$" }
+    "supersedes": { "type": ["string", "null"], "pattern": "^[A-Z][A-Z0-9]{1,7}-[0-9]{3,}$" },
+    "superseded_by": { "type": ["string", "null"], "pattern": "^[A-Z][A-Z0-9]{1,7}-[0-9]{3,}$" }
   },
   "if": { "properties": { "status": { "const": "superseded" } } },
   "then": { "required": ["superseded_by"] }

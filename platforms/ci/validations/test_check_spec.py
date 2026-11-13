@@ -1,5 +1,7 @@
-"""check_spec.py FEAT<->REQ cross-check (both frontmatters must agree on every link) and progress files."""
+"""check_spec.py FEAT<->REQ cross-check (both frontmatters must agree on every link), progress files, conflict
+markers and the project's decision kinds."""
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -198,6 +200,109 @@ class ConflictMarkerTest(unittest.TestCase):
         (self.spec / "journeys" / "J-01.md").write_text("Title\n=======\n\n> > quoted\n`<<<<<<< HEAD` in code\n")
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
+
+
+SPEC_INDEX = """---
+project: "fixture"
+version: "0.1.0"
+updated: "2026-11-13"
+{extra}---
+
+# Fixture
+"""
+
+DECISION = """---
+id: {did}
+title: "Fixture decision {did}"
+status: proposed
+date: "2026-11-13"
+{extra}---
+
+# {did}
+"""
+
+
+class DecisionKindsTest(unittest.TestCase):
+    """Decision ids are DEC-nnn unless spec.md declares decision_kinds (KIT-064)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.spec = Path(self.tmp.name)
+        (self.spec / "decisions").mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def index(self, kinds=None):
+        extra = f"decision_kinds: {kinds}\n" if kinds else ""
+        (self.spec / "spec.md").write_text(SPEC_INDEX.format(extra=extra))
+
+    def decision(self, did, kind=None):
+        extra = f"kind: {kind}\n" if kind else ""
+        (self.spec / "decisions" / f"{did}-fixture.md").write_text(DECISION.format(did=did, extra=extra))
+
+    def run_both(self):
+        """The full check, then the structural one: python -S hides pyyaml and jsonschema."""
+        env = {k: v for k, v in os.environ.items() if k != "CI"}
+        runs = []
+        for flags in ([], ["-S"]):
+            runs.append(subprocess.run([sys.executable, *flags, str(CHECK_SPEC), str(self.spec), str(SCHEMAS)],
+                                       capture_output=True, text=True, check=False, env=env))
+        self.assertIn("spec validation will be structural", runs[1].stderr)
+        return runs
+
+    def assert_passes(self):
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def assert_fails(self, *messages):
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 1, result.stderr)
+            for message in messages:
+                self.assertIn(message, result.stderr)
+
+    def test_dec_without_declaration_passes(self):
+        self.index()
+        self.decision("DEC-001")
+        self.assert_passes()
+
+    def test_dec_without_spec_index_passes(self):
+        self.decision("DEC-001")
+        self.assert_passes()
+
+    def test_other_prefix_without_declaration_fails(self):
+        self.index()
+        self.decision("TEC-001", "tech")
+        self.assert_fails("id TEC-001: a decision id is DEC-nnn unless spec.md declares decision_kinds")
+
+    def test_declared_kinds_pass(self):
+        self.index("{tech: TEC, product: PRD}")
+        self.decision("TEC-001", "tech")
+        self.decision("PRD-001", "product")
+        self.assert_passes()
+
+    def test_prefix_must_match_kind(self):
+        self.index("{tech: TEC, product: PRD}")
+        self.decision("PRD-001", "tech")
+        self.assert_fails("id PRD-001 prefix does not match kind 'tech' (TEC-nnn)")
+
+    def test_kind_is_required_when_declared(self):
+        self.index("{tech: TEC, product: PRD}")
+        self.decision("TEC-001")
+        self.assert_fails("kind missing; spec.md decision_kinds declares ['product', 'tech']")
+
+    def test_undeclared_kind_fails(self):
+        self.index("{tech: TEC, product: PRD}")
+        self.decision("OPS-001", "ops")
+        self.assert_fails("kind 'ops' is not in spec.md decision_kinds ['product', 'tech']")
+
+    def test_invalid_prefixes_fail(self):
+        self.index("{tech: tec, product: FEAT}")
+        self.assert_fails("decision prefix 'tec' must match", "decision prefix 'FEAT' must match")
+
+    def test_duplicate_prefix_fails(self):
+        self.index("{tech: TEC, ops: TEC}")
+        self.assert_fails("decision prefix TEC is declared for both 'tech' and 'ops'")
 
 
 if __name__ == "__main__":

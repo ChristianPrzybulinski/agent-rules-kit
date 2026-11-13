@@ -20,7 +20,7 @@ server/
 ├── domain/                 # zero framework dependency; JaCoCo 100% + PITest here
 ├── application/            # use cases, ports; depends only on domain
 ├── adapter-in-http/        # controllers, DTOs
-├── adapter-in-ws/          # game session (if any)
+├── adapter-in-ws/          # live session (if any)
 ├── adapter-out-persistence/ # repositories (JdbcClient or JPA, the declared choice), Flyway
 └── bootstrap/              # main, Spring config, wiring
 ```

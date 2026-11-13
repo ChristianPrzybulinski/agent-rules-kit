@@ -9,10 +9,10 @@
 | `rule.schema.json` | `plugins/*/rules/*.md` | `trigger` is `glob`, `model_decision`, or `manual` |
 | `skill.schema.json` | `plugins/*/skills/<name>/SKILL.md` (non-vendor) | `name` = folder; `triggers`; allowed tools |
 | `skills-lock.schema.json` | lines of `platforms/kits/third-party/skills.lock` | 40-hex `sha` |
-| `spec.schema.json` | a project's `docs/spec/spec.md` | fixed |
+| `spec.schema.json` | a project's `docs/spec/spec.md` | fixed; optional `decision_kinds` (kind → decision id prefix) |
 | `feature.schema.json` | `docs/spec/features/*.md` | `FEAT-nnn-slug.md` |
 | `requirement.schema.json` | `docs/spec/requirements/{functional,non-functional}/*.md` | `REQ-F-nnn-*` / `REQ-NF-nnn-*` |
-| `decision.schema.json` | `docs/spec/decisions/*.md` | `DTEC-nnn-slug.md` (or `DGME-`/`DPRO-` per kind) |
+| `decision.schema.json` | `docs/spec/decisions/*.md` | `DEC-nnn-slug.md`, or `<PREFIX>-nnn-slug.md` with the `kind` whose prefix `spec.md` `decision_kinds` declares |
 | `debt.schema.json` | `docs/spec/debts/*.md` | `DEBT-nnn-slug.md` |
 | `journey.schema.json` | `docs/spec/journeys/*.md` | `J-NN[-slug].md` |
 | `progress.schema.json` | `docs/spec/progress/FEAT-nnn.json` | `FEAT-nnn.json`, equal to its `feat` |

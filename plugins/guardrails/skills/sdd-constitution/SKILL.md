@@ -30,13 +30,13 @@ Read the README, repository structure and stack manifests. If `AGENTS.md` or `do
 
 ## 3. Initialize the spec
 
-Create `docs/spec/spec.md` with a three-line vision, explicit out-of-scope, glossary and empty FEAT/REQ/DEC/DEBT indexes. Create `features/`, `requirements/{functional,non-functional}/`, `decisions/` and `debts/`.
+Create `docs/spec/spec.md` with a three-line vision, explicit out-of-scope, glossary and empty FEAT/REQ/DEC/DEBT indexes. Create `features/`, `requirements/{functional,non-functional}/`, `decisions/` and `debts/`. Decision ids are `DEC-nnn`; when the project numbers decisions per kind, declare the kinds once in `spec.md` (`decision_kinds: {tech: TEC, product: PRD}`) and `check_spec.py` enforces kind and prefix.
 
 Declare the two regimes in `spec.md` (see `references/sdd-process.md`, Regimes): spec-anchored for contracts, decisions, requirements, journeys and the index; spec-first for FEAT bodies and task tables.
 
 ## 4. Record existing decisions
 
-For an already-approved product decision, create one decision record (`DTEC-nnn`/`DGME-nnn`/`DPRO-nnn` per kind) with `status: approved` and its source. Unknown numeric targets remain hypotheses with a measurement method.
+For an already-approved product decision, create one decision record (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`) with `status: approved` and its source. Unknown numeric targets remain hypotheses with a measurement method.
 
 ## 5. Validate
 

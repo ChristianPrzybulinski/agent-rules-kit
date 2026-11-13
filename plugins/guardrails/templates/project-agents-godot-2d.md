@@ -74,7 +74,7 @@ func take_damage(amount: int) -> void:
 
 ## Movement model
 
-Declared choice: [A | B]. Decision record: [docs/spec/decisions/DGME-nnn-*.md | docs/adr/nnnn-*.md]. Delete the option not chosen.
+Declared choice: [A | B]. Decision record: [docs/spec/decisions/DEC-nnn-*.md | docs/adr/nnnn-*.md]. Delete the option not chosen.
 
 ### Option A, physics bodies
 

@@ -16,7 +16,7 @@ An outdated document is worse than a missing one: the agent trusts it. Written a
 | exported GDScript/autoload script | `##` docstring above `class_name`, `@export`, signals |
 | user-visible behavior | `CHANGELOG.md` `Unreleased` section |
 | client↔server contract message | protocol doc + example + `protocol_version` if incompatible |
-| decision with trade-off | a decision record in `docs/spec/decisions/` (`DEC`, `DTEC`, `DGME` or `DPRO-nnn`, as the project numbers them; state `proposed` until approved) |
+| decision with trade-off | a decision record in `docs/spec/decisions/` (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`; state `proposed` until approved) |
 | feature status | status, history and frontmatter of `docs/spec/features/FEAT-xxx.md` |
 | consciously assumed debt | `docs/spec/debts/DEBT-xxx.md` with a payment trigger |
 

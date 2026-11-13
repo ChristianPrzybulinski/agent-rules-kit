@@ -10,7 +10,7 @@ Replace the passages between [brackets]; a line that starts with [JdbcClient] or
 
 ## Choices (pick one per line, delete the other)
 
-- Persistence, declared choice: [JdbcClient + hand-written SQL + Flyway, no JPA/Hibernate | Spring Data JPA + Flyway]. Decision record: [docs/spec/decisions/DTEC-nnn-*.md | docs/adr/nnnn-*.md]. Delete the option not chosen and every line below tagged with the other option.
+- Persistence, declared choice: [JdbcClient + hand-written SQL + Flyway, no JPA/Hibernate | Spring Data JPA + Flyway]. Decision record: [docs/spec/decisions/DEC-nnn-*.md | docs/adr/nnnn-*.md]. Delete the option not chosen and every line below tagged with the other option.
 - Errors, declared choice: [RFC 9457 `ProblemDetail` via `@ControllerAdvice` | project error catalog `{code, message, details?}` mapped in the inbound adapter]. Delete the option not chosen.
 
 ## Structure

@@ -53,7 +53,7 @@ Choose the higher rung when two work; never trade correctness at an edge case fo
 ## 6. Reject speculative structure and protect non-negotiable behavior
 
 - Do not add a one-implementation interface, one-product factory, future-only configuration or unrequested scaffolding. A port is justified only by external I/O, a real planned swap or a domain boundary.
-- Never simplify trust-boundary validation, data-loss prevention, security/authorization, accessibility, an explicit user requirement, or domain integrity for money/inventory/reward/battle.
+- Never simplify trust-boundary validation, data-loss prevention, security/authorization, accessibility, an explicit user requirement, or domain integrity for money/inventory/reward/game rules.
 - For a deliberate ceiling, add `// simplified: <ceiling>; <when/how to evolve>` and create `DEBT-xxx` when the roadmap reaches it.
 
 ## 7. Control file growth and review the diff

@@ -5,6 +5,8 @@ With pyyaml+jsonschema: full validation. Without them: minimal YAML parser
 (flat frontmatter) + structural checks (required, enums, id pattern).
 Also validates docs/spec/progress/*.json (executor progress) when the folder exists, and fails on a
 merge-conflict marker left in any Markdown file under the spec dir.
+Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id prefix, e.g.
+`{tech: TEC, product: PRD}`); then each decision's `kind` must be declared and its id carries that kind's prefix.
 """
 import json
 import os
@@ -28,7 +30,7 @@ def fail(msg):
 
 
 def mini_yaml(text):
-    """Minimal parser: 'k: v', 'k: [a,b]', 'k:' + '- item' lines, ints, null, quoted strings."""
+    """Minimal parser: 'k: v', 'k: [a,b]', 'k: {a: b}', 'k:' + '- item' lines, ints, null, quoted strings."""
     data, key = {}, None
     for raw in text.splitlines():
         line = raw.rstrip()
@@ -49,6 +51,12 @@ def mini_yaml(text):
         elif val.startswith("[") and val.endswith("]"):
             inner = val[1:-1].strip()
             data[key] = [v.strip().strip('"\'') for v in inner.split(",")] if inner else []
+        elif val.startswith("{") and val.endswith("}"):
+            inner = val[1:-1].strip()
+            pairs = [item.split(":", 1) for item in inner.split(",")] if inner else []
+            if any(len(pair) != 2 for pair in pairs):
+                raise ValueError(f"map outside the format: {line!r}")
+            data[key] = {k.strip().strip('"\''): v.strip().strip('"\'') for k, v in pairs}
         elif val.isdigit():
             data[key] = int(val)
         else:
@@ -93,14 +101,59 @@ STRUCT = {
                     "id": r"^REQ-(F|NF)-\d{3,}$"},
     "decision": {"req": ["id", "title", "status", "date"],
                  "enums": {"status": ["proposed", "approved", "rejected", "superseded"]},
-                 "id": r"^(DTEC|DGME|DPRO)-\d{3,}$"},
+                 "id": r"^[A-Z][A-Z0-9]{1,7}-\d{3,}$"},
     "debt": {"req": ["id", "title", "status", "severity", "trigger", "created"],
              "enums": {"status": ["open", "paid", "accepted"],
                        "severity": ["low", "medium", "high", "critical"]},
              "id": r"^DEBT-\d{3,}$"},
 }
 
-ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|FEAT|DTEC|DGME|DPRO|DEBT)-(\d+)")
+ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|[A-Z][A-Z0-9]{1,7})-(\d+)")
+
+# Decision kinds: spec.md may declare `decision_kinds` (kind -> id prefix); without it every decision is DEC-nnn.
+DEFAULT_DECISION_PREFIX = "DEC"
+DECISION_KIND = re.compile(r"^[a-z][a-z0-9-]*$")
+DECISION_PREFIX = re.compile(r"^[A-Z][A-Z0-9]{1,7}$")
+RESERVED_PREFIXES = {"FEAT", "REQ", "DEBT", "J"}
+
+
+def decision_kinds(path, data):
+    """Returns the {kind: prefix} map spec.md declares, or None when it declares none."""
+    if "decision_kinds" not in data:
+        return None
+    declared = data["decision_kinds"]
+    if not isinstance(declared, dict) or not declared:
+        fail(f"{path}: decision_kinds must map each decision kind to its id prefix, e.g. {{tech: TEC}}")
+        return {}
+    kinds, owners = {}, {}
+    for kind, prefix in declared.items():
+        kind, prefix = str(kind), str(prefix)
+        if not DECISION_KIND.match(kind):
+            fail(f"{path}: decision kind {kind!r} does not match {DECISION_KIND.pattern}")
+        if not DECISION_PREFIX.match(prefix) or prefix in RESERVED_PREFIXES:
+            fail(f"{path}: decision prefix {prefix!r} must match {DECISION_PREFIX.pattern} "
+                 f"and not be one of {sorted(RESERVED_PREFIXES)}")
+        if prefix in owners:
+            fail(f"{path}: decision prefix {prefix} is declared for both {owners[prefix]!r} and {kind!r}")
+        owners[prefix] = kind
+        kinds[kind] = prefix
+    return kinds
+
+
+def check_decision(path, data, fid, kinds):
+    prefix = str(fid).split("-", 1)[0]
+    if kinds is None:
+        if prefix != DEFAULT_DECISION_PREFIX:
+            fail(f"{path}: id {fid}: a decision id is {DEFAULT_DECISION_PREFIX}-nnn unless spec.md declares "
+                 f"decision_kinds")
+        return
+    kind = data.get("kind")
+    if kind is None:
+        fail(f"{path}: kind missing; spec.md decision_kinds declares {sorted(kinds)}")
+    elif str(kind) not in kinds:
+        fail(f"{path}: kind {kind!r} is not in spec.md decision_kinds {sorted(kinds)}")
+    elif prefix != kinds[str(kind)]:
+        fail(f"{path}: id {fid} prefix does not match kind {kind!r} ({kinds[str(kind)]}-nnn)")
 
 # Start, base (diff3) and end markers git writes in a conflicted file. A bare "=======" line is not matched:
 # it is also a Markdown setext heading underline, and a conflict always carries the start and end markers.
@@ -208,10 +261,13 @@ def main():
 
     ids = {}
     feats, reqs = {}, {}
+    kinds = None  # spec.md is the first target, so its decision_kinds is read before any decision
     for path, kind in targets:
         data = frontmatter(path)
         if data is None or not isinstance(data, dict):
             continue
+        if kind == "spec":
+            kinds = decision_kinds(path, data)
         if FULL and kind in schemas:
             try:
                 js_validate(data, schemas[kind], format_checker=FormatChecker())
@@ -237,9 +293,7 @@ def main():
                 fail(f"{path}: duplicate id {fid} (also in {ids[fid]})")
             ids[fid] = path
         if kind == "decision" and fid:
-            expected = {"tech": "DTEC", "game": "DGME", "process": "DPRO"}.get(str(data.get("kind")))
-            if expected and not str(fid).startswith(expected + "-"):
-                fail(f"{path}: id {fid} prefix does not match kind {data['kind']!r}")
+            check_decision(path, data, fid, kinds)
         if kind == "feature" and fid:
             feats[fid] = data.get("requirements") or []
         if kind == "requirement" and fid:

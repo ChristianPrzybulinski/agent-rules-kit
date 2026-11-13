@@ -30,7 +30,7 @@
 | `sdd-journey` | user, model | Journey layer — J-NN steps cite REQ ids, tasks and tests. Use when writing or changing a J-NN journey. Not for FEATs (skill sdd-specify). |
 | `sdd-plan` | user | SDD step 4 — technical FEAT plan and decisions. Use when clarification and check are complete. Not for task breakdown (skill sdd-tasks). |
 | `sdd-specify` | user | SDD step 1 — feature and requirement specification. Use when a described feature needs FEAT/REQ criteria. Not for open questions (skill sdd-clarify). |
-| `sdd-spike` | user | Prototype lane for game feel. Use when movement, camera, battle feedback or UI must be felt on screen before a FEAT exists. Not for specs (skill sdd-specify). |
+| `sdd-spike` | user | Prototype lane for feel. Use when motion, camera, feedback or UI must be felt on screen before a FEAT exists. Not for specs (skill sdd-specify). |
 | `sdd-tasks` | user | SDD step 5 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement). |
 | `sdd-to-card` | user | SDD step 8 — one GitHub issue per task row plus the FEAT card. Use when cutting issues or closing a FEAT. Not for PR operations (skill git). |
 | `security` | user, model | Security design and CVE, secret and endpoint scans. Use when changing a trust boundary or preparing a sensitive PR or release. Not for verdicts (skill review). |

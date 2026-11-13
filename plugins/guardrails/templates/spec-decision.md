@@ -1,19 +1,18 @@
 ---
-id: DTEC-000
-title: "[Decision in 1 sentence: Use WebSocket for the game session]"
+id: DEC-000
+title: "[Decision in 1 sentence: Use WebSocket for the live session]"
 status: proposed
 date: "YYYY-MM-DD"
 deciders: "[product | tech]"
-kind: tech
 features: []
 supersedes: null
 ---
 
-# DTEC-000 — [Title]
+# DEC-000 — [Title]
 
-States: `proposed` → `approved` | `rejected` | `superseded` (superseded by a later `DTEC-nnn`/`DGME-nnn`/`DPRO-nnn`).
+States: `proposed` → `approved` | `rejected` | `superseded` (superseded by a later decision).
 
-`kind` fixes the id prefix: `tech` → `DTEC`, `game` → `DGME`, `process` → `DPRO`. Number sequentially inside the kind's namespace — parallel sessions cannot collide.
+The id is `DEC-nnn`. When `docs/spec/spec.md` declares `decision_kinds` (for example `{tech: TEC, product: PRD}`), add `kind: <one of its keys>` to the frontmatter and use that kind's prefix. Number sequentially inside each prefix; never reuse an id.
 
 ## Context
 
