@@ -75,6 +75,16 @@ class SyncProjectCheckTest(unittest.TestCase):
         for line in (1, 2, 3):
             self.assertIn(f"stale kit path: docs/x.md:{line}:", result.stdout)
 
+    def test_older_plugin_folders_fail(self):  # KIT-062: every plugins/ folder of the kit's history before guardrails
+        folders = ["all/x.md", "dev-core/x.md", "dev-godot/x.md", "dev-java/x.md", "extras/x.md", "infra-core/x.md",
+                   "infra-github/x.md", "infra-persistence/x.md", "process-loop/x.md", "quality-core/x.md",
+                   "quality-security/x.md"]
+        self.write_md("docs/x.md", "".join(f"- agent-rules-kit `plugins/{f}`\n" for f in folders))
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        for line in range(1, len(folders) + 1):
+            self.assertIn(f"stale kit path: docs/x.md:{line}:", result.stdout)
+
     def test_current_plugin_layout_passes(self):  # KIT-061
         self.write_md("docs/x.md", "- Process: agent-rules-kit `plugins/guardrails/skills/sdd-constitution/references/sdd-process.md`\n")
         result = self.run_sync("--check")
