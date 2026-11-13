@@ -1,10 +1,10 @@
 ---
 id: KIT-058
 title: "The plugin hooks change after the owner's hook-by-hook review"
-status: confirmed
+status: done
 confirmed: "2026-11-12 (owner, chat of the kit always-on review session: \"Yes, keep it\" for the guard, \"Change the message\" for its git branch -D reason, \"Sim, só registrar\" (yes, just record it) for the guard on Codex, \"e concordo, tirar o ramo do java\" (I agree, remove the Java branch) for the lint hook, \"Sim, as duas\" (yes, both) for the SessionStart hook)"
 issue: "#206"
-pr: ""
+pr: "#208"
 ---
 
 # KIT-058 — The plugin hooks change after the owner's hook-by-hook review
@@ -103,3 +103,4 @@ test fails on both hinted commands. `docs/design.md` names the hint beside the K
 ## History
 
 - 2026-11-12: confirmed (owner, chat, hook by hook).
+- 2026-11-12: done (PR #208).
