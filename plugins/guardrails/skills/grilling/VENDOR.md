@@ -1,7 +1,7 @@
 repo: mattpocock/skills
 path: skills/productivity/grilling
-sha: d81f3a183412e71a5b1e84ca21bc1a35eea03a60
+sha: 7739eaed7f8f3915437a8def198a6d0d7206dbc7
 license: MIT
-verified: 2026-09-30
+verified: 2026-11-13
 
 Do not edit — regenerate via platforms/tools/vendor.sh.

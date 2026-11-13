@@ -6,6 +6,7 @@ sources:
   - https://docs.godotengine.org/en/stable/tutorials/migrating/upgrading_to_godot_4.html
   - https://docs.godotengine.org/en/stable/classes/class_characterbody2d.html
   - https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html
+  - https://docs.godotengine.org/en/stable/tutorials/best_practices/logic_preferences.html
 ---
 
 # Godot 4 - GDScript pitfalls
@@ -26,6 +27,8 @@ sources:
 | `PoolStringArray` | `PackedStringArray` | all Pool* became Packed* |
 | `setget` | `set`/`get` property syntax | `var x: T: get = g, set = s` |
 | `get_node` in `_process` | cache the node in `_ready` | per-frame lookup is a budget bug |
+| setting properties after `add_child(node)` | set them before `add_child` (global position excepted: set it after) | values set later miss `_ready` and setters on entry |
+| `@export var x: T = preload("...")` | a `null` or empty default; assign it in the scene | the scene overwrites the preloaded value, so the preload is wasted |
 
 ## Hallucinated APIs
 

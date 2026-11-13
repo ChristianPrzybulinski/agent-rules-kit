@@ -44,9 +44,13 @@ A single internal policy with no I/O stays concrete. Remove ports with neither a
 
 State the invariant, lifecycle, variation or coordination problem before selecting a building block or pattern. A non-obvious pattern needs one recorded reason in code or a DEC; popularity and hypothetical reuse are not reasons. Pick the smallest building block or pattern that fits from `references/pattern-catalog.md`. Aggregate boundaries follow transaction invariants, not table or screen boundaries.
 
+Before building on a choice that is expensive to reverse (protocol or public API shape, schema, framework, external integration, auth model), propose a DEC and ask; decide a reversible choice yourself and go.
+
 ## 6. Block accidental patterns and speculative architectures
 
 Reject mutable global singletons, Active Record in the domain, anemic entities, ownerless utility classes and inheritance used only for code reuse. Do not introduce Event Sourcing, CQRS or microservices without a measured need; tactical aggregates, value objects and events do not require those architectures.
+
+When the code you extend already breaks these rules, new code does not copy the break: isolate it behind a seam or follow the rules in the new part, and name the existing break in the PR as a follow-up; refactoring it needs the task's scope.
 
 ## 7. Verify the boundary
 

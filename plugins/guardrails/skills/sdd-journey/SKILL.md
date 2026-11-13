@@ -1,10 +1,10 @@
 ---
 name: sdd-journey
-description: "Journey layer — J-NN steps cite REQ ids, tasks and tests. Use when writing a user-visible flow. Not for FEATs (skill sdd-specify)."
+description: "Journey layer — J-NN steps cite REQ ids, tasks and tests. Use when writing or changing a J-NN journey. Not for FEATs (skill sdd-specify)."
 argument-hint: "J-NN | <stage or flow>"
 triggers:
   - user
-disable-model-invocation: true
+  - model
 allowed-tools:
   - read
   - edit

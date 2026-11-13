@@ -19,10 +19,10 @@ One skill, four modes: `start` opens and scopes the session, `review` closes it 
 
 ## start
 
-- Read the repository's `AGENTS.md` and README before broad exploration. Name one outcome for the session in a single sentence; if it cannot be named, ask before proceeding.
-- For work spanning three or more files, crossing a layer, or containing ambiguity, propose planning mode before editing; for a one- or two-file mechanical change, proceed directly. Once a plan is approved, execute it without repeatedly reopening the plan.
+- When the outcome sentence (`AGENTS.md` § Session) cannot be written, ask before proceeding.
+- When `AGENTS.md` § Work loop calls for a plan, propose planning mode before editing; once a plan is approved, execute it without reopening it.
 - Before the first edit in a worktree or folder that a state or handoff file describes, read that file's top line `Writer: <session id> since <YYYY-MM-DD HH:MM>`. A line naming another session that is still running means stop and ask the user; never write beside it. Otherwise add the line before the first edit and remove it at close or handoff.
-- A new topic mid-session is not silently added: ask whether to record it as a follow-up or close and start another session. Keep follow-ups, and each decision or correction with its reason when it settles, in the issue, PR or handoff record, not conversational memory.
+- Keep follow-ups, and each decision or correction with its reason when it settles, in the issue, PR or handoff record, not conversational memory.
 - Exhausted-session signals: rereading already-read files, compressed context, an outcome already delivered, new unrelated requests, or roughly two hours of work. Suggest the handoff mode and a new session; continue only if the user chooses to.
 - A second human joins the backlog: apply the condition → action rules in `references/two-humans.md`.
 - Match the agent tier: suggest a smaller tier for a mechanical one- or two-file task with no decision or investigation; keep the current tier for architecture, investigation or risk.

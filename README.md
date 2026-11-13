@@ -8,7 +8,7 @@ Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Cont
 
 | Path | Purpose |
 |---|---|
-| [`plugins/guardrails/`](plugins/guardrails/INDEX.md) | the kit's only plugin: always-on rules (`AGENTS.md`), hook guard; Java, Godot, Python and spec path rules; `reviewer` and `researcher` profiles; session, parallelize, review, git, security, code standards, testing, investigate, Java 25/Spring, Godot 2D, asset import, Krita, Docker, persistence, architecture, protocol contracts, grilling, the `sdd-*` pipeline and journeys; project and spec templates |
+| [`plugins/guardrails/`](plugins/guardrails/INDEX.md) | the kit's only plugin: always-on rules (`AGENTS.md`), hook guard; Java, Godot, Python, spec and JSON path rules; `reviewer` and `researcher` profiles; session, parallelize, review, git, security, code standards, testing, investigate, Java 25/Spring, Godot 2D, asset import, Krita, Docker, persistence, architecture, protocol contracts, grilling, the `sdd-*` pipeline and journeys; project and spec templates |
 | [`platforms/`](platforms/) | machine tools ([`tools/`](platforms/tools/README.md)), validators and schemas ([`ci/`](platforms/ci/README.md)), files projects copy ([`kits/`](platforms/kits/README.md)) |
 | [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |
 | `.devin-plugin/`, `.claude-plugin/`, `.agents/plugins/` | the content-free Devin meta-plugin, which requires `guardrails`, and the Claude Code and Codex marketplace catalogs |
@@ -38,9 +38,9 @@ User-level rule symlinks are opt-in with `AI_KIT_USER_RULES=1` (a rule present i
 | Agent | Hooks | Path rules | Subagents | User-only skills |
 |---|---|---|---|---|
 | Devin Cloud | no | `globs` | managed Devins | `triggers: [user]` |
-| Devin CLI/Desktop | PreToolUse guard, PostToolUse format/lint and SessionStart synced-folder warning, best effort | `globs` | shared profiles | `triggers: [user]` |
-| Codex | no | description routing | no | `agents/openai.yaml` policy |
-| Claude Code | PreToolUse guard, PostToolUse format/lint and SessionStart synced-folder warning, best effort | `paths` | shared profiles | `disable-model-invocation: true` |
+| Devin CLI/Desktop | PreToolUse guard, PostToolUse format/lint, SessionStart synced-folder warning and git state after compaction, best effort | `globs` | shared profiles | `triggers: [user]` |
+| Codex | no | read from the repo's `.claude/rules/` on the `AGENTS.md` Boundaries line | no | `agents/openai.yaml` policy |
+| Claude Code | PreToolUse guard, PostToolUse format/lint, SessionStart synced-folder warning and git state after compaction, best effort | `paths` | shared profiles | `disable-model-invocation: true` |
 
 ## Devin plugin
 
@@ -80,7 +80,7 @@ Every repository enables only `guardrails@ai-kit` in `.claude/settings.json` (th
 
 ## Refresh and diagnosis
 
-On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours. `platforms/tools/doctor.sh` repairs clone, plugin and symlink state, warns when a Claude plugin cache differs from the kit (`refresh.sh` reinstalls it, KIT-013), and sets Claude Code's `autoCompactWindow` to `200k` when `~/.claude/settings.json` has none (KIT-010). When its last run is 7 or more days old, `refresh.sh` also runs `platforms/tools/session_audit.py`, the weekly cross-session audit pre-filter that skill `session` reads in `audit` mode; it prints counts only, and `AI_KIT_SESSION_AUDIT=0` turns it off (KIT-056). Nothing refreshes at agent session start.
+On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours. `platforms/tools/doctor.sh` repairs clone, plugin and symlink state, warns when a Claude plugin cache differs from the kit (`refresh.sh` reinstalls it, KIT-013), and sets Claude Code's `autoCompactWindow` to the number `300000` when `~/.claude/settings.json` has none or holds the `"200k"` an older doctor wrote (KIT-010). When its last run is 7 or more days old, `refresh.sh` also runs `platforms/tools/session_audit.py`, the weekly cross-session audit pre-filter that skill `session` reads in `audit` mode; it prints counts only, and `AI_KIT_SESSION_AUDIT=0` turns it off (KIT-056). Nothing refreshes at agent session start.
 
 ## Maintainers
 

@@ -15,7 +15,7 @@ allowed-tools:
 
 # Docker and Twelve-Factor
 
-Use `platforms/kits/docker/compose.yml`; read `references/compose-v2-vs-v5.md` for the Compose v2+ CLI behavior. §1–§4 cover containers; §5–§9 cover the application's own configuration (Twelve-Factor).
+Edit the repository's own Compose file; a repository without one starts from `~/.ai-kit/platforms/kits/docker/compose.yml`. Read `references/compose-v2-vs-v5.md` for the Compose v2+ CLI behavior. §1–§4 cover containers; §5–§9 cover the application's own configuration (Twelve-Factor).
 
 ## 1. Define Compose services
 
@@ -39,12 +39,11 @@ Run `docker compose up -d --wait`, then `docker compose ps`. On failure inspect 
 - Container-to-container connection → service name, not localhost.
 - macOS data slowness → named volume instead of bind-mounted database files.
 - Disk pressure → `docker system df`; ask before prune.
-- `docker compose down -v` destroys data; ask first.
+- `docker compose down -v` destroys data; the user runs it (the guard hook blocks it for agents).
 
 ## 5. Externalize configuration
 
 - Put every environment-varying value in an environment variable; `application.yml` contains only safe defaults and `${VAR}` references.
-- Version `.env.example` with placeholders/comments and never version `.env`.
 - Use typed configuration such as Spring `@ConfigurationProperties`; do not scatter environment lookups through domain code.
 
 ## 6. Declare dependencies and backing services

@@ -45,6 +45,6 @@ Incomplete work may merge only behind a recorded flag that defaults off. A flag 
 
 ## 4. Open one PR per issue
 
-After the task's proofs and the DoD commands from `<repo>/AGENTS.md` § Commands pass, open a PR whose body has What, Why, How I tested (literal output), Proof (one allowlisted command per line) and the last line `Closes <owner>/<docs-repo>#N`. Never push to `main`, force-push, rebase or merge; the architect reviews the diff against FEAT/REQ/DEC and merges. Executor contract: `references/task-pr.md`.
+After the task's proofs and the DoD commands from `<repo>/AGENTS.md` § Commands pass, open a PR whose body follows `references/task-pr.md` (last line `Closes <owner>/<docs-repo>#N`). Never push to `main`, force-push, rebase or merge; the architect reviews the diff against FEAT/REQ/DEC and merges. Executor contract: `references/task-pr.md`.
 
 Done when: each proof gated, every task in the progress file has passes: true, the diff stayed inside `Files`, the proofs and DoD commands pass with literal output in the PR body, validation is READY, and incomplete merged behavior is safely flagged with expiry handling.

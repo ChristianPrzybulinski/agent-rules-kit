@@ -42,7 +42,7 @@ Inter-module dependency rule verified at build time (`maven-enforcer` `bannedDep
 ## Sandboxed agents (no network at build time)
 
 - Snapshot or maintenance step, online, once: `./mvnw -q dependency:go-offline && ./mvnw -q -Pfast spotless:check verify`. The second command caches what `go-offline` misses (Spotless formatter, Surefire/Failsafe providers, PITest JUnit 5 plugin) and pulls the Testcontainers images; `-o` covers Maven artifacts only, never Docker images.
-- Task step, offline: `./mvnw -o -q spotless:check verify`. Add `-Pfast` when the budget is tight: it skips PITest and Dependency-Check and never skips tests; CI runs everything.
+- Task step, offline: the gate the repo `AGENTS.md` names, with `-o` (`./mvnw -o -q spotless:check verify` when it names none). Add `-Pfast` when the budget is tight: it skips PITest and Dependency-Check and never skips tests; CI runs everything.
 - Budget: lint and tests at most 5 minutes each. Over budget locally: `-Pfast` plus `-Dtest=<Class>` (unit) or `-Dit.test=<Class>IT` (integration) with `-Dsurefire.failIfNoSpecifiedTests=false`; never `-DskipTests` in a gate.
 - Integration tests on real services: read `testcontainers.md` in this folder.
 

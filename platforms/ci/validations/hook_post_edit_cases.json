@@ -32,25 +32,18 @@
       "stderr": ""
     },
     {
-      "name": "java format findings",
+      "name": "java not linted, failing formatter on PATH",
       "file": "src/main/java/App.java",
       "tools": {"google-java-format": 1},
-      "exit": 2,
-      "stderr": "google-java-format reported problems"
-    },
-    {
-      "name": "java clean",
-      "file": "src/main/java/App.java",
-      "tools": {"google-java-format": 0},
       "exit": 0,
       "stdout": "",
       "stderr": ""
     },
     {
-      "name": "java tool missing",
+      "name": "java not linted, no formatter",
       "file": "src/main/java/App.java",
       "exit": 0,
-      "stdout": "google-java-format not available",
+      "stdout": "",
       "stderr": ""
     },
     {

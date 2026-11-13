@@ -50,6 +50,6 @@ Use JUnit 5 and AssertJ; use Mockito only at ports. Domain tests run without Spr
 
 ## 6. Verify
 
-Run the Maven wrapper with the project modules/gates from the build reference. Use SLF4J without sensitive data and translate external errors rather than throwing generic `RuntimeException`.
+Run the build gate the repo `AGENTS.md` names with the Maven wrapper (`./mvnw spotless:check verify` when it names none; module gates and offline flags in the build reference). Use SLF4J without sensitive data and translate external errors rather than throwing generic `RuntimeException`.
 
 Done when: Java 25/Maven are fixed, framework dependencies stay outside domain/application, JUnit scope matches the behavior, and the relevant Maven gate passes.

@@ -49,6 +49,6 @@ Link an equivalent legacy handler only after reading it. Mark divergence as a pr
 
 ## 5. Close
 
-Update the protocol changelog and motivating FEAT, then run the schema/contract validator on examples for both sides. Capture literal output.
+Update the protocol changelog and motivating FEAT; regenerate every file the project generates from the protocol with its generator and run the generator's `--check`; then run the schema/contract validator on examples for both sides. Capture literal output.
 
 Done when: compatibility is explicit, examples prove valid and invalid payloads, state effects define idempotency/ordering/errors, and both consumers share one versioned source.

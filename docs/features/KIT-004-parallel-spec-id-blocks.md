@@ -1,10 +1,10 @@
 ---
 id: KIT-004
 title: "Parallel spec sessions take ids only from a block reserved per kind, REQ included"
-status: confirmed
+status: done
 confirmed: "2026-10-07 (owner, chat of the Stratics E6 initial-screens architect session)"
 issue: "#75"
-pr: ""
+pr: "#214"
 ---
 
 # KIT-004 — Parallel spec sessions take ids only from a block reserved per kind, REQ included
@@ -41,3 +41,5 @@ its own change first `[HYPOTHESIS: Stratics' check_spec.py does not; verify befo
 ## History
 
 - 2026-10-07: confirmed (owner, chat).
+- 2026-11-13: done (PR #214, with KIT-061). `parallelize` lists no parallel-session setup, so its conditional bullet
+  does not apply; Stratics `check_spec.py` has no sequence rule and `origin/main` already holds the gaps FEAT-087 to 089.
