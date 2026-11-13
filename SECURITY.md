@@ -15,7 +15,7 @@ You get an answer within 7 days. A fix is made on `main` and noted in `CHANGELOG
 
 ## Supported versions
 
-Only the latest release (`VERSION`, currently the 11.x line) and `main` receive fixes.
+Only the latest release, the version in `VERSION`, and `main` receive fixes.
 
 ## In scope
 

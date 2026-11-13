@@ -102,6 +102,7 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 - `check_kit.py` also gates allowed tools, three-way user-only/subagent/rule parity, reference kinds/sources, hooks, backtick paths, links that leave their plugin and a skill description's literal `Use when` and `Not for` (KIT-052), and shell syntax with `bash -n` (KIT-060).
 - `check.sh` also runs `gen_index.py --check`: every `plugins/*/INDEX.md` is generated from the plugin's files, so a stale one fails and the message prints `python3 platforms/tools/gen_index.py`. Never edit a plugin `INDEX.md` by hand (KIT-040).
 - `.github/workflows/gitleaks.yml` (`workflow_dispatch`): secret scan of the whole history; locally, `gitleaks git --redact --log-opts="origin/main..HEAD"` scans the branch's commits.
+- `.github/workflows/codeql.yml` (`workflow_dispatch`): CodeQL advanced setup for `python` and `actions` (KIT-063); dispatch it before a release and after a change to Python or to `.github/workflows/`. Default setup stays off: it would scan on every push, pull request and week. The repository's secret scanning and push protection complement gitleaks, which stays the local pre-push check.
 - `.github/workflows/evals.yml`: on-demand `claude plugin eval plugins` over the cases of every plugin; needs the `ANTHROPIC_API_KEY` repository secret, which is not set (owner 2026-10-06), so nothing runs it on a schedule.
 - `.github/workflows/release.yml`: tag/version validation and release creation.
 
