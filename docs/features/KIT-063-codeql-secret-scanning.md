@@ -15,8 +15,9 @@ pr: "#222"
 `gh api repos/ChristianPrzybulinski/agent-rules-kit` showed `visibility: public` and every `security_and_analysis` item
 `disabled`. `gh api repos/ChristianPrzybulinski/agent-rules-kit/code-scanning/default-setup` showed
 `state: not-configured`, with the detected languages `actions`, `java-kotlin` and `python`. The only secret check was
-gitleaks, run locally per PR and by dispatch (`gitleaks.yml`). No static analysis covered the 20 Python files under
-`platforms/` or the workflows.
+gitleaks, run locally per PR and by dispatch (`gitleaks.yml`). No static analysis covered the workflows or the 27 Python
+files under `platforms/` at `7573fd9`: 18 in `platforms/ci/validations`, 8 in `platforms/tools` and 1 in
+`platforms/kits/godot/scripts`. (The proposal said 20, counted on a stale local `main`.)
 
 [FACT] Both features are free here and cannot bill the owner's account:
 
@@ -40,8 +41,10 @@ default branch, or any protected branch", on pull requests against the default b
 pace of 70 merged PRs from 2026-10-30 to 2026-11-13, that is at least 140 automatic runs in two weeks. KIT-014 allows
 no kit workflow on push or pull request.
 
-[HYPOTHESIS] The CodeQL `actions` extractor reads `.github/workflows/*.yml` (the extension its supported-languages page
-lists), so the five workflows the kit ships in `platforms/kits/github/workflows/` are not analyzed.
+[FACT] The CodeQL `actions` extractor reads only `.github/workflows/*.yml`. The log of the first run (43525047799)
+shows it extracting `ci.yml`, `codeql.yml`, `evals.yml`, `gitleaks.yml` and `release.yml` from `.github/workflows/`,
+and it reports "CodeQL scanned 5 out of 5 GitHub Actions files". The five workflows the kit ships in
+`platforms/kits/github/workflows/` are not analyzed.
 
 ## Change
 
@@ -94,10 +97,18 @@ What would prove A wrong:
 - The kit gates: `bash platforms/tools/check.sh`, `CI=1 bash platforms/tools/check.sh`,
   `bash platforms/tools/smoke.sh`, `python3 platforms/ci/validations/check_kit.py --links` and
   `gitleaks git --redact --log-opts="origin/main..HEAD"`.
-- After the merge, the first `gh workflow run codeql.yml` measures the run's minutes and cost. A dispatch needs the file
-  on the default branch.
+- First dispatch after the merge, `gh workflow run codeql.yml --ref main` on `af25f78`, run 43525047799:
+  - `success` in 76 s; the `actions` job took 37 s and the `python` job 73 s;
+  - `gh api .../actions/runs/43525047799/timing` reports `"billable":{"UBUNTU":{"total_ms":0,"jobs":2,...}}`;
+  - CodeQL 2.27.4 scanned "27 out of 27 Python files". The analyses report 0 results from 43 Python rules and
+    0 results from 17 Actions rules, and `code-scanning/alerts?state=open` lists 0 alerts;
+  - `settings/billing/usage?year=2026&month=11&day=13` shows the kit's `Actions Linux` row with `netAmount` 0. The
+    check one day later is still the first "prove A wrong" test.
+
+  The first of the two dispatches in the third test found 0 alerts.
 
 ## History
 
 - 2026-11-13: evaluated in a session started by the owner's CodeQL question and confirmed by the owner in chat ("Sim,
   pode"). Secret scanning and push protection enabled the same day; workflow implemented.
+- 2026-11-13: #222 merged as `af25f78` on the owner's chat OK ("Sim, mergeie"); first dispatch measured (see Proof).
