@@ -1,10 +1,10 @@
 ---
 id: KIT-035
 title: "Advisory GDScript mutation testing of changed, covered functions, with PIT's default operators"
-status: confirmed
+status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D3 and D5 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#137"
-pr: ""
+pr: "#192, #195, #196, #200"
 ---
 
 # KIT-035 — Advisory GDScript mutation testing of changed, covered functions, with PIT's default operators
@@ -91,7 +91,7 @@ built in T2–T4, the cache (6) is T5 and the load-bounded workers (7) are T6 (T
    only while the one-minute load average is below the core count, so one run always goes on when the gate cap allows
    (§ Decisions, 2026-11-12 T6).
 8. **Output.** One survivor per line on stdout, `path:line function OPERATOR from → to`, then a summary with the score
-   on stderr. Exit 0 (advisory); a gate waits for T8.
+   on stderr. Exit 0 (advisory); no gate (§ Decisions, 2026-11-13).
 
 T7 names the tool, its `--coverage` input and the cache's `--no-cache` in `plugins/core/skills/testing/SKILL.md` § 1
 (the paragraph after the GDScript one) and in `testable-game-logic.md:28`; eval case
@@ -109,7 +109,7 @@ No CI or loop gate runs it (D2, D5).
 | T5 | Differential cache by function and test hashes | a second run with nothing changed starts no Godot |
 | T6 | Workers bounded by load and the gate cap | measured on the client with the loop running |
 | T7 | `testing` § GDScript and `testable-game-logic.md:28` name the advisory command; one eval case that does not name its skill; descriptions unchanged | `check.sh`, the eval and the skill size caps pass |
-| T8 | Time and false survivors (equivalent mutants) over two loop batches; the owner decides on a gate (proposal line 284) | numbers in § Measurements and an owner decision |
+| T8 | Time and false survivors (equivalent mutants) over two loop batches; the owner decides on a gate (proposal line 284) | cancelled 2026-11-13: the owner keeps the tool advisory, no gate (§ Decisions) |
 
 The PR of the last task the owner approves closes #137; this PR refers to it.
 
@@ -250,6 +250,12 @@ The PR of the last task the owner approves closes #137; this PR refers to it.
   run as before T6, with one notice for each, over refusing to run, because the tool is advisory and no CI or loop
   gate runs it (D2, D5), so a host without the loop's state has no loop to protect; the cores come from
   `os.cpu_count()` and nothing names a host.
+- 2026-11-13: the owner chose, on the chat of the kit review session, "Advisory only, close" over keeping the issue
+  open until the measurement: the mutation tool stays advisory, with no gate, and T8 (time and false survivors over
+  two loop batches) is cancelled. The measurement could not start yet: agents run the tool from skill `testing` § 1,
+  which reaches Stratics with its sync to kit 12.x (stratics#4030, open). The cost: no measured time or count of
+  equivalent mutants, and a gate proposed later starts its measurement from zero. False survivors such as T3's lines
+  90, 107, 109 and 124 (§ Measurements) stay in the output as survivors.
 
 ## Measurements
 
@@ -569,3 +575,5 @@ T6 review fixes: run from the worktree root at `61d3115` (the count from the loo
   missed. The gate runs are now the loop's own admission records (§ Decisions, 2026-11-12 T6), with no `ps`; the
   stub's log records when each Godot run started, and `test_a_closed_host_runs_no_unmutated_selection` covers the
   unmutated runs.
+- 2026-11-13: done: the owner kept the tool advisory with no gate ("Advisory only, close") and cancelled T8; skill
+  `testing` § 1 now says so.

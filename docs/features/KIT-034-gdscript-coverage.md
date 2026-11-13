@@ -1,10 +1,10 @@
 ---
 id: KIT-034
 title: "GDScript line and branch coverage per function, from our own probe instrumenter"
-status: confirmed
+status: done
 confirmed: "2026-11-10 (owner, ub-mode evaluation decisions D3 and D5 in the chat of the ub-mode evaluation session; implementation prompt launched 2026-11-11)"
 issue: "#136"
-pr: ""
+pr: "#191, #193, #194, #196"
 ---
 
 # KIT-034 — GDScript line and branch coverage per function, from our own probe instrumenter
@@ -88,8 +88,8 @@ The tool, `platforms/tools/gd_coverage.py` (Python 3.9+, gdtoolkit 4.5.0, our ow
    first line of each statement; a line is covered when the probe that enters its run counted at least once), taken
    and total branch outcomes (two per `if`/`elif`/`while` condition, one per `match` arm) and the uncovered lines.
    `FILE...` limits the report to those files and `--base REF` to the functions whose lines changed in `REF...HEAD`,
-   read by `complexity.py`'s `changed_lines`. `--keep` keeps the temporary folder. Exit 0 (advisory); a gate waits
-   for T7.
+   read by `complexity.py`'s `changed_lines`. `--keep` keeps the temporary folder. Exit 0 (advisory); no gate
+   (§ Decisions, 2026-11-13).
 6. **CRAP.** `complexity.py --gd-coverage FILE` (repeatable) reads that JSON and fills `Function.coverage` with the
    line ratio for GDScript, joined by repository-relative path and `func` line, so a GDScript function scores CRAP the
    way a Java one does from JaCoCo (T5); a function the report does not hold scores CC as before.
@@ -110,7 +110,7 @@ No CI or loop gate runs it (D2, D5).
 | T4 | Runner, per-function JSON, `--base` for changed functions; the whole client suite instrumented | one full suite run with no instrumentation failure, and its time |
 | T5 | `complexity.py` fills `Function.coverage` for GDScript from the T4 JSON (needs KIT-031 merged) | a GDScript function reports CRAP in `test_complexity.py` |
 | T6 | `testing` § GDScript and `testable-game-logic.md:28` name the advisory command; one eval case that does not name its skill; descriptions unchanged | `check.sh`, the eval and the skill size caps pass |
-| T7 | Overhead and false-positive rate over two loop batches; the owner decides on a gate (proposal line 284) | numbers in § Measurements and an owner decision |
+| T7 | Overhead and false-positive rate over two loop batches; the owner decides on a gate (proposal line 284) | cancelled 2026-11-13: the owner keeps the tool advisory, no gate (§ Decisions) |
 
 KIT-035 (GDScript mutation) uses T4's covered lines to pick its mutants. The PR of the last task the owner approves
 closes #136; this PR refers to it.
@@ -197,6 +197,12 @@ closes #136; this PR refers to it.
 - 2026-11-12 T5: chose to treat an unreadable or foreign `--gd-coverage` file like a missing JaCoCo report (notice,
   CC scores, exit 2 with `--threshold`) over scoring its functions at 0 % coverage, because 0 % turns every CC into
   CC² + CC and would read as a finding that the change did not cause.
+- 2026-11-13: the owner chose, on the chat of the kit review session, "Advisory only, close" over keeping the issue
+  open until the measurement: the coverage tool stays advisory, with no gate, and T7 (overhead and false-positive rate
+  over two loop batches) is cancelled. The measurement could not start yet: agents run the tool from skill `testing` §
+  1, which reaches Stratics with its sync to kit 12.x (stratics#4030, open). The cost: no measured overhead or
+  false-positive rate, and a gate proposed later starts its measurement from zero. The points left to T7 above
+  (whether a run with failing tests counts, float-width findings) stay as the tool reports them today.
 
 ## Risks
 
@@ -544,3 +550,5 @@ only this document and its sibling record; every command exited 0:
 - 2026-11-12: T5 (`complexity.py --gd-coverage`) in #194, stacked on #193; it refers to #136 and leaves it open.
 - 2026-11-12: T6 (skill `testing` § 1 names `gd_coverage.py`, `code-standards` § 3 reads CRAP for GDScript, eval
   case `testing-gdscript-coverage-command`) in #196, with KIT-035 T7; it refers to #136 and leaves it open.
+- 2026-11-13: done: the owner kept the tool advisory with no gate ("Advisory only, close") and cancelled T7; skill
+  `testing` § 1 now says so.
