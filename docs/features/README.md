@@ -81,5 +81,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-058-hooks-review.md`](KIT-058-hooks-review.md) | done | #206 | #208 |
 | [`KIT-059-path-rules-review.md`](KIT-059-path-rules-review.md) | done | #209 | #210 |
 | [`KIT-060-shell-syntax-check.md`](KIT-060-shell-syntax-check.md) | done | #211 | #212 |
+| [`KIT-061-skills-review.md`](KIT-061-skills-review.md) | confirmed | #213 |  |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
