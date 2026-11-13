@@ -28,7 +28,7 @@
 | `sdd-clarify` | user | SDD step 2 — resolve ambiguous FEAT criteria. Use when a FEAT has open questions or vague terms. Not for gap checks (skill sdd-check). |
 | `sdd-constitution` | user | SDD step 0 — project constitution and spec index. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
 | `sdd-implement` | user | SDD step 6 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill review). |
-| `sdd-journey` | user | Journey layer — J-NN steps cite REQ ids, tasks and tests. Use when writing a user-visible flow. Not for FEATs (skill sdd-specify). |
+| `sdd-journey` | user, model | Journey layer — J-NN steps cite REQ ids, tasks and tests. Use when writing or changing a J-NN journey. Not for FEATs (skill sdd-specify). |
 | `sdd-plan` | user | SDD step 4 — technical FEAT plan and decisions. Use when clarification and check are complete. Not for task breakdown (skill sdd-tasks). |
 | `sdd-specify` | user | SDD step 1 — feature and requirement specification. Use when a described feature needs FEAT/REQ criteria. Not for open questions (skill sdd-clarify). |
 | `sdd-spike` | user | Prototype lane for game feel. Use when movement, camera, battle feedback or UI must be felt on screen before a FEAT exists. Not for specs (skill sdd-specify). |
