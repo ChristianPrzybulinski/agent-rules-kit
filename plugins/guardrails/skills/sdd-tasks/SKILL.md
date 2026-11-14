@@ -40,7 +40,7 @@ Waves: `references/waves-and-models.md` (wave 0, shared files, cross-FEAT order)
 
 ## 4. Check coverage
 
-Every acceptance criterion appears in at least one task; every task covers a criterion or is explicitly infrastructure. Run `sdd-check` row C8 (criterion without task or task without criterion) and remove vague “implement the rest” rows.
+Every acceptance criterion appears in at least one task (`Covers` cites CA ids; each CA already cites the REQs it proves); every task covers a criterion or is explicitly infrastructure. Run `sdd-check` row C8 (criterion without task or task without criterion) and remove vague “implement the rest” rows.
 
 ## 5. Pre-cut checklist (before issues are created)
 

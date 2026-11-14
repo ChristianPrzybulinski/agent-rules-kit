@@ -8,7 +8,8 @@ merge-conflict marker left in any Markdown file under the spec dir.
 Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id prefix, e.g.
 `{tech: TEC, product: PRD}`); then each decision's `kind` must be declared and its id carries that kind's prefix.
 NEED-nnn intake records (docs/spec/needs/) link forward only: every listed id must exist with the right kind, a
-refined or delivered NEED names what it became, and a delivered one lists only delivered FEATs.
+refined or delivered NEED names what it became, and a delivered one lists only delivered FEATs. A REQ that no FEAT
+implements yet must be listed by a NEED (REQs are written before the FEAT that delivers them).
 """
 import json
 import os
@@ -99,7 +100,8 @@ STRUCT = {
                 "id": r"^FEAT-\d{3,}$"},
     "requirement": {"req": ["id", "title", "type", "priority", "features", "created"],
                     "enums": {"type": ["functional", "non-functional"],
-                              "priority": ["must", "should", "could", "wont"]},
+                              "priority": ["must", "should", "could", "wont"],
+                              "status": ["proposed", "approved", "retired"]},
                     "id": r"^REQ-(F|NF)-\d{3,}$"},
     "decision": {"req": ["id", "title", "status", "date"],
                  "enums": {"status": ["proposed", "approved", "rejected", "superseded"]},
@@ -110,7 +112,7 @@ STRUCT = {
              "id": r"^DEBT-\d{3,}$"},
     "need": {"req": ["id", "title", "type", "status", "origin", "created"],
              "enums": {"type": ["new", "improvement", "fix", "content", "platform", "decision"],
-                       "status": ["proposed", "triaged", "refined", "delivered",
+                       "status": ["proposed", "triaged", "specified", "refined", "delivered",
                                   "rejected", "merged", "routed", "parked"]},
              "id": r"^NEED-\d{3,}$"},
 }
@@ -364,14 +366,15 @@ def main():
         for r in rlist:
             if r not in reqs:
                 fail(f"{ids[fid]}: requirements lists {r} which does not exist")
+    need_reqs = {str(r) for data in needs.values() for r in as_list(data.get("requirements"))}
     for rid, flist in reqs.items():
-        if not flist:
-            fail(f"{ids[rid]}: {rid} has no FEAT implementing it")
+        if not flist and rid not in need_reqs:
+            fail(f"{ids[rid]}: {rid} has no FEAT implementing it and no NEED listing it")
         for f in flist:
             if f not in feats:
                 fail(f"{ids[rid]}: features lists {f} which does not exist")
-    # both sides agree: a link written on one side only drifts. Together with the non-empty features[]
-    # above, this also guarantees every REQ is listed by some FEAT.
+    # both sides agree: a link written on one side only drifts. Together with the check above, every REQ is
+    # listed by some FEAT, or by a NEED until sdd-plan creates the FEAT that delivers it.
     for fid, rlist in feats.items():
         for r in rlist:
             if r in reqs and fid not in reqs[r]:

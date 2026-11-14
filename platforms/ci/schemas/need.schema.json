@@ -11,7 +11,7 @@
     "type": { "type": "string", "enum": ["new", "improvement", "fix", "content", "platform", "decision"] },
     "status": {
       "type": "string",
-      "enum": ["proposed", "triaged", "refined", "delivered", "rejected", "merged", "routed", "parked"]
+      "enum": ["proposed", "triaged", "specified", "refined", "delivered", "rejected", "merged", "routed", "parked"]
     },
     "origin": { "type": "string", "minLength": 3 },
     "parent": { "type": ["string", "null"], "pattern": "^NEED-[0-9]{3,}$" },

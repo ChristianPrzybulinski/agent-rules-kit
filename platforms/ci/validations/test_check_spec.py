@@ -410,6 +410,28 @@ class NeedTest(unittest.TestCase):
         self.need("NEED-001", status="refined", features="[FEAT-001]")
         self.assert_fails("status refined needs at least one link in requirements, journeys, decisions")
 
+    def req_without_feat(self, rid, status="proposed"):
+        text = REQ.format(rid=rid, feats="").replace("priority: must\n", f"status: {status}\npriority: must\n")
+        (self.spec / "requirements" / "functional" / f"{rid}.md").write_text(text)
+
+    def test_specified_need_passes(self):
+        self.need("NEED-001", status="specified")
+        self.assert_passes()
+
+    def test_req_listed_only_by_a_need_passes(self):
+        self.req_without_feat("REQ-F-002")
+        self.need("NEED-001", status="refined", requirements="[REQ-F-002]")
+        self.assert_passes()
+
+    def test_req_listed_by_neither_feat_nor_need_fails(self):
+        self.req_without_feat("REQ-F-002", status="approved")
+        self.assert_fails("REQ-F-002 has no FEAT implementing it and no NEED listing it")
+
+    def test_unknown_req_status_fails(self):
+        self.req_without_feat("REQ-F-002", status="done")
+        self.need("NEED-001", requirements="[REQ-F-002]")
+        self.assert_fails("REQ-F-002.md")
+
     def test_delivered_needs_delivered_features(self):
         self.need("NEED-001", status="delivered", requirements="[REQ-F-001]")
         self.need("NEED-002", status="delivered", requirements="[REQ-F-001]", features="[FEAT-001]")

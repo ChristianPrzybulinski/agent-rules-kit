@@ -13,29 +13,30 @@ features: []
 created: "YYYY-MM-DD"
 updated: "YYYY-MM-DD"
 ---
-<!-- type: new | improvement | fix | content | platform | decision. Provisional at capture, confirmed at triage.
-     status: proposed → triaged → refined → delivered, or rejected | merged | routed | parked.
-     delivered follows the linked FEATs (check_spec.py refuses it while one is not delivered); every other status is
-     set by its step. Links are written here only: REQ, FEAT, decision and debt files never list NEEDs. -->
+<!-- type: new | improvement | fix | content | platform | decision. Provisional at intake, confirmed by sdd-specify.
+     status: proposed (sdd-intake) → triaged (sdd-specify, decide) → specified (sdd-specify, describe) → refined
+     (sdd-clarify, after a clean functional sdd-check) → delivered (every linked FEAT delivered; check_spec.py refuses it
+     before), or closed rejected | merged | routed | parked; a parked NEED returns to triaged when taken up.
+     requirements, journeys and decisions are filled by sdd-clarify; features by sdd-plan. Links are written here only:
+     REQ, FEAT, decision and debt files never list NEEDs in their link fields; they cite it only as provenance. -->
 
 # NEED-000 — [Title]
 
 ## Request
-<!-- Capture. The words of whoever asked, verbatim and in their language, with date and channel. Never edited; a later
-     restatement is a new dated quote below. -->
+<!-- sdd-intake. The words of whoever asked, verbatim and in their language, with date and channel. Never edited; a
+     later restatement is a new dated quote below. -->
 
 > "[verbatim]" — [who], YYYY-MM-DD, [channel]
 
 ## Problem / value
-<!-- Capture: one line. Triage: complete. For whom, what problem, why now. No solution. -->
+<!-- sdd-intake: one line. sdd-specify (decide): complete. For whom, what problem, why now. No solution. -->
 
 ## Desired outcome
-<!-- Refinement start (sdd-specify), not triage. What the actor can do or see when this is done, and the sign that
-     it worked. -->
+<!-- sdd-specify (describe). What the actor can do or see when this is done, and the sign that it worked. -->
 
 ## Situations
-<!-- Refinement start (sdd-specify), not triage. Plain-language cases, at least one that goes right and one that goes
-     wrong. Each becomes one or more REQs. -->
+<!-- sdd-specify (describe). Plain-language cases, at least one that goes right and one that goes wrong. sdd-clarify
+     turns each into REQs, a journey step or a cut. -->
 
 | # | Who | When | Expects |
 |---|---|---|---|
@@ -43,26 +44,26 @@ updated: "YYYY-MM-DD"
 | S2 | [actor] | [something goes wrong] | [visible result] |
 
 ## Scope
-<!-- Refinement start (sdd-specify), not triage. -->
+<!-- sdd-specify (describe). -->
 
 - [included]
 
 ## Out of scope
-<!-- Refinement start (sdd-specify), not triage. -->
+<!-- sdd-specify (describe). -->
 
 - [excluded, and where it goes: another NEED, later, never]
 
 ## Constraints
-<!-- Refinement start (sdd-specify), not triage. -->
+<!-- sdd-specify (describe). -->
 
 - [deadline, budget, licence, platform, must-not]
 
 ## Evidence
-<!-- Any step. [FACT] items with their source: report, screenshot, reference, measurement. Bulky data goes in
-     NEED-000-data/ beside this file. -->
+<!-- Any step. [FACT] items with their source: report, screenshot, reference, measurement, approved mock, spike
+     report. Bulky data goes in NEED-000-data/ beside this file. -->
 
 ## Triage
-<!-- sdd-triage. -->
+<!-- sdd-specify (decide). -->
 
 - Type: [type], because [one line]
 - Existing artifacts touched: [REQ-F-nnn, J-NN, FEAT-nnn with path] or —
@@ -73,15 +74,17 @@ updated: "YYYY-MM-DD"
 - Confirmed by: [product name], YYYY-MM-DD | agent (fix|duplicate), product reviews later
 
 ## Open questions
+<!-- Any step; sdd-clarify closes the last one before refined. -->
 
 - [NEEDS CLARIFICATION: ...]
 
 ## Refinement
-<!-- Filled by functional refinement: what each Situation became. -->
+<!-- sdd-clarify. One row per Situation: the REQ written, reused or amended, the journey step, the decision, or the cut. -->
 
 | Situation | Became | Why |
 |---|---|---|
+| S1 | [REQ-F-nnn new / REQ-F-nnn amended / J-NN S<n> / decision id / cut: where it went] | [one line] |
 
 ## History
 
-- YYYY-MM-DD capture: created from [channel].
+- YYYY-MM-DD intake: created from [channel].

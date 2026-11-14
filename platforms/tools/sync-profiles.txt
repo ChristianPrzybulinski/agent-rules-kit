@@ -26,13 +26,11 @@ skills/sdd-clarify       | docs
 skills/sdd-constitution  | docs
 skills/sdd-implement     | docs
 skills/sdd-intake        | docs
-skills/sdd-journey       | docs
 skills/sdd-plan          | docs
 skills/sdd-specify       | docs
 skills/sdd-spike         | docs
 skills/sdd-tasks         | docs
 skills/sdd-to-card       | docs
-skills/sdd-triage        | docs
 skills/security          | -
 skills/session           | -
 skills/testing           | godot java python
