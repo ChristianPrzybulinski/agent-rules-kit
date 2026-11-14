@@ -7,6 +7,8 @@ Also validates docs/spec/progress/*.json (executor progress) when the folder exi
 merge-conflict marker left in any Markdown file under the spec dir.
 Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id prefix, e.g.
 `{tech: TEC, product: PRD}`); then each decision's `kind` must be declared and its id carries that kind's prefix.
+NEED-nnn intake records (docs/spec/needs/) link forward only: every listed id must exist with the right kind, a
+refined or delivered NEED names what it became, and a delivered one lists only delivered FEATs.
 """
 import json
 import os
@@ -106,6 +108,11 @@ STRUCT = {
              "enums": {"status": ["open", "paid", "accepted"],
                        "severity": ["low", "medium", "high", "critical"]},
              "id": r"^DEBT-\d{3,}$"},
+    "need": {"req": ["id", "title", "type", "status", "origin", "created"],
+             "enums": {"type": ["new", "improvement", "fix", "content", "platform", "decision"],
+                       "status": ["proposed", "triaged", "refined", "delivered",
+                                  "rejected", "merged", "routed", "parked"]},
+             "id": r"^NEED-\d{3,}$"},
 }
 
 ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|[A-Z][A-Z0-9]{1,7})-(\d+)")
@@ -114,7 +121,7 @@ ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|[A-Z][A-Z0-9]{1,7})-(\d+)")
 DEFAULT_DECISION_PREFIX = "DEC"
 DECISION_KIND = re.compile(r"^[a-z][a-z0-9-]*$")
 DECISION_PREFIX = re.compile(r"^[A-Z][A-Z0-9]{1,7}$")
-RESERVED_PREFIXES = {"FEAT", "REQ", "DEBT", "J"}
+RESERVED_PREFIXES = {"FEAT", "REQ", "DEBT", "J", "NEED"}
 
 
 def decision_kinds(path, data):
@@ -166,6 +173,51 @@ def check_conflict_markers(spec_dir):
         for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if CONFLICT_MARKER.match(line):
                 fail(f"{path}:{n}: merge-conflict marker {line[:7]!r} left in the file")
+
+
+NEED_LINKS = {"requirements": "requirement", "decisions": "decision", "debts": "debt", "features": "feature"}
+NEED_PRODUCT_LINKS = ("requirements", "journeys", "decisions")
+JOURNEY_FILE = re.compile(r"^(J-\d{2,})(?:-[a-z0-9-]+)?$")
+
+
+def as_list(value):
+    if isinstance(value, list):
+        return value
+    return [] if value in (None, "") else [value]
+
+
+def check_needs(spec_dir, needs, ids, kind_of, feat_status):
+    """A NEED links forward only: listed ids exist with the right kind; status refined/delivered is backed by links."""
+    journeys = set()
+    if (spec_dir / "journeys").is_dir():
+        for path in (spec_dir / "journeys").glob("J-*.md"):
+            m = JOURNEY_FILE.match(path.stem)
+            if m:
+                journeys.add(m.group(1))
+    for nid, data in needs.items():
+        path = ids[nid]
+        for field, kind in NEED_LINKS.items():
+            for link in as_list(data.get(field)):
+                if kind_of.get(str(link)) != kind:
+                    fail(f"{path}: {field} lists {link}, which is not an existing {kind}")
+        for link in as_list(data.get("journeys")):
+            if str(link) not in journeys:
+                fail(f"{path}: journeys lists {link}, which has no file under journeys/")
+        parent = data.get("parent")
+        if parent and str(parent) == nid:
+            fail(f"{path}: parent is the NEED itself")
+        elif parent and kind_of.get(str(parent)) != "need":
+            fail(f"{path}: parent {parent} is not an existing NEED")
+        status = data.get("status")
+        if status in ("refined", "delivered") and not any(as_list(data.get(f)) for f in NEED_PRODUCT_LINKS):
+            fail(f"{path}: status {status} needs at least one link in {', '.join(NEED_PRODUCT_LINKS)}")
+        if status == "delivered":
+            delivered_by = as_list(data.get("features"))
+            if not delivered_by:
+                fail(f"{path}: status delivered needs the features that delivered it")
+            for fid in delivered_by:
+                if fid in feat_status and feat_status[fid] != "delivered":
+                    fail(f"{path}: status delivered, but {fid} is {feat_status[fid]}")
 
 
 PROGRESS_TASK_KEYS = ("id", "title", "files", "proof", "passes", "notes")
@@ -253,14 +305,14 @@ def main():
     if (spec_dir / "spec.md").exists():
         targets.append((spec_dir / "spec.md", "spec"))
     for sub, kind in [("features", "feature"), ("requirements", "requirement"),
-                      ("decisions", "decision"), ("debts", "debt")]:
+                      ("decisions", "decision"), ("debts", "debt"), ("needs", "need")]:
         d = spec_dir / sub
         if d.is_dir():
             for f in sorted(d.rglob("*.md")):
                 targets.append((f, kind))
 
-    ids = {}
-    feats, reqs = {}, {}
+    ids, kind_of = {}, {}
+    feats, reqs, feat_status, needs = {}, {}, {}, {}
     kinds = None  # spec.md is the first target, so its decision_kinds is read before any decision
     for path, kind in targets:
         data = frontmatter(path)
@@ -292,15 +344,20 @@ def main():
             if fid in ids:
                 fail(f"{path}: duplicate id {fid} (also in {ids[fid]})")
             ids[fid] = path
+            kind_of[str(fid)] = kind
         if kind == "decision" and fid:
             check_decision(path, data, fid, kinds)
         if kind == "feature" and fid:
             feats[fid] = data.get("requirements") or []
+            feat_status[fid] = data.get("status")
         if kind == "requirement" and fid:
             reqs[fid] = data.get("features") or []
+        if kind == "need" and fid:
+            needs[fid] = data
 
     progress_files = check_progress(spec_dir / "progress", progress_schema, feats)
     check_conflict_markers(spec_dir)
+    check_needs(spec_dir, needs, ids, kind_of, feat_status)
 
     # cross-references FEAT <-> REQ
     for fid, rlist in feats.items():

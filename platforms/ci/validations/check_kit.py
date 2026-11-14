@@ -873,6 +873,7 @@ SPEC_MAP = {
     "spec-requirement-non-functional": "requirement.schema.json",
     "spec-decision": "decision.schema.json",
     "spec-debt": "debt.schema.json",
+    "spec-need": "need.schema.json",
 }
 for name, plugin_dir in plugins.items():
     templates_root = plugin_dir / "templates"

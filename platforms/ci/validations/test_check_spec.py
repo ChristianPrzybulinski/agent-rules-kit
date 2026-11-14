@@ -1,5 +1,5 @@
 """check_spec.py FEAT<->REQ cross-check (both frontmatters must agree on every link), progress files, conflict
-markers and the project's decision kinds."""
+markers, the project's decision kinds and NEED intake records."""
 import json
 import os
 import shutil
@@ -303,6 +303,118 @@ class DecisionKindsTest(unittest.TestCase):
     def test_duplicate_prefix_fails(self):
         self.index("{tech: TEC, ops: TEC}")
         self.assert_fails("decision prefix TEC is declared for both 'tech' and 'ops'")
+
+    def test_need_prefix_is_reserved(self):
+        self.index("{tech: NEED}")
+        self.assert_fails("decision prefix 'NEED' must match")
+
+
+NEED = """---
+id: {nid}
+title: "Fixture need {nid}"
+type: {type}
+status: {status}
+origin: "owner"
+{extra}created: "2026-11-14"
+---
+
+# {nid}
+"""
+
+JOURNEY = """---
+id: J-01
+title: "Fixture journey"
+status: proposed
+owner: "product"
+created: "2026-11-14"
+updated: "2026-11-14"
+---
+
+# J-01
+"""
+
+
+class NeedTest(unittest.TestCase):
+    """NEED-nnn intake records link forward only and back their status with links (KIT-066)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.spec = Path(self.tmp.name)
+        for sub in ("needs", "features", "requirements/functional", "decisions", "journeys"):
+            (self.spec / sub).mkdir(parents=True)
+        (self.spec / "features" / "FEAT-001.md").write_text(FEAT.format(fid="FEAT-001", reqs="REQ-F-001"))
+        (self.spec / "requirements" / "functional" / "REQ-F-001.md").write_text(
+            REQ.format(rid="REQ-F-001", feats="FEAT-001"))
+        (self.spec / "decisions" / "DEC-001-fixture.md").write_text(DECISION.format(did="DEC-001", extra=""))
+        (self.spec / "journeys" / "J-01-fixture.md").write_text(JOURNEY)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def need(self, nid, status="proposed", type_="new", **links):
+        extra = "".join(f"{field}: {value}\n" for field, value in links.items())
+        (self.spec / "needs" / f"{nid}-fixture.md").write_text(
+            NEED.format(nid=nid, type=type_, status=status, extra=extra))
+
+    def run_both(self):
+        """The full check, then the structural one: python -S hides pyyaml and jsonschema."""
+        env = {k: v for k, v in os.environ.items() if k != "CI"}
+        return [subprocess.run([sys.executable, *flags, str(CHECK_SPEC), str(self.spec), str(SCHEMAS)],
+                               capture_output=True, text=True, check=False, env=env)
+                for flags in ([], ["-S"])]
+
+    def assert_passes(self):
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def assert_fails(self, *messages):
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 1, result.stderr)
+            for message in messages:
+                self.assertIn(message, result.stderr)
+
+    def test_captured_need_passes(self):
+        self.need("NEED-001")
+        self.assert_passes()
+
+    def test_refined_need_with_links_passes(self):
+        self.need("NEED-001", status="refined", requirements="[REQ-F-001]", journeys="[J-01]",
+                  decisions="[DEC-001]", features="[FEAT-001]")
+        self.need("NEED-002", status="triaged", parent="NEED-001")
+        self.assert_passes()
+
+    def test_unknown_type_and_status_fail(self):
+        self.need("NEED-001", status="done", type_="idea")
+        self.assert_fails("NEED-001-fixture.md")
+
+    def test_file_name_must_carry_the_id(self):
+        (self.spec / "needs" / "NEED-009-other.md").write_text(
+            NEED.format(nid="NEED-001", type="new", status="proposed", extra=""))
+        self.assert_fails("id=NEED-001 != file name prefix")
+
+    def test_link_to_missing_or_wrong_kind_fails(self):
+        self.need("NEED-001", requirements="[REQ-F-002]", features="[REQ-F-001]")
+        self.assert_fails("requirements lists REQ-F-002, which is not an existing requirement",
+                          "features lists REQ-F-001, which is not an existing feature")
+
+    def test_missing_journey_fails(self):
+        self.need("NEED-001", journeys="[J-02]")
+        self.assert_fails("journeys lists J-02, which has no file under journeys/")
+
+    def test_parent_must_be_another_need(self):
+        self.need("NEED-001", parent="NEED-001")
+        self.need("NEED-002", parent="NEED-003")
+        self.assert_fails("parent is the NEED itself", "parent NEED-003 is not an existing NEED")
+
+    def test_refined_without_product_links_fails(self):
+        self.need("NEED-001", status="refined", features="[FEAT-001]")
+        self.assert_fails("status refined needs at least one link in requirements, journeys, decisions")
+
+    def test_delivered_needs_delivered_features(self):
+        self.need("NEED-001", status="delivered", requirements="[REQ-F-001]")
+        self.need("NEED-002", status="delivered", requirements="[REQ-F-001]", features="[FEAT-001]")
+        self.assert_fails("NEED-001-fixture.md: status delivered needs the features that delivered it",
+                          "NEED-002-fixture.md: status delivered, but FEAT-001 is proposed")
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ Process: `../sdd-constitution/references/sdd-process.md`. Templates: `../../temp
 
 ## 1. Qualify the input
 
-If the idea is still vague or the user wants it stress-tested, run `/grilling` first. Start this step when the problem/value and intended user can be described without choosing implementation.
+Start from a `NEED-nnn` with `status: triaged` and route `refine` (skill `sdd-intake`); a request with no NEED goes to `sdd-intake` first. Its Problem / value, Situations, Scope and Constraints are the input; implementation is still not chosen.
 
 ## 2. Select identifiers
 
@@ -36,6 +36,8 @@ Create `FEAT-nnn-slug.md` with:
 - no framework, table or message choice—those belong to planning.
 
 Set `status: proposed`, requirements, `flag: null`, `card: null` and creation date; update the feature/requirement indexes.
+
+In the NEED, add the new FEAT and REQ ids to `features` and `requirements`, one Refinement row per Situation (what it became and why) and a History line.
 
 ## 4. Validate
 

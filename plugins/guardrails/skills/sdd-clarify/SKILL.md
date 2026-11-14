@@ -30,6 +30,6 @@ Edit the criterion, scope, requirement or glossary where the answer belongs; do 
 
 ## 4. Close ambiguity
 
-Repeat only if markers remain. Set `status: clarified` when every vague quantity is numeric or a hypothesis with a measurement method.
+Repeat only if markers remain. Set `status: clarified` when every vague quantity is numeric or a hypothesis with a measurement method. When every FEAT a NEED lists is `clarified` and its decision records are approved, set that NEED to `status: refined` with a History line.
 
 Done when: no clarification markers remain, criteria include relevant sad paths, new terms are in the glossary and product choices came from the user.
