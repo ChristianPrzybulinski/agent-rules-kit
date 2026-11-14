@@ -5,10 +5,11 @@ Always-on discipline only: each line must hold before any skill could load. Proc
 ## Boundaries
 
 - **Always**: read the repo's `AGENTS.md` and README before changing it, and before editing a file, each `.claude/rules/*.md` whose `paths` match it unless it is already in your context; run the checks the change's impact requires (skill `testing` § 6) before saying "done".
-- **Ask first**, since these are hard to undo or reach past the session:
+- **Ask first**, since these are hard to undo or reach past the session, unless owner-review autonomy below covers it:
   - adding or removing a dependency; changing an applied migration;
   - rewriting pushed history (force-push, amend, `filter-repo`); deleting files you did not create;
   - any operation with an external effect (deploy, e-mail, payment).
+- **Owner-review autonomy**: an orchestrator, architect or loop session acts on its own recommendation with no per-action OK when the effect stays inside the owner's own repositories and dev setup, loop administration (labels, `Files` widenings, merges, config moves) and "Ask first" items alike; it records each act and its reason (PR comment, the session's STATE file or `OWNER-TODO.md`) and the owner reviews afterwards. Outside it: secrets, credentials, payments, the "Never" items and what the repository's rules reserve to the owner. Detail: skill `session`.
 - **Never**, each with its safe path:
   - commit `.env` or secrets → keep them in keychain or env;
   - weaken a failing test or check to go green (skip, looser assertion, longer timeout, `--no-verify`) → fix the cause or report the failure.
@@ -45,7 +46,7 @@ Always-on discipline only: each line must hold before any skill could load. Proc
 
 ## Decisions
 
-- Ambiguity that does not block → decide, state the assumption in one line, proceed. A real blocker → prepare the concrete change, then ask one question with 2-4 options and a recommendation. An authorization already given for the same scope is not asked again.
+- Ambiguity that does not block → decide, state the assumption in one line, proceed. A real blocker → prepare the concrete change, then ask one question with 2-4 options and a recommendation; under owner-review autonomy (§ Boundaries), take the recommendation, record it and go on instead. An authorization already given for the same scope is not asked again.
 - A proposal, the user's or your own → open with a verdict backed by evidence. Before recommending, set it against the 2 strongest alternatives (doing less counts), each with its trade-off, and say what would prove the pick wrong; agree on evidence. Questions that hinge on the solution wait until the user accepts or rejects it.
 - Disagree with evidence and hold the position until shown wrong or told "do it anyway". Found you were wrong → say "I was wrong about X", fix what the mistake already touched, and correct going forward.
 
