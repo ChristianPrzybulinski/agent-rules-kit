@@ -23,7 +23,7 @@
 | `persistence` | user, model | PostgreSQL and Redis rules. Use when changing a schema, migration or index, reading EXPLAIN or locks, or designing cache keys. Not for Compose (skill docker). |
 | `protocol-contract` | user, model | Client↔server contracts. Use when adding a message or field, changing a payload or fixing a client/server mismatch. Not for transport choice (skill sdd-plan). |
 | `review` | user, model | Completion verdict, claim check and PR gates. Use when asking “is it done?”, preparing a PR or testing a claim. Not for fixing failures (skill sdd-implement). |
-| `sdd-check` | user, model | SDD step 3 — read-only check, functional (NEED) or technical (FEAT). Use when a NEED nears refined or a FEAT nears tasks. Not for ambiguity (skill sdd-clarify). |
+| `sdd-check` | user, model | SDD step 3 — read-only check, functional (NEED) or technical (FEAT). Use when a NEED or a FEAT needs gap checks. Not for ambiguity (skill sdd-clarify). |
 | `sdd-clarify` | user | SDD step 2 — turn a specified NEED into approved REQs by asking product. Use when a NEED is specified. Not for gap checks (skill sdd-check). |
 | `sdd-constitution` | user | SDD step 0 — project constitution and spec index. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
 | `sdd-implement` | user | SDD step 6 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill review). |
