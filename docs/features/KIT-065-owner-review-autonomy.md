@@ -4,7 +4,7 @@ title: "Orchestrator, architect and loop sessions act on their own recommendatio
 status: confirmed
 confirmed: "2026-11-14 (owner, chat of the FEAT-053 orchestration session, relayed to the implementing session: \"a autonomia é pra tudo, NÃO só este ponto ... eu quero que o loop tenha total liberdade pra fazer tudo que recomenda, anotando e depois eu reviso igual no travel-mode\")"
 issue: "#229"
-pr: ""
+pr: "#230"
 ---
 
 # KIT-065 — Orchestrator, architect and loop sessions act on their own recommendations and the owner reviews afterwards
