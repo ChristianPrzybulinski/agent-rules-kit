@@ -86,6 +86,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-062-stale-plugin-folders.md`](KIT-062-stale-plugin-folders.md) | done | #215 | #216 |
 | [`KIT-063-codeql-secret-scanning.md`](KIT-063-codeql-secret-scanning.md) | done | #221 | #222 |
 | [`KIT-064-project-decision-kinds.md`](KIT-064-project-decision-kinds.md) | done | #225 | #226 |
-| [`KIT-065-owner-review-autonomy.md`](KIT-065-owner-review-autonomy.md) | confirmed | #N | |
+| [`KIT-065-owner-review-autonomy.md`](KIT-065-owner-review-autonomy.md) | confirmed | #229 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
