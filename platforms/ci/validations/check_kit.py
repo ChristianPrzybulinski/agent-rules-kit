@@ -185,7 +185,7 @@ def dep_entry(name):
 
 # --- 1. Layout ---
 REQUIRED_ROOT_PATHS = [
-    "README.md", "CONTRIBUTING.md", "VERSION", ".devin-plugin/plugin.json",
+    "README.md", ".github/CONTRIBUTING.md", "VERSION", ".devin-plugin/plugin.json",
     ".agents/plugins/marketplace.json", ".claude-plugin/marketplace.json", "plugins", "platforms/tools",
     "platforms/ci/schemas", "platforms/ci/validations", "platforms/kits", "docs",
 ]
@@ -1013,7 +1013,7 @@ for markdown_file in sorted(KIT.rglob("*.md")):
 
 backtick_re = re.compile(
     r"`((?:(?:\.\./|\./)+|references/|templates/|platforms/|plugins/)[^`\s]+\.(?:md|sh|json|yml|yaml))`")
-backtick_files = [agents_md, KIT / "README.md", KIT / "CONTRIBUTING.md"]
+backtick_files = [agents_md, KIT / "README.md", KIT / ".github" / "CONTRIBUTING.md"]
 backtick_files += list((KIT / "docs").glob("*.md"))
 backtick_files += list((KIT / "platforms").rglob("*.md"))
 for name, plugin_dir in plugins.items():

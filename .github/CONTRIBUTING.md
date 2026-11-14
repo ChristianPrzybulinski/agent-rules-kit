@@ -8,8 +8,8 @@ This section is for people outside the project; the rest of the file is the proc
 
 - One person maintains the kit for their own projects, so a change is weighed against the setups it already serves. Answers come as time allows.
 - Start with an issue, using the [bug report](https://github.com/ChristianPrzybulinski/agent-rules-kit/issues/new?template=bug_report.yml) or the [rule or skill proposal](https://github.com/ChristianPrzybulinski/agent-rules-kit/issues/new?template=rule_or_skill_proposal.yml) form. A bug report names the kit `VERSION`, the agent with its version and the operating system.
-- Open a pull request only after the maintainer agrees to the change in its issue; a pull request without one may be closed unreviewed. Link the issue, keep to one concern, add a line under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md), run `platforms/tools/check.sh` and fill in the PR checklist. The rest of this file says where each kind of content goes.
-- A contribution is licensed under the repository's [MIT license](LICENSE).
+- Open a pull request only after the maintainer agrees to the change in its issue; a pull request without one may be closed unreviewed. Link the issue, keep to one concern, add a line under `## [Unreleased]` in [`CHANGELOG.md`](../CHANGELOG.md), run `platforms/tools/check.sh` and fill in the PR checklist. The rest of this file says where each kind of content goes.
+- A contribution is licensed under the repository's [MIT license](../LICENSE).
 - Report a vulnerability privately, as [`SECURITY.md`](SECURITY.md) says, never in an issue or pull request.
 - Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md), the Contributor Covenant 3.0.
 
@@ -25,6 +25,7 @@ This section is for people outside the project; the rest of the file is the proc
 | artifact skeleton | `plugins/<plugin>/templates/<prefix>-<name>.md` |
 | executable, schema or project kit | `platforms/` |
 | design principles, consumer layout, KIT records | `docs/` |
+| contributing guide, security policy, code of conduct | `.github/` (keeps the root to the README, license, changelog and version) |
 
 ## Invariants
 
@@ -41,23 +42,23 @@ This section is for people outside the project; the rest of the file is the proc
 
 ## Versioning
 
-A release sets one version in [`VERSION`](VERSION), in every manifest `"version"` field and in a [`CHANGELOG.md`](CHANGELOG.md) heading, then tags `vX.Y.Z`. The steps, in order:
+A release sets one version in [`VERSION`](../VERSION), in every manifest `"version"` field and in a [`CHANGELOG.md`](../CHANGELOG.md) heading, then tags `vX.Y.Z`. The steps, in order:
 
 1. Bump, on a branch from current `main` with a clean tree: `python3 platforms/tools/bump_version.py X.Y.Z` (KIT-019). It refuses a version that is not SemVer or not above `VERSION`, a dirty tree and an empty `## [Unreleased]`. It writes `VERSION`, replaces `"version": "<current>"` in every tracked `*plugin.json` and `*marketplace.json` (printing the count) and inserts `## [X.Y.Z] - <today>` under `## [Unreleased]` (`--date YYYY-MM-DD` overrides the date). Then run `check.sh`.
 2. Open the release PR `chore(release): publish X.Y.Z`.
 3. After the merge, tag the merge commit on `main` with an annotated tag: `git tag -a vX.Y.Z -m vX.Y.Z <commit>`, then `git push origin vX.Y.Z`.
 4. Pushing the tag runs `.github/workflows/release.yml`, which validates tag == `VERSION` and creates the release from the CHANGELOG section, about 6 s after the push (`v10.1.0`). Do not create the release by hand while that run is going: its `gh release create` then fails with `HTTP 422: Validation Failed` and `Release.tag_name already exists` (run 43326631020 on `v12.0.0`). Only when the run has ended (`gh run list --workflow release.yml --limit 1`) and `gh release view vX.Y.Z` finds no release, publish it by hand with the same notes and the workflow's title format: `python3 platforms/tools/bump_version.py --notes X.Y.Z > /tmp/kit-notes.md`, then `gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file /tmp/kit-notes.md`.
 
-The layout of 10.x, kept unchanged by 11.0.0, is frozen until at least 2027-01-01 (principle "Layout stability" in [docs/design.md](docs/design.md)). A layout or installation-destination change is a SemVer MAJOR change and ships with a deprecation note in the release notes plus a migration in `bootstrap.sh` and `doctor.sh`. A content change is MINOR when it adds a rule, skill, reference, template, validator gate or document, and PATCH when it corrects one without changing routing. There is no separate layout version.
+The layout of 10.x, kept unchanged by 11.0.0, is frozen until at least 2027-01-01 (principle "Layout stability" in [docs/design.md](../docs/design.md)). A layout or installation-destination change is a SemVer MAJOR change and ships with a deprecation note in the release notes plus a migration in `bootstrap.sh` and `doctor.sh`. A content change is MINOR when it adds a rule, skill, reference, template, validator gate or document, and PATCH when it corrects one without changing routing. There is no separate layout version.
 
 ## Adding content
 
 | Type | Steps |
 |---|---|
-| kit feature | only for a hook, `plugins/guardrails/AGENTS.md`, plugin structure or manifests, a check, gate or script behavior change, or a new or removed skill: after the owner confirms it, copy [`docs/features/TEMPLATE.md`](docs/features/TEMPLATE.md) to `docs/features/KIT-NNN-<slug>.md`, open issue `[KIT-NNN] <title>` with label `kit-feature`, list it in [`docs/features/README.md`](docs/features/README.md); the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN`. Any other change (a skill, rule, reference, template or doc text edit) needs only a CHANGELOG line, and the PR body carries the why |
+| kit feature | only for a hook, `plugins/guardrails/AGENTS.md`, plugin structure or manifests, a check, gate or script behavior change, or a new or removed skill: after the owner confirms it, copy [`docs/features/TEMPLATE.md`](../docs/features/TEMPLATE.md) to `docs/features/KIT-NNN-<slug>.md`, open issue `[KIT-NNN] <title>` with label `kit-feature`, list it in [`docs/features/README.md`](../docs/features/README.md); the implementing PR closes the issue and its CHANGELOG line cites `KIT-NNN`. Any other change (a skill, rule, reference, template or doc text edit) needs only a CHANGELOG line, and the PR body carries the why |
 | rule | create `plugins/<plugin>/rules/<name>.md` in the owning plugin with `description`, `trigger: glob|model_decision|manual`, and `globs` for a glob rule; body = one pointer line to the owning skill plus 8-12 always/never bullets, at most 40 lines; run `python3 platforms/tools/gen_index.py` to list it in the plugin's `INDEX.md` (never add non-rule files to `rules/` — Devin loads every `.md` there as a rule) |
-| skill | search `plugins/guardrails/INDEX.md` first and extend the skill that owns the topic; a new skill is only for a topic no skill owns (KIT-039). Copy [`docs/templates/kit-skill.md`](docs/templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; run `python3 platforms/tools/gen_index.py` (it copies the description into the plugin's `INDEX.md`) |
-| reference | copy [`docs/templates/kit-reference.md`](docs/templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
+| skill | search `plugins/guardrails/INDEX.md` first and extend the skill that owns the topic; a new skill is only for a topic no skill owns (KIT-039). Copy [`docs/templates/kit-skill.md`](../docs/templates/kit-skill.md) to `plugins/<plugin>/skills/<name>/SKILL.md`; user-only means exactly `triggers: [user]`, Codex `agents/openai.yaml` with implicit invocation disabled, and Claude `disable-model-invocation: true`; run `python3 platforms/tools/gen_index.py` (it copies the description into the plugin's `INDEX.md`) |
+| reference | copy [`docs/templates/kit-reference.md`](../docs/templates/kit-reference.md) to `plugins/<plugin>/skills/<owner>/references/<topic>.md`; set `kind: fact` with date/sources or `kind: detail`; keep ≤60 lines and link it from `SKILL.md` |
 | subagent profile | add `plugins/<plugin>/agents/<name>.md` in the plugin whose skills consume it (reachable through the dependency graph) with frontmatter validated by `platforms/ci/schemas/agent.schema.json`; Devin CLI/Desktop and Claude Code load the profiles, Devin Cloud uses managed Devins and Codex none (README § Platform behavior) |
 | template | only for a long artifact a skill links (a spec, a project `AGENTS.md`); a short field list goes inline in the skill. Add `plugins/<plugin>/templates/<prefix>-<name>.md` (prefix `spec`, `doc` or `project`), link it from the skill, then run `python3 platforms/tools/gen_index.py` |
 | plugin | create `plugins/<name>/` with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json`, then run `python3 platforms/tools/gen_index.py` for its `INDEX.md`; declare `requiredPlugins`/`dependencies` on the plugins it consumes; register it in the root meta-plugin `requiredPlugins`, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`. Prefer a skill in `guardrails`: a second plugin is justified only by an audience that must not load `guardrails` (KIT-038, KIT-047). Renaming or removing a plugin adds the old name to the Claude marketplace `renames` map |
@@ -76,7 +77,7 @@ globs:
 
 `globs` must be a YAML sequence: Devin rejects a comma-separated string (`YAML parse error: globs: invalid type: string ..., expected a sequence`).
 
-A folder gets a `README.md` only when its files need explanation; shape it with [`docs/templates/kit-readme.md`](docs/templates/kit-readme.md). Outside the generated plugin indexes there is no `INDEX.md` (KIT-042). The `kit-*` templates shape kit content, so they live in `docs/templates/`, outside every plugin.
+A folder gets a `README.md` only when its files need explanation; shape it with [`docs/templates/kit-readme.md`](../docs/templates/kit-readme.md). Outside the generated plugin indexes there is no `INDEX.md` (KIT-042). The `kit-*` templates shape kit content, so they live in `docs/templates/`, outside every plugin.
 
 A subagent skill sets Devin `subagent: true` or a shared `agent: <profile>`, plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/<plugin>/agents/` of a plugin reachable through the dependency graph.
 

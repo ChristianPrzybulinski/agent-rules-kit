@@ -57,14 +57,14 @@ class CheckKitReadmesTest(unittest.TestCase):
     def test_each_violation_is_reported(self):
         (self.kit / "docs" / "INDEX.md").write_text("# docs\n", encoding="utf-8")
         (self.kit / "platforms" / "tools" / "unlisted_tool.sh").write_text("#!/bin/sh\n", encoding="utf-8")
-        (self.kit / "CONTRIBUTING.md").unlink()
+        (self.kit / ".github" / "CONTRIBUTING.md").unlink()
         result = self.check()
         output = result.stdout + result.stderr
         self.assertEqual(result.returncode, 1)
         self.assertIn("docs/INDEX.md", output)
         self.assertIn("INDEX.md exists only at plugins/<name>/", output)
         self.assertIn("entry 'unlisted_tool.sh' does not appear in the index", output)
-        self.assertIn("CONTRIBUTING.md: layout: required path missing", output)
+        self.assertIn(".github/CONTRIBUTING.md: layout: required path missing", output)
 
     def test_a_link_out_of_the_plugin_and_a_missing_not_for_fail(self):
         skill = self.kit / "plugins" / "guardrails" / "skills" / "session" / "SKILL.md"

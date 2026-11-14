@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- `CONTRIBUTING.md`, `SECURITY.md` and `CODE_OF_CONDUCT.md` move from the repository root to `.github/`, one of the folders GitHub reads community health files from, so the root keeps only `README.md`, `LICENSE`, `CHANGELOG.md`, `VERSION` and the plugin layout. `README.md`, `docs/design.md`, `platforms/tools/README.md`, the `session` reference `kit-proposal.md` and the bug report form point at the new paths; `check_kit.py` requires `.github/CONTRIBUTING.md` in place of the root file and still checks its backtick paths.
+
 ## [12.1.0] - 2026-11-13
 
 ### Added
