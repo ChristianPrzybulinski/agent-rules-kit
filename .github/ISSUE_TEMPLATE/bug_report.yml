@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Report a security vulnerability privately instead, through the repository's **Security** tab (see `SECURITY.md`). Keep tokens, passwords and personal data out of this form.
+        Report a security vulnerability privately instead, through the repository's **Security** tab (see `.github/SECURITY.md`). Keep tokens, passwords and personal data out of this form.
   - type: input
     id: version
     attributes:

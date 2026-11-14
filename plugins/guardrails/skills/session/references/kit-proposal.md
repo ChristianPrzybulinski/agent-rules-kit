@@ -38,4 +38,4 @@ Ask whether to do it now, defer it, adjust it or discard it.
 
 ## Close accepted work
 
-An accepted proposal is a separate kit outcome and follows the kit's `CONTRIBUTING.md`, `platforms/tools/check.sh`, `CHANGELOG.md` and `VERSION`.
+An accepted proposal is a separate kit outcome and follows the kit's `.github/CONTRIBUTING.md`, `platforms/tools/check.sh`, `CHANGELOG.md` and `VERSION`.
