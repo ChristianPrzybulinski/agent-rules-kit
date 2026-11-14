@@ -1,8 +1,8 @@
 ---
 id: KIT-066
-title: "One entry and a functional front chain: NEED → REQs → FEAT (intake, specify, clarify, check, plan)"
+title: "One entry and a functional front chain: NEED → REQs → FEAT (intake, specify, clarify, plan)"
 status: confirmed
-confirmed: "2026-11-14 (owner, chat of the SDD review session: \"Aprovo, escrever\" for the NEED-nnn draft; \"aprovo sua ideia. importante os templates e escopos bem definido\" for the front chain)"
+confirmed: "2026-11-14 (owner, chat of the SDD review session: \"Aprovo, escrever\" for the NEED-nnn draft; \"aprovo sua ideia. importante os templates e escopos bem definido\" for the front chain; \"ok, aprovo\" for sdd-check as a tool)"
 issue: "#231"
 pr: "#232"
 ---
@@ -35,8 +35,9 @@ file over an issue for the entry.
 
 ## Change
 
-The chain becomes `sdd-intake` → `sdd-specify` → `sdd-clarify` → `sdd-check` → `sdd-plan` → `sdd-tasks` → ... Each step
-owns one artifact and one status move: the NEED (business), the REQs (functional), the FEAT (technical).
+The chain becomes `sdd-intake` → `sdd-specify` → `sdd-clarify` → `sdd-plan` → `sdd-tasks` → `sdd-to-card` →
+`sdd-implement` → `review`. Each step owns one artifact and one status move: the NEED (business), the REQs (functional),
+the FEAT (technical). `sdd-check` leaves the chain and becomes the read-only tool that clarify and plan call.
 
 - `plugins/guardrails/templates/spec-need.md`: the `NEED-nnn` template (verbatim Request, Problem / value, Desired
   outcome, Situations, Scope, Out of scope, Constraints, Evidence, Triage with type, artifacts touched, route, size,
@@ -56,11 +57,14 @@ owns one artifact and one status move: the NEED (business), the REQs (functional
 - `sdd-journey` is removed as a skill; its rules live in `sdd-clarify/references/journeys.md`. `sdd-triage`, added
   earlier on this branch, is folded into `sdd-specify`. A consumer that vendors skills keeps its old `sdd-journey` copy
   until its resync.
-- `plugins/guardrails/skills/sdd-check/`: two modes. Functional (`NEED-nnn`, blocks `refined`): C1, C2, C4, C5, C6, the
-  journey links and Q1–Q7. Technical (`FEAT-nnn`, blocks `sdd-tasks`): C3, C7–C10 and Q8–Q11.
+- `plugins/guardrails/skills/sdd-check/`: no longer a numbered step but a tool, still user and model invocable for audits
+  (`all`). Functional scope (`NEED-nnn`, called by `sdd-clarify`, blocks `refined`): C1, C2, C4, C5, C6, the new C11 (a
+  REQ states how instead of what: algorithm, message, table, framework; medium; it enforces `req-scope.md`), the journey
+  links and Q1–Q7. Full scope (`FEAT-nnn`, called by `sdd-plan`, blocks `planned`): the functional items again plus C3,
+  C7–C10 and Q8–Q11.
 - `plugins/guardrails/skills/sdd-plan/`: starts at a `refined` NEED and creates the FEAT, one delivery: the REQs it
   implements on both sides, technical acceptance criteria that cite the REQs they prove, then the Plan and technical
-  decisions; `planned` after a clean technical check. `sdd-tasks` notes that criteria cite REQs.
+  decisions; `planned` after a clean full-scope check. `sdd-tasks` notes that criteria cite REQs.
 - Templates: `spec-requirement-functional.md` and `spec-requirement-non-functional.md` gain `status`
   (`proposed|approved|retired`, absent = approved), `source: NEED-nnn S<n>`, a one-sentence Statement with a Values table
   (no algorithm), counterexamples in Verification and a `## History`. `spec-feature.md` is created by `sdd-plan`: one
@@ -71,7 +75,7 @@ owns one artifact and one status move: the NEED (business), the REQs (functional
   prefix) and accepts a REQ with no FEAT when a NEED lists it. `spec_trace.py` has no such rule and is unchanged.
   `test_check_spec.py` adds `NeedTest` (13 tests) and `DecisionKindsTest.test_need_prefix_is_reserved`, each in full and
   structural mode.
-- Text: `sdd-process.md` (entry, flow table, NEED/REQ/FEAT statuses, journeys inside clarify and check),
+- Text: `sdd-process.md` (entry, chain, flow table with `sdd-check` as a tool in place of step 3, NEED/REQ/FEAT statuses),
   `rules/spec.md` (templates, ids, link rule, NEED provenance, Request language), `sdd-constitution` and
   `spec-index.md` (`needs/`, Needs index), `init-spec.sh`, `sync-project.sh` (copies `need.schema.json`),
   `sync-profiles.txt`, `check_kit.py` (`spec-need` schema map), `platforms/ci/README.md`, `docs/projects.md`, `INDEX.md`.
@@ -99,3 +103,5 @@ Results are in the PR body.
 - 2026-11-14: front chain (owner, chat: "sim só no REQ, concordo"; "aprovo sua ideia. importante os templates e escopos
   bem definido"): triage folds into `sdd-specify` with a `specified` status, `sdd-clarify` writes the REQs, journeys
   move inside clarify and check, `sdd-plan` creates the FEAT, REQ status and REQ-before-FEAT.
+- 2026-11-14: `sdd-check` becomes a tool that `sdd-clarify` (functional scope) and `sdd-plan` (full scope) call, and
+  gains C11 for a REQ that states how instead of what (owner, chat: "ok, aprovo").

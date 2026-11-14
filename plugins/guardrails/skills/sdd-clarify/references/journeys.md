@@ -10,7 +10,7 @@ Only for a project that keeps `docs/spec/journeys/`. A journey is one user-visib
 ## When
 
 - `sdd-clarify` updates a journey when a NEED's Situations add, change, reorder or remove a step of a flow, and creates `docs/spec/journeys/J-NN.md` for a new flow. A flow documented without a product change enters as its own NEED.
-- `sdd-check` (functional mode) runs the matrix check below; a failure blocks `refined`.
+- `sdd-check` runs the matrix check below in its functional and full scopes; a failure blocks `refined` or `planned`.
 
 ## Write
 

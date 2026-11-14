@@ -9,6 +9,8 @@ Adapted from [github/spec-kit](https://github.com/github/spec-kit) as repository
 
 Entry: every request (idea, need, improvement, problem) is recorded by `sdd-intake` as a `NEED-nnn`. `sdd-specify` decides its type, route and priority: `new`, `improvement`, `platform` and `decision` go on to refinement, a `fix` of behavior an artifact already states and a `content`-only change are routed without it. The NEED (business) becomes REQs (functional, `sdd-clarify`), then a FEAT (technical, `sdd-plan`). A vague idea is stress-tested with `/grilling`, a feel question (motion, camera, feedback, UI) gets an `sdd-spike`, whose report becomes the NEED's evidence and whose branch never merges. A new project or new principles start with `sdd-constitution`.
 
+The chain is intake → specify → clarify → plan → tasks → to-card → implement → review. `sdd-check` is not a step: it is the read-only tool that `sdd-clarify` calls in its functional scope (blocks `refined`) and `sdd-plan` in its full scope (the functional items again plus the technical ones, blocks `planned`); anyone may run it as an audit (`all`).
+
 ## Flow
 
 Repeat `implement → review` per issue until READY. Run `to-card` after `tasks` to cut one issue per task row (wave order) and after delivery to close; `implement` runs in one worktree per issue and opens one PR per issue, which the architect reviews before merge.
@@ -19,7 +21,7 @@ Repeat `implement → review` per issue until READY. Run `to-card` after `tasks`
 | entry | `sdd-intake` | request | NEED proposed |
 | 1 | `sdd-specify` | proposed NEED; later the triaged one | decide: triaged, or closed; describe: specified |
 | 2 | `sdd-clarify` | specified NEED | REQs (new, amended), journeys, product decisions; NEED refined |
-| 3 | `sdd-check` | NEED (functional) or FEAT (technical) | read-only report that blocks refined or tasks |
+| tool (was 3) | `sdd-check` | called by clarify (NEED, functional) and plan (FEAT, full); `all` for audits | read-only report that blocks refined or planned |
 | 4 | `sdd-plan` | refined NEED | FEAT with technical criteria, Plan + decisions; planned |
 | 5 | `sdd-tasks` | Plan | ordered task rows |
 | 6 | `sdd-implement` | one task issue | code/tests/docs; PR per issue |

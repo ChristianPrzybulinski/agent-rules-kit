@@ -14,7 +14,7 @@ created: "YYYY-MM-DD"
 updated: "YYYY-MM-DD"
 ---
 <!-- Created by sdd-plan from a refined NEED: a FEAT is one delivery, the technical package that implements approved REQs.
-     status: proposed while sdd-plan drafts it, planned after a clean technical sdd-check; in-progress, validated and
+     status: proposed while sdd-plan drafts it, planned after a clean full-scope sdd-check; in-progress, validated and
      delivered are derived from GitHub by tooling; clarified remains only on FEATs written before the NEED flow. Never
      edit status by hand. -->
 
