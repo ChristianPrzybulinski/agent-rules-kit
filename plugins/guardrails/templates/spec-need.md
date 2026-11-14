@@ -30,11 +30,12 @@ updated: "YYYY-MM-DD"
 <!-- Capture: one line. Triage: complete. For whom, what problem, why now. No solution. -->
 
 ## Desired outcome
-<!-- Triage. What the actor can do or see when this is done, and the sign that it worked. -->
+<!-- Refinement start (sdd-specify), not triage. What the actor can do or see when this is done, and the sign that
+     it worked. -->
 
 ## Situations
-<!-- Triage. Plain-language cases, at least one that goes right and one that goes wrong. Each becomes one or more
-     REQs in refinement. -->
+<!-- Refinement start (sdd-specify), not triage. Plain-language cases, at least one that goes right and one that goes
+     wrong. Each becomes one or more REQs. -->
 
 | # | Who | When | Expects |
 |---|---|---|---|
@@ -42,29 +43,34 @@ updated: "YYYY-MM-DD"
 | S2 | [actor] | [something goes wrong] | [visible result] |
 
 ## Scope
+<!-- Refinement start (sdd-specify), not triage. -->
 
 - [included]
 
 ## Out of scope
+<!-- Refinement start (sdd-specify), not triage. -->
 
 - [excluded, and where it goes: another NEED, later, never]
 
 ## Constraints
+<!-- Refinement start (sdd-specify), not triage. -->
 
 - [deadline, budget, licence, platform, must-not]
 
 ## Evidence
-<!-- [FACT] items with their source: report, screenshot, reference, measurement. Bulky data goes in NEED-000-data/
-     beside this file. -->
+<!-- Any step. [FACT] items with their source: report, screenshot, reference, measurement. Bulky data goes in
+     NEED-000-data/ beside this file. -->
 
 ## Triage
+<!-- sdd-triage. -->
 
 - Type: [type], because [one line]
 - Existing artifacts touched: [REQ-F-nnn, J-NN, FEAT-nnn with path] or —
 - Route: [refine | fix row citing REQ-x | data PR | decision only | split into NEED-a, NEED-b | merge into NEED-x |
   reject: reason | park]
 - Size: [S | M | L] (no duration without a measured run)
-- Confirmed by: [who decides product], YYYY-MM-DD
+- Priority: [now | next | later] (later = parked)
+- Confirmed by: [product name], YYYY-MM-DD | agent (fix|duplicate), product reviews later
 
 ## Open questions
 

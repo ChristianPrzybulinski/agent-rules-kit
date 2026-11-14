@@ -19,7 +19,7 @@ Process: `../sdd-constitution/references/sdd-process.md`. Templates: `../../temp
 
 ## 1. Qualify the input
 
-Start from a `NEED-nnn` with `status: triaged` and route `refine` (skill `sdd-intake`); a request with no NEED goes to `sdd-intake` first. Its Problem / value, Situations, Scope and Constraints are the input; implementation is still not chosen.
+Start from a `NEED-nnn` with `status: triaged` and route `refine` (skill `sdd-triage`); a request with no NEED goes to `sdd-intake` first. With product, first fill the NEED's Desired outcome, Situations (at least one that goes right and one that goes wrong), Scope, Out of scope, Constraints and Evidence; they are the input, and implementation is still not chosen.
 
 ## 2. Select identifiers
 

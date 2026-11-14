@@ -27,13 +27,14 @@
 | `sdd-clarify` | user | SDD step 2 — resolve ambiguous FEAT criteria. Use when a FEAT has open questions or vague terms. Not for gap checks (skill sdd-check). |
 | `sdd-constitution` | user | SDD step 0 — project constitution and spec index. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
 | `sdd-implement` | user | SDD step 6 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill review). |
-| `sdd-intake` | user, model | SDD entry — record an idea, need, improvement or problem as a NEED-nnn and route it. Use when a request arrives. Not for writing REQs (skill sdd-specify). |
+| `sdd-intake` | user, model | SDD entry — record an idea, need, improvement or problem as a NEED-nnn. Use when a request arrives. Not for classifying it (skill sdd-triage). |
 | `sdd-journey` | user, model | Journey layer — J-NN steps cite REQ ids, tasks and tests. Use when writing or changing a J-NN journey. Not for FEATs (skill sdd-specify). |
 | `sdd-plan` | user | SDD step 4 — technical FEAT plan and decisions. Use when clarification and check are complete. Not for task breakdown (skill sdd-tasks). |
 | `sdd-specify` | user | SDD step 1 — feature and requirement specification. Use when a described feature needs FEAT/REQ criteria. Not for open questions (skill sdd-clarify). |
 | `sdd-spike` | user | Prototype lane for feel. Use when motion, camera, feedback or UI must be felt on screen before a FEAT exists. Not for specs (skill sdd-specify). |
 | `sdd-tasks` | user | SDD step 5 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement). |
 | `sdd-to-card` | user | SDD step 8 — one GitHub issue per task row plus the FEAT card. Use when cutting issues or closing a FEAT. Not for PR operations (skill git). |
+| `sdd-triage` | user, model | SDD triage — classify a NEED-nnn, set its priority and route it. Use when a NEED is proposed. Not for describing scope (skill sdd-specify). |
 | `security` | user, model | Security design and CVE, secret and endpoint scans. Use when changing a trust boundary or preparing a sensitive PR or release. Not for verdicts (skill review). |
 | `session` | user, model | Session start, closeout and handoff. Use when starting, switching topic, closing, handing off or a second human joins. Not for parallelism (skill parallelize). |
 | `testing` | user, model | Test policy. Use when choosing or reviewing tests, setting coverage/mutation gates or before refactoring legacy or ported code. Not for verdicts (skill review). |

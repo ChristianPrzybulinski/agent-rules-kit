@@ -4,7 +4,7 @@ title: "Every request enters as a NEED-nnn intake record and is routed by type"
 status: confirmed
 confirmed: "2026-11-14 (owner, chat of the SDD review session: \"Aprovo, escrever\" for the NEED-nnn intake draft)"
 issue: "#231"
-pr: ""
+pr: "#232"
 ---
 
 # KIT-066 — Every request enters as a NEED-nnn intake record and is routed by type
@@ -33,9 +33,12 @@ GitHub, which it does not need today. The owner rejected that option for this re
 - `plugins/guardrails/templates/spec-need.md`: the `NEED-nnn` template. The sections are the verbatim Request (date and
   channel), Problem / value, Desired outcome, Situations, Scope, Out of scope, Constraints, Evidence, Triage, Open
   questions, Refinement and History. Situations are plain-language cases, at least one right and one wrong, and each
-  becomes one or more REQs. Triage gives type, artifacts touched, route, size and who confirmed. The frontmatter carries
+  becomes one or more REQs. Triage gives type, artifacts touched, route, size, priority and who confirmed (product, or the agent for a fix or a
+  duplicate). The frontmatter carries
   `type`, `status`, `origin`, `parent` and the forward links `requirements`, `journeys`, `decisions`, `debts` and
-  `features`. A comment states which sections capture fills and which triage fills.
+  `features`. Comments state who fills each section: capture fills the Request and one line of Problem / value, triage completes
+  Problem / value and the Triage block, and `sdd-specify` fills Desired outcome, Situations, Scope, Out of scope and
+  Constraints at the start of refinement. Evidence is filled at any step.
 - `platforms/ci/schemas/need.schema.json`: required `id`, `title`, `type`, `status`, `origin` and `created`. `type` is
   `new|improvement|fix|content|platform|decision`. `status` is
   `proposed|triaged|refined|delivered|rejected|merged|routed|parked`. Each link list has its id pattern.
@@ -46,18 +49,31 @@ GitHub, which it does not need today. The owner rejected that option for this re
   `delivered`. `NEED` joins the reserved decision prefixes.
 - `platforms/ci/validations/test_check_spec.py`: `NeedTest` (9 tests, each in full and structural mode), plus
   `DecisionKindsTest.test_need_prefix_is_reserved`.
-- `plugins/guardrails/skills/sdd-intake/` (new skill, user and model, Codex implicit invocation allowed): capture,
-  triage, hand-off and validation. In triage the first matching type wins. A `fix` needs an artifact that already states
-  the right behavior, otherwise it is an improvement. `fix` and `content` close `routed`. Duplicates close `merged`,
-  ideas for later `parked` and refused ones `rejected` with the reason. Product confirms type and route. The agent
-  opens with a verdict and asks one question at a time. `/grilling` and `sdd-spike` are tools inside triage. No topic
-  owner existed: `sdd-specify` writes FEAT/REQ criteria, and routing also ends in fix rows, data changes and decisions
-  (KIT-039).
-- `plugins/guardrails/skills/sdd-constitution/references/sdd-process.md`: one entry (`sdd-intake`) replaces the five.
-  The flow table gains the entry row. Identifiers, id blocks, the NEED status flow, when `refined` and `delivered`
+- `plugins/guardrails/skills/sdd-intake/` (new skill, user and model, Codex implicit invocation allowed) records only.
+  It takes the next id or the reserved block and writes the file from the template, keeping every section. It fills the
+  title, a provisional type, `origin`, the verbatim Request and one line of Problem / value, with `—` elsewhere. It
+  splits a request holding several needs (`parent`), adds a History line and validates, ending at `proposed`. It never
+  judges and reads only `needs/` and `spec.md`.
+- `plugins/guardrails/skills/sdd-triage/` (new skill, user and model, Codex implicit invocation allowed) decides only.
+  It reads `spec.md`, the touched REQs, journeys and FEATs, and `needs/` for a duplicate. It classifies by the type
+  table; first match wins, and a `fix` needs an artifact that already states the right behavior, otherwise it is an
+  improvement. It completes Problem / value and sets Size (S|M|L, no duration), Priority (`now`, `next`, `later`;
+  `later` = `parked`) and Route, then sets `triaged` or closes `routed`, `merged`, `rejected` or `parked`. It gives a
+  verdict with evidence, then asks one question at a time; `/grilling` and `sdd-spike` are tools inside it.
+  - Product confirms `new`, `improvement`, `platform` and `decision`, a `content` value, a rejection and a park.
+  - The agent routes a `fix` that cites the violated artifact's path and a duplicate that names the NEED kept,
+    recording `Confirmed by: agent (fix|duplicate), product reviews later`.
+  - Triage never fills Desired outcome, Situations, Scope, Out of scope or Constraints.
+  - Owner-approved split (chat, 2026-11-14: "ok concordo com os ajustes", "sim 2 skills"): capture and judgment are
+    different acts at different times. No topic owner existed: `sdd-specify` writes FEAT/REQ criteria, and triage
+    also ends in fix rows, data changes and decisions (KIT-039).
+- `plugins/guardrails/skills/sdd-constitution/references/sdd-process.md`: one entry (`sdd-intake`, then `sdd-triage`)
+  replaces the five, and the flow table gains the `entry` and `triage` rows. Identifiers, id blocks, the NEED status flow, when `refined` and `delivered`
   apply, spec-first for NEED files and the `needs/` folder are written in.
-- `plugins/guardrails/skills/sdd-specify/SKILL.md`: starts from a triaged NEED with route `refine`, and writes its FEAT
-  and REQ ids, the Refinement rows and a History line back into the NEED.
+- `plugins/guardrails/skills/sdd-specify/SKILL.md`: starts from a triaged NEED with route `refine`. With product, it
+  first fills the NEED's Desired outcome, Situations (at least one that goes right and one that goes wrong), Scope, Out
+  of scope, Constraints and Evidence. It then writes FEAT/REQs as before and writes their ids, the Refinement rows and
+  a History line back into the NEED.
 - `plugins/guardrails/skills/sdd-clarify/SKILL.md`: sets the NEED `refined` when all its FEATs are clarified and its
   decision records approved.
 - `plugins/guardrails/skills/sdd-constitution/SKILL.md` and `plugins/guardrails/templates/spec-index.md`: a `needs/`
@@ -65,7 +81,7 @@ GitHub, which it does not need today. The owner rejected that option for this re
 - `plugins/guardrails/rules/spec.md`: `spec-need.md` and `NEED-nnn` in the lists. New line: never list a NEED in a REQ,
   FEAT, decision or debt. Only a NEED's verbatim Request keeps the asker's language.
 - `platforms/kits/sdd/init-spec.sh` creates `needs/`. `platforms/tools/sync-project.sh` copies `need.schema.json`.
-  `platforms/tools/sync-profiles.txt` gives `sdd-intake` to the `docs` profile. `check_kit.py` maps `spec-need` to its
+  `platforms/tools/sync-profiles.txt` gives `sdd-intake` and `sdd-triage` to the `docs` profile. `check_kit.py` maps `spec-need` to its
   schema. `platforms/ci/README.md` and `docs/projects.md` name the schema, folder and id. `plugins/guardrails/INDEX.md`
   is regenerated.
 
@@ -88,3 +104,5 @@ the 10 new tests fail. The other 2 assert that valid NEEDs pass, and the old che
 ## History
 
 - 2026-11-14: confirmed (owner, chat).
+- 2026-11-14: entry split into `sdd-intake` and `sdd-triage`, priority added (owner, chat: "ok concordo com os ajustes",
+  "sim 2 skills").
