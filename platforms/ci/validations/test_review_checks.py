@@ -233,8 +233,8 @@ class ToolCase(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_tool(self, *argv, path_prefix=None, repo=None, cwd=None):
-        env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    def run_tool(self, *argv, path_prefix=None, repo=None, cwd=None, env_extra=None):
+        env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", **(env_extra or {})}
         if path_prefix:
             env["PATH"] = f"{path_prefix}{os.pathsep}{env['PATH']}"
         done = subprocess.run([sys.executable, str(TOOL), "--repo", repo or str(self.repo.root), *argv],
@@ -520,6 +520,18 @@ class ScopeTest(ToolCase):
         loose = Path(self.tmp.name) / "loose.json"
         loose.write_text(json.dumps({"generated_neighbours": [".bak"]}), encoding="utf-8")
         self.assert_base_gates_apply(*self.loosened_scope(str(loose)))
+
+    def test_a_move_out_of_a_protected_folder_fails_scope_and_names_the_old_path(self):
+        base = self.repo.commit("core", **{"protected__core.py": CALC})
+        (self.repo.root / "allowed").mkdir()
+        (self.repo.root / "protected/core.py").rename(self.repo.root / "allowed/core.py")
+        head = self.repo.commit("move core")
+        gates = Path(self.tmp.name) / "gates.json"
+        gates.write_text(json.dumps({"protected_paths": {"core-change": ["protected/**"]}}), encoding="utf-8")
+        code, out = self.run_tool("scope", "--base", base, "--head", head, "--files", "allowed/**", "--gates", str(gates))
+        self.assertEqual(code, 1, out)
+        self.assertIn("protected/core.py is outside Files", out)
+        self.assertIn("protected: protected/core.py needs label core-change", out)
 
     def test_widened_existing_test_path_passes(self):
         head = self.repo.commit("sub", **{"calc.py": CALC_SUB,
@@ -913,6 +925,34 @@ class RulesFromBaseTest(ToolCase):
                     self.assertEqual(code, 2, out)
 
 
+class RulesErrorTest(ToolCase):
+    """A rules file base holds but the tool cannot read is a usage error (exit 2), never a crash read as a finding."""
+    CASES = {  # case: rules file, its text at base, the command that reads it
+        "gates-not-json": ("gates.json", "{bad", "scope"),
+        "gates-not-an-object": ("gates.json", "[]", "scope"),
+        "review-bad-pattern": ("REVIEW.md", "## Docs\n- Broken. <!-- grep: ( -->\n", "dod"),
+        "patterns-not-json": ("patterns.json", "{bad", "proof"),
+        "patterns-stack-not-an-object": ("patterns.json", '{"python": []}', "proof"),
+    }
+
+    def test_a_malformed_base_rules_file_is_a_usage_error(self):
+        body = Path(self.tmp.name) / "body.md"
+        body.write_text(BODY.format(proof="python3 -c \"print('ok')\"", session="019a2b3c-4d5e"), encoding="utf-8")
+        for name, (rel, text, command) in self.CASES.items():
+            with self.subTest(case=name):
+                self.repo = Repo(Path(self.tmp.name) / name)
+                base = self.repo.commit("base", **{"calc.py": CALC, rel: text})
+                head = self.repo.commit("head", **{"calc.py": CALC_SUB})
+                path = str(self.repo.root / rel)
+                argv = {"scope": ["scope", "--base", base, "--head", head, "--files", "calc.py", "--gates", path],
+                        "dod": ["dod", "--base", base, "--head", head, "--review", path],
+                        "proof": ["proof", "--body", str(body), "--run", "--allow", "python3", "--base", base,
+                                  "--patterns", path, "--cwd", str(self.repo.root)]}[command]
+                code, out = self.run_tool(*argv)
+                self.assertNotIn("Traceback", out)
+                self.assertEqual(code, 2, out)
+
+
 class DiffVisibilityTest(ToolCase):
     """The head cannot decide what the checks see in the diff: an unusual file name, a diff attribute or a deletion."""
 
@@ -976,6 +1016,83 @@ class DiffVisibilityTest(ToolCase):
         code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review())
         self.assertEqual(code, 0, out)
         self.assertIn("dod: OK", out)
+
+    def test_moving_a_test_file_out_of_the_test_globs_drops_its_assertions(self):
+        (self.repo.root / "attic").mkdir()
+        (self.repo.root / "tests/test_add.py").rename(self.repo.root / "attic/add_cases.py")
+        head = self.repo.commit("move the test away")
+        code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review())
+        self.assertEqual(code, 1, out)
+        self.assertIn("tests/test_add.py: 2 assertion lines removed, 0 added", out)
+
+    SEPARATORS = {"CR": "\r", "FF": "\x0c", "U+2028": "\u2028"}
+    INJECTION = "x = 2  # {sep}diff --git a/n b/n"
+
+    def injected(self, name, **head_files):
+        """A fresh repository whose head adds a line holding a line separator then a fake diff header."""
+        self.repo = Repo(Path(self.tmp.name) / name)
+        base = self.repo.commit("base", **{"calc.py": CALC, "tests__test_add.py": TEST_ADD})
+        return base, self.repo.commit("injected", **head_files)
+
+    def test_a_line_separator_inside_an_added_line_hides_no_todo(self):
+        for name, sep in self.SEPARATORS.items():
+            with self.subTest(separator=name):
+                base, head = self.injected(f"todo-{name}", **{"calc.py": CALC_SUB + "\n" + self.INJECTION.format(sep=sep)
+                                                               + "\n# TODO: handle overflow\n"})
+                code, out = self.run_tool("dod", "--base", base, "--head", head, "--review", self.review())
+                self.assertEqual(code, 1, out)
+                self.assertIn("No TODO left behind", out)
+
+    def test_a_line_separator_inside_an_added_line_hides_no_dropped_assertion(self):
+        for name, sep in self.SEPARATORS.items():
+            with self.subTest(separator=name):
+                test = TEST_ADD.replace("import calc\n", "import calc\n" + self.INJECTION.format(sep=sep) + "\n")
+                test = test.replace("        self.assertEqual(calc.add(0, 0), 0)\n", "")
+                base, head = self.injected(f"assert-{name}", **{"tests__test_add.py": test})
+                code, out = self.run_tool("dod", "--base", base, "--head", head, "--review", self.review())
+                self.assertEqual(code, 1, out)
+                self.assertIn("tests/test_add.py: 1 assertion lines removed, 0 added", out)
+
+    def test_a_line_separator_inside_an_added_line_hides_no_widened_assertion_from_scope(self):
+        body = Path(self.tmp.name) / "body.md"
+        body.write_text("## Files widened\n\n- `tests/test_add.py`: imports calc\n", encoding="utf-8")
+        for name, sep in self.SEPARATORS.items():
+            with self.subTest(separator=name):
+                test = TEST_ADD.replace("import calc\n", "import calc\n" + self.INJECTION.format(sep=sep) + "\n")
+                base, head = self.injected(f"scope-{name}", **{"tests__test_add.py": test.replace("(0, 0), 0", "(0, 0), 1")})
+                code, out = self.run_tool("scope", "--base", base, "--head", head, "--files", "calc.py",
+                                          "--body", str(body))
+                self.assertEqual(code, 1, out)
+                self.assertIn("widened test changes an assertion", out)
+
+    def test_a_todo_in_a_cr_only_file_fails_dod(self):
+        """Legacy files end lines with CR only (Stratics' client `.ls`): git sees one line, the TODO is in it."""
+        (self.repo.root / "legacy.ls").write_bytes(b"first\rsecond\r# TODO: decide the default\r")
+        head = self.repo.commit("legacy file")
+        code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review())
+        self.assertEqual(code, 1, out)
+        self.assertIn("Docs: legacy.ls:1:", out)
+
+    def test_a_reviewer_s_diff_prefix_config_hides_nothing(self):
+        body = Path(self.tmp.name) / "body.md"
+        body.write_text("## Files widened\n\n- `tests/test_add.py`: imports calc\n", encoding="utf-8")
+        head = self.repo.commit("todo and a changed assertion", **{
+            "calc.py": CALC_SUB + "\n# TODO: handle overflow\n",
+            "tests__test_add.py": TEST_ADD.replace("(0, 0), 0", "(0, 0), 1")})
+        for name, config in (("noprefix", "[diff]\n\tnoprefix = true\n"),
+                             ("prefixes", "[diff]\n\tsrcPrefix = old/\n\tdstPrefix = new/\n")):
+            with self.subTest(config=name):
+                global_config = Path(self.tmp.name) / f"{name}.gitconfig"
+                global_config.write_text(config, encoding="utf-8")
+                env = {"GIT_CONFIG_GLOBAL": str(global_config)}
+                code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review(),
+                                          env_extra=env)
+                self.assertEqual(code, 1, out)
+                self.assertIn("No TODO left behind", out)
+                code, out = self.run_tool("scope", "--base", self.base, "--head", head, "--files", "calc.py",
+                                          "--body", str(body), env_extra=env)
+                self.assertEqual(code, 1, out)
+                self.assertIn("widened test changes an assertion", out)
 
 
 class DiffDecodingTest(ToolCase):
