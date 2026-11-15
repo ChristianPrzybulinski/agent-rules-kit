@@ -1,6 +1,6 @@
 ---
 name: sdd-constitution
-description: SDD step 0 — project constitution and spec index. Use when starting a project or changing principles. Not for one feature (skill sdd-specify).
+description: SDD step 0 — constitution, spec index, parameters, REVIEW.md. Use when starting a project or changing principles. Not for one feature (skill sdd-specify).
 argument-hint: "[product description and stack, or 'review']"
 triggers:
   - user
@@ -15,31 +15,46 @@ allowed-tools:
 
 # SDD 0 — Constitution
 
-Process: `references/sdd-process.md`. Templates: `../../templates/spec-index.md` and `../../templates/project-agents-*.md`.
+Process: `references/sdd-process.md`. Parameters: `references/sdd-parameters.md`. Templates: `../../templates/spec-index.md` and `../../templates/project-agents-*.md`.
 
 ## 1. Inspect before creating
 
-Read the README, repository structure and stack manifests. If `AGENTS.md` or `docs/spec/` exists, review and propose a diff instead of overwriting it. Ask for missing product choices such as language, engine or database.
+Read the README, repository structure and stack manifests. If `AGENTS.md`, `REVIEW.md` or `docs/spec/` exists, review and propose a diff instead of overwriting it. Ask for missing product choices such as language, engine or database.
 
 ## 2. Write the project constitution
 
 - Select the closest project template and replace placeholders only with verified versions, commands and paths.
-- Keep repository `AGENTS.md` within 150 lines: Stack, Commands, Structure, condition→action Patterns, Always/Ask/Never boundaries, Sessions and pointers to detail.
+- Keep repository `AGENTS.md` within 150 lines: Stack, Commands, Structure, condition→action Patterns, Always/Ask/Never boundaries, Sessions and pointers to detail. The path-rule blocks `sync-project.sh` generates in it do not count.
 - Add one line to `AGENTS.md` naming the spec regimes: which `docs/spec` artifacts are spec-anchored (maintained) and that FEAT/task status is derived, never typed.
-- Do not copy the kit's global rules into the project.
+- Do not copy the kit's global rules or the `sdd-*` steps into the project: the project keeps its parameters, its own patterns and the exceptions it lists.
 
 ## 3. Initialize the spec
 
-Create `docs/spec/spec.md` with a three-line vision, explicit out-of-scope, glossary and empty NEED/FEAT/REQ/DEC/DEBT indexes. Create `needs/`, `features/`, `requirements/{functional,non-functional}/`, `decisions/` and `debts/`. Decision ids are `DEC-nnn`; when the project numbers decisions per kind, declare the kinds once in `spec.md` (`decision_kinds: {tech: TEC, product: PRD}`) and `check_spec.py` enforces kind and prefix.
+Create `docs/spec/spec.md` from the template with a three-line vision, explicit out-of-scope and empty NEED/FEAT/REQ/DEC/DEBT indexes. Create `needs/`, `features/`, `requirements/{functional,non-functional}/`, `decisions/` and `debts/`. Decision ids are `DEC-nnn`; when the project numbers decisions per kind, declare the kinds once in `spec.md` (`decision_kinds: {tech: TEC, product: PRD}`) and `check_spec.py` enforces kind and prefix.
 
 Declare the two regimes in `spec.md` (see `references/sdd-process.md`, Regimes): spec-anchored for contracts, decisions, requirements, journeys and the index; spec-first for NEED files, FEAT bodies and task tables.
 
-## 4. Record existing decisions
+- Glossary: one row per domain term the product already uses (README, code folder and module names, legacy docs), one sentence each with its source. Process terms (NEED, REQ, FEAT) stay out: the kit defines them. `sdd-clarify` later adds every domain term a REQ uses.
+- Architecture: the base architecture in one line, with the decision that records it (§ 6), and one row per area with its rooted paths and what it holds. Areas are the parts a change is counted against: `sdd-tasks` sizes a task row by the areas it touches, `sdd-plan` places the design in them. Take them from the repository's top folders and modules, not from a target layout.
+
+## 4. Set the process parameters
+
+Write the `sdd:` block in the `spec.md` frontmatter; the template carries it with the kit defaults, and `references/sdd-parameters.md` says what each key changes and which step reads it. Change a key only on a fact or a product choice: `tracker: none` when the project cuts no issues, `journeys: true` when it keeps journeys, `rule_paths` when its folders differ from the `--profile` folders, `protected_paths` for the paths its review gate labels. Keep every other key at its default and say so in one line. Then run `check_spec.py --params` and read the resolved block back to product.
+
+## 5. Write the review criteria
+
+Copy the kit's `platforms/kits/github/REVIEW.md` to `REVIEW.md` at the repository root: the project's quality definition of done, read by every reviewer and by hosted Claude Code Review. Each criterion line ends with the skill section that holds its rule.
+
+- Remove each line a project gate already enforces (CI job, hook, PR gate script, linter, spec validator), and name that gate under "Do not report", so a reviewer spends no finding on it.
+- Add a project criterion only with the skill section or the project decision that holds its rule; a line with neither waits for one.
+- Keep the five headings (Scope, Correctness, Architecture, Security, Docs), so findings group the same way in every project.
+
+## 6. Record existing decisions
 
 For an already-approved product decision, create one decision record (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`) with `status: approved` and its source. Unknown numeric targets remain hypotheses with a measurement method.
 
-## 5. Validate
+## 7. Validate
 
-Run the project spec validator and one real build/test command. Mark only observed commands and versions as facts.
+Run the project spec validator, `check_spec.py --params`, `platforms/tools/sync-project.sh --check` from the kit and one real build/test command. Mark only observed commands and versions as facts.
 
-Done when: project principles change behavior, `spec.md` validates, required folders exist, and no version, command, path or target was invented.
+Done when: project principles change behavior, `spec.md` validates with its `sdd:` block, the glossary and architecture areas are filled, `REVIEW.md` has no line a gate enforces, required folders exist, and no version, command, path or target was invented.
