@@ -106,7 +106,8 @@ The owner widened this record on 2026-11-15 (chat, relayed by the coordinator, "
        Godot version.
 2. **`timeout-minutes` on every job**, in both folders. The rule is 3 × the longest measured green run of the job,
    rounded up to 5 minutes, with a 5-minute floor; GitHub's 360-minute job limit for hosted runners is the ceiling. The
-   factor 3 covers the shared-runner spread measured here: the unit-test step took 277 s and 354 s on the same tree.
+   factor 3 covers the shared-runner spread measured here: the unit-test step took 277 s, 354 s and 433 s on nearly the
+   same tree.
    The table below lists each value and its basis.
 3. **A weekly CodeQL `schedule`** (`23 5 * * 1`, Mondays 05:23 UTC) beside `pull_request` and `push`. It reruns new
    queries on a quiet `main`. GitHub's "Events that trigger workflows" page says scheduled workflows run on the latest
@@ -129,7 +130,7 @@ The owner widened this record on 2026-11-15 (chat, relayed by the coordinator, "
 
 | Job | Timeout (min) | Longest measured green run | Basis |
 |---|---|---|---|
-| `ci.yml` `ci` | 20 | 396 s | PR #272 run 43764113002; dispatches 360 s and 368 s |
+| `ci.yml` `ci` | 30 | 560 s | dispatch run 43766325153 (unit tests 433 s); earlier runs 360 s to 396 s |
 | `ci.yml` `workflow-lint` | 5 | 8 s | dispatch run 43766325153 |
 | `gitleaks.yml` `gitleaks` | 5 | 10 s | full-history dispatch run 43762692739 |
 | `codeql.yml` `codeql (python)`, `codeql (actions)` | 5 | 55 s | PR #272 run 43762637246 |

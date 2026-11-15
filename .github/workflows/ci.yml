@@ -24,7 +24,7 @@ jobs:
   check:
     name: ci  # the required check context (KIT-076): a rename leaves the ruleset waiting for "ci" forever
     runs-on: ubuntu-latest
-    timeout-minutes: 20  # KIT-076: 3 × the longest measured green run (396 s), rounded up to 5 min
+    timeout-minutes: 30  # KIT-076: 3 × the longest measured green run (560 s), rounded up to 5 min
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
