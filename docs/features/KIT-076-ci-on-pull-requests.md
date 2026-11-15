@@ -130,8 +130,8 @@ The owner widened this record on 2026-11-15 (chat, relayed by the coordinator, "
 
 | Job | Timeout (min) | Longest measured green run | Basis |
 |---|---|---|---|
-| `ci.yml` `ci` | 30 | 560 s | dispatch run 43766325153 (unit tests 433 s); earlier runs 360 s to 396 s |
-| `ci.yml` `workflow-lint` | 5 | 8 s | dispatch run 43766325153 |
+| `ci.yml` `ci` | 30 | 573 s | PR #272 run 43767721133; seven green runs from 360 s to 573 s |
+| `ci.yml` `workflow-lint` | 5 | 9 s | dispatch run 43767714175; three green runs |
 | `gitleaks.yml` `gitleaks` | 5 | 10 s | full-history dispatch run 43762692739 |
 | `codeql.yml` `codeql (python)`, `codeql (actions)` | 5 | 55 s | PR #272 run 43762637246 |
 | `release.yml` `release` | 5 | 13 s | `v12.1.0` run 43531254664 (2 green runs) |
@@ -192,40 +192,47 @@ What would prove A wrong:
 
 ## Proof
 
-Runner (`ubuntu-latest`), every run `success`, and `actions/runs/<id>/timing` reports `billable` 0 ms for each:
+Runner (`ubuntu-latest`), every run `success` and billed 0 ms (`actions/runs/<id>/timing`):
 
-- `ci.yml` dispatched on `1e6d9bf`, the shellcheck fix with the old triggers, run 43761925204:
-  - shellcheck passed in 3 s;
-  - `check.sh` passed;
-  - the unit tests ran 531 tests in 294 s, 60 skipped;
-  - `smoke.sh` and `--links` passed.
-- `ci.yml` dispatched on `9004eb6`, run 43762612774, in 368 s:
-  - the steps are pinned by SHA and shellcheck runs with `-x`;
-  - the Claude Code install and `claude plugin validate` passed;
-  - the unit tests ran 542 tests in 277 s, 63 skipped. The 3 new skips are `test_kit_workflows.GitleaksRange`, because the
-    runner has no gitleaks on `PATH`;
-  - the hook latency tests in `test_hooks_context.py` and `test_hooks_guard_compact.py` passed within their budgets on
-    the shared runner.
-- `gitleaks.yml` dispatched on `9004eb6`, run 43762692739: `gitleaks range: HEAD`, 186 commits scanned, no leaks.
-- The pull request #272 on `9004eb6`:
-  - `ci`: run 43762637190, 5 min 57 s;
-  - `gitleaks`: run 43762637237, 4 s. It logged `gitleaks range: <4f035d1>..<9004eb6>` (full SHAs) and found no leaks in 4 commits,
-    and the tarball passed `sha256sum -c`;
-  - `codeql (python)` (55 s) and `codeql (actions)` (34 s): run 43762637246;
-  - GitHub's code-scanning check `CodeQL` passed as well.
+- The shellcheck fix alone, `ci.yml` dispatched on `1e6d9bf` with the old triggers: run 43761925204, 531 tests.
+- The final shape, on `275535b`:
+  - `ci.yml` dispatch, run 43767714175: `ci` in 461 s and `workflow-lint` in 9 s. `ci` covers shellcheck `-x`, the
+    Claude Code install, `check.sh` with `claude plugin validate`, the full `unittest discover`, `smoke.sh` and
+    `--links`;
+  - the pull request #272's checks: `ci` and `workflow-lint` in run 43767721133 (573 s and 6 s), `codeql (python)`
+    and `codeql (actions)` in run 43767721003 (50 s and 36 s), and `gitleaks` in run 43767721036 (5 s). GitHub's
+    code-scanning check `CodeQL` passed as well.
+- `workflow-lint` on `2186fca`, run 43766325153: both tarballs passed `sha256sum -c`, actionlint printed nothing and
+  exited 0, and zizmor logged "completed" for each of the ten files, then "No findings to report. Good job! (18
+  suppressed)".
+- `gitleaks`:
+  - on the pull request (run 43762637237), the range was the PR's commits `4f035d1..9004eb6` (4 commits, no leaks);
+  - dispatched (run 43762692739), the range was `HEAD`: 186 commits, no leaks.
+- The hook latency tests in `test_hooks_context.py` and `test_hooks_guard_compact.py` passed within their budgets in
+  every run.
+- On the runner, 63 tests skip: 60 already skip on `main`, and the 3 `GitleaksRange` tests need gitleaks on `PATH`.
 
-Local (macOS, python3 3.9.6, shellcheck 0.11.0, gitleaks 8.30.1), all exit 0:
+Local (macOS, python3 3.9.6, shellcheck 0.11.0, gitleaks 8.30.1, zizmor 1.32.0), all exit 0:
 
 - `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`;
-- `bash platforms/tools/smoke.sh` (91 s);
-- `python3 platforms/ci/validations/check_kit.py --links`
-  (`check: OK (1 plugins, 27 skills, 6 rules, 13 templates, 14 readmes, 117 links, 56 hook cases, 14 shell scripts)`);
-- `python3 -B -m unittest discover -s platforms/ci/validations -p 'test_*.py'`: 542 tests, OK, 5 skipped;
-- the shellcheck command of `ci.yml`, with and without `-x`, and `shellcheck -x` on the three scripts from
-  `platforms/tools/`;
+- `bash platforms/tools/smoke.sh`;
+- `python3 platforms/ci/validations/check_kit.py --links`;
+- `python3 -B -m unittest platforms.ci.validations.test_kit_workflows platforms.ci.validations.test_check_kit_readmes`;
+- `python3 -B -m unittest platforms.ci.validations.test_sync_project`, the suite that reads the templates;
+- the full `unittest discover` at `9004eb6` (542 tests, OK);
+- zizmor with online audits over the ten files: no findings;
+- the shellcheck command of `ci.yml`, with and without `-x`;
 - `gitleaks git --redact --log-opts="origin/main..HEAD"`: no leaks;
 - `python3 platforms/tools/review_checks.py red --base origin/main --head HEAD --run "python3 -B -m unittest {tests}"`:
-  `red: OK — 18 of 18 failing tests are Red on base, and head passes`.
+  `red: OK — 54 of 54 failing tests are Red on base, and head passes`.
+
+Not tested:
+
+- a push to `main` and the weekly schedule; actionlint checked the cron syntax;
+- a fork's pull request;
+- `cancel-in-progress` with two pushes in flight;
+- a Dependabot run on the templates folder, which comes after the merge;
+- the template changes inside a consumer project. zizmor, actionlint and `test_sync_project` cover them in the kit.
 
 ## History
 
