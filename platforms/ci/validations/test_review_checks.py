@@ -321,6 +321,17 @@ class RedTest(StubCase):
         self.assertEqual(code, 0, out)
         self.assertIn("new-symbol (Widget)", out)
 
+    def test_a_no_test_line_quoted_in_a_failure_message_is_not_the_run_s_own(self):
+        """Dogfood on 8535425: a test of a runner quotes the inner run's `Ran 0 tests` in its assertion message."""
+        quoted = TEST_MUL_NESTED.replace('"FAILED (errors=1)\\n"', '"Ran 0 tests in 0.000s\\n\\nOK\\n"')
+        base = self.repo.commit("mul bug", **{"calc.py": CALC_MUL_BUG})
+        head = self.repo.commit("mul fix", **{"calc.py": CALC_MUL, "tests__test_mul.py": quoted})
+        code, out = self.red(head, base=base)
+        self.assertIn("Ran 0 tests", out)  # the quoted line is in the base excerpt
+        self.assertNotIn("red: ERROR", out)
+        self.assertEqual(code, 0, out)
+        self.assertIn("MulTest.test_mul: assertion", out)
+
     def test_tests_no_red_entry_covers_need_run(self):
         gates = self.gates({"red": [{"glob": "server/**/*Test.java", "cwd": "server", "command": "fakemvn {classes}"}]})
         head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
