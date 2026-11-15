@@ -957,6 +957,13 @@ class DiffVisibilityTest(ToolCase):
         self.assertIn("assertion", out)
         self.assertIn("tests/test_add.py", out)
 
+    def test_an_added_line_that_looks_like_a_file_header_hides_nothing(self):
+        """`++ x` added shows as `+++ x` in the diff: only the lines after `diff --git` are file headers."""
+        head = self.repo.commit("notes", **{"notes.md": "++ hidden\n# TODO: decide the default\n"})
+        code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review())
+        self.assertEqual(code, 1, out)
+        self.assertIn("Docs: notes.md:2:", out)
+
     def test_deleting_a_test_file_drops_its_assertions(self):
         head = symlink_commit(self.repo, "tests/test_add.py", None, "drop the test")
         code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review())
