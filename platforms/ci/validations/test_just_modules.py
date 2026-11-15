@@ -1,0 +1,299 @@
+"""The per-profile just modules (KIT-074): recipe names, the commands each recipe runs (stub tools on PATH), and the
+check_kit.py gate that keeps the AGENTS and CI templates on the modules' recipe names."""
+import os
+import re
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+KIT = Path(__file__).resolve().parents[3]
+MODULES = KIT / "platforms" / "kits" / "just"
+CHECK_KIT = "platforms/ci/validations/check_kit.py"
+JUST = shutil.which("just")
+RECIPES = {
+    "godot": {"editor", "run", "import", "boot", "test", "lint", "fmt", "verify", "export"},
+    "java": {"run", "test", "verify", "fmt", "lint", "dependency-check"},
+    "python": {"test", "lint", "fmt", "verify"},
+    "docs": {"lint", "verify"},
+}
+
+
+def executable(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+@unittest.skipIf(JUST is None, "just is not on PATH")
+class ModuleTest(unittest.TestCase):
+    """Each module copied into a throwaway project as kit.just and imported by the project's justfile, the way
+    sync-project.sh leaves it."""
+
+    def project(self, profile, justfile="import 'kit.just'\n"):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        shutil.copyfile(MODULES / f"{profile}.just", root / "kit.just")
+        (root / "justfile").write_text(justfile, encoding="utf-8")
+        self.bin = root / ".stub-bin"
+        self.bin.mkdir()
+        self.log = root / ".stub-log"
+        return root
+
+    def just(self, root, *args, env=None):
+        full = dict(os.environ, PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", STUB_LOG=str(self.log))
+        full.update(env or {})
+        return subprocess.run([JUST, *args], cwd=root, capture_output=True, text=True, env=full, check=False)
+
+    def calls(self):
+        return self.log.read_text(encoding="utf-8").splitlines() if self.log.exists() else []
+
+
+class RecipeNames(ModuleTest):
+    def test_each_module_has_its_recipes(self):
+        for profile, want in RECIPES.items():
+            with self.subTest(profile=profile):
+                root = self.project(profile)
+                result = self.just(root, "--summary")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(set(result.stdout.split()), want)
+
+    def test_a_project_recipe_sits_beside_the_imported_ones(self):
+        root = self.project("java", "import 'kit.just'\n\n# project recipe\ndb-shell:\n    echo db\n")
+        result = self.just(root, "--summary")
+        self.assertEqual(set(result.stdout.split()), RECIPES["java"] | {"db-shell"})
+
+
+class Godot(ModuleTest):
+    STUB = """#!/usr/bin/env bash
+printf 'godot %s\\n' "$*" >> "$STUB_LOG"
+case "$*" in
+  *--quit*) printf '%s\\n' "${STUB_BOOT:-booted}" ;;
+  *GdUnitCmdTool*) printf 'Overall Summary: %s test cases | 0 errors\\n' "${STUB_CASES:-3}" ;;
+esac
+exit "${STUB_EXIT:-0}"
+"""
+
+    def setUp(self):
+        self.root = self.project("godot")
+        executable(self.bin / "godot", self.STUB)
+        (self.root / "addons" / "gdUnit4").mkdir(parents=True)
+        (self.root / "tests").mkdir()
+        (self.root / "tests" / "a_test.gd").write_text("extends GdUnitTestSuite\n", encoding="utf-8")
+
+    def test_test_imports_then_runs_gdunit4(self):
+        result = self.just(self.root, "test")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.calls(), [
+            "godot --headless --path . --import",
+            "godot --headless --path . -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode"])
+
+    def test_zero_executed_test_cases_fail(self):
+        result = self.just(self.root, "test", env={"STUB_CASES": "0"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("executed no test case", result.stderr)
+
+    def test_a_missing_runner_or_no_suite_fails(self):
+        shutil.rmtree(self.root / "tests")
+        result = self.just(self.root, "test")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no gdUnit4 suite", result.stderr)
+        shutil.rmtree(self.root / "addons")
+        result = self.just(self.root, "test")
+        self.assertIn("addons/gdUnit4 missing", result.stderr)
+
+    def test_gut_runs_when_chosen(self):
+        (self.root / "addons" / "gut").mkdir()
+        (self.root / "tests" / "test_b.gd").write_text("extends GutTest\n", encoding="utf-8")
+        result = self.just(self.root, "test", env={"GODOT_TEST_RUNNER": "gut"})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("-s addons/gut/gut_cmdln.gd -gdir=res://test,res://tests -ginclude_subdirs -gexit", self.calls()[-1])
+
+    def test_an_unknown_runner_fails(self):
+        result = self.just(self.root, "test", env={"GODOT_TEST_RUNNER": "nope"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unknown GODOT_TEST_RUNNER 'nope'", result.stderr)
+
+    def test_boot_fails_on_a_script_error_at_exit_0(self):
+        for line in ("SCRIPT ERROR: Parse Error: x", "ERROR: Can't load script: res://a.gd"):
+            with self.subTest(line=line):
+                result = self.just(self.root, "boot", env={"STUB_BOOT": line})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("script error", result.stderr)
+        self.assertEqual(self.just(self.root, "boot").returncode, 0)
+
+    def test_run_passes_its_arguments_to_the_game(self):
+        result = self.just(self.root, "run", "--server-url=ws://127.0.0.1:8080/ws")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.calls(), ["godot --path . -- --server-url=ws://127.0.0.1:8080/ws"])
+
+    def test_export_names_preset_and_output(self):
+        result = self.just(self.root, "export", "Windows Desktop", "build/game.exe")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.calls(), ['godot --headless --path . --export-release Windows Desktop build/game.exe'])
+
+    def test_lint_and_fmt_skip_addons_and_dot_godot(self):
+        executable(self.bin / "gdformat", '#!/usr/bin/env bash\nprintf "gdformat %s\\n" "$*" >> "$STUB_LOG"\n')
+        executable(self.bin / "gdlint", '#!/usr/bin/env bash\nprintf "gdlint %s\\n" "$*" >> "$STUB_LOG"\n')
+        (self.root / "main.gd").write_text("extends Node\n", encoding="utf-8")
+        (self.root / "addons" / "gdUnit4" / "x.gd").write_text("extends Node\n", encoding="utf-8")
+        (self.root / ".godot").mkdir()
+        (self.root / ".godot" / "y.gd").write_text("extends Node\n", encoding="utf-8")
+        self.assertEqual(self.just(self.root, "lint").returncode, 0)
+        self.assertEqual(self.just(self.root, "fmt").returncode, 0)
+        calls = self.calls()
+        self.assertEqual(sorted(c.split()[0] for c in calls), ["gdformat", "gdformat", "gdlint"])
+        self.assertIn("gdformat --check", " | ".join(calls))
+        self.assertTrue(all("addons" not in c and ".godot" not in c for c in calls), calls)
+        self.assertTrue(all("main.gd" in c and "tests/a_test.gd" in c for c in calls), calls)
+
+
+class Java(ModuleTest):
+    def setUp(self):
+        self.root = self.project("java")
+        executable(self.root / "mvnw", '#!/usr/bin/env bash\nprintf "mvnw %s\\n" "$*" >> "$STUB_LOG"\n')
+
+    def test_the_gate_and_the_ci_flags(self):
+        self.assertEqual(self.just(self.root, "verify").returncode, 0)
+        self.assertEqual(self.just(self.root, "verify", env={"MVN_FLAGS": "-B -ntp"}).returncode, 0)
+        self.assertEqual(self.calls(), ["mvnw spotless:check verify", "mvnw -B -ntp spotless:check verify"])
+
+    def test_one_test_and_the_other_recipes(self):
+        for args in (("test", "-Dtest=SomeTest"), ("fmt",), ("lint",), ("run",)):
+            self.assertEqual(self.just(self.root, *args).returncode, 0, args)
+        self.assertEqual(self.calls(), ["mvnw test -Dtest=SomeTest", "mvnw spotless:apply", "mvnw spotless:check",
+                                        "mvnw spring-boot:run"])
+
+    def test_dependency_check_pins_its_plugin(self):
+        self.assertEqual(self.just(self.root, "dependency-check").returncode, 0)
+        self.assertRegex(self.calls()[0], r"^mvnw org\.owasp:dependency-check-maven:\d+\.\d+\.\d+:check "
+                                          r"-DfailBuildOnCVSS=7 -DnvdApiKeyEnvironmentVariable=NVD_API_KEY$")
+
+
+class Python(ModuleTest):
+    def setUp(self):
+        self.root = self.project("python")
+
+    def write(self, rel, text):
+        path = self.root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def test_unittest_runs_every_test_folder(self):
+        ok = "import unittest\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        self.assertTrue(True)\n"
+        self.write("tools/a/tests/test_a.py", ok)
+        self.write("tools/b/tests/test_b.py", ok)
+        result = self.just(self.root, "test", env={"PYTHON": sys.executable})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(len(re.findall(r"Ran 1 test", result.stderr)), 2, result.stderr)
+
+    def test_a_failing_test_fails(self):
+        self.write("tests/test_a.py", "import unittest\n\nclass T(unittest.TestCase):\n"
+                   "    def test_no(self):\n        self.fail('no')\n")
+        self.assertNotEqual(self.just(self.root, "test", env={"PYTHON": sys.executable}).returncode, 0)
+
+    def test_no_test_file_fails(self):
+        self.write("tools/a.py", "x = 1\n")
+        result = self.just(self.root, "test", env={"PYTHON": sys.executable})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no test_*.py", result.stderr)
+
+    def test_lint_finds_a_syntax_error_without_writing_bytecode(self):
+        self.write("tools/a.py", "x = 1\n")
+        self.assertEqual(self.just(self.root, "lint", env={"PYTHON": sys.executable}).returncode, 0)
+        self.write("tools/b.py", "def f(:\n")
+        result = self.just(self.root, "lint", env={"PYTHON": sys.executable})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("tools/b.py:1", result.stdout + result.stderr)
+        self.assertEqual(list(self.root.rglob("__pycache__")), [])
+
+    def test_fmt_needs_a_configured_formatter(self):
+        result = self.just(self.root, "fmt", env={"PYTHON": sys.executable})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no formatter configured", result.stderr)
+
+
+class Docs(ModuleTest):
+    STUB = '#!/usr/bin/env python3\nimport os, sys\nopen(os.environ["STUB_LOG"], "a").write(" ".join(sys.argv) + "\\n")\n'
+
+    def setUp(self):
+        self.root = self.project("docs")
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+        spec_lint = self.root / ".github" / "spec-lint"
+        for name in ("check_spec.py", "spec_trace.py", "check_docs_structure.py"):
+            executable(spec_lint / name, self.STUB)
+        (self.root / "docs" / "spec").mkdir(parents=True)
+
+    def names(self):
+        return [" ".join([Path(c.split()[0]).name, *c.split()[1:]]) for c in self.calls()]
+
+    def test_lint_runs_every_vendored_check_from_the_repository_root(self):
+        (self.root / "sub").mkdir()
+        result = self.just(self.root / "sub", "lint", env={"PYTHON": sys.executable})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.names(), ["check_spec.py docs/spec .github/spec-lint/schemas",
+                                        "spec_trace.py check docs/spec", "check_docs_structure.py"])
+
+    def test_a_check_that_was_not_vendored_is_skipped(self):
+        (self.root / ".github" / "spec-lint" / "spec_trace.py").unlink()
+        (self.root / ".github" / "spec-lint" / "check_docs_structure.py").unlink()
+        self.assertEqual(self.just(self.root, "verify", env={"PYTHON": sys.executable}).returncode, 0)
+        self.assertEqual(self.names(), ["check_spec.py docs/spec .github/spec-lint/schemas"])
+
+
+class TemplatesNameKitRecipes(unittest.TestCase):
+    """check_kit.py fails when an AGENTS or CI template names a recipe its profile module lacks."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.kit = Path(cls.tmp.name) / "kit"
+        listed = subprocess.run(["git", "-C", str(KIT), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                                capture_output=True, text=True, check=True).stdout
+        for rel in filter(None, listed.split("\0")):
+            if (KIT / rel).is_file():
+                (cls.kit / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(KIT / rel, cls.kit / rel)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def check(self):
+        return subprocess.run([sys.executable, "-B", str(self.kit / CHECK_KIT)], capture_output=True, text=True)
+
+    def edit(self, rel, old, new, count=1):
+        path = self.kit / rel
+        text = path.read_text(encoding="utf-8")
+        self.assertIn(old, text)
+        path.write_text(text.replace(old, new, count), encoding="utf-8")
+        self.addCleanup(path.write_text, text, encoding="utf-8")
+
+    def test_the_kit_passes(self):
+        result = self.check()
+        self.assertNotIn("just recipe", result.stdout + result.stderr)
+
+    def test_an_agents_template_naming_a_missing_recipe_fails(self):
+        self.edit("plugins/guardrails/templates/project-agents-java-spring.md", "just verify", "just verify-all")
+        result = self.check()
+        self.assertIn("project-agents-java-spring.md: names just recipe 'verify-all', which "
+                      "platforms/kits/just/java.just does not define", result.stderr)
+
+    def test_a_ci_template_naming_a_missing_recipe_fails(self):
+        self.edit("platforms/kits/github/workflows/ci-godot.yml", "just boot", "just boot-proof")
+        result = self.check()
+        self.assertIn("ci-godot.yml: names just recipe 'boot-proof', which platforms/kits/just/godot.just "
+                      "does not define", result.stderr)
+
+    def test_a_template_without_the_gate_recipes_fails(self):
+        self.edit("plugins/guardrails/templates/project-agents-godot-2d.md", "just test", "godot test", count=-1)
+        result = self.check()
+        self.assertIn("project-agents-godot-2d.md: names no `just test`", result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
