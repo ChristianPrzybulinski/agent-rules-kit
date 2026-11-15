@@ -988,8 +988,8 @@ class ConfigShapeTest(ToolCase):
                 head = self.repo.commit("head", **{"calc.py": CALC_SUB, "tests__test_add.py": TEST_ADD
                                                    + "        self.assertEqual(calc.add(1, 1), 2)\n"})
                 path, root = str(self.repo.root / rel), str(self.repo.root)
-                argv = {"scope": ["scope", "--base", base, "--head", head, "--files", "calc.py", "tests/**",
-                                  "--gates", path],
+                # scope: tests/test_add.py is outside Files, so pr_gates.generated_neighbour reads the suffixes
+                argv = {"scope": ["scope", "--base", base, "--head", head, "--files", "calc.py", "--gates", path],
                         "red": ["red", "--base", base, "--head", head, "--gates", path, "--run", "true"],
                         "proof-gates": ["proof", "--body", str(body), "--run", "--gates", path, "--base", base,
                                         "--cwd", root],
