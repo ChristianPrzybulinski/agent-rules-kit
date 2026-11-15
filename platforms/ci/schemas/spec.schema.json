@@ -17,6 +17,121 @@
       "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
       "additionalProperties": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{1,7}$" }
     },
+    "sdd": {
+      "description": "Project parameters of the SDD process (KIT-067). An absent key takes its default; sdd-constitution/references/sdd-parameters.md names the step that reads each key; check_spec.py --params prints the resolved block",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "needs": {
+          "description": "NEED-nnn intake records under docs/spec/needs/; read by sdd-intake, sdd-specify, sdd-clarify",
+          "type": "boolean",
+          "default": true
+        },
+        "journeys": {
+          "description": "J-nn journeys under docs/spec/journeys/; read by sdd-clarify, sdd-check, sync-project.sh; absent = on when the folder exists",
+          "type": "boolean"
+        },
+        "tracker": {
+          "description": "Where task rows are cut: GitHub issues, or none (task files in the repository); read by sdd-tasks, sdd-implement, sdd-spike",
+          "enum": ["github", "none"],
+          "default": "github"
+        },
+        "plan_sections": {
+          "description": "The FEAT ## Plan subsections this project fills; Risks and Tests are always on; read by sdd-plan",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["Design", "Contract", "Data", "UI", "Flag", "Tests", "Observability", "Risks", "Dependencies"] },
+          "allOf": [{ "contains": { "const": "Risks" } }, { "contains": { "const": "Tests" } }],
+          "default": ["Design", "Contract", "Data", "UI", "Flag", "Tests", "Observability", "Risks", "Dependencies"]
+        },
+        "pr_unit": {
+          "description": "One PR per task row or one per FEAT; read by sdd-implement",
+          "enum": ["task", "feat"],
+          "default": "task"
+        },
+        "task_minutes": {
+          "description": "Upper size of a task row for one fresh agent context, in minutes; read by sdd-tasks",
+          "type": "integer",
+          "minimum": 1,
+          "default": 30
+        },
+        "row_check": {
+          "description": "Project command that checks the task rows before the cut; null = none; read by sdd-tasks",
+          "type": ["string", "null"],
+          "minLength": 1,
+          "default": null
+        },
+        "cut_command": {
+          "description": "Project command that cuts the approved rows; null = the kit cut; read by sdd-tasks",
+          "type": ["string", "null"],
+          "minLength": 1,
+          "default": null
+        },
+        "max_chain": {
+          "description": "Longest dependency chain allowed among a FEAT's task rows; read by sdd-tasks",
+          "type": "integer",
+          "minimum": 1,
+          "default": 4
+        },
+        "release": {
+          "description": "merge: a FEAT is delivered once its work is on main (after its sdd-review closure, KIT-069); manual: sdd-release delivers it; read by sdd-review, sdd-release",
+          "enum": ["merge", "manual"],
+          "default": "merge"
+        },
+        "review_rounds": {
+          "description": "NOT READY rounds on one criterion before the owner decides; read by review",
+          "type": "integer",
+          "minimum": 1,
+          "default": 3
+        },
+        "commits_by": {
+          "description": "Who commits a task's work: the executor session or the orchestrator; read by sdd-implement",
+          "enum": ["executor", "orchestrator"],
+          "default": "executor"
+        },
+        "protected_paths": {
+          "description": "Path or glob -> label a change to it needs; read by sdd-tasks and review",
+          "type": "object",
+          "propertyNames": { "pattern": "^(?!(.*/)?\\.\\.(/|$))[^\\s/][^\\s]*$" },
+          "additionalProperties": { "type": "string", "minLength": 1 },
+          "default": {}
+        },
+        "bundle": {
+          "description": "Limits for one issue that bundles task rows sharing a Files path; rows 1 = one issue per row; read by sdd-tasks",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rows": { "description": "Rows per bundle", "type": "integer", "minimum": 1, "default": 1 },
+            "points": { "description": "Sum of the rows' Complexity, Low 1, Med 2, High 3", "type": "integer", "minimum": 1, "default": 3 },
+            "high_rows": { "description": "High rows per bundle", "type": "integer", "minimum": 0, "default": 1 }
+          }
+        },
+        "rule_paths": {
+          "description": "Kit rule name -> folders its globs are scoped to, '.' for the whole repository; wins over the --profile folders; read by sync-project.sh",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$" }
+          },
+          "default": {}
+        },
+        "visual_approval": {
+          "description": "Who approves a screen or motion change's captures against its REQ's mock before the merge: the owner, the reviewer, or none (no visual approval step); read by review (KIT-069)",
+          "enum": ["owner", "reviewer", "none"],
+          "default": "none"
+        },
+        "owner_approvals": {
+          "description": "Change kinds only the owner may approve, for example decision, approved-dec-change, protocol-version, in-game-evidence; read by review (KIT-069) and an orchestrator session under owner-review autonomy",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "default": ["decision"]
+        }
+      }
+    },
     "updated": { "type": "string", "format": "date" }
   }
 }

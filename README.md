@@ -43,7 +43,7 @@ User-level rule symlinks are opt-in with `AI_KIT_USER_RULES=1` (a rule present i
 |---|---|---|---|---|
 | Devin Cloud | no | `globs` | managed Devins | `triggers: [user]` |
 | Devin CLI/Desktop | PreToolUse guard, PostToolUse format/lint, SessionStart synced-folder warning and git state after compaction, best effort | `globs` | shared profiles | `triggers: [user]` |
-| Codex | no | read from the repo's `.claude/rules/` on the `AGENTS.md` Boundaries line | no | `agents/openai.yaml` policy |
+| Codex | no | the generated path-rule block in each folder's `AGENTS.md` (`sync-project.sh`, KIT-067), and the repo's `.claude/rules/` on the `AGENTS.md` Boundaries line | no | `agents/openai.yaml` policy |
 | Claude Code | PreToolUse guard, PostToolUse format/lint, SessionStart synced-folder warning and git state after compaction, best effort | `paths` | shared profiles | `disable-model-invocation: true` |
 
 ## Devin plugin
