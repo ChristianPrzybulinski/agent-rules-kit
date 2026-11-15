@@ -4,7 +4,7 @@ title: "The kit's ci, gitleaks and CodeQL workflows run on every pull request an
 status: confirmed
 confirmed: "2026-11-15 (owner, chat, relayed by the coordinator session \"Revisão de regras e skills\": \"Revisão + CI verde\")"
 issue: "#264"
-pr: ""
+pr: "#272"
 ---
 
 # KIT-076 — The kit's ci, gitleaks and CodeQL workflows run on every pull request and push to main as required checks
@@ -118,14 +118,42 @@ What would prove A wrong:
 
 ## Proof
 
-- Local: `bash platforms/tools/check.sh`, `CI=1 bash platforms/tools/check.sh`, `bash platforms/tools/smoke.sh`,
-  `python3 platforms/ci/validations/check_kit.py --links`, the touched suites,
-  `gitleaks git --redact --log-opts="origin/main..HEAD"` and
-  `python3 platforms/tools/review_checks.py red` on `test_kit_workflows.py`.
-- The shellcheck command of `ci.yml`, with and without `-x`, exits 0, and so does `shellcheck -x` on the three scripts
-  from `platforms/tools/`.
-- Runner: `workflow_dispatch` runs of `ci.yml` on the branch, and the four checks on the pull request.
+Runner (`ubuntu-latest`), every run `success`, and `actions/runs/<id>/timing` reports `billable` 0 ms for each:
+
+- `ci.yml` dispatched on `1e6d9bf`, the shellcheck fix with the old triggers, run 43761925204:
+  - shellcheck passed in 3 s;
+  - `check.sh` passed;
+  - the unit tests ran 531 tests in 294 s, 60 skipped;
+  - `smoke.sh` and `--links` passed.
+- `ci.yml` dispatched on `9004eb6`, run 43762612774, in 368 s:
+  - the steps are pinned by SHA and shellcheck runs with `-x`;
+  - the Claude Code install and `claude plugin validate` passed;
+  - the unit tests ran 542 tests in 277 s, 63 skipped. The 3 new skips are `test_kit_workflows.GitleaksRange`, because the
+    runner has no gitleaks on `PATH`;
+  - the hook latency tests in `test_hooks_context.py` and `test_hooks_guard_compact.py` passed within their budgets on
+    the shared runner.
+- `gitleaks.yml` dispatched on `9004eb6`, run 43762692739: `gitleaks range: HEAD`, 186 commits scanned, no leaks.
+- The pull request #272 on `9004eb6`:
+  - `ci`: run 43762637190, 5 min 57 s;
+  - `gitleaks`: run 43762637237, 4 s. It logged `gitleaks range: <4f035d1>..<9004eb6>` (full SHAs) and found no leaks in 4 commits,
+    and the tarball passed `sha256sum -c`;
+  - `codeql (python)` (55 s) and `codeql (actions)` (34 s): run 43762637246;
+  - GitHub's code-scanning check `CodeQL` passed as well.
+
+Local (macOS, python3 3.9.6, shellcheck 0.11.0, gitleaks 8.30.1), all exit 0:
+
+- `bash platforms/tools/check.sh` and `CI=1 bash platforms/tools/check.sh`;
+- `bash platforms/tools/smoke.sh` (91 s);
+- `python3 platforms/ci/validations/check_kit.py --links`
+  (`check: OK (1 plugins, 27 skills, 6 rules, 13 templates, 14 readmes, 117 links, 56 hook cases, 14 shell scripts)`);
+- `python3 -B -m unittest discover -s platforms/ci/validations -p 'test_*.py'`: 542 tests, OK, 5 skipped;
+- the shellcheck command of `ci.yml`, with and without `-x`, and `shellcheck -x` on the three scripts from
+  `platforms/tools/`;
+- `gitleaks git --redact --log-opts="origin/main..HEAD"`: no leaks;
+- `python3 platforms/tools/review_checks.py red --base origin/main --head HEAD --run "python3 -B -m unittest {tests}"`:
+  `red: OK — 18 of 18 failing tests are Red on base, and head passes`.
 
 ## History
 
 - 2026-11-15: confirmed (owner, chat, relayed by the coordinator: "Revisão + CI verde"). Issue #264.
+- 2026-11-15: implemented in #272; the runner proof is above.
