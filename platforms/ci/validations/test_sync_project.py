@@ -810,6 +810,40 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertFalse((self.repo / ".claude" / "ai-kit").exists())
         self.assertFalse(self.pinned().exists())
 
+    def test_vendored_sync_drops_retired_kit_plugins(self):  # review of c394007: base drops every other @ai-kit key
+        data = self.settings()
+        data["enabledPlugins"].update({"dev-core@ai-kit": True, "other@market": True})
+        self.write_settings(data)
+        self.vendor_install()
+        enabled = self.settings()["enabledPlugins"]
+        self.assertNotIn("dev-core@ai-kit", enabled)
+        self.assertIs(enabled["other@market"], True)
+        first = (self.repo / ".claude" / "settings.json").read_text()
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        self.assertEqual(self.run_sync().returncode, 0)
+        self.assertEqual((self.repo / ".claude" / "settings.json").read_text(), first)  # stable from the first sync
+
+    def test_a_settings_shape_the_pin_cannot_merge_is_refused(self):  # exit 2 before any write, no traceback
+        good = self.settings()
+        path = self.repo / ".claude" / "settings.json"
+        for extra, message in (({"hooks": {"PreToolUse": {}}}, '"hooks" is not an object of event lists'),
+                               ({"enabledPlugins": []}, '"enabledPlugins" is not an object')):
+            with self.subTest(extra=extra):
+                self.write_settings(dict(good, **extra))
+                before = path.read_text()
+                result = self.run_sync("--vendor-skills")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn(f"sync: {path} {message}; fix it by hand", result.stdout)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertFalse(self.pinned().exists())
+                self.assertFalse((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").exists())
+                self.assertEqual(path.read_text(), before)
+        self.write_settings(dict(good, hooks=["mine"]))  # plugins mode leaves a hooks value it cannot read alone
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.settings()["hooks"], ["mine"])
+
     def broken_kit(self):
         """A kit copy whose hooks.json does not parse, so the pin's write fails."""
         kit = self.scratch() / "broken-kit"

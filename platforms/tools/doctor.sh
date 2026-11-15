@@ -409,12 +409,13 @@ def trust_root(path):
         common = subprocess.run(["git", "-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"],
                                 capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
-        return path
-    return os.path.dirname(common) if os.path.basename(common) == ".git" else path
+        return os.path.realpath(path)
+    return os.path.realpath(os.path.dirname(common) if os.path.basename(common) == ".git" else path)
 
 
-trusted = load(sys.argv[2]).get("projects")
-trusted = trusted if isinstance(trusted, dict) else {}
+projects_trust = load(sys.argv[2]).get("projects")  # keys compared as real paths: /var and /private/var are one folder
+trusted = {os.path.realpath(key): value for key, value in projects_trust.items()} \
+    if isinstance(projects_trust, dict) else {}
 pinned, leaks, untrusted = 0, [], set()
 for path in sorted(projects):
     state = None  # the project file wins over the user file, the local file over both

@@ -655,8 +655,8 @@ if [[ "$VENDOR" == 1 ]]; then
       exit 1
     fi
   done < <(skill_dirs)
-  # KIT-072: the pinned plugin copy's folder follows the same rule
-  pin_preflight || exit 1
+  # KIT-072: the pin's folders follow the same rule (exit 1); settings it cannot merge into exit 2
+  pin_preflight || exit $?
 fi
 
 # A target AGENTS.md that is a symbolic link, or one whose path-rule block markers are broken, refuses here too.

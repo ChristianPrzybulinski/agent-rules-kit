@@ -21,8 +21,9 @@ A vendored project (sync-project.sh --vendor-skills) pins the whole kit for Clau
   name even while disabled; agent skill preloads are renamed to the name that resolves in the project.
 
 settings also turns guardrails@ai-kit, which follows the kit head, off and the pinned copy on. sync-project.sh calls it
-after write succeeded, so a failed write leaves the head plugin on. preflight refuses, before the sync's first write, a
-folder of either name that is a symbolic link or carries no generated marker. write replaces a folder when any file
+after write succeeded, so a failed write leaves the head plugin on; it drops every other @ai-kit key, as plugins mode
+does. preflight refuses, before the sync's first write, a folder of either name that is a symbolic link or carries no
+generated marker (exit 1), and a .claude/settings.json whose enabledPlugins or hooks it cannot merge into (exit 2). write replaces a folder when any file
 differs. remove deletes both marked folders and the kit hooks and the pinned key from .claude/settings.json (plugins
 mode). pin prints the KIT_MANIFEST.json keys of the pin: KIT_COMMIT (the kit commit, "-dirty" when plugins/ has local
 changes, empty outside a git checkout), each folder's sha256 per file and, under "copies", the sha256 of each other
@@ -81,7 +82,27 @@ def owned(path):
     return path.is_dir() and not path.is_symlink() and (path / MARKER).is_file()
 
 
+def settings_problems(repo):
+    """Each .claude/settings.json shape the pin cannot merge into; a missing or unparsable file is the writer's."""
+    path = Path(repo, ".claude", "settings.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, dict):
+        return [f"{path} is not a JSON object; fix it by hand"]
+    problems = []
+    if "enabledPlugins" in data and not isinstance(data["enabledPlugins"], dict):
+        problems.append(f'{path} "enabledPlugins" is not an object; fix it by hand')
+    hooks = data.get("hooks")
+    if "hooks" in data and not (isinstance(hooks, dict) and all(isinstance(v, list) for v in hooks.values())):
+        problems.append(f'{path} "hooks" is not an object of event lists; fix it by hand')
+    return problems
+
+
 def preflight(repo):
+    """1 for a folder the pin may not replace, 2 for settings it cannot merge into; prints why."""
     status = 0
     for rel in (PLUGIN_REL, KIT_REL):
         path = Path(repo, rel)
@@ -91,6 +112,9 @@ def preflight(repo):
         elif path.exists() and not owned(path):
             print(f"sync: {path} exists and is not generated; rename it, the kit's pin needs the name")
             status = 1
+    for problem in settings_problems(repo):
+        print("sync: " + problem)
+        status = 2
     return status
 
 
@@ -248,11 +272,18 @@ def kit_hooks_in(hooks):
 
 
 def settings(repo):
+    problems = settings_problems(repo)
+    for problem in problems:
+        print("sync: " + problem)
+    if problems:
+        return 2
     path = Path(repo, ".claude", "settings.json")
     fragment = json.loads(Path(repo, HOOK_DIR, "hooks.json").read_text(encoding="utf-8"),
                           object_pairs_hook=OrderedDict)
     data = load_settings(path)
     enabled = data.setdefault("enabledPlugins", OrderedDict())
+    for key in [k for k in enabled if k.endswith("@ai-kit") or k == PINNED_ID]:  # retired kit plugins go, as in base
+        del enabled[key]
     enabled[HEAD_ID] = False
     enabled[PINNED_ID] = True
     hooks = without_kit_hooks(data.get("hooks"))
@@ -275,7 +306,7 @@ def remove(repo):
         enabled = data.get("enabledPlugins")
         if isinstance(enabled, dict):
             enabled.pop(PINNED_ID, None)
-        if "hooks" in data:
+        if isinstance(data.get("hooks"), dict):  # a hooks value it cannot read stays as it is
             hooks = without_kit_hooks(data["hooks"])
             if hooks:
                 data["hooks"] = hooks

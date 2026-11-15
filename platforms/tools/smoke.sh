@@ -528,13 +528,19 @@ grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-remove.out"
 for proj in pinned untrusted leak plain; do
   mkdir -p "$ROOT/pin-$proj/.claude/skills"
 done
-for proj in pinned untrusted; do
+# A linked worktree (pin-wt) takes its trust from its main checkout root (pin-main).
+git init -q "$ROOT/pin-main"
+git -C "$ROOT/pin-main" -c user.name=smoke -c user.email=smoke@example.invalid commit -q --allow-empty -m init
+git -C "$ROOT/pin-main" worktree add -q --detach "$ROOT/pin-wt"
+mkdir -p "$ROOT/pin-wt/.claude/skills"
+for proj in pinned untrusted wt; do
   printf '{}\n' > "$ROOT/pin-$proj/.claude/skills/KIT_MANIFEST.json"
   mkdir -p "$ROOT/pin-$proj/.claude/skills/guardrails-pinned"
   printf '{"enabledPlugins": {"guardrails@ai-kit": false, "guardrails-pinned@skills-dir": true}}\n' \
     > "$ROOT/pin-$proj/.claude/settings.json"
 done
-printf '{"projects": {"%s": {"hasTrustDialogAccepted": true}}}\n' "$ROOT/pin-pinned" > "$STUB_HOME/.claude.json"
+printf '{"projects": {"%s": {"hasTrustDialogAccepted": true}, "%s": {"hasTrustDialogAccepted": true}}}\n' \
+  "$ROOT/pin-pinned" "$ROOT/pin-main" > "$STUB_HOME/.claude.json"
 printf '{}\n' > "$ROOT/pin-leak/.claude/skills/KIT_MANIFEST.json"
 printf '{"enabledPlugins": {"guardrails@ai-kit": true}}\n' > "$ROOT/pin-leak/.claude/settings.json"
 printf '{"enabledPlugins": {"guardrails@ai-kit": true}}\n' > "$ROOT/pin-plain/.claude/settings.json"
@@ -543,6 +549,7 @@ cat > "$STUB_HOME/.claude/plugins/installed_plugins.json" <<EOF
 {"version": 2, "plugins": {"guardrails@ai-kit": [
   {"scope": "project", "projectPath": "$ROOT/pin-pinned"},
   {"scope": "project", "projectPath": "$ROOT/pin-untrusted"},
+  {"scope": "project", "projectPath": "$ROOT/pin-wt"},
   {"scope": "project", "projectPath": "$ROOT/pin-leak"},
   {"scope": "local", "projectPath": "$ROOT/pin-leak"},
   {"scope": "project", "projectPath": "$ROOT/pin-plain"},
@@ -557,10 +564,10 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 grep -Fq "warn: claude: 1 project vendors kit copies but loads guardrails@ai-kit, the kit head, beside them: $ROOT/pin-leak — run platforms/tools/sync-project.sh there (KIT-072)" \
   "$ROOT/doctor-stub-pin.out" || fail "doctor did not report the project that loads the kit head beside its copies"
-grep -Fq 'ok: claude: 2 vendored projects pin their kit version (guardrails@ai-kit off)' "$ROOT/doctor-stub-pin.out" \
+grep -Fq 'ok: claude: 3 vendored projects pin their kit version (guardrails@ai-kit off)' "$ROOT/doctor-stub-pin.out" \
   || fail "doctor did not report the pinned projects"
-grep -Fq "warn: claude: 1 pinned checkout root not trusted: $ROOT/pin-untrusted — its kit hooks run" \
-  "$ROOT/doctor-stub-pin.out" || fail "doctor did not report the pinned project whose root is not trusted"
+grep -Eq "warn: claude: 1 pinned checkout root not trusted: [^ ]*/pin-untrusted — its kit hooks run" \
+  "$ROOT/doctor-stub-pin.out" || fail "doctor did not report only the pinned project whose root is not trusted"
 ! grep -Fq 'pin-plain' "$ROOT/doctor-stub-pin.out" || fail "doctor reported a plugins-mode project"
 rm -f "$STUB_HOME/.claude/plugins/installed_plugins.json" "$STUB_HOME/.claude.json"
 

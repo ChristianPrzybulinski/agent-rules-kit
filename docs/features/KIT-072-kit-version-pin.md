@@ -113,3 +113,6 @@ twice, and `sync-project.sh --check` with the live CLI passes.
 - 2026-11-15: review of `daae6fe` BLOCKED (B1 hooks need trust, B2 pinned skills call head tools); the hooks moved
   to `.claude/settings.json`, the head goes off only after the pin is written, symbolic links are refused, the probe
   is opt-in and fails without a pinned copy, `doctor.sh` checks trust.
+- 2026-11-15: B1 delta review of `c394007` READY; folded in: retired `@ai-kit` keys dropped in vendored mode,
+  settings the pin cannot merge into refused with exit 2 before any write, trust compared by real path with a linked
+  worktree mapped to its main checkout root (smoke fixture).
