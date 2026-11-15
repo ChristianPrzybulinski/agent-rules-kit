@@ -4,7 +4,7 @@ title: "The delivery side of the SDD flow: implement modes and task cycle, revie
 status: confirmed
 confirmed: "2026-11-14 (owner, chat of the SDD review session: \"concordo\" for the acceptance, review and release design; \"Aprovo todos\" for the six further adjustments; \"orquestre a implementação de tudo que passamos\" and \"Já libero todos os merges. Faça tudo com autonomia pra entregar\" for this run)"
 issue: "#242"
-pr: ""
+pr: "#246"
 ---
 
 # KIT-069 — Delivery side: implement, review, sdd-review, sdd-release
