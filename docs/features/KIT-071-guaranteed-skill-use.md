@@ -28,6 +28,17 @@ injected after the Read (attachment `nested_memory`, 1/1).
 and 2, `docker` 0 and 1. The Claude counts include the sessions of 2026-11-14 that read `SKILL.md` files while
 designing and building this change (the tool counts a Read of `SKILL.md` as a load).
 
+[FACT] A consumer project's sessions list the kit twice and crowd the listing (one-off count of the
+`skill_listing` attachments in its Claude Code transcripts, 60 days to 2026-11-14): 51 top-level sessions, 35 with a
+listing, and no kit skill loaded by a Skill call or a `SKILL.md` Read in any of them. Its repository enables
+`guardrails@ai-kit` in project and user settings and vendors kit skills in `.claude/skills/` (23 kit copies on its
+`main`, `sync-project.sh --vendor-skills`); 2 of the 35 listings name kit skills both bare and as `guardrails:<name>`
+(4 names each: `architecture`, `grilling`, `protocol-contract`, `sdd-check`), from an older, smaller vendored set,
+so sessions on its current `main` will list about 20 more twice [HYPOTHESIS]. Each listing holds a median of 116
+skills (max 120) in a median of 29,952 characters (max 29,998), and 30 of the 35 drop the description of some
+entries (median 49 names without one); kit skills went name-only in up to 12 sessions (`parallelize` 12 of 35,
+`session` 8 of 35). `skill_usage.py` counts a load of either copy once per session under the bare name.
+
 [FACT] Official docs read on 2026-11-14 against Claude Code 2.1.287 (`claude --version`):
 - settings reference (code.claude.com/docs/en/settings-reference): `includeGitInstructions`, boolean, default
   `true`, any settings file; `false` leaves out the built-in commit and PR instructions and the git status snapshot;
@@ -118,8 +129,9 @@ Trigger evals, 2026-11-14, Claude Code 2.1.287, `claude plugin eval plugins --ta
 - [FACT] No run was granted Bash: with `--allow-tools Bash` every run stopped before the model with "the Docker
   (~/.docker, DOCKER_CONFIG) credential store on this machine holds a symbolic link inside it" (21 links, Docker
   Desktop's `~/.docker/bin`), score 0 and $0.00. So the three repository cases could read their fixture but not run
-  `git` or the scripts, which leaves the Skill call as the one useful action. With the sandbox loading only the 26 kit
-  skills and no `CLAUDE.md` or other context, these scores are an upper bound on a desktop session [HYPOTHESIS]; the
+  `git` or the scripts, which leaves the Skill call as the one useful action. The sandbox lists only the 26 kit skills, each with
+  its description, and loads no `CLAUDE.md`; the consumer project's sessions list a median of 116 skills and drop
+  descriptions in 30 of 35 listings. These scores are therefore an upper bound on a desktop session [HYPOTHESIS]; the
   60-day counts above are the real-session baseline.
 - [FACT] The ≥ 0.8 target holds for 5 of 6 skills and fails for `parallelize`. In two kept traces Claude ran the three
   checks concurrently on its own (one shell call with background jobs and `wait`, delegated to a subagent) without
