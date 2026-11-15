@@ -549,6 +549,19 @@ class StatusTest(unittest.TestCase):
                 self.feat(status=status, t1="done", t2="cancelled")
                 self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
 
+    def test_a_validated_feat_with_a_reopened_row_returns_to_in_progress(self):
+        """sdd-release refuses a FEAT and files a new row: status --write moves it back, so sdd-review can run again."""
+        self.feat(status="validated", t1="done", t2="todo")
+        code, _, err = self.run_main("status", str(self.spec))
+        self.assertEqual(code, 1)
+        self.assertIn("imply 'in-progress'", err)
+        code, out, err = self.run_main("status", str(self.spec), "--write")
+        self.assertEqual(code, 0, out + err)
+        self.assertNotIn("nothing to rewrite", out + err)
+        self.assertIn("status: in-progress\n", self.text())
+        self.assertIn("- 2026-10-06 status: validated -> in-progress (reopened: T2 todo)", self.text())
+        self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
+
     def test_validated_or_delivered_feat_with_an_open_row_fails(self):
         for status in ("validated", "delivered"):
             with self.subTest(status=status):

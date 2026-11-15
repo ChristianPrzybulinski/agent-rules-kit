@@ -194,6 +194,34 @@ class ClosureCommandTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("status: validated\n", self.feat_text())
 
+    def test_validate_check_accepts_a_cancelled_row(self):
+        self.fixture(release="manual", t2="cancelled")
+        code, out = self.validate("--check")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("T2 is cancelled", out)
+
+    def test_validate_adds_the_missing_history_line_to_a_feat_already_validated(self):
+        self.fixture(release="manual", status="validated")
+        code, out = self.validate()
+        self.assertEqual(code, 0, out)
+        self.assertIn("- 2026-11-14 sdd-review: validated at 1a2b3c4", self.feat_text())
+
+    def test_validate_refuses_a_feat_already_validated_with_an_open_row(self):
+        self.fixture(release="manual", status="validated", t2="todo")
+        code, out = self.validate()
+        self.assertEqual(code, 1, out)
+        self.assertIn("FEAT-001 T2 is todo", out)
+        self.assertNotIn("sdd-review: validated", self.feat_text())
+
+    def test_validate_on_a_validated_feat_with_its_line_changes_nothing(self):
+        self.fixture(release="manual")
+        self.validate()
+        before = self.feat_text()
+        code, out = self.validate()
+        self.assertEqual(code, 0, out)
+        self.assertIn("already validated", out)
+        self.assertEqual(self.feat_text(), before)
+
     def test_validate_refuses_without_a_closure_record(self):
         self.fixture(closure="<!-- sdd-review writes the closure record here -->")
         code, out = self.validate()

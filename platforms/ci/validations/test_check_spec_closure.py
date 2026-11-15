@@ -78,6 +78,8 @@ class ClosureRecordTest(unittest.TestCase):
     def assert_fails(self, *messages):
         for result in self.run_both():
             self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertIn("FAIL:", result.stderr)
             for message in messages:
                 self.assertIn(message, result.stderr)
 
@@ -125,6 +127,22 @@ class ClosureRecordTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("BASELINE:", result.stdout)
             self.assertIn("[feature-closure]", result.stdout)
+
+    def test_baseline_init_holds_a_legacy_delivered_feat_but_not_a_new_one(self):
+        """Adoption: a consumer's FEATs delivered under the old derivation go into baseline.json once."""
+        self.feat("delivered")
+        env = {k: v for k, v in os.environ.items() if k != "CI"}
+        init = subprocess.run([sys.executable, str(CHECK_SPEC), "--baseline-init", str(self.spec), str(SCHEMAS)],
+                              capture_output=True, text=True, check=False, env=env)
+        self.assertEqual(init.returncode, 0, init.stderr)
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("BASELINE:", result.stdout)
+            self.assertIn("[feature-closure]", result.stdout)
+        (self.spec / "features" / "FEAT-002.md").write_text(
+            FEAT.format(status="delivered", history="", body_line="").replace("FEAT-001", "FEAT-002")
+            .replace("requirements: [REQ-F-001]", "requirements: []"))
+        self.assert_fails("FEAT-002", "status delivered needs the History line")
 
     def test_a_record_outside_the_history_section_does_not_count(self):
         self.feat("validated", body_line=REVIEWED)

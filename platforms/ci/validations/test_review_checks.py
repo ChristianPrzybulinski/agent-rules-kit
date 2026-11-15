@@ -4,11 +4,14 @@ the grep-able DoD lines of a project REVIEW.md, and the re-run of a FEAT's task 
 KIT-069 calibration: an assertion failure, or a compile error on a symbol the PR adds, is Red; a test-only PR is exempt;
 a runtime error, all tests passing on base and a data-only Red are flagged for the reviewer, not blocked. Each test
 builds a throwaway Git repository."""
+import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 import unittest
 from pathlib import Path
 
@@ -119,6 +122,31 @@ reports.mkdir(exist_ok=True)
 sys.exit(0 if ok else 1)
 """
 WIDGET_TEST = "class WidgetTest { @Test void sums() { assertEquals(3, new Widget().sum()); } }\n"
+# Stand-ins for a Maven and a gdUnit run from the gates config's `red` entries: each prints the arguments and folder it
+# got, then fails to compile until the PR's class exists.
+MVN_STUB = """\
+#!/usr/bin/env python3
+import pathlib
+import sys
+print("args: " + " ".join(sys.argv[1:]))
+print("cwd: " + pathlib.Path.cwd().name)
+if not pathlib.Path("src/main/Widget.java").exists():
+    print("[ERROR] src/test/WidgetTest.java:[3,8] cannot find symbol")
+    print("  symbol:   class Widget")
+    sys.exit(1)
+print("Tests run: 2, Failures: 0")
+"""
+GODOT_STUB = """\
+#!/usr/bin/env python3
+import pathlib
+import sys
+print("args: " + " ".join(sys.argv[1:]))
+if not pathlib.Path("scripts/widget.gd").exists():
+    print('SCRIPT ERROR: Parse Error: Identifier "Widget" not declared in the current scope.')
+    sys.exit(1)
+print("2 tests passed")
+"""
+GD_TEST = "extends GdUnitTestSuite\n\n\nfunc test_{name}():\n\tassert_that(Widget.new()).is_not_null()\n"
 FAKE_GODOT = "#!/bin/sh\necho \"ERROR: Can't load script: tools/build.gd\"\nexit 0\n"
 
 BODY = """\
@@ -199,7 +227,21 @@ class ToolCase(unittest.TestCase):
         return git(self.repo.root, "worktree", "list", "--porcelain").count("worktree ")
 
 
-class RedTest(ToolCase):
+class StubCase(ToolCase):
+    def stub(self, name, text):
+        bin_dir = Path(self.tmp.name) / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        (bin_dir / name).write_text(text, encoding="utf-8")
+        (bin_dir / name).chmod(0o755)
+        return str(bin_dir)
+
+    def gates(self, config, name="gates.json"):
+        path = Path(self.tmp.name) / name
+        path.write_text(json.dumps(config), encoding="utf-8")
+        return str(path)
+
+
+class RedTest(StubCase):
     def red(self, head, *extra, base=None, run=RUN):
         return self.run_tool("red", "--base", base or self.base, "--head", head, "--run", run, *extra)
 
@@ -247,6 +289,60 @@ class RedTest(ToolCase):
         self.assertNotIn("red: test ghosts.", out)
         self.assertNotIn("red: test (errors=1)", out)
         self.assertIn("red: OK — 1 of 1 failing tests", out)
+
+    def red_gates(self, head, gates, *extra, path_prefix=None):
+        return self.run_tool("red", "--base", self.base, "--head", head, "--gates", gates, *extra,
+                             path_prefix=path_prefix)
+
+    def test_classes_placeholder_runs_maven_from_its_folder_with_comma_joined_names(self):
+        bin_dir = self.stub("fakemvn", MVN_STUB)
+        gates = self.gates({"red": [{"glob": "server/src/test/**/*Test.java", "cwd": "server",
+                                     "command": "fakemvn -q test -Dtest={classes}"}]})
+        head = self.repo.commit("widget", **{
+            "server__src__main__Widget.java": "public class Widget { int sum() { return 3; } }\n",
+            "server__src__test__WidgetTest.java": WIDGET_TEST,
+            "server__src__test__GadgetTest.java": WIDGET_TEST.replace("WidgetTest", "GadgetTest")})
+        code, out = self.red_gates(head, gates, path_prefix=bin_dir)
+        self.assertIn("args: -q test -Dtest=GadgetTest,WidgetTest", out)
+        self.assertIn("cwd: server", out)
+        self.assertEqual(code, 0, out)
+        self.assertIn("new-symbol (Widget)", out)
+
+    def test_prefixed_res_placeholder_gives_gdunit_one_flag_per_file(self):
+        bin_dir = self.stub("fakegodot", GODOT_STUB)
+        gates = self.gates({"red": [{"glob": "client/test/**/*_test.gd", "cwd": "client",
+                                     "command": "fakegodot --headless --path . {-a res}"}]})
+        head = self.repo.commit("widget", **{
+            "client__scripts__widget.gd": "class_name Widget\nextends RefCounted\n",
+            "client__test__a_test.gd": GD_TEST.format(name="a"),
+            "client__test__b_test.gd": GD_TEST.format(name="b")})
+        code, out = self.red_gates(head, gates, path_prefix=bin_dir)
+        self.assertIn("args: --headless --path . -a res://test/a_test.gd -a res://test/b_test.gd", out)
+        self.assertEqual(code, 0, out)
+        self.assertIn("new-symbol (Widget)", out)
+
+    def test_tests_no_red_entry_covers_need_run(self):
+        gates = self.gates({"red": [{"glob": "server/**/*Test.java", "cwd": "server", "command": "fakemvn {classes}"}]})
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        code, out = self.red_gates(head, gates)
+        self.assertEqual(code, 2, out)
+        self.assertIn("tests/test_sub.py", out)
+        self.assertIn("--run", out)
+
+    def test_a_command_that_cannot_start_is_an_error_not_a_head_failure(self):
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        code, out = self.red(head, run="no-such-runner {tests}")
+        self.assertEqual(code, 2, out)
+        self.assertIn("red: ERROR", out)
+        self.assertIn("no test ran", out)
+        self.assertNotIn("head failed", out)
+
+    def test_a_run_that_collects_no_test_is_an_error(self):
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        code, out = self.red(head, run=f"{sys.executable} -B -m unittest -q -k no_such_test {{tests}}")
+        self.assertEqual(code, 2, out)
+        self.assertIn("red: ERROR", out)
+        self.assertIn("no test ran", out)
 
     def test_runtime_error_only_is_flagged_not_blocked(self):
         base = self.repo.commit("first bug", **{"calc.py": CALC_FIRST_BUG})
@@ -388,7 +484,7 @@ class ScopeTest(ToolCase):
         self.assertIn("tests/test_add.py", out)
 
 
-class ProofTest(ToolCase):
+class ProofTest(StubCase):
     def body(self, proof="python3 -c \"print('ok')\"", session="019a2b3c-4d5e"):
         path = Path(self.tmp.name) / "body.md"
         path.write_text(BODY.format(proof=proof, session=session), encoding="utf-8")
@@ -434,12 +530,49 @@ class ProofTest(ToolCase):
         self.assertIn("not run", out)
         self.assertIn("'ls' not in allowlist", out)
 
+    def test_a_single_ampersand_separates_commands(self):
+        code, out = self.run_tool("proof", "--body", self.body("python3 -c \"print(1)\" & uname -n"), "--run",
+                                  "--allow", "python3", "--cwd", str(self.repo.root))
+        self.assertEqual(code, 1, out)
+        self.assertIn("'uname' not in allowlist", out)
+        self.assertNotIn("→ exit", out)
+
+    def test_the_head_cannot_widen_its_own_allowlist(self):
+        base = self.repo.commit("gates", **{"gates.json": json.dumps({"proof_allowlist": ["python3"]})})
+        self.repo.commit("widen", **{"gates.json": json.dumps({"proof_allowlist": ["python3", "uname"]})})
+        gates = str(self.repo.root / "gates.json")
+        code, out = self.run_tool("proof", "--body", self.body("uname -n"), "--run", "--gates", gates, "--base", base,
+                                  "--cwd", str(self.repo.root))
+        self.assertEqual(code, 1, out)
+        self.assertIn("'uname' not in allowlist", out)
+        code, out = self.run_tool("proof", "--body", self.body("uname -n"), "--run", "--gates", gates)
+        self.assertEqual(code, 2, out)  # a rules file inside the repository needs --base
+        self.assertIn("--base", out)
+
+    def test_timeout_kills_the_shell_and_its_children(self):
+        proof = "sh -c 'sleep 30 & echo $! > child.pid; wait'"
+        code, out = self.run_tool("proof", "--body", self.body(proof), "--run", "--allow", "sh", "--timeout", "1",
+                                  "--cwd", str(self.repo.root))
+        self.assertEqual(code, 1, out)
+        self.assertIn("timeout", out)
+        pid = int((self.repo.root / "child.pid").read_text())
+        alive, deadline = True, time.time() + 5
+        while alive and time.time() < deadline:
+            try:
+                os.kill(pid, 0)
+                time.sleep(0.1)
+            except ProcessLookupError:
+                alive = False
+        if alive:
+            os.kill(pid, 9)
+        self.assertFalse(alive, "the shell's child outlived the timeout")
+
     def test_run_without_an_allowlist_is_a_usage_error(self):
         code, out = self.run_tool("proof", "--body", self.body(), "--run")
         self.assertEqual(code, 2, out)
 
 
-class ProofOutputTest(ToolCase):
+class ProofOutputTest(StubCase):
     """Proof re-run checks shared by `proof --run` and `feat-proofs`: paths exist before the run, a stack's output
     pattern fails a run that exits 0, a stack lint flags a command that cannot prove what it names."""
 
@@ -466,6 +599,18 @@ class ProofOutputTest(ToolCase):
         self.assertEqual(code, 1, out)
         self.assertIn("exit 0", out)
         self.assertIn("Can't load script", out)
+
+    def test_res_path_resolves_against_the_godot_project_folder(self):
+        self.repo.commit("tool", **{"godotproj__tools__build.gd": "extends SceneTree\n"})
+        bin_dir = self.stub("godot", "#!/bin/sh\necho built\nexit 0\n")
+        proof = ("godot --headless --path godotproj -s res://tools/build.gd\n"
+                 "godot --headless --path=godotproj -s res://tools/missing.gd")
+        code, out = self.run_tool("proof", "--body", self.body(proof), "--run", "--allow", "godot",
+                                  "--cwd", str(self.repo.root), path_prefix=bin_dir)
+        self.assertEqual(code, 1, out)
+        self.assertIn("res://tools/build.gd → exit 0", out)
+        self.assertIn("godotproj/tools/missing.gd does not exist", out)
+        self.assertNotIn("tools/build.gd does not exist", out)
 
     def test_project_patterns_extend_the_stack_table(self):
         patterns = Path(self.tmp.name) / "patterns.json"
@@ -525,6 +670,13 @@ class FeatProofsTest(ToolCase):
         self.assertIn("T4: superseded", out)
         self.assertNotIn("exit 1", out)
 
+    def test_cancelled_row_is_skipped_like_a_superseded_one(self):
+        self.feat.write_text(FEAT_PROOFS + "| T5 | dropped | `y/**` | `python3 -c \"import sys; sys.exit(1)\"` | cancelled |\n",
+                             encoding="utf-8")
+        code, out = self.proofs("--rows", "T5")
+        self.assertEqual(code, 0, out)
+        self.assertIn("T5: cancelled, skipped", out)
+
     def test_rows_filter_runs_only_the_named_rows(self):
         code, out = self.proofs("--rows", "T1")
         self.assertEqual(code, 0, out)
@@ -564,6 +716,25 @@ class DodTest(ToolCase):
         self.assertEqual(code, 1, out)
         self.assertIn("Docs", out)
         self.assertIn("calc.py:", out)
+
+    def test_the_head_cannot_loosen_its_own_review_rules(self):
+        base = self.repo.commit("rules", **{"REVIEW.md": REVIEW})
+        head = self.repo.commit("loosen", **{"REVIEW.md": REVIEW.replace(" <!-- grep: \\bTODO\\b -->", ""),
+                                             "calc.py": CALC_SUB + "\n# TODO: handle overflow\n"})
+        code, out = self.run_tool("dod", "--base", base, "--head", head, "--review", str(self.repo.root / "REVIEW.md"))
+        self.assertEqual(code, 1, out)
+        self.assertIn("calc.py:", out)
+        self.assertIn("No TODO left behind", out)
+
+    def test_the_kit_review_template_has_no_rule_in_its_explanatory_sentence(self):
+        template = Path(__file__).resolve().parents[2] / "kits" / "github" / "REVIEW.md"
+        head = self.repo.commit("word", **{"calc.py": CALC_SUB + "\nPATTERN = 'REGEX'\n"})
+        code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", str(template))
+        self.assertEqual(code, 0, out)
+        markers = [line for line in template.read_text(encoding="utf-8").splitlines()
+                   if re.search(r"<!--\s*grep(\s+tests)?:.*-->\s*$", line)]
+        self.assertEqual(len(markers), 1)  # the Correctness line; the sentence that explains the marker is none
+        self.assertIn("1 grep-able REVIEW.md lines", out)
 
     def test_removed_assertion_is_reported(self):
         head = self.repo.commit("loosen", **{"tests__test_add.py": TEST_ADD.replace(
