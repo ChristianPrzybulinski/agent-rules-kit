@@ -28,13 +28,12 @@
 | `sdd-constitution` | user | SDD step 0 — constitution, spec index, parameters, REVIEW.md. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
 | `sdd-implement` | user | SDD step 6 — deliver a FEAT's tasks by Red-Green-Refactor, modes task, feat, fix. Use when a FEAT has ready rows or findings. Not for verdicts (skill review). |
 | `sdd-intake` | user, model | SDD entry — record an idea, need, improvement or problem as a NEED-nnn. Use when a request arrives. Not for classifying it (skill sdd-specify). |
-| `sdd-plan` | user | SDD step 4 — create the FEAT for a refined NEED: technical plan and decisions. Use when a NEED is refined. Not for task breakdown (skill sdd-tasks). |
+| `sdd-plan` | user | SDD step 4 — one FEAT per delivery of a refined NEED: its Plan sections and decisions. Use when a NEED is refined. Not for task rows (skill sdd-tasks). |
 | `sdd-release` | user | SDD step 9 — release validated FEATs: changelog, version, test deploy, acceptance, flag on. Use when FEATs are validated. Not for PRs (skill git). |
 | `sdd-review` | user | SDD step 8 — FEAT closure on main: task proofs, stale-text and trace lint, REQ-NF. Use when a FEAT's last row merged. Not for PR verdicts (skill review). |
 | `sdd-specify` | user, model | SDD 1 — specify a NEED-nnn: decide type, route and priority, then describe. Use when a NEED is proposed or taken up. Not for writing REQs (skill sdd-clarify). |
 | `sdd-spike` | user | Prototype lane for feel or feasibility. Use when motion, UI feel or a technical risk must be tried in code before a FEAT. Not for specs (skill sdd-intake). |
-| `sdd-tasks` | user | SDD step 5 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement). |
-| `sdd-to-card` | user | SDD step 8 — one GitHub issue per task row plus the FEAT card. Use when cutting issues or closing a FEAT. Not for PR operations (skill git). |
+| `sdd-tasks` | user | SDD step 5 — task rows in a planned FEAT, then their cut into items. Use when a FEAT is planned or its rows change. Not for execution (skill sdd-implement). |
 | `security` | user, model | Security design and CVE, secret and endpoint scans. Use when changing a trust boundary or preparing a sensitive PR or release. Not for verdicts (skill review). |
 | `session` | user, model | Session start, closeout and handoff. Use when starting, switching topic, closing, handing off or a second human joins. Not for parallelism (skill parallelize). |
 | `testing` | user, model | Test policy. Use when choosing or reviewing tests, setting coverage/mutation gates or before refactoring legacy or ported code. Not for verdicts (skill review). |
@@ -66,6 +65,7 @@
 - `spec-need.md`
 - `spec-requirement-functional.md`
 - `spec-requirement-non-functional.md`
+- `spec-task.md`
 
 ## `evals/`
 

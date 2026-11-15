@@ -15,9 +15,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # the baseline step reads the pull request's base branch
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: pip install pyyaml jsonschema
       - name: Validate frontmatter and FEAT/REQ references
         run: CI=1 python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas
+      # docs/spec/baseline.json holds old findings and may only shrink (KIT-068): a pull request that adds an entry
+      # or raises a value over its base branch fails here.
+      - name: Baseline only shrinks
+        if: github.event_name == 'pull_request'
+        env: {BASE_REF: "${{ github.base_ref }}"}
+        run: |
+          if git cat-file -e "origin/$BASE_REF:docs/spec/baseline.json" 2>/dev/null; then
+            git show "origin/$BASE_REF:docs/spec/baseline.json" > "$RUNNER_TEMP/baseline-base.json"
+            CI=1 python3 .github/spec-lint/check_spec.py --baseline-against "$RUNNER_TEMP/baseline-base.json" docs/spec .github/spec-lint/schemas
+          fi

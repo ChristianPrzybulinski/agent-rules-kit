@@ -73,6 +73,12 @@
           "minimum": 1,
           "default": 4
         },
+        "max_feat_tasks": {
+          "description": "Task rows above which a FEAT is too large for one delivery: check_spec.py warns and sdd-plan splits the NEED into several FEATs; read by sdd-plan, sdd-tasks",
+          "type": "integer",
+          "minimum": 1,
+          "default": 30
+        },
         "release": {
           "description": "merge: a FEAT is delivered once its work is on main (after its sdd-review closure, KIT-069); manual: sdd-release delivers it; read by sdd-review, sdd-release",
           "enum": ["merge", "manual"],
