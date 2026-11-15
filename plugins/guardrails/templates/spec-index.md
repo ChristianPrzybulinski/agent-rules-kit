@@ -22,6 +22,8 @@ sdd:
   protected_paths: {}
   bundle: {rows: 1, points: 3, high_rows: 1}
   rule_paths: {}
+  visual_approval: none
+  owner_approvals: [decision]
 ---
 
 # [Project name] — Specification

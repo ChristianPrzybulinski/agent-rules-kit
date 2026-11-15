@@ -2,7 +2,7 @@
 id: KIT-067
 title: "A project sets its process in an sdd: block; the constitution writes it with the glossary, areas and REVIEW.md; each folder's AGENTS.md carries its rules"
 status: confirmed
-confirmed: "2026-11-14 (owner, chat of the SDD review session: \"aprovo\" for the split and order of KIT-066 to KIT-071, \"aprovo e pode começar em paralelo\" to start this change beside KIT-071)"
+confirmed: "2026-11-14 (owner, chat of the SDD review session: \"aprovo\" for the split and order of KIT-066 to KIT-071, \"aprovo e pode começar em paralelo\" to start this change beside KIT-071; \"Aprovo todos\" for the consumer exceptions that add visual_approval and owner_approvals)"
 issue: "#234"
 pr: "#236"
 ---
@@ -21,7 +21,10 @@ pr: "#236"
 rules restated by its loop prompts; no prompt names a kit skill. The parts it files as parameters are bundle limits
 (3 rows, 6 points, one High), a row checker before the cut, rows sized for 1–2 h, three rounds per kind before the
 owner and who commits (executor or orchestrator). Each is a kit rule with a project value, so today the project copies
-the rule to change the value.
+the rule to change the value. Its review of the project's exceptions, one by one, files two more as parameters: the
+owner approves the visual evidence of a screen change (61 GitHub items mention `evidence approve` since 2026-11-01),
+and a list of changes only the owner approves (a new decision, a change to an approved decision, `protocol_version`,
+in-game evidence).
 
 [FACT] `sdd-constitution` wrote `AGENTS.md` and an index with an empty glossary. KIT-066 made `sdd-clarify` require
 every domain term a REQ uses in the `spec.md` glossary, and the consumer's glossary held 21 terms on 2026-11-14, about
@@ -47,7 +50,9 @@ godot rule in 0 of 18 sessions that edited `.gd` files and the java rule in 3 of
   all nine), `pr_unit` (`task|feat`, `task`), `task_minutes` (`30`), `row_check` and `cut_command` (command or
   `null`), `max_chain` (`4`), `release` (`merge|manual`, `merge`), `review_rounds` (`3`), `commits_by`
   (`executor|orchestrator`, `executor`), `protected_paths` (path or glob → label, `{}`), `bundle` (`rows` 1, `points` 3,
-  `high_rows` 1: one issue per row) and `rule_paths` (kit rule → folders, `{}`). An unknown key fails.
+  `high_rows` 1: one issue per row), `rule_paths` (kit rule → folders, `{}`), `visual_approval`
+  (`owner|reviewer|none`, `none`: who approves a screen or motion change's captures against its REQ's mock) and
+  `owner_approvals` (change kinds only the owner approves, kebab-case, `[decision]`). An unknown key fails.
 - `platforms/ci/validations/check_spec.py`: checks the block against that schema in full and structural mode alike,
   each failure naming its key (`sdd.tracker 'jira' is not one of ['github', 'none']`); `--params <spec-dir>
   <schemas-dir>` prints the resolved block as JSON, every absent key at its default. The structural parser now reads
@@ -101,3 +106,5 @@ that the sync creates no folder. Results are in the PR body.
 
 - 2026-11-14: confirmed (owner, chat): the split into KIT-066 to KIT-071 and their order ("aprovo"), and this change
   beside KIT-071 ("aprovo e pode começar em paralelo").
+- 2026-11-14: `visual_approval` and `owner_approvals` added (owner, chat: "Aprovo todos" for the consumer's exceptions
+  review, items 2 and 11); `review` reads them in KIT-069.

@@ -117,6 +117,18 @@
             "items": { "type": "string", "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$" }
           },
           "default": {}
+        },
+        "visual_approval": {
+          "description": "Who approves a screen or motion change's captures against its REQ's mock before the merge: the owner, the reviewer, or none (no visual approval step); read by review (KIT-069)",
+          "enum": ["owner", "reviewer", "none"],
+          "default": "none"
+        },
+        "owner_approvals": {
+          "description": "Change kinds only the owner may approve, for example decision, approved-dec-change, protocol-version, in-game-evidence; read by review (KIT-069) and an orchestrator session under owner-review autonomy",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "default": ["decision"]
         }
       }
     },

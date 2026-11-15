@@ -460,6 +460,8 @@ SDD_FULL = """sdd:
   rule_paths:
     json: [game/protocol, game/content]
     godot: [client]
+  visual_approval: owner
+  owner_approvals: [decision, approved-dec-change, protocol-version, in-game-evidence]
 """
 
 SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
@@ -467,7 +469,8 @@ SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
                                   "Dependencies"],
                 "pr_unit": "task", "task_minutes": 30, "row_check": None, "cut_command": None, "max_chain": 4,
                 "release": "merge", "review_rounds": 3, "commits_by": "executor", "protected_paths": {},
-                "bundle": {"rows": 1, "points": 3, "high_rows": 1}, "rule_paths": {}}
+                "bundle": {"rows": 1, "points": 3, "high_rows": 1}, "rule_paths": {},
+                "visual_approval": "none", "owner_approvals": ["decision"]}
 
 
 class SddParamsTest(unittest.TestCase):
@@ -567,6 +570,18 @@ class SddParamsTest(unittest.TestCase):
     def test_rule_paths_must_stay_inside_the_repo(self):
         self.index("sdd:\n  rule_paths: {json: [../shared]}\n")
         self.assert_fails("sdd.rule_paths.json item '../shared' does not match")
+
+    def test_unknown_visual_approval_fails(self):
+        self.index("sdd:\n  visual_approval: product\n")
+        self.assert_fails("sdd.visual_approval 'product' is not one of ['owner', 'reviewer', 'none']")
+
+    def test_owner_approvals_list_change_kinds(self):
+        self.index("sdd:\n  owner_approvals: [decision, Protocol Version]\n")
+        self.assert_fails("sdd.owner_approvals item 'Protocol Version' does not match")
+
+    def test_owner_approvals_must_be_a_list(self):
+        self.index("sdd:\n  owner_approvals: decision\n")
+        self.assert_fails("sdd.owner_approvals must be a list")
 
     def test_params_prints_the_kit_defaults(self):
         self.index()

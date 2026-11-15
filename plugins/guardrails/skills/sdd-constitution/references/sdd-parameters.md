@@ -33,6 +33,8 @@ default.
 | `protected_paths` | map: rooted path or glob → label | `{}` | `sdd-tasks` row check (KIT-068), `review` (KIT-069): a change there needs the label |
 | `bundle` | map: `rows` ≥ 1, `points` ≥ 1, `high_rows` ≥ 0 | `{rows: 1, points: 3, high_rows: 1}` | `sdd-tasks` cut (KIT-068): rows sharing a Files path in one issue; `rows: 1` = one issue per row |
 | `rule_paths` | map: kit rule name → folders, `.` for the whole repository | `{}` (the `--profile` folders) | `sync-project.sh`: the rule's globs and its `AGENTS.md` block |
+| `visual_approval` | `owner`, `reviewer`, `none` | `none` | `review` (KIT-069): who approves a screen or motion change's captures against its REQ's mock before the merge |
+| `owner_approvals` | list of change kinds, kebab-case | `[decision]` | `review` (KIT-069) and an orchestrator under owner-review autonomy: kinds only the owner approves, such as `approved-dec-change`, `protocol-version`, `in-game-evidence` |
 
 `points` sums the bundled rows' `Complexity`: Low 1, Med 2, High 3.
 
