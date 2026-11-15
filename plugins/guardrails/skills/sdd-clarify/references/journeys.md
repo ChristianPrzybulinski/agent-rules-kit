@@ -15,9 +15,9 @@ Only for a project that keeps `docs/spec/journeys/`. A journey is one user-visib
 ## Write
 
 - From the template: `status: proposed`, `owner`, `created`, `updated`.
-- Step tables (first header cell `Step`): `S<n>` main path in order, `A<n>` alternative with `At` naming its main step, `P<n>` prerequisite (contracts, assets, tooling no user sees).
+- Step tables (first header cell `Step`): `S<n>` main path in order, `A<n>` alternative with `At` naming its main step, `P<n>` prerequisite (contracts, assets, tooling no user sees), which always cites its task, so `sdd-tasks` adds it with the row.
 - `Rules` holds REQ ids only, or `—`. The rules already are REQs: a step whose rule has none gets one through `req-scope.md` in the same change.
-- `Implemented by` holds `FEAT-nnn Tn` rows as they are on main, filled once `sdd-plan` and `sdd-tasks` cut them; `Proven by` holds test tasks, backticked paths rooted at a clone name, and an optional trailing `manual: <check>`.
+- `Implemented by` holds `FEAT-nnn Tn` rows as they are on main; `Proven by` holds test tasks, backticked paths rooted at a clone name, and an optional trailing `manual: <check>`. A main or alternative step written here holds `—` in both: `sdd-tasks` fills `Implemented by` when it cuts the rows, and the delivery's closure fills `Proven by`. `spec_trace.py` accepts the `—` until a FEAT that lists one of the step's REQs is `validated` or `delivered`; from then on both are required.
 
 ## Link once, generate
 

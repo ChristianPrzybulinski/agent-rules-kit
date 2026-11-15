@@ -17,7 +17,7 @@ allowed-tools:
 
 Specifies a NEED in two parts: decide (`proposed` → `triaged`, or closed) and describe (`triaged` → `specified`). It never writes a REQ, FEAT, decision, debt or task row. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-need.md`. A request with no NEED goes to `sdd-intake` first.
 
-## 1. Decide (always, as soon as the NEED is recorded)
+## 1. Decide (after intake, now or later; a recorded NEED may wait)
 
 Read `docs/spec/spec.md` and only the REQs, journeys and FEATs the NEED touches; look in `docs/spec/needs/` for a NEED with the same request. Classify, first match wins:
 

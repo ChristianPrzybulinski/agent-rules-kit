@@ -47,6 +47,6 @@ A technical choice with a rejected reasonable alternative gets a decision record
 
 ## 5. Check restraint and consistency
 
-Do not add queue/cache/service/layer without demonstrated need. Ensure every criterion has a planned proof, run `sdd-check FEAT-nnn` (full scope: the functional items again plus the technical ones) with no critical/high findings, then set `status: planned` and update History.
+Do not add queue/cache/service/layer without demonstrated need. Ensure every criterion has a planned proof, run `sdd-check FEAT-nnn` (full scope: the functional items again plus the technical ones; C8's task half waits for `sdd-tasks`) with no critical/high findings, then set `status: planned` and update History.
 
 Done when: the FEAT lists the REQs it delivers on both sides, every REQ in Scope is proved by a criterion, the Plan names real files/boundaries, decisions have a record or justification, and the full check is unblocked.

@@ -15,8 +15,9 @@ updated: "YYYY-MM-DD"
 ---
 <!-- type: new | improvement | fix | content | platform | decision. Provisional at intake, confirmed by sdd-specify.
      status: proposed (sdd-intake) → triaged (sdd-specify, decide) → specified (sdd-specify, describe) → refined
-     (sdd-clarify, after a clean functional sdd-check) → delivered (every linked FEAT delivered; check_spec.py refuses it
-     before), or closed rejected | merged | routed | parked; a parked NEED returns to triaged when taken up.
+     (sdd-clarify, after a clean functional sdd-check) → delivered (set by the step that delivers its last FEAT; a decision
+     NEED with no FEAT, by sdd-clarify when it approves the decision; check_spec.py refuses it before), or closed
+     rejected | merged | routed | parked; a parked NEED returns to triaged when taken up.
      requirements, journeys and decisions are filled by sdd-clarify; features by sdd-plan. Links are written here only:
      REQ, FEAT, decision and debt files never list NEEDs in their link fields; they cite it only as provenance. -->
 
@@ -86,5 +87,7 @@ updated: "YYYY-MM-DD"
 | S1 | [REQ-F-nnn new / REQ-F-nnn amended / J-NN S<n> / decision id / cut: where it went] | [one line] |
 
 ## History
+<!-- Every step. sdd-intake writes the first line; each later step appends `YYYY-MM-DD <step>: <what>` for its status
+     move, answer or check (specify, clarify, plan, delivery). -->
 
 - YYYY-MM-DD intake: created from [channel].

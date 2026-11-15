@@ -333,6 +333,18 @@ updated: "2026-11-14"
 # J-01
 """
 
+DEBT = """---
+id: DEBT-001
+title: "Fixture debt DEBT-001"
+status: open
+severity: low
+trigger: "fixture trigger"
+created: "2026-11-14"
+---
+
+# DEBT-001
+"""
+
 
 class NeedTest(unittest.TestCase):
     """NEED-nnn intake records link forward only and back their status with links (KIT-066)."""
@@ -437,6 +449,47 @@ class NeedTest(unittest.TestCase):
         self.need("NEED-002", status="delivered", requirements="[REQ-F-001]", features="[FEAT-001]")
         self.assert_fails("NEED-001-fixture.md: status delivered needs the features that delivered it",
                           "NEED-002-fixture.md: status delivered, but FEAT-001 is proposed")
+
+    def approved_decision(self, did):
+        text = DECISION.format(did=did, extra="").replace("status: proposed", "status: approved")
+        (self.spec / "decisions" / f"{did}-fixture.md").write_text(text)
+
+    def test_markdown_in_a_need_data_folder_is_not_a_need(self):
+        self.need("NEED-001")
+        (self.spec / "needs" / "NEED-001-data").mkdir()
+        (self.spec / "needs" / "NEED-001-data" / "notes.md").write_text("# Interview notes\n\n- bulky evidence\n")
+        self.assert_passes()
+
+    def test_decision_need_delivered_by_its_approved_decision_passes(self):
+        self.approved_decision("DEC-002")
+        self.need("NEED-001", status="delivered", type_="decision", decisions="[DEC-002]")
+        self.assert_passes()
+
+    def test_delivered_without_features_needs_a_decision_need_and_an_approved_decision(self):
+        self.approved_decision("DEC-002")
+        self.need("NEED-001", status="delivered", type_="decision", decisions="[DEC-001]")
+        self.need("NEED-002", status="delivered", type_="new", decisions="[DEC-002]")
+        self.assert_fails("NEED-001-fixture.md: status delivered needs the features that delivered it",
+                          "NEED-002-fixture.md: status delivered needs the features that delivered it")
+
+    def test_req_listed_only_by_a_closed_need_fails(self):
+        self.req_without_feat("REQ-F-002")
+        for status in ("rejected", "merged", "routed", "parked"):
+            with self.subTest(status=status):
+                self.need("NEED-001", status=status, requirements="[REQ-F-002]")
+                self.assert_fails("REQ-F-002 has no FEAT implementing it and no NEED listing it")
+
+    def test_decisions_link_must_be_a_decision(self):
+        self.need("NEED-001", decisions="[REQ-F-001]")
+        self.assert_fails("decisions lists REQ-F-001, which is not an existing decision")
+
+    def test_debts_link_must_be_a_debt(self):
+        (self.spec / "debts").mkdir()
+        (self.spec / "debts" / "DEBT-001-fixture.md").write_text(DEBT)
+        self.need("NEED-001", debts="[DEBT-001]")
+        self.assert_passes()
+        self.need("NEED-002", debts="[DEC-001]")
+        self.assert_fails("debts lists DEC-001, which is not an existing debt")
 
 
 if __name__ == "__main__":
