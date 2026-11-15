@@ -1,5 +1,6 @@
 """check_spec.py FEAT<->REQ cross-check (both frontmatters must agree on every link), progress files, conflict
 markers, the project's decision kinds and NEED intake records."""
+import importlib.util
 import json
 import os
 import shutil
@@ -497,6 +498,24 @@ class NeedTest(unittest.TestCase):
         self.assert_passes()
         self.need("NEED-002", debts="[DEC-001]")
         self.assert_fails("debts lists DEC-001, which is not an existing debt")
+
+
+class MiniYamlTest(unittest.TestCase):
+    """The structural parser against pyyaml on the same text (KIT-067 review): comments, quotes holding ' #'."""
+
+    TEXT = 'k: ["a #b", c]  # note\nt: it\'s here  # c\nq: "x # y"  # z\nm: {path: "p #1"}\n'
+    WANT = {"k": ["a #b", "c"], "t": "it's here", "q": "x # y", "m": {"path": "p #1"}}
+
+    def test_quoted_text_keeps_its_hash(self):
+        loader = importlib.util.spec_from_file_location("check_spec_under_test", CHECK_SPEC)
+        module = importlib.util.module_from_spec(loader)
+        loader.loader.exec_module(module)
+        self.assertEqual(module.mini_yaml(self.TEXT), self.WANT)
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("pyyaml missing: only the structural side ran")
+        self.assertEqual(yaml.safe_load(self.TEXT), self.WANT)
 
 
 SDD_FULL = """sdd:

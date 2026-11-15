@@ -106,10 +106,12 @@ def block_span(lines):
 
 
 def read_text(path):
-    """Returns (text with LF line endings, the file's line ending), so a CRLF file keeps CRLF when written back."""
+    """Returns (text with LF line endings, the file's dominant line ending), so a CRLF file keeps CRLF when written
+    back and a mostly-LF file with a stray CRLF stays LF."""
     with open(path, encoding="utf-8", newline="") as handle:
         raw = handle.read()
-    return raw.replace("\r\n", "\n"), ("\r\n" if "\r\n" in raw else "\n")
+    crlf = raw.count("\r\n")
+    return raw.replace("\r\n", "\n"), ("\r\n" if crlf > raw.count("\n") - crlf else "\n")
 
 
 def write_text(path, text, eol):
@@ -159,7 +161,8 @@ def with_block(text, block):
 
 def unsafe_targets(repo, blocks):
     """Returns {folder: problem} for each target the sync must not write: a symbolic-link AGENTS.md, or a folder
-    that resolves outside the repository (a symbolic link on its path)."""
+    with a symbolic link on its path (it may lead outside the repository, or to a folder another target also
+    writes, and the two would rewrite each other forever)."""
     real_repo = repo.resolve()
     unsafe = {}
     for folder in blocks:
@@ -167,9 +170,8 @@ def unsafe_targets(repo, blocks):
         parent = path.parent.resolve()
         if path.is_symlink():
             unsafe[folder] = f"sync: {rel(folder)} is a symbolic link; the sync writes no path-rule block through it"
-        elif parent != real_repo and real_repo not in parent.parents:
-            unsafe[folder] = (f"sync: {folder} resolves outside the repository; the sync writes no path-rule block"
-                              " there")
+        elif parent != real_repo / folder:
+            unsafe[folder] = f"sync: {folder} goes through a symbolic link; the sync writes no path-rule block there"
     return unsafe
 
 

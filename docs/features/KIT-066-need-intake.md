@@ -91,7 +91,8 @@ the FEAT (technical). `sdd-check` leaves the chain and becomes the read-only too
   decision prefix) and accepts a REQ with no FEAT when an open NEED lists it (a delivered, rejected, merged, routed or
   parked one does not count). `spec_trace.py` lets a main or alternative journey step hold a literal `—` in
   `Implemented by` and `Proven by` while a NEED that lists the journey in `journeys` is open (not delivered, rejected,
-  merged, routed or parked, and its listed FEATs have not yet all delivered every REQ it lists), so a step written in clarify does not block `refined`; once no open NEED lists the journey
+  merged, routed or parked, and its listed FEATs have not yet all delivered every REQ it lists), so a step written in
+  clarify does not block `refined`; once no open NEED lists the journey
   both are required, as on `main`, and a project without `needs/` keeps `main`'s rule. A prerequisite row, an empty
   cell and a journey with no step still fail. `sdd-tasks` fills both cells when it cuts the rows. `test_check_spec.py`
   adds `NeedTest` (20 tests) and `DecisionKindsTest.test_need_prefix_is_reserved`, each in full and structural mode;

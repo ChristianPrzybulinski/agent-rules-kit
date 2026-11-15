@@ -31,7 +31,7 @@ step table. Row ids: `S<n>` main path, `A<n>` alternative path (column `At` name
 optional trailing `manual: <check>`. Journeys are written in sdd-clarify, before the FEAT and its tasks
 exist, so a main or alternative step may hold a literal `—` in `Implemented by` and `Proven by` while a
 NEED in <spec>/needs/ that lists the journey in `journeys` is open (not delivered, rejected, merged,
-routed or parked); once none is, both cite refs. Without needs/ nothing waits. A prerequisite row, an
+routed or parked, and its listed FEATs have not yet all delivered every REQ it lists); once none is, both cite refs. Without needs/ nothing waits. A prerequisite row, an
 empty cell and a journey with no main step always fail.
 
 A test path's first segment names the clone it lives in: the spec's own repository (its directory name)
@@ -327,7 +327,8 @@ def why_due(spec: Spec, step: Step, cell: str) -> str:
     """Why a `—` no longer waits; empty for any other cell, whose message stays as on main."""
     if cell.strip() != PENDING or spec.open_needs.get(step.journey):
         return ""
-    return f"; `{PENDING}` waits only while a NEED listing the journey is open: no open NEED lists {step.journey}"
+    return (f"; `{PENDING}` waits only while a NEED listing the journey is open: no open NEED lists {step.journey} "
+            f"(a NEED whose listed FEATs are all delivered and cover every REQ it lists counts as settled)")
 
 
 def only_ids(spec, step, column, cell, pattern):

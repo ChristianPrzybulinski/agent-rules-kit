@@ -61,14 +61,31 @@ def mini_scalar(text):
 
 
 def strip_comment(val):
-    """Drops a trailing comment as YAML does: after a quoted value's closing quote, else from a '#' after a space."""
-    if val.startswith("#"):
-        return ""
-    if val[:1] in ("'", '"'):
-        end = val.find(val[0], 1)
-        rest = val[end + 1:].strip() if end > 0 else ""
-        return val[:end + 1] if end > 0 and (not rest or rest.startswith("#")) else val
-    return re.sub(r"\s+#.*$", "", val)
+    """Drops a trailing comment as YAML does: from a '#' at the start or after a space, outside quoted text. A quote
+    opens quoted text at the value's start or, inside a flow list or map, after '[', '{', ',' or ':'."""
+    quote, depth, prev, i = None, 0, "", 0
+    while i < len(val):
+        ch = val[i]
+        if quote:
+            if ch == "\\" and quote == '"':
+                i += 1
+            elif ch == quote and quote == "'" and val[i + 1:i + 2] == "'":
+                i += 1
+            elif ch == quote:
+                quote = None
+        elif ch == "#" and (i == 0 or val[i - 1] in " \t"):
+            return val[:i].rstrip()
+        elif ch in "]}" and depth:
+            depth -= 1
+        elif prev == "" or (depth and prev in "[{,:"):
+            if ch in "'\"":
+                quote = ch
+            elif ch in "[{":
+                depth += 1
+        if not quote and ch not in " \t":
+            prev = ch
+        i += 1
+    return val
 
 
 def _skip_spaces(text, i):
