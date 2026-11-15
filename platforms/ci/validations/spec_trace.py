@@ -7,11 +7,22 @@
   spec_trace.py impact SPEC BASE HEAD  markdown: the journey steps and tests a BASE...HEAD diff touches
   spec_trace.py mark-done SPEC FEAT-NNN Tn [--pr REPO#N]
                                        set the task row's Status to `done` and append a History line
-  spec_trace.py status SPEC [--write]  derive each FEAT's status from its task rows; fail on a mismatch,
+  spec_trace.py status SPEC [--write]  derive each FEAT's status from its task rows (in-progress at most);
+                                       fail on a mismatch or a validated/delivered FEAT with an open row,
                                        or with --write rewrite `status` and `updated`
+  spec_trace.py validate SPEC FEAT-NNN --at SHA [--check]
+                                       sdd-review: every row done, a `## Closure` record, every step of a
+                                       journey its NEEDs list filled; then `validated`, or `delivered` under
+                                       `release: merge` (spec.md `sdd:`, the default)
+  spec_trace.py deliver SPEC FEAT-NNN --in VERSION
+                                       sdd-release: `validated` to `delivered`
 
 Options (before the command): `--repo NAME` (repeatable) adds a clone name a `Proven by` test path may
-be rooted at, and `--date` fixes the date written by mark-done/status --write (default: today).
+be rooted at, and `--date` fixes the date written by mark-done/status --write/validate/deliver (default: today).
+
+FEAT status (KIT-069): task rows derive `in-progress` at most. `validated` and `delivered` are written only by
+`validate` and `deliver`, each with its History line, which check_spec.py requires; a FEAT that reaches `delivered`
+moves each NEED whose listed FEATs are all delivered and cover its REQs to `delivered` too.
 
 Journeys live in <spec>/journeys/J-NN.md. Every markdown table whose first header cell is `Step` is a
 step table. Row ids: `S<n>` main path, `A<n>` alternative path (column `At` names its main step),
@@ -60,7 +71,9 @@ MANUAL = re.compile(r"manual:\s*(.+)$")
 SEPARATORS = re.compile(r"<br>|[\s,·;—]+")
 PR_REF = re.compile(r"^[\w.-]+#\d+$")
 UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
-STATUS_FROZEN = ("validated", "cancelled")
+STATUS_CLOSED = ("validated", "delivered")
+STATUS_FROZEN = STATUS_CLOSED + ("cancelled",)
+VALIDATE_FROM = ("clarified", "planned", "in-progress")
 NEED_SETTLED = ("delivered", "rejected", "merged", "routed", "parked")
 PENDING = "—"
 JOURNEY_STATUS = ("proposed", "approved", "retired")
@@ -193,7 +206,7 @@ def listed(data: dict, key: str) -> list:
 
 def delivered_by_its_feats(spec: Spec, need: dict) -> bool:
     """A NEED whose listed FEATs are all delivered and cover every REQ it lists no longer holds a step's `—`, even
-    before its own status moves to delivered: no step owns that move yet, so the wait would never end."""
+    before its own status moves to delivered (validate or deliver moves it, KIT-069; older NEEDs may lag)."""
     feats = listed(need, "features")
     if not feats or any(spec.feats.get(f, {}).get("status") != "delivered" for f in feats):
         return False
@@ -447,17 +460,47 @@ def check(spec):
 
 
 def derived_status(feat):
-    """Return the status the task rows imply, or the current one when they imply none."""
+    """Return the status the task rows imply (in-progress at most), or the current one when they imply none."""
     states = list(feat["task_status"].values())
     if feat["status"] in STATUS_FROZEN or "done" not in states:
         return feat["status"]
-    return "delivered" if all(state == "done" for state in states) else "in-progress"
+    return "in-progress"
 
 
 def status_errors(spec):
-    return [f"{fid}: status={feat['status']!r} but its task rows imply {derived_status(feat)!r}: "
-            "run spec_trace.py status --write"
-            for fid, feat in spec.feats.items() if derived_status(feat) != feat["status"]]
+    errors = [f"{fid}: status={feat['status']!r} but its task rows imply {derived_status(feat)!r}: "
+              "run spec_trace.py status --write"
+              for fid, feat in spec.feats.items() if derived_status(feat) != feat["status"]]
+    errors += [f"{fid}: status={feat['status']!r} but {tid} is {state!r}: sdd-review closes a FEAT only when "
+               "every row is done"
+               for fid, feat in spec.feats.items() if feat["status"] in STATUS_CLOSED
+               for tid, state in feat["task_status"].items() if state != "done"]
+    return errors
+
+
+def set_status(path, new, today):
+    """Rewrite the frontmatter `status` and `updated` of a FEAT or NEED file."""
+    text = path.read_text(encoding="utf-8")
+    head, sep, rest = text.partition("\n---\n")
+    head = re.sub(r"(?m)^status:.*$", f"status: {new}", head, count=1)
+    if re.search(r"(?m)^updated:", head):
+        head = re.sub(r"(?m)^updated:.*$", f'updated: "{today}"', head, count=1)
+    else:
+        head = re.sub(r"(?m)^(status:.*)$", rf'\1\nupdated: "{today}"', head, count=1)
+    path.write_text(head + sep + rest, encoding="utf-8")
+
+
+def append_history(path, entry):
+    """Append `entry` after the last line of the file's `## History` list (a new section when it has none)."""
+    lines = path.read_text(encoding="utf-8").split("\n")
+    start = next((i for i, line in enumerate(lines) if line == "## History"), None)
+    if start is None:
+        lines += ["", "## History", "", entry]
+    else:
+        end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+        last = max((i for i in range(start, end) if lines[i].startswith("- ")), default=start + 1)
+        lines.insert(last + 1, entry)
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def rewrite_status(spec, today):
@@ -467,16 +510,116 @@ def rewrite_status(spec, today):
         new = derived_status(feat)
         if new == feat["status"]:
             continue
-        text = feat["path"].read_text(encoding="utf-8")
-        head, sep, rest = text.partition("\n---\n")
-        head = re.sub(r"(?m)^status:.*$", f"status: {new}", head, count=1)
-        if re.search(r"(?m)^updated:", head):
-            head = re.sub(r"(?m)^updated:.*$", f'updated: "{today}"', head, count=1)
-        else:
-            head = re.sub(r"(?m)^(status:.*)$", rf'\1\nupdated: "{today}"', head, count=1)
-        feat["path"].write_text(head + sep + rest, encoding="utf-8")
+        set_status(feat["path"], new, today)
         changed.append(f"{fid}: {feat['status']} -> {new}")
     return changed
+
+
+def release_mode(spec_dir):
+    """The project's `sdd: release` from spec.md (KIT-067), `merge` when absent."""
+    path = spec_dir / "spec.md"
+    data = split_frontmatter(path.read_text(encoding="utf-8"))[0] if path.exists() else None
+    sdd = data.get("sdd") if isinstance(data, dict) else None
+    return sdd.get("release", "merge") if isinstance(sdd, dict) else "merge"
+
+
+def load_needs(spec_dir):
+    """Every NEED file, settled or open: NEED id -> (path, frontmatter)."""
+    needs = {}
+    for path in sorted((spec_dir / "needs").glob("NEED-*.md")):
+        data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and data.get("id"):
+            needs[str(data["id"])] = (path, data)
+    return needs
+
+
+def has_closure(path):
+    """True when the FEAT's `## Closure` section holds a line outside HTML comments."""
+    text = re.sub(r"(?s)<!--.*?-->", "", path.read_text(encoding="utf-8"))
+    match = re.search(r"(?ms)^## Closure[ \t]*$(.*?)(?=^## |\Z)", text)
+    return bool(match and match.group(1).strip())
+
+
+def closure_gaps(spec, fid, needs):
+    """What keeps sdd-review from closing the FEAT: open rows, no closure record, unfilled journey steps."""
+    feat = spec.feats[fid]
+    gaps = [] if feat["task_status"] else [f"{fid} has no task row with a Status cell"]
+    gaps += [f"{fid} {tid} is {state}: every row is done before sdd-review"
+             for tid, state in feat["task_status"].items() if state != "done"]
+    if not has_closure(feat["path"]):
+        gaps.append(f"{fid} has no `## Closure` record: sdd-review writes it before validate")
+    for nid, (_, need) in needs.items():
+        if fid not in listed(need, "features"):
+            continue
+        for jid in listed(need, "journeys"):
+            journey = spec.journeys.get(jid)
+            if journey is None:
+                gaps.append(f"{nid} lists {jid}, which has no journey file")
+                continue
+            for step in journey["steps"]:
+                missing = [c for c, ok in (("Implemented by", step.tasks), ("Proven by", step.tests or step.manual))
+                           if not ok]
+                if missing and not step.id.startswith("P"):
+                    gaps.append(f"{step.ref}: {' and '.join(missing)} still `{PENDING}`; {nid}, which lists {fid}, "
+                                f"lists {jid}")
+    return gaps
+
+
+def deliver_needs(spec, fid, step, today, needs):
+    """Move each open NEED that lists fid, and whose FEATs are now all delivered and cover its REQs, to delivered."""
+    spec.feats[fid]["status"] = "delivered"
+    moved = []
+    for nid, (path, need) in needs.items():
+        if fid in listed(need, "features") and need.get("status") not in NEED_SETTLED \
+                and delivered_by_its_feats(spec, need):
+            set_status(path, "delivered", today)
+            append_history(path, f"- {today} {step}: delivered ({', '.join(listed(need, 'features'))})")
+            moved.append(f"{nid}: {need.get('status')} -> delivered")
+    return moved
+
+
+def validate(spec, fid, ref, today, check_only):
+    """sdd-review's status move; returns the exit code."""
+    feat = spec.feats.get(fid)
+    if feat is None:
+        raise SystemExit(f"{fid} is not a FEAT in {spec.spec_dir}")
+    mode = release_mode(spec.spec_dir)
+    target = "delivered" if mode == "merge" else "validated"
+    if feat["status"] == target:
+        print(f"{fid} is already {target}")
+        return 0
+    if feat["status"] not in VALIDATE_FROM:
+        return report([f"{fid} is {feat['status']}: sdd-review validates a FEAT that is "
+                       f"{', '.join(VALIDATE_FROM)}"], "")
+    needs = load_needs(spec.spec_dir)
+    gaps = closure_gaps(spec, fid, needs)
+    if gaps or check_only:
+        return report(gaps, f"{fid}: ready to validate ({target} under release: {mode})")
+    set_status(feat["path"], target, today)
+    suffix = " (release: merge)" if target == "delivered" else ""
+    append_history(feat["path"], f"- {today} sdd-review: {target} at {ref}{suffix}")
+    print(f"{fid}: {feat['status']} -> {target} (sdd-review at {ref}, release: {mode})")
+    for line in deliver_needs(spec, fid, "sdd-review", today, needs) if target == "delivered" else []:
+        print(line)
+    return 0
+
+
+def deliver(spec, fid, ref, today):
+    """sdd-release's status move; returns the exit code."""
+    feat = spec.feats.get(fid)
+    if feat is None:
+        raise SystemExit(f"{fid} is not a FEAT in {spec.spec_dir}")
+    if feat["status"] == "delivered":
+        print(f"{fid} is already delivered")
+        return 0
+    if feat["status"] != "validated":
+        return report([f"{fid} is {feat['status']}: sdd-review validates it first (spec_trace.py validate)"], "")
+    set_status(feat["path"], "delivered", today)
+    append_history(feat["path"], f"- {today} sdd-release: delivered in {ref}")
+    print(f"{fid}: validated -> delivered (sdd-release in {ref})")
+    for line in deliver_needs(spec, fid, "sdd-release", today, load_needs(spec.spec_dir)):
+        print(line)
+    return 0
 
 
 def mark_done(spec, fid, tid, pr, today):
@@ -494,17 +637,8 @@ def mark_done(spec, fid, tid, pr, today):
     old = feat["tasks"][tid]
     pieces = UNESCAPED_PIPE.split(old)
     pieces[column + 1] = " done "
-    text = text.replace(old, "|".join(pieces), 1)
-    entry = f"- {today} done: {tid}" + (f" ({pr})" if pr else "")
-    lines = text.split("\n")
-    start = next((i for i, line in enumerate(lines) if line == "## History"), None)
-    if start is None:
-        lines += ["", "## History", "", entry]
-    else:
-        end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
-        last = max((i for i in range(start, end) if lines[i].startswith("- ")), default=start + 1)
-        lines.insert(last + 1, entry)
-    feat["path"].write_text("\n".join(lines), encoding="utf-8")
+    feat["path"].write_text(text.replace(old, "|".join(pieces), 1), encoding="utf-8")
+    append_history(feat["path"], f"- {today} done: {tid}" + (f" ({pr})" if pr else ""))
     return f"{fid} {tid} -> done"
 
 
@@ -605,6 +739,15 @@ def main(argv=None):
     done.add_argument("feat")
     done.add_argument("task")
     done.add_argument("--pr", help="merged task PR as <repo>#<n>")
+    closing = sub.add_parser("validate")
+    closing.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+    closing.add_argument("feat")
+    closing.add_argument("--at", required=True, help="the main commit sdd-review ran the closure on")
+    closing.add_argument("--check", action="store_true", help="report the gaps only; write nothing")
+    release = sub.add_parser("deliver")
+    release.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+    release.add_argument("feat")
+    release.add_argument("--in", dest="version", required=True, help="the release that delivered it")
     args = parser.parse_args(argv)
     today = args.date or datetime.date.today().isoformat()
 
@@ -625,6 +768,10 @@ def main(argv=None):
             print("\n".join(changed) or "spec-trace status: nothing to rewrite")
             return 0
         return report(status_errors(spec), f"spec-trace status: OK ({len(spec.feats)} FEATs)")
+    if args.command == "validate":
+        return validate(spec, args.feat, args.at, today, args.check)
+    if args.command == "deliver":
+        return deliver(spec, args.feat, args.version, today)
     if args.command == "impact":
         print(render_impact(changes(spec, args.base, args.head)), end="")
         return 0

@@ -14,6 +14,9 @@ every listed id must exist with the right kind, a refined or delivered NEED name
 lists only delivered FEATs, or, for a decision NEED with no FEAT, an approved decision. A REQ that no FEAT implements
 yet must be listed by an open NEED, not a delivered, rejected, merged, routed or parked one (REQs are written before
 the FEAT that delivers them).
+A FEAT at `validated` or `delivered` carries the History line of the step that moved it (KIT-069), written by
+spec_trace.py: `sdd-review: validated`, then `sdd-release: delivered` or, under `release: merge`, `sdd-review:
+delivered`; a FEAT delivered before that step existed carries `delivered before sdd-review` instead.
 """
 import json
 import os
@@ -389,6 +392,27 @@ def check_conflict_markers(spec_dir):
                 fail(f"{path}:{n}: merge-conflict marker {line[:7]!r} left in the file")
 
 
+CLOSURE_LINE = re.compile(r"^- \d{4}-\d{2}-\d{2} (sdd-review|sdd-release): (validated|delivered)\b", re.M)
+LEGACY_DELIVERED = re.compile(r"^- \d{4}-\d{2}-\d{2} delivered before sdd-review\b", re.M)
+
+
+def check_feature_closure(path, status):
+    """validated is set only by sdd-review, delivered only by sdd-release or by sdd-review under release: merge."""
+    if status not in ("validated", "delivered"):
+        return
+    match = re.search(r"(?ms)^## History[ \t]*$(.*?)(?=^## |\Z)", path.read_text(encoding="utf-8"))
+    history = match.group(1) if match else ""
+    marks = {m.groups() for m in CLOSURE_LINE.finditer(history)}
+    if status == "validated" and ("sdd-review", "validated") not in marks:
+        fail(f"{path}: status validated needs the History line sdd-review writes "
+             "('- YYYY-MM-DD sdd-review: validated at <sha>'): run spec_trace.py validate")
+    if status == "delivered" and not (marks & {("sdd-release", "delivered"), ("sdd-review", "delivered")}
+                                      or LEGACY_DELIVERED.search(history)):
+        fail(f"{path}: status delivered needs the History line sdd-release writes "
+             "('- YYYY-MM-DD sdd-release: delivered in <version>'): run spec_trace.py deliver, or validate under "
+             "release: merge")
+
+
 NEED_LINKS = {"requirements": "requirement", "decisions": "decision", "debts": "debt", "features": "feature"}
 NEED_PRODUCT_LINKS = ("requirements", "journeys", "decisions")
 NEED_CLOSED = ("rejected", "merged", "routed", "parked")
@@ -580,6 +604,7 @@ def main():
         if kind == "feature" and fid:
             feats[fid] = data.get("requirements") or []
             feat_status[fid] = data.get("status")
+            check_feature_closure(path, data.get("status"))
         if kind == "requirement" and fid:
             reqs[fid] = data.get("features") or []
         if kind == "need" and fid:
