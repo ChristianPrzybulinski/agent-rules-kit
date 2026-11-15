@@ -4,7 +4,7 @@ title: "A project sets its process in an sdd: block; the constitution writes it 
 status: confirmed
 confirmed: "2026-11-14 (owner, chat of the SDD review session: \"aprovo\" for the split and order of KIT-066 to KIT-071, \"aprovo e pode começar em paralelo\" to start this change beside KIT-071)"
 issue: "#234"
-pr: ""
+pr: "#236"
 ---
 
 # KIT-067 — Project sdd: parameters, constitution outputs and rule blocks per folder
