@@ -34,7 +34,7 @@ A `script` step runs `python3 ~/.ai-kit/platforms/tools/review_checks.py <check>
 |---|---|---|---|
 | 1 | Pin the criteria | judgment | criterion rows from the row's CA, its REQs' Verification, the Plan § it cites and the project `REVIEW.md`, written before reading the code; the author's verdict stays out |
 | 2 | Gates | script | the depth tier's gates on a clean checkout of the pushed head; a record whose inputs are unchanged is reused on a `Reused:` line |
-| 3 | Red check | script, then judgment | `red`: the PR's tests fail on base and pass on head; judge that base fails for the right reason, or the `## Red` exception |
+| 3 | Red check | script, then judgment | `red`: Red is a test failing on base on an assertion or on a symbol the PR adds, head passing; a test-only PR is exempt; judge only what it flags, or the `## Red` exception |
 | 4 | Scope | script | `scope`: paths inside Files, `## Files widened` only existing tests with no assertion changed, `protected_paths` labels |
 | 5 | Acceptance | script, then judgment | `proof --run` re-runs the proof block; each CA the row covers has code, test and doc at `path:line` |
 | 6 | Design | judgment | the diff follows the Plan § (layers, contract, data, flag); a deviation the Plan lacks is a `spec` finding |

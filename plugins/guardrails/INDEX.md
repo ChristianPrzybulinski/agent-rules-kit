@@ -30,7 +30,7 @@
 | `sdd-intake` | user, model | SDD entry — record an idea, need, improvement or problem as a NEED-nnn. Use when a request arrives. Not for classifying it (skill sdd-specify). |
 | `sdd-plan` | user | SDD step 4 — create the FEAT for a refined NEED: technical plan and decisions. Use when a NEED is refined. Not for task breakdown (skill sdd-tasks). |
 | `sdd-release` | user | SDD step 9 — release validated FEATs: changelog, version, test deploy, acceptance, flag on. Use when FEATs are validated. Not for PRs (skill git). |
-| `sdd-review` | user | SDD step 8 — FEAT closure on main: criteria, REQ examples, REQ-NF, journeys, decisions. Use when a FEAT's last row merged. Not for PR verdicts (skill review). |
+| `sdd-review` | user | SDD step 8 — FEAT closure on main: task proofs, stale-text and trace lint, REQ-NF. Use when a FEAT's last row merged. Not for PR verdicts (skill review). |
 | `sdd-specify` | user, model | SDD 1 — specify a NEED-nnn: decide type, route and priority, then describe. Use when a NEED is proposed or taken up. Not for writing REQs (skill sdd-clarify). |
 | `sdd-spike` | user | Prototype lane for feel or feasibility. Use when motion, UI feel or a technical risk must be tried in code before a FEAT. Not for specs (skill sdd-intake). |
 | `sdd-tasks` | user | SDD step 5 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement). |

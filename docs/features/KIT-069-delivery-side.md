@@ -63,18 +63,30 @@ Claude ran independent checks at once without loading the skill. Issue #240 send
   coordinator per delivery, blocker classes A/B/C (escalate at the second same-class failure), green `main` per wave,
   conflict merges, batch review (coherence and dead code across a batch), planned versus measured evidence and
   owner-only approvals.
-- `platforms/tools/review_checks.py` (new): `red` copies the PR's added or changed test files onto the base and expects
-  a failure there and a pass on the head, printing the base failure for the reviewer to judge; `scope` checks the Files
-  cell, `## Files widened` (existing tests only, no changed assertion) and `protected_paths` labels; `proof` checks the
-  `## Red` section, the `proof` block and the executor line and re-runs allowlisted proof lines; `dod` matches the
-  `REVIEW.md` lines ending in `<!-- grep: REGEX -->` (or `grep tests:`) and dropped assertions. Scope and allowlist
-  rules are imported from `pr_gates.py`, so the CI gate and the local tool agree.
-- `sdd-review` (new, step 8): after the last row merges, on a clean `main`, by a context that delivered no row: the
-  start gate (`spec_trace.py validate --check`), every CA, each delivered REQ's example and counterexample, each REQ-NF
-  measurement (metric, target, measured), the touched journeys end to end, stale proofs found and re-pointed, settled
-  decisions folded with a `→ folded into` marker and resolved conditionals rewritten; outcomes `validated` or a row,
-  `sdd-clarify`, a NEED fix, or a row or DEBT; the `## Closure` record with retro numbers (blocked rows, review rounds,
-  REQs amended after `planned`), `references/closure-record.md`.
+- `platforms/tools/review_checks.py` (new): `red` copies the PR's added or changed test files onto the base, runs them
+  there and on the head, and classifies each failing test from JUnit reports or the unittest/pytest text: Red is one
+  test failing on an assertion, or on a compile or import error whose missing symbols the PR's non-test diff all adds
+  (the normal Red of a new class); a PR with no non-test change under the code roots is exempt without a run; a
+  runtime error, every test passing on base despite a production change, or a Red made only of data entries is
+  flagged (exit 3) for the reviewer, never a block on its own; it judges per PR and reports per test. `scope` checks
+  the Files cell, `## Files widened` (existing tests only, no changed assertion) and `protected_paths` labels; `proof`
+  checks the `## Red` section, the `proof` block and the executor line and re-runs allowlisted proof lines;
+  `feat-proofs` re-runs every command of a FEAT's Proof cells. Both re-runs check each named path first (a moved file
+  is a stale proof) and fail a run whose output matches its stack's failure pattern even at exit 0, from a per-stack
+  table (`godot`, `maven`, `python`) that a project extends with `--patterns`; the `maven` lint flags `-Dtest` with
+  `verify`. `dod` matches the `REVIEW.md` lines ending in `<!-- grep: REGEX -->` (or `grep tests:`) and dropped
+  assertions. Scope and allowlist rules are imported from `pr_gates.py`, so the CI gate and the local tool agree.
+- `sdd-review` (new, step 8), trimmed by the calibration: after the last row merges, on a clean `main`, by a context
+  that delivered no row. Scripts first: the start gate (`spec_trace.py validate --check`), `review_checks.py
+  feat-proofs` on every task proof, `spec_trace.py lint` (new: "Not verified" or an Audit still "Pending", `[PROPOSAL]`
+  in Scope, `[HYPOTHESIS]` in Open questions or a done row, "until/once Tn" with Tn done, a Plan row count that differs
+  from the table, and each listed REQ's proving test missing from its trace row) and the wave's broad-suite record on
+  `main`; no separate re-run of each REQ's tests. Model judgment only on what they flag: re-pointing stale proofs (and
+  re-running only those), rewriting stale markers, folding a flagged `[DECISION]` with a `→ folded into` marker, and
+  mapping each REQ example and counterexample to an asserting test, whose output is a list of missing-test rows, not a
+  block on `validated` (the reading is fallible: 1 of 3 spot checks was wrong); REQ-NF measurements and a touched
+  journey's manual checks stay. Outcomes `validated` or a row, `sdd-clarify`, a NEED fix or a DEBT; the `## Closure`
+  record with retro numbers, `references/closure-record.md` (with the calibration and its falsifier).
 - `sdd-release` (new, step 9): group validated FEATs, changelog and version (`git` § 9), deploy to the test environment
   and smoke, the owner's acceptance (playtest or captures against the mock), flag on with a written rollback plan,
   `spec_trace.py deliver` (FEAT and complete NEEDs `delivered`), feedback to `sdd-intake` as child NEEDs; under
@@ -100,10 +112,24 @@ label; the `parallelize` trigger case of KIT-071 is re-run once #235 merges here
 
 ## Calibration
 
-The owner's adjustment 2 measures the closure on 5 delivered consumer FEATs and the Red check on the added tests of 10
-merged consumer PRs. Interim result relayed by the coordinator: 3 of the FEAT proof commands fail as written because
-later PRs moved the paths they cite, so the closure finds stale proofs (`sdd-review` § 2 handles them). Each closure
-check is one row type and the Red check one subcommand, so either can be trimmed when the report lands.
+The owner's adjustment 2: `KIT-069-CALIBRATION-2026-11-14.md` (read-only measurement session, consumer `main`
+`606a2f6f9`); the coordinator turned its recommendation into decisions for this PR (2026-11-15).
+
+- [FACT] Closure on 5 delivered FEATs: every FEAT had findings and none was a product defect; 0 of 3,263 server and client
+  tests failed. 3 of 5 FEATs had a proof rotted by a later PR (a merged folder, a renamed content id, a moved Godot
+  script whose `-s` run exits 0 after `Can't load script`); 3 Maven rows ran `-Dtest=… verify`, which runs every IT.
+  Reading found 16 stale-text items over 5 of 5 FEATs; 4 counterexample clauses were untested, 5 partly covered and 2
+  weakly of 61, and 1 of 3 grep spot checks of an "untested" claim was wrong; REQ-F-997's trace row listed no test.
+- [FACT] Red check on the 10 latest merged PRs that change tests: 6 fail on base on an assertion, 2 only on a compile
+  error naming the class the PR adds (#4371, #4280), 2 are test-only and pass on base by construction (#4056, #4048);
+  all 10 pass on head. An assertion-only rule would have blocked 4 sound PRs; the classifier above blocks none. Cost:
+  one extra base build per PR (server 21–81 s, client import 4–28 s plus the suite).
+- [FACT] `spec_trace.py lint` on the same 5 FEATs at consumer `8549f51d4`: 20 stale-marker and 26 trace findings
+  (FEAT-109: "Not verified", Audit "Pending", 3 `[PROPOSAL]` Scope bullets, the `[HYPOTHESIS]` row-size question, a
+  `[HYPOTHESIS]` in done row T6, "until T5" with T5 done, and REQ-F-997 with no test in its trace row). As an audit over
+  every delivered FEAT it reports 1,085 findings, 758 of them trace gaps, so it runs per FEAT at closure, not in CI.
+- Falsifier: a larger sample (the report proposes 20 FEATs and 30 PRs) in which the dropped REQ re-run finds a real
+  `main` failure that the wave's broad suite missed, or a PR whose tests all pass on base yet hide a defect.
 
 ## Proof
 
@@ -114,7 +140,9 @@ suites, and `gitleaks git --redact --log-opts=origin/main..HEAD`. Tests first: o
 `540b6d5`) 39 of the 47 new or changed tests fail. The 8 that pass there: 5 assert that a valid record passes, which
 the old checker allows because it checks none; 1 asserts a validated or delivered FEAT is not rewritten by its rows,
 which the old derivation also kept; 1 asserts a usage error exits 2, which a missing script also does; and 1 counts
-worktrees, which a missing script leaves unchanged. The first run on the consumer's spec treated `superseded` as open
+worktrees, which a missing script leaves unchanged. The calibration round's tests (`b15feda`: 9 Red classifier, 4
+proof-output and 2 `feat-proofs` cases in `test_review_checks`, 14 in the new `test_spec_trace_lint`) all 29 fail
+against `27b0ce7`'s tools and pass after. The first run on the consumer's spec treated `superseded` as open
 (50 failures over 11 FEATs); the 2 tests added for it fail against `bf29c83`'s `spec_trace.py` (3 failures with
 subtests) and pass after the fix. Results are in the PR body.
 
@@ -123,3 +151,5 @@ subtests) and pass after the fix. Results are in the PR body.
 - 2026-11-14: confirmed (owner, chat): the acceptance, review and release design ("concordo"), the six further
   adjustments ("Aprovo todos"), and this run with its merges ("orquestre a implementação de tudo que passamos", "Já
   libero todos os merges. Faça tudo com autonomia pra entregar").
+- 2026-11-15: calibration folded in (coordinator's decisions from the calibration report): `sdd-review` trimmed to
+  scripts plus flagged judgment, the Red classifier, per-stack output checks and lints, `spec_trace.py lint`.

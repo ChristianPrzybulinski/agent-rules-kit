@@ -74,8 +74,8 @@ updated: "YYYY-MM-DD"
 <!-- filled by the calling session from the sdd-check report (or a FEAT-000.checklist.md file) -->
 
 ## Closure
-<!-- written by sdd-review on main after the last row merges, before spec_trace.py validate: Main commit, one row per
-     CA, REQ example and counterexample, REQ-NF measurement and journey, folded decisions, outcome and retro numbers -->
+<!-- written by sdd-review on main after the last row merges, before spec_trace.py validate: Main commit, rows for the
+     task proofs, the lint, the broad suite, each REQ-NF measurement and the missing-test rows filed, outcome, retro -->
 
 ## History
 
