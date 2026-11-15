@@ -77,13 +77,14 @@ def sha256(path):
 
 
 def scanned_files(directory):
-    """sha256 per regular file under directory, keyed by its relative path; links are skipped."""
+    """sha256 per regular file under directory, keyed by its relative path; links are skipped, and so is the bytecode
+    Python writes beside a pinned tool it runs (__pycache__/, *.pyc), which the sync never copies."""
     files = {}
     for base, dirnames, filenames in os.walk(directory):
-        dirnames.sort()
+        dirnames[:] = sorted(d for d in dirnames if d != "__pycache__")
         for filename in sorted(filenames):
             path = os.path.join(base, filename)
-            if os.path.islink(path) or not os.path.isfile(path):
+            if filename.endswith(".pyc") or os.path.islink(path) or not os.path.isfile(path):
                 continue
             files[os.path.relpath(path, directory).replace(os.sep, "/")] = sha256(path)
     return files

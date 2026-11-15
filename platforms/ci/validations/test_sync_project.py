@@ -882,10 +882,15 @@ class SyncProjectCheckTest(unittest.TestCase):
         pinned = self.repo / ".claude" / "ai-kit" / "platforms"
         for rel in called | {"ci/validations/pr_gates.py"}:  # review_checks.py imports pr_gates
             self.assertEqual((pinned / rel).read_bytes(), (KIT / "platforms" / rel).read_bytes(), rel)
+        # A consumer's Python writes bytecode beside the pinned tools (review of 3be353c). PYTHONDONTWRITEBYTECODE
+        # would hide it, and so would a default pycache prefix such as Apple's Python 3.9 sets; -X pycache_prefix=
+        # restores the default every Linux CPython has.
+        env = {k: v for k, v in os.environ.items() if k not in ("PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX")}
         for tool in ("tools/review_checks.py", "tools/gd_mutation.py", "tools/complexity.py"):
-            run = subprocess.run(["bash", "-c", f"python3 {PINNED_TOOL}{tool} --help"], cwd=client,
-                                 capture_output=True, text=True, check=False)  # from a subfolder, imports resolved
+            run = subprocess.run(["bash", "-c", f"python3 -X pycache_prefix= {PINNED_TOOL}{tool} --help"], cwd=client,
+                                 env=env, capture_output=True, text=True, check=False)  # imports resolve
             self.assertEqual(run.returncode, 0, tool + run.stdout + run.stderr)
+        self.assertTrue(list(pinned.rglob("__pycache__/*.pyc")))  # the run left bytecode in the pin
         check = self.run_sync("--check")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
         with (pinned / "tools" / "review_checks.py").open("a") as fh:

@@ -124,3 +124,5 @@ twice, and `sync-project.sh --check` with the live CLI passes.
   worktree mapped to its main checkout root (smoke fixture).
 - 2026-11-15: B2 after the KIT-070 merge: the called tools are pinned in `.claude/ai-kit/platforms/` and the vendored
   copies call them there.
+- 2026-11-15: review of `3be353c`: running a pinned tool writes `__pycache__/*.pyc` beside it, which `--check` then
+  reported as not in the manifest; the pin scan skips bytecode.
