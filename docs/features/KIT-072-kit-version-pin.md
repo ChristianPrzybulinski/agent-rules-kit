@@ -71,10 +71,12 @@ session at a trusted repository root where `/plugin` shows `guardrails@ai-kit` e
 - `platforms/tools/sync_pinned_plugin.py` (new): writes `.claude/skills/guardrails-pinned/` from `plugins/guardrails/`
   (`.claude-plugin/plugin.json` renamed `guardrails-pinned`, `hooks/`, `templates/`, `agents/` with each
   `guardrails:<skill>` preload renamed to `guardrails-pinned:<skill>` or to the plain copy's name, and every skill the
-  profile does not copy as a plain skill), marks it, prints `KIT_COMMIT` and its hashes for the manifest, refuses an
+  profile does not copy as a plain skill), marks it, prints `KIT_COMMIT`, its hashes and `copies` (the hash of every
+  `.github/spec-lint/` file `kit_files()` lists, through `pin_sources`) for the manifest, refuses an
   unmarked folder, removes a marked copy in plugins mode, and checks the copy, `settings.local.json` and `claude plugin
   list`.
-- `platforms/tools/sync-project.sh`: vendored mode writes the copy, records the pin in `KIT_MANIFEST.json`, sets
+- `platforms/tools/sync-project.sh`: the pin lives in one block of `pin_*` functions (coordinator request, so the parallel
+  KIT-070, KIT-073 and KIT-074 merges stay mechanical); vendored mode writes the copy, records the pin in `KIT_MANIFEST.json`, sets
   `guardrails@ai-kit` to `false` and `guardrails-pinned@skills-dir` to `true`; `--check` expects them and calls the pin
   check; plugins mode is unchanged.
 - `platforms/tools/doctor.sh`: warns about each project with an `@ai-kit` install record that vendors kit copies but
@@ -86,10 +88,11 @@ session at a trusted repository root where `/plugin` shows `guardrails@ai-kit` e
 
 `bash platforms/tools/check.sh`, `CI=1 bash platforms/tools/check.sh`, `bash platforms/tools/smoke.sh` (vendored sync
 writes the copy and turns the head off; doctor reports a leaking and a pinned project),
-`python3 platforms/ci/validations/check_kit.py --links`, `test_sync_project.py` (8 new tests: copy contents and
+`python3 platforms/ci/validations/check_kit.py --links`, `test_sync_project.py` (10 new tests: copy contents and
 settings for three profiles, agent preloads, drift in the copy, the head re-enabled in project or local settings, the
 `claude plugin list` probe with a stub, collision refusal, migration of a pre-pin vendored repository, plugins mode
-unchanged), and an end-to-end run on Claude Code 2.1.287 in an isolated config: after the sync of a
+unchanged, and a kit copy whose `kit_files()` lists a fake schema: the pin records it, a changed or deleted copy fails
+`--check`, and a pin from before the entry reports it missing from the pin), and an end-to-end run on Claude Code 2.1.287 in an isolated config: after the sync of a
 `docs,godot:client,java:server,python:platform` repository `claude plugin list` shows `guardrails@ai-kit` disabled and
 `guardrails-pinned@skills-dir` 12.1.0 enabled with 5 skills, the repository holds 22 plain copies, no kit skill is listed
 twice, and `sync-project.sh --check` with the live CLI passes.

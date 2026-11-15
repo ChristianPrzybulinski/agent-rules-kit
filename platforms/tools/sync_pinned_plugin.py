@@ -4,8 +4,8 @@
 Usage: sync_pinned_plugin.py preflight <repo>
        sync_pinned_plugin.py write <repo> <kit-dir> <kit-version> [<plain-skill>...]
        sync_pinned_plugin.py remove <repo>
-       sync_pinned_plugin.py pin <repo> <kit-dir>
-       sync_pinned_plugin.py check <repo> <kit-version>
+       sync_pinned_plugin.py pin <repo> <kit-dir> < sources
+       sync_pinned_plugin.py check <repo> <kit-version> < sources
 
 A vendored project (sync-project.sh --vendor-skills) pins the whole kit for Claude Code. .claude/skills/guardrails-pinned/
 is a skills-directory plugin, which Claude Code loads in place from the repository once the folder is trusted: the kit
@@ -16,8 +16,10 @@ project. sync-project.sh turns guardrails@ai-kit, which follows the kit head, of
 
 preflight refuses, before the sync's first write, a folder of that name without the generated marker. write replaces the
 copy when any file differs. remove deletes a marked copy (plugins mode). pin prints the KIT_MANIFEST.json keys of the
-pin: KIT_COMMIT (the kit commit, "-dirty" when plugins/ has local changes, empty outside a git checkout) and the copy's
-sha256 per file. check prints one "sync: ..." line per drift between the pin, the copy, the project's
+pin: KIT_COMMIT (the kit commit, "-dirty" when plugins/ has local changes, empty outside a git checkout), the copy's
+sha256 per file and, under "copies", the sha256 of each other vendored copy that sources lists on stdin as
+"<kit-file> <repo-path>" (sync-project.sh pin_sources: every kit_files entry). check prints one "sync: ..." line per drift
+between the pin, the copy, those copies (a pinned copy changed or gone, a source the pin lacks), the project's
 settings.local.json and, when the claude CLI is on PATH outside CI and AI_KIT_CLAUDE_PROBE is not 0, the plugins Claude
 Code lists for the repository; it exits 1 on drift.
 """
@@ -143,11 +145,25 @@ def kit_commit(kit):
     return commit + ("-dirty" if dirty else "")
 
 
+def read_sources():
+    """(kit file, repo path) per stdin line; none when stdin is a terminal."""
+    if sys.stdin is None or sys.stdin.isatty():
+        return []
+    pairs = []
+    for line in sys.stdin.read().splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            pairs.append((parts[0], parts[1]))
+    return pairs
+
+
 def pin(repo, kit):
     dest = pinned_dir(repo)
+    sources = read_sources()
     keys = {}
     if dest.is_dir():
-        keys = {"KIT_COMMIT": kit_commit(kit), "plugin": {"name": PINNED, "files": scanned_files(dest)}}
+        keys = {"KIT_COMMIT": kit_commit(kit), "plugin": {"name": PINNED, "files": scanned_files(dest)},
+                "copies": {rel: sha256(src) for src, rel in sources}}
     print(json.dumps(keys, sort_keys=True))
     return 0
 
@@ -178,6 +194,7 @@ def claude_plugins(repo):
 
 
 def check(repo, version):
+    sources = read_sources()
     lines = []
     dest = pinned_dir(repo)
     manifest = read_json(Path(repo, ".claude", "skills", "KIT_MANIFEST.json")) or {}
@@ -202,6 +219,15 @@ def check(repo, version):
         if (plugin_json.get("name"), plugin_json.get("version")) != (PINNED, version):
             lines.append(f".claude/skills/{PINNED}/.claude-plugin/plugin.json names"
                          f" {plugin_json.get('name')} {plugin_json.get('version')}, pin {PINNED} {version}")
+        copies = manifest.get("copies") if isinstance(manifest.get("copies"), dict) else {}
+        for rel in sorted(copies):
+            path = Path(repo, rel)
+            if path.is_symlink() or not path.is_file():
+                lines.append(f"{rel} is pinned but missing")
+            elif sha256(path) != copies[rel]:
+                lines.append(f"{rel} diverges from the pin")
+        for rel in sorted({rel for _, rel in sources} - set(copies)):
+            lines.append(f"{rel} is not in the pin (rerun sync-project.sh)")
     local = read_json(Path(repo, ".claude", "settings.local.json")) or {}
     enabled = local.get("enabledPlugins") if isinstance(local.get("enabledPlugins"), dict) else {}
     if enabled.get(HEAD_ID) is True:

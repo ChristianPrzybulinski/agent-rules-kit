@@ -663,6 +663,12 @@ class SyncProjectCheckTest(unittest.TestCase):
     # the hooks, the agents and every skill the profile does not copy as a plain skill; guardrails@ai-kit, which
     # follows the kit head, is off for the project.
 
+    def scratch(self):
+        """A folder outside the test repository, which the stale-path scan must not read."""
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        return Path(scratch.name)
+
     def pinned(self, rel=""):
         return self.repo / ".claude" / "skills" / PINNED / rel
 
@@ -748,7 +754,7 @@ class SyncProjectCheckTest(unittest.TestCase):
 
     def claude_stub(self, plugins):
         """A claude CLI that prints this plugin list; returns the env that puts it first on PATH."""
-        bin_dir = Path(self.tmp.name) / "stub-bin"
+        bin_dir = self.scratch() / "stub-bin"
         bin_dir.mkdir(exist_ok=True)
         stub = bin_dir / "claude"
         stub.write_text("#!/bin/sh\n[ \"$1 $2 $3\" = 'plugin list --json' ] || exit 2\ncat <<'EOF'\n"
@@ -812,6 +818,53 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertIs(self.settings()["enabledPlugins"]["guardrails@ai-kit"], False)
         check = self.run_sync("--check")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    def kit_with_fake_spec_lint_file(self):
+        """A kit copy whose kit_files() lists one more spec-lint file, as a later kit change would add one."""
+        kit = self.scratch() / "kit-copy"
+        shutil.copytree(KIT, kit, ignore=shutil.ignore_patterns(".git", "evals"))
+        (kit / "platforms" / "ci" / "schemas" / "fake.schema.json").write_text('{"fake": 1}\n')
+        script = kit / "platforms" / "tools" / "sync-project.sh"
+        anchor = '  echo "$KIT_DIR/platforms/ci/validations/check_spec.py check_spec.py"\n'
+        text = script.read_text()
+        self.assertIn(anchor, text)
+        script.write_text(text.replace(anchor, anchor + '  echo "$KIT_DIR/platforms/ci/schemas/fake.schema.json'
+                                                        ' schemas/fake.schema.json"\n', 1))
+        return script
+
+    def run_kit(self, script, *args):
+        env = dict(os.environ, AI_KIT_CLAUDE_PROBE="0")
+        return subprocess.run(["bash", str(script), *args, str(self.repo)], capture_output=True, text=True,
+                              check=False, env=env)
+
+    def test_pin_records_every_kit_files_copy(self):  # coordinator request: a kit_files() entry added later is pinned
+        script = self.kit_with_fake_spec_lint_file()
+        result = self.run_kit(script, "--vendor-skills")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        manifest = json.loads((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").read_text())
+        lint = self.repo / ".github" / "spec-lint"
+        copies = {str(p.relative_to(self.repo)) for p in lint.rglob("*")
+                  if p.is_file() and p.name not in ("README.md", "KIT_VERSION")}
+        self.assertIn(".github/spec-lint/schemas/fake.schema.json", copies)
+        self.assertEqual(set(manifest["copies"]), copies)
+        fake = lint / "schemas" / "fake.schema.json"
+        self.assertEqual(self.run_kit(script, "--check").returncode, 0)
+        fake.write_text('{"fake": 2}\n')
+        result = self.run_kit(script, "--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .github/spec-lint/schemas/fake.schema.json diverges from the pin", result.stdout)
+        fake.unlink()
+        result = self.run_kit(script, "--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .github/spec-lint/schemas/fake.schema.json is pinned but missing", result.stdout)
+
+    def test_check_reports_a_kit_files_entry_the_pin_lacks(self):
+        self.vendor_install()  # pinned by the kit as it is
+        script = self.kit_with_fake_spec_lint_file()  # a later kit lists one more file
+        result = self.run_kit(script, "--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .github/spec-lint/schemas/fake.schema.json is not in the pin (rerun sync-project.sh)",
+                      result.stdout)
 
     def test_plugins_mode_keeps_the_marketplace_plugin(self):
         enabled = self.settings()["enabledPlugins"]
