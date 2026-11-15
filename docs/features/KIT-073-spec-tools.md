@@ -40,8 +40,10 @@ pr: "#262"
 - `platforms/ci/validations/check_spec.py`: `load_params(spec_dir, schemas_dir)` for the tools that read the block.
 - `platforms/ci/schemas/spec.schema.json`, `plugins/guardrails/templates/spec-index.md`: the keys `components`,
   `spec_index`, `github`, `row_checks` with their defaults.
-- `platforms/tools/sync-project.sh`: `kit_files()` vendors `row_checks.py` and `pr_gates.py` into `.github/spec-lint/`;
-  `--check` reports a missing or edited copy.
+- `platforms/tools/sync-project.sh`: `kit_files()` vendors `row_checks.py`, `pr_gates.py` and `spec_trace.py` into
+  `.github/spec-lint/` of every project with `docs/spec` (`spec_trace.py` needed journeys before; `sync-status` needs
+  none); `--check` reports a missing or edited copy. The journey schema stays journey-gated, and `spec_trace.py check`
+  asks for `traceability.md` only when `sdd.journeys` is on (absent = the folder exists) or the file exists.
 - Docs: `sdd-tasks/SKILL.md` (row-check default), `sdd-tasks/references/row-checks.md` (§ Automated rules),
   `sdd-constitution/references/sdd-parameters.md`, `platforms/ci/README.md`, `platforms/tools/README.md`, CHANGELOG.
 - Tests (neutral fixtures, `gh` canned, no network): `test_row_checks.py`, `test_row_checks_contract.py`,
@@ -66,3 +68,5 @@ pr: "#262"
 
 - 2026-11-15: confirmed (owner, through the coordinating session).
 - 2026-11-15: implemented; falsifier differences listed in the PR.
+- 2026-11-15: `spec_trace.py` vendored without journeys, so a `tracker: github` project gets `sync-status` (owner, in
+  chat: "Faça esta tarefa aqui" on the proposed follow-up).

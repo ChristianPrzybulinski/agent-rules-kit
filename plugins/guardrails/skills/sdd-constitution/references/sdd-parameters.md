@@ -17,7 +17,7 @@ A default is the kit's behavior before the key existed, except `max_chain` and `
 | Key | Values | Default | Read by |
 |---|---|---|---|
 | `needs` | `true`, `false` | `true` | not wired yet (#237): every step keeps `NEED-nnn` files under `needs/`; `false` changes nothing |
-| `journeys` | `true`, `false` | on when `docs/spec/journeys/` exists | `sdd-clarify` (journey steps), `sdd-check` (journey links), `sdd-tasks` (journey cells); `sync-project.sh` copies `spec_trace.py` by folder |
+| `journeys` | `true`, `false` | on when `docs/spec/journeys/` exists | `sdd-clarify` (journey steps), `sdd-check` (journey links), `sdd-tasks` (journey cells); `sync-project.sh` copies `journey.schema.json` by folder; `spec_trace.py check` needs `traceability.md` when on or once it exists |
 | `tracker` | `github`, `none` | `github` | `sdd-tasks` cut (an issue, or `docs/spec/tasks/TASK-nnn-slug.md` per item), `sdd-implement` (KIT-069), `sdd-spike` (report destination) |
 | `plan_sections` | list of `Design`, `Contract`, `Data`, `UI`, `Flag`, `Tests`, `Observability`, `Risks`, `Dependencies`; `Risks` and `Tests` always | all nine | `sdd-plan`: the FEAT's `## Plan` subsections |
 | `pr_unit` | `task`, `feat` | `task` | `sdd-implement` (KIT-069): one PR per task row or per FEAT |

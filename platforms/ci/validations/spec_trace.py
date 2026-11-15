@@ -558,12 +558,20 @@ def render_matrix(spec):
     return "\n".join(lines) + "\n"
 
 
+def journeys_on(spec) -> bool:
+    """`sdd.journeys`; absent = on when the spec has a journeys/ folder."""
+    value = spec.params.get("journeys")
+    return value if isinstance(value, bool) else (spec.spec_dir / "journeys").is_dir()
+
+
 def check(spec):
     errors = spec.errors + symmetry_errors(spec)
     if spec.params.get("spec_index"):
         errors += index_errors(spec)
     matrix = spec.spec_dir / MATRIX
-    if not matrix.exists() or matrix.read_text(encoding="utf-8") != render_matrix(spec):
+    # The matrix is required with journeys and kept fresh once it exists; a project with neither needs none.
+    if (journeys_on(spec) or matrix.exists()) and (
+            not matrix.exists() or matrix.read_text(encoding="utf-8") != render_matrix(spec)):
         errors.append(f"{matrix} is stale or missing: run spec_trace.py generate on the spec directory")
     return errors
 
