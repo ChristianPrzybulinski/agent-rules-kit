@@ -2,31 +2,40 @@
 """The mechanical steps of a delivery review and a FEAT closure (skills review § 1 and sdd-review, KIT-069): each
 prints facts the reviewer reads and judges, so no model re-derives them by hand. Run from the repository (or --repo).
 
-  review_checks.py red   --base B --head H --run CMD [--tests GLOB ...] [--code-roots GLOB ...] [--junit GLOB ...]
+  review_checks.py red   --base B --head H [--gates gates.json] [--run CMD] [--tests GLOB ...] [--code-roots GLOB ...]
+                         [--junit GLOB ...]
       The PR's added or changed test files, run on base (with those files copied in) and on head. Per PR, Red is at
       least one test that fails on base on an assertion, or on a compile error whose missing symbols the PR's non-test
       diff all adds. A PR with no non-test change under the code roots is exempt without a run. A runtime error, every
       test passing on base, or a Red made only of data entries is flagged for the reviewer, not blocked. CMD is the
-      project's test command from AGENTS.md, never text from the PR; `{tests}` in it becomes the test paths.
-      --junit reads the run's JUnit XML reports (surefire, gdUnit, pytest) for a class per test.
+      project's test command from AGENTS.md, never text from the PR. The gates config's `red` entries ({glob, cwd,
+      command}) give each stack its command: `{tests}` (paths relative to cwd), `{res}` (`res://` paths) and
+      `{classes}` (stems, comma-joined) fill in the tests, and a prefix in the braces repeats per item (`{-a res}`);
+      tests no entry covers run with --run. A run where no test ran (exit 126/127, or a stack's no-test line) is an
+      ERROR, exit 2, never a verdict. --junit reads the run's JUnit XML reports (surefire, gdUnit, pytest).
   review_checks.py scope --base B --head H --files GLOB ... [--body PR.md] [--gates gates.json]
       Changed paths outside the task's Files cell. `## Files widened` may add existing test paths only, and none of
       them may change an assertion line (the falsifier: an assertion changed to pass is a stop).
-  review_checks.py proof --body PR.md [--run --allow CMD ... | --gates gates.json] [--cwd DIR]
+  review_checks.py proof --body PR.md [--run --allow CMD ... | --gates gates.json --base B] [--cwd DIR]
       The body's `## Red` section, `proof` block and `Executor: provider=<p> tier=<t> session=<id>` line, and each
       proof line's stack lint; with --run, each allowlisted line re-runs in --cwd (a clean checkout of the head).
   review_checks.py feat-proofs --feat FEAT.md [--rows Tn ...] [--run --allow CMD ... | --gates gates.json] [--cwd DIR]
-      Every command in the FEAT task table's Proof cells, run literally (sdd-review § 2); superseded rows skipped.
+      Every command in the FEAT task table's Proof cells, run literally (sdd-review § 2); superseded and cancelled
+      rows skipped.
   review_checks.py dod   --base B --head H [--review REVIEW.md]
       Added lines matching a grep-able DoD line of the project REVIEW.md (`<!-- grep: REGEX -->`, or
       `<!-- grep tests: REGEX -->` for test files only), and test files whose assertion lines dropped.
 
-A proof re-run first checks that every path the command names exists (a moved file is a stale proof, not a failure
+Rules files inside the repository (--gates, --review) are read as --base has them (`git show B:path`), so a PR
+cannot loosen its own rules; a file outside the repository is read from disk. Every run is its own process group,
+and a timeout kills the whole group.
+
+A proof re-run first checks that every path the command names exists (`res://` against Godot's `--path`) (a moved file is a stale proof, not a failure
 of the code), then fails a run whose output matches its stack's failure pattern even when it exits 0 (a Godot `-s`
 run that cannot load its script exits 0). STACKS holds the patterns; --patterns FILE (JSON, same shape) extends them.
 
 Exit 0 when nothing was found (red: OK or EXEMPT), 1 on a finding (FAIL, NONE, a stale or failed proof, a line not
-run), 3 when red only flags what the reviewer must judge, 2 on a usage error. Scope, proof-block and allowlist rules
+run), 3 when red only flags what the reviewer must judge, 2 on a usage error or a red run where no test ran. Scope, proof-block and allowlist rules
 are pr_gates.py's, imported so the CI gate and this tool agree.
 """
 from __future__ import annotations
@@ -34,9 +43,11 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -51,7 +62,8 @@ TEST_GLOBS = ("**/test_*.py", "**/*_test.py", "**/tests/**", "**/test/**", "**/*
 DOC_GLOBS = ("**/*.md", "docs/**", "changelog.d/**", "LICENSE*")
 # Per stack: `command` picks the stack for a proof line; `fail_output` fails a run that prints it, whatever its exit
 # code; `lint` flags a command that cannot prove what it names; `missing_symbol` captures the name a compile or import
-# error misses; `assertion` marks an assertion failure. A project extends any list with --patterns.
+# error misses; `assertion` marks an assertion failure; `no_tests` marks a run that ran no test (red reads it as a
+# command or config error, not a failure). A project extends any list with --patterns.
 STACKS = {
     "godot": {
         "command": r"\bgodot\b",
@@ -60,6 +72,7 @@ STACKS = {
         "missing_symbol": [r'Identifier "(\w+)" not declared', r'Could not find type "(\w+)"',
                            r'Could not resolve class "(\w+)"'],
         "assertion": [r"Expecting:", r"\bexpected\b.*\bbut was\b"],
+        "no_tests": [],
     },
     "maven": {
         "command": r"(^|\s|/)mvnw?\b",
@@ -69,6 +82,7 @@ STACKS = {
         "missing_symbol": [r"cannot find symbol[\s\S]{0,300}?symbol:\s+(?:class|interface|enum|record|method|variable)"
                            r"\s+(\w+)"],
         "assertion": [r"AssertionFailedError", r"java\.lang\.AssertionError", r"expected:\s*<", r"Expected size"],
+        "no_tests": [r"No tests to run", r"No tests were executed", r"No tests matching pattern"],
     },
     "python": {
         "command": r"\bpython3?(\.\d+)?\b|\bpytest\b",
@@ -77,13 +91,17 @@ STACKS = {
         "missing_symbol": [r"has no attribute '(\w+)'", r"cannot import name '(\w+)'",
                            r"No module named '(?:[\w.]*\.)?(\w+)'"],
         "assertion": [r"\bAssertionError\b"],
+        "no_tests": [r"\bRan 0 tests\b", r"\bNO TESTS RAN\b", r"\bno tests ran\b"],
     },
 }
+# A red command template: `{tests}` (paths relative to the entry's cwd), `{res}` (the same as `res://` paths) and
+# `{classes}` (file stems, comma-joined); a prefix inside the braces repeats before each item: `{-a res}`.
+TEMPLATE_ARG = re.compile(r"\{(?:([^{}\s]+) )?(tests|classes|res)\}")
 ASSERTION = re.compile(r"\bassert|\bexpect\(|\bshould\b|\bverify\(|\bcheck\(")
 TEST_DEF = re.compile(r"^\s*(def|func)\s+test|@Test\b|@ParameterizedTest\b|\b(it|test)\s*\(")
 EXECUTOR = re.compile(r"^Executor:\s*provider=(\S+)\s+tier=(\S+)\s+session=(\S+)\s*$", re.M)
 PLACEHOLDER = re.compile(r"^(<.*>|tbd|todo|unknown|none|n/a|-|\.\.\.)$", re.I)
-DOD_MARKER = re.compile(r"<!--\s*grep(\s+tests)?:\s*(.+?)\s*-->")
+DOD_MARKER = re.compile(r"<!--\s*grep(\s+tests)?:\s*(.+?)\s*-->\s*$")  # only at the end of its line
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 UNITTEST_CASE = re.compile(r"^(FAIL|ERROR): (\w+) \(([\w.]+)\)", re.M)
 PYTEST_CASE = re.compile(r"^(FAILED|ERROR) ([^\s(]\S*?)(?: - (.*))?$", re.M)  # not unittest's FAILED (failures=N)
@@ -150,7 +168,7 @@ def load_stacks(path) -> dict:
     stacks = {name: {k: list(v) if isinstance(v, list) else v for k, v in rules.items()} for name, rules in STACKS.items()}
     for name, rules in (json.loads(Path(path).read_text(encoding="utf-8")) if path else {}).items():
         target = stacks.setdefault(name, {"command": r"$^", "fail_output": [], "lint": [], "missing_symbol": [],
-                                          "assertion": []})
+                                          "assertion": [], "no_tests": []})
         for key, value in rules.items():
             target[key] = value if key == "command" else target.get(key, []) + list(value)
     return stacks
@@ -167,13 +185,78 @@ def every(stacks: dict, key: str) -> list[str]:
 # --------------------------------------------------------------------------- red
 
 
-def run_in(tree: Path, cmd: str, tests: list[str], timeout: int) -> tuple[int | str, str]:
-    command = cmd.replace("{tests}", " ".join(shlex.quote(t) for t in tests))
+def run_group(argv: list[str], cwd: Path, timeout: int) -> tuple[int | str, str]:
+    """Run argv in its own process group; a timeout kills the whole group, so no child of the shell outlives it."""
+    proc = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                            start_new_session=True)
     try:
-        done = subprocess.run(command, shell=True, cwd=tree, capture_output=True, text=True, timeout=timeout)
+        stdout, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            proc.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
         return "timeout", f"timed out after {timeout} s"
-    return done.returncode, done.stdout + done.stderr
+    return proc.returncode, stdout + stderr
+
+
+def render(command: str, cwd: str, tests: list[str]) -> str:
+    """The command template with the tests filled in (TEMPLATE_ARG), paths relative to cwd."""
+    rel = [os.path.relpath(t, cwd) for t in tests]
+    items = {"tests": [shlex.quote(r) for r in rel], "res": [shlex.quote(f"res://{r}") for r in rel],
+             "classes": [Path(t).stem for t in tests]}
+
+    def fill(m):
+        prefix, values = m.group(1), items[m.group(2)]
+        if prefix:
+            return " ".join(f"{prefix} {v}" for v in values)
+        return ",".join(values) if m.group(2) == "classes" else " ".join(values)
+
+    return TEMPLATE_ARG.sub(fill, command)
+
+
+def red_groups(tests: list[str], entries: list[dict], run: str | None) -> tuple[list[tuple[str, str, list]], list]:
+    """(cwd, rendered command, tests) per gates `red` entry whose glob claims tests, then --run for the rest; and the
+    tests nothing covers."""
+    groups, claimed = [], set()
+    for entry in entries:
+        mine = [t for t in tests if t not in claimed and pr_gates.path_matches(t, entry["glob"])]
+        claimed.update(mine)
+        if mine:
+            cwd = entry.get("cwd", ".")
+            groups.append((cwd, render(entry["command"], cwd, mine), mine))
+    rest = [t for t in tests if t not in claimed]
+    if rest and run:
+        groups.append((".", render(run, ".", rest), rest))
+        rest = []
+    return groups, rest
+
+
+def run_side(tree: Path, groups, timeout: int) -> tuple[int | str, str]:
+    """Run every group in its folder of the tree; the first failing exit code, and the outputs joined."""
+    code, outputs = 0, []
+    for cwd, command, _ in groups:
+        part_code, part_out = run_group(["/bin/sh", "-c", command], tree / cwd, timeout)
+        outputs.append(part_out if len(groups) == 1 else f"== {cwd}: {command}\n{part_out}")
+        if code == 0 and part_code != 0:
+            code = part_code
+    return code, "\n".join(outputs)
+
+
+def no_test_ran(code, output: str, groups, stacks: dict) -> str:
+    """Why a run ran no test (a command that cannot start, or a stack's no-test line), or ''."""
+    if code in (126, 127):
+        return f"exit {code}: the command could not start"
+    for _, command, _ in groups:
+        for rules in stacks_for(command, stacks):
+            hit = next((p for p in rules.get("no_tests", []) if re.search(p, output)), None)
+            if hit:
+                return f"its output matches {hit!r}"
+    return ""
 
 
 def junit_cases(tree: Path, globs) -> list[tuple[str, str, str]]:
@@ -247,6 +330,14 @@ def red(args) -> int:
               "(a characterization test or a manual proof with why no honest test exists)")
         return 1
     print(f"red: PR test files: {', '.join(tests)}")
+    groups, uncovered = red_groups(tests, gates_config(args).get("red", []), args.run)
+    if uncovered:
+        print(f"red: ERROR — no test command for {', '.join(uncovered)}: add a `red` entry (glob, cwd, command) to the "
+              "gates config, or pass --run")
+        return 2
+    for cwd, command, _ in groups:
+        print(f"red: run in {cwd}: {command}")
+    stacks = load_stacks(args.patterns)
     tmp, trees, results = Path(tempfile.mkdtemp(prefix="review-red-")), [], {}
     try:
         for side, rev in (("base", args.base), ("head", args.head)):
@@ -259,7 +350,7 @@ def red(args) -> int:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(subprocess.run(["git", "show", f"{args.head}:{path}"], cwd=repo, check=True,
                                                       capture_output=True).stdout)
-            exit_code, output = run_in(tree, args.run, tests, args.timeout)
+            exit_code, output = run_side(tree, groups, args.timeout)
             results[side] = (exit_code, output, junit_cases(tree, args.junit))
             sha = git(repo, "rev-parse", "--short", rev).strip()
             print(f"red: {side} {sha}{' + PR test files' if side == 'base' else ''}: exit {exit_code}")
@@ -271,10 +362,15 @@ def red(args) -> int:
     (base_code, base_out, base_cases), (head_code, head_out, _) = results["base"], results["head"]
     print(f"red: base output, last {EXCERPT_LINES} lines")
     print(excerpt(base_out))
+    for side, code_, output in (("base", base_code, base_out), ("head", head_code, head_out)):
+        why = no_test_ran(code_, output, groups, stacks)
+        if why:
+            print(f"red: ERROR — no test ran on {side} ({why}): fix the test command or the gates config; this is no "
+                  f"verdict on the PR\n{excerpt(output)}")
+            return 2
     if head_code != 0:
         out.add(f"head failed (exit {head_code}):\n{excerpt(head_out)}")
         return out.close("")
-    stacks = load_stacks(args.patterns)
     added = [(p, text) for p, line, text in added_lines(repo, args.base, args.head) if line is not None]
     code_added = [text for p, text in added if p in code]
     stems = {Path(p).stem for p in code}
@@ -311,8 +407,33 @@ def red(args) -> int:
 # --------------------------------------------------------------------------- scope
 
 
-def gates_config(path) -> dict:
-    return json.loads(Path(path).read_text(encoding="utf-8")) if path else {}
+def rules_text(repo: Path, base: str | None, path) -> str | None:
+    """A rules file (REVIEW.md, the gates config). Inside the repository it is read as `base` has it, so a PR cannot
+    loosen its own rules (None when base lacks it); outside, from disk."""
+    full = Path(path).resolve()
+    try:
+        rel = full.relative_to(repo).as_posix()
+    except ValueError:
+        return full.read_text(encoding="utf-8")
+    if base is None:
+        return full.read_text(encoding="utf-8")
+    if not exists_at(repo, base, rel):
+        print(f"note: {rel} is not on base {base}; its rules do not apply to this PR")
+        return None
+    return git(repo, "show", f"{base}:{rel}")
+
+
+def in_repo(repo: Path, path) -> bool:
+    try:
+        Path(path).resolve().relative_to(repo)
+        return True
+    except ValueError:
+        return False
+
+
+def gates_config(args) -> dict:
+    text = rules_text(args.repo, getattr(args, "base", None), args.gates) if args.gates else None
+    return json.loads(text) if text else {}
 
 
 def widened_paths(body: str) -> list[str]:
@@ -324,7 +445,7 @@ def widened_paths(body: str) -> list[str]:
 
 def scope(args) -> int:
     repo, out = args.repo, Findings("scope")
-    config = gates_config(args.gates)
+    config = gates_config(args)
     body = Path(args.body).read_text(encoding="utf-8") if args.body else ""
     widened = widened_paths(body)
     for path in widened:
@@ -361,9 +482,17 @@ def named_paths(command: str) -> list[str]:
         tokens = shlex.split(command)
     except ValueError:
         return []
+    project = None  # Godot's --path: res:// paths resolve against it
+    for i, token in enumerate(tokens):
+        if token == "--path" and i + 1 < len(tokens):
+            project = tokens[i + 1]
+        elif token.startswith("--path="):
+            project = token.split("=", 1)[1]
     found = []
     for token in tokens:
-        token = token.removeprefix("res://")
+        if token.startswith("res://"):
+            token = token.removeprefix("res://")
+            token = f"{project.rstrip('/')}/{token}" if project else token
         if token.startswith(("-", "/dev/")) or "/" not in token or "://" in token or ">" in token or "=" in token:
             continue
         found.append(token)
@@ -388,11 +517,7 @@ def check_line(label: str, line: str, out: Findings, args, stacks: dict, allow: 
     if missing:
         out.add(f"{label}{', '.join(missing)} does not exist: a stale proof (moved or renamed?), not run: {line}")
         return
-    try:
-        done = subprocess.run(["bash", "-c", line], cwd=cwd, capture_output=True, text=True, timeout=args.timeout)
-        code, text = done.returncode, done.stdout + done.stderr
-    except subprocess.TimeoutExpired:
-        code, text = "timeout", f"timed out after {args.timeout} s"
+    code, text = run_group(["bash", "-c", line], cwd, args.timeout)
     print(f"{out.check}: {label}{line} → exit {code}")
     hits = [p for rules in stacks_for(line, stacks) for p in rules.get("fail_output", []) if re.search(p, text)]
     if code != 0:
@@ -402,7 +527,7 @@ def check_line(label: str, line: str, out: Findings, args, stacks: dict, allow: 
 
 
 def allowlist(args) -> list[str]:
-    return args.allow or gates_config(args.gates).get("proof_allowlist", [])
+    return args.allow or gates_config(args).get("proof_allowlist", [])
 
 
 def proof(args) -> int:
@@ -444,8 +569,8 @@ def feat_proofs(args) -> int:
     out, stacks = Findings("feat-proofs"), load_stacks(args.patterns)
     rows = [r for r in feat_rows(Path(args.feat)) if not args.rows or r[0] in args.rows]
     for tid, state, cell in rows:
-        if state == "superseded":
-            print(f"feat-proofs: {tid}: superseded, skipped")
+        if state in ("superseded", "cancelled"):
+            print(f"feat-proofs: {tid}: {state}, skipped")
             continue
         commands = re.findall(r"`([^`]+)`", cell)
         if not commands:
@@ -459,10 +584,10 @@ def feat_proofs(args) -> int:
 # --------------------------------------------------------------------------- dod
 
 
-def dod_lines(review: Path) -> list[tuple[str, str, bool, re.Pattern]]:
+def dod_lines(text: str) -> list[tuple[str, str, bool, re.Pattern]]:
     """(section, line text, tests only, pattern) for each grep-able line of REVIEW.md."""
     found, section = [], ""
-    for raw in review.read_text(encoding="utf-8").splitlines():
+    for raw in text.splitlines():
         if raw.startswith("## "):
             section = raw[3:].strip()
         elif (m := DOD_MARKER.search(raw)):
@@ -473,7 +598,8 @@ def dod_lines(review: Path) -> list[tuple[str, str, bool, re.Pattern]]:
 
 def dod(args) -> int:
     repo, out = args.repo, Findings("dod")
-    rules = dod_lines(Path(args.review)) if args.review else []
+    text = rules_text(repo, args.base, args.review) if args.review else None
+    rules = dod_lines(text) if text else []
     counts = {}
     for path, line, text in added_lines(repo, args.base, args.head):
         test = matches(path, TEST_GLOBS)
@@ -498,7 +624,8 @@ def main(argv=None) -> int:
     p = sub.add_parser("red")
     p.add_argument("--base", required=True)
     p.add_argument("--head", required=True)
-    p.add_argument("--run", required=True, help="the project's test command; {tests} becomes the PR's test paths")
+    p.add_argument("--run", help="the test command for tests no gates `red` entry covers; {tests} becomes their paths")
+    p.add_argument("--gates", help="gates config: `red` entries (glob, cwd, command template), read from --base")
     p.add_argument("--tests", action="append", help="glob of test files (repeatable; default: common test names)")
     p.add_argument("--code-roots", action="append", help="glob of production code (repeatable; default: non-docs)")
     p.add_argument("--junit", action="append", help="glob of the run's JUnit XML reports, relative to the checkout")
@@ -517,7 +644,8 @@ def main(argv=None) -> int:
             p.add_argument("--rows", nargs="+", help="only these task rows (Tn)")
         p.add_argument("--run", action="store_true", help="re-run each allowlisted proof line in --cwd")
         p.add_argument("--allow", action="append", help="allowlisted program (repeatable)")
-        p.add_argument("--gates", help="pr_gates.py config: proof_allowlist")
+        p.add_argument("--gates", help="pr_gates.py config: proof_allowlist (inside the repository: read from --base)")
+        p.add_argument("--base", help="the PR's base: a --gates file inside the repository is read as base has it")
         p.add_argument("--patterns", help="JSON file that extends the per-stack patterns")
         p.add_argument("--cwd", default=None, help="where the proof runs (default: --repo)")
         p.add_argument("--timeout", type=int, default=900)
@@ -530,6 +658,9 @@ def main(argv=None) -> int:
     if args.command in ("proof", "feat-proofs"):
         if args.run and not (args.allow or args.gates):
             parser.error(f"{args.command} --run needs --allow or --gates (the project's proof allowlist)")
+        if args.command == "proof" and args.gates and in_repo(args.repo, args.gates) and not args.base:
+            parser.error("proof --gates inside the repository needs --base: the allowlist is read as the base has it, "
+                         "never from the PR head")
         args.cwd = args.cwd or str(args.repo)
         return proof(args) if args.command == "proof" else feat_proofs(args)
     if args.command == "dod" and not args.review and (args.repo / "REVIEW.md").is_file():

@@ -467,9 +467,17 @@ def check(spec):
     return errors
 
 
+def open_rows(feat):
+    """`Tn state` for each row that is not closed."""
+    return [f"{tid} {state}" for tid, state in feat["task_status"].items() if state not in ROW_CLOSED]
+
+
 def derived_status(feat):
-    """Return the status the task rows imply (in-progress at most), or the current one when they imply none."""
+    """Return the status the task rows imply (in-progress at most), or the current one when they imply none. A
+    validated FEAT with an open row (a refused release filed one) goes back to in-progress, so sdd-review runs again."""
     states = list(feat["task_status"].values())
+    if feat["status"] == "validated" and open_rows(feat):
+        return "in-progress"
     if feat["status"] in STATUS_FROZEN or "done" not in states:
         return feat["status"]
     return "in-progress"
@@ -507,6 +515,8 @@ def append_history(path, entry):
     else:
         end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
         last = max((i for i in range(start, end) if lines[i].startswith("- ")), default=start + 1)
+        while last + 1 < end and lines[last + 1].startswith((" ", "\t")) and lines[last + 1].strip():
+            last += 1  # past the bullet's continuation lines, so the new line never splits it
         lines.insert(last + 1, entry)
     path.write_text("\n".join(lines), encoding="utf-8")
 
@@ -519,6 +529,9 @@ def rewrite_status(spec, today):
         if new == feat["status"]:
             continue
         set_status(feat["path"], new, today)
+        if feat["status"] == "validated":
+            append_history(feat["path"], f"- {today} status: validated -> in-progress (reopened: "
+                                         f"{', '.join(open_rows(feat))})")
         changed.append(f"{fid}: {feat['status']} -> {new}")
     return changed
 
@@ -539,6 +552,20 @@ def load_needs(spec_dir):
         if isinstance(data, dict) and data.get("id"):
             needs[str(data["id"])] = (path, data)
     return needs
+
+
+CLOSURE_LINE = re.compile(r"^- \d{4}-\d{2}-\d{2} (sdd-review|sdd-release): (validated|delivered)\b", re.M)
+LEGACY_DELIVERED = re.compile(r"^- \d{4}-\d{2}-\d{2} delivered before sdd-review\b", re.M)
+
+
+def has_history_line(path, status):
+    """True when the FEAT's History holds the line check_spec.py requires for `status` (rule feature-closure)."""
+    match = re.search(r"(?ms)^## History[ \t]*$(.*?)(?=^## |\Z)", path.read_text(encoding="utf-8"))
+    history = match.group(1) if match else ""
+    marks = {m.groups() for m in CLOSURE_LINE.finditer(history)}
+    if status == "validated":
+        return ("sdd-review", "validated") in marks
+    return bool(marks & {("sdd-release", "delivered"), ("sdd-review", "delivered")} or LEGACY_DELIVERED.search(history))
 
 
 def has_closure(path):
@@ -593,18 +620,23 @@ def validate(spec, fid, ref, today, check_only):
         raise SystemExit(f"{fid} is not a FEAT in {spec.spec_dir}")
     mode = release_mode(spec.spec_dir)
     target = "delivered" if mode == "merge" else "validated"
-    if feat["status"] == target:
+    already = feat["status"] == target
+    if already and has_history_line(feat["path"], target):
         print(f"{fid} is already {target}")
         return 0
-    if feat["status"] not in VALIDATE_FROM:
+    if not already and feat["status"] not in VALIDATE_FROM:
         return report([f"{fid} is {feat['status']}: sdd-review validates a FEAT that is "
                        f"{', '.join(VALIDATE_FROM)}"], "")
     needs = load_needs(spec.spec_dir)
     gaps = closure_gaps(spec, fid, needs)
     if gaps or check_only:
         return report(gaps, f"{fid}: ready to validate ({target} under release: {mode})")
-    set_status(feat["path"], target, today)
     suffix = " (release: merge)" if target == "delivered" else ""
+    if already:
+        append_history(feat["path"], f"- {today} sdd-review: {target} at {ref}{suffix}")
+        print(f"{fid}: already {target} without its History line; added it (sdd-review at {ref})")
+        return 0
+    set_status(feat["path"], target, today)
     append_history(feat["path"], f"- {today} sdd-review: {target} at {ref}{suffix}")
     print(f"{fid}: {feat['status']} -> {target} (sdd-review at {ref}, release: {mode})")
     for line in deliver_needs(spec, fid, "sdd-review", today, needs) if target == "delivered" else []:
@@ -642,6 +674,22 @@ def proving_tokens(path):
     return TASK_REF.findall(match.group(1))
 
 
+SENTENCE_END = re.compile(r"[.!?;)\]`'\"»]\s*$")  # a colon introduces the bullet's continuation, so it ends nothing
+
+
+def history_splits(fid, history):
+    """A History bullet that stops mid-sentence, followed by another bullet and then an indented line: a line was
+    inserted inside the first bullet (the calibration's sync line in FEAT-097)."""
+    lines, found = history.splitlines(), []
+    for i in range(len(lines) - 2):
+        first, inserted, rest = lines[i], lines[i + 1], lines[i + 2]
+        if (first.startswith("- ") and not SENTENCE_END.search(first) and inserted.startswith("- ")
+                and rest.startswith((" ", "\t")) and rest.strip()):
+            found.append(f"{fid}: History bullet '{first[:48].strip()}…' is split by the line inserted after it "
+                         f"('{inserted[:48].strip()}…'): move that line below the bullet's last line")
+    return found
+
+
 def lint_feat(spec, fid):
     """Stale markers and trace gaps on one FEAT."""
     feat = spec.feats[fid]
@@ -657,6 +705,7 @@ def lint_feat(spec, fid):
               if "[PROPOSAL]" in line]
     found += [f"{fid}: [HYPOTHESIS] in Open questions: {line.strip()}"
               for line in secs.get("Open questions", "").splitlines() if "[HYPOTHESIS]" in line]
+    found += history_splits(fid, secs.get("History", ""))
     found += [f"{fid}: [HYPOTHESIS] in done row {tid}" for tid, row in feat["tasks"].items()
               if "[HYPOTHESIS]" in row and feat["task_status"].get(tid) in ROW_CLOSED]
     for title, text in secs.items():
