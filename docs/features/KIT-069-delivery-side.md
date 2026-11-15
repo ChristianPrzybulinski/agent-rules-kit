@@ -93,10 +93,11 @@ Claude ran independent checks at once without loading the skill. Issue #240 send
   `spec_trace.py deliver` (FEAT and complete NEEDs `delivered`), feedback to `sdd-intake` as child NEEDs; under
   `release: merge` it changes no status.
 - Statuses: `spec_trace.py status` derives `in-progress` at most and fails a validated or delivered FEAT with an open
-  row (`done`, `superseded` and KIT-068's `cancelled` close a row); `validate` (rows closed, a `## Closure` record, every step of a journey that a NEED listing the FEAT names filled)
-  writes `validated`, or `delivered` under `release: merge`; `deliver` writes `validated → delivered`; both append a
-  History line and move each NEED whose FEATs are all delivered and cover its REQs. `check_spec.py` requires that line
-  on a validated or delivered FEAT, or `delivered before sdd-review` on one delivered under the old derivation. This
+  row (`done`, `superseded` and KIT-068's `cancelled` close a row); `validate` (rows closed, a `## Closure` record,
+  every step of a journey that a NEED listing the FEAT names filled) writes `validated`, or `delivered` under
+  `release: merge`; `deliver` writes `validated → delivered`; both append a History line and move each NEED whose
+  FEATs are all delivered and cover its REQs. `check_spec.py` (rule `feature-closure`) requires that line on a
+  validated or delivered FEAT, or `delivered before sdd-review` on one delivered under the old derivation. This
   closes the KIT-066 follow-up: a journey step citing no REQ can no longer keep `—` once its FEAT closes.
 - `sdd-process.md` (chain, Flow, table rows 6–9, status owners), `spec-feature.md` (status comment, `## Closure`),
   `spec-need.md` (who sets `delivered`), `platforms/kits/github/REVIEW.md` (blocker classes, the Red line, a grep-able
@@ -107,8 +108,10 @@ Claude ran independent checks at once without loading the skill. Issue #240 send
 Consumer adoption: a project resyncs, then adds `- YYYY-MM-DD delivered before sdd-review` to each FEAT already
 `delivered`, or `check_spec.py` refuses it; FEATs at `in-progress` with every row done stay there until `sdd-review`.
 
-Not changed, follow-ups: `sdd-tasks` still writes the progress file and `session`'s handoff record still reads it
-(KIT-068 replaces it with TASK files); `pr_gates.py` keeps `protected_paths` as label → globs while `sdd:` holds path →
+After KIT-068 (#244) merged: `session/references/handoff-record.md` and `templates/doc-session-handoff.md` read the
+rows' items (issues, or TASK files) instead of the progress file, which stays only for FEATs cut before KIT-068.
+
+Not changed, follow-ups: `pr_gates.py` keeps `protected_paths` as label → globs while `sdd:` holds path →
 label; the `parallelize` trigger case of KIT-071 is re-run once #235 merges here.
 
 ## Calibration
@@ -158,3 +161,6 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   libero todos os merges. Faça tudo com autonomia pra entregar").
 - 2026-11-15: calibration folded in (coordinator's decisions from the calibration report): `sdd-review` trimmed to
   scripts plus flagged judgment, the Red classifier, per-stack output checks and lints, `spec_trace.py lint`.
+- 2026-11-15: merged with KIT-068 (#244, coordinator's list): the closure rule id `feature-closure` in `RULES`, the
+  legacy line in #244's delivered fixture, `sdd-process.md` without `sdd-to-card`, item-state wording in
+  `spec-feature.md` and the handoff record; `cancelled` rows close like done ones (found by the merge).
