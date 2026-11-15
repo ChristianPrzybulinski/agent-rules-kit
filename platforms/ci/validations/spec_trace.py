@@ -186,11 +186,28 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
     return spec
 
 
+def listed(data: dict, key: str) -> list:
+    value = data.get(key) or []
+    return [str(v) for v in (value if isinstance(value, list) else [value])]
+
+
+def delivered_by_its_feats(spec: Spec, need: dict) -> bool:
+    """A NEED whose listed FEATs are all delivered and cover every REQ it lists no longer holds a step's `—`, even
+    before its own status moves to delivered: no step owns that move yet, so the wait would never end."""
+    feats = listed(need, "features")
+    if not feats or any(spec.feats.get(f, {}).get("status") != "delivered" for f in feats):
+        return False
+    covered = {str(r) for f in feats for r in spec.feats[f]["requirements"]}
+    return set(listed(need, "requirements")) <= covered
+
+
 def load_open_needs(spec: Spec, needs_dir: Path) -> None:
     """Map each journey to the open NEEDs that list it; check_spec.py validates the NEED files themselves."""
     for path in sorted(needs_dir.glob("NEED-*.md")):
         data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict) or not data.get("id") or data.get("status") in NEED_SETTLED:
+            continue
+        if delivered_by_its_feats(spec, data):
             continue
         journeys = data.get("journeys") or []
         for jid in journeys if isinstance(journeys, list) else [journeys]:
