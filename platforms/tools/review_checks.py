@@ -86,7 +86,7 @@ PLACEHOLDER = re.compile(r"^(<.*>|tbd|todo|unknown|none|n/a|-|\.\.\.)$", re.I)
 DOD_MARKER = re.compile(r"<!--\s*grep(\s+tests)?:\s*(.+?)\s*-->")
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 UNITTEST_CASE = re.compile(r"^(FAIL|ERROR): (\w+) \(([\w.]+)\)", re.M)
-PYTEST_CASE = re.compile(r"^(FAILED|ERROR) (\S+?)(?: - (.*))?$", re.M)
+PYTEST_CASE = re.compile(r"^(FAILED|ERROR) ([^\s(]\S*?)(?: - (.*))?$", re.M)  # not unittest's FAILED (failures=N)
 RED_CLASSES = ("assertion", "new-symbol")
 EXCERPT_LINES = 15
 
@@ -190,8 +190,21 @@ def junit_cases(tree: Path, globs) -> list[tuple[str, str, str]]:
     return cases
 
 
-def text_cases(output: str) -> list[tuple[str, str, str]]:
-    """(test id, kind, text) per failed test of a unittest or pytest text report."""
+def in_run(tid: str, files) -> bool:
+    """Whether a unittest or pytest case id names a test file of the run; another runner's report quoted in a
+    failure message names none."""
+    if "::" in tid or tid.endswith(".py"):
+        candidates = [tid.split("::")[0]]
+    else:
+        parts = tid.split(".")
+        stems = ["/".join(parts[:i]) for i in range(len(parts) - 1, 0, -1)]
+        candidates = [c for stem in stems for c in (f"{stem}.py", f"{stem}/__init__.py")]
+    return any(f == c or f.endswith("/" + c) for c in candidates for f in files)
+
+
+def text_cases(output: str, files=None) -> list[tuple[str, str, str]]:
+    """(test id, kind, text) per failed test of a unittest or pytest text report; with `files`, only cases whose test
+    file is one of them."""
     blocks = re.split(r"^={20,}$", output, flags=re.M)
     cases = []
     for block in blocks:
@@ -201,16 +214,19 @@ def text_cases(output: str) -> list[tuple[str, str, str]]:
                           "failure" if m.group(1) == "FAIL" else "error", block))
     for m in PYTEST_CASE.finditer(output):
         cases.append((m.group(2), "failure" if "AssertionError" in (m.group(3) or "") else "error", m.group(3) or ""))
-    return cases
+    return [case for case in cases if files is None or in_run(case[0], files)]
 
 
 def classify(kind: str, text: str, stacks: dict, adds) -> str:
-    """assertion, new-symbol (<names>), missing-symbol (<names>) or runtime, for one failing test or run."""
+    """assertion, new-symbol (<names>), missing-symbol (<names>) or runtime, for one failing test or run. A reported
+    failure is an assertion whatever its message quotes; an error or a whole run is read for missing symbols."""
+    if kind == "failure":
+        return "assertion"
     symbols = [s for p in every(stacks, "missing_symbol") for s in re.findall(p, text)]
     if symbols:
         names = ", ".join(sorted(set(symbols)))
         return f"new-symbol ({names})" if all(adds(s) for s in symbols) else f"missing-symbol ({names})"
-    if kind == "failure" or any(re.search(p, text) for p in every(stacks, "assertion")):
+    if any(re.search(p, text) for p in every(stacks, "assertion")):
         return "assertion"
     return "runtime"
 
@@ -266,7 +282,8 @@ def red(args) -> int:
     def adds(symbol):
         return symbol in stems or any(re.search(rf"\b{re.escape(symbol)}\b", text) for text in code_added)
 
-    cases = base_cases or text_cases(base_out)
+    files = set(git(repo, "ls-tree", "-r", "--name-only", args.base).splitlines()) | set(tests)
+    cases = base_cases or text_cases(base_out, files)
     failing = [(tid, classify(kind, text, stacks, adds)) for tid, kind, text in cases if kind != "pass"]
     if not failing and base_code != 0:
         failing = [("(whole run)", classify("error", base_out, stacks, adds))]
