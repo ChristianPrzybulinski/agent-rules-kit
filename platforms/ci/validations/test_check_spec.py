@@ -550,6 +550,11 @@ SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
                 "pr_unit": "task", "task_minutes": 30, "row_check": None, "cut_command": None, "max_chain": 4,
                 "max_feat_tasks": 30, "release": "merge", "review_rounds": 3, "commits_by": "executor", "protected_paths": {},
                 "bundle": {"rows": 1, "points": 3, "high_rows": 1}, "rule_paths": {},
+                "components": {}, "spec_index": False,
+                "github": {"repo": None, "pr_repos": [], "aliases": [], "blocked_labels": ["blocked"],
+                           "progress_labels": ["status:in-progress"]},
+                "row_checks": {"gates": None, "tests": [], "assets": None, "protocol": None, "artifacts": None,
+                               "visual": None},
                 "visual_approval": "none", "owner_approvals": ["decision"]}
 
 

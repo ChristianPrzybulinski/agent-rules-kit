@@ -2,9 +2,17 @@
 """Journey traceability for a project's spec directory (journeys <-> FEAT <-> REQ <-> tests).
 
   spec_trace.py check SPEC             fail on a broken journey link, a FEAT<->REQ asymmetry or a
-                                       stale SPEC/traceability.md
+                                       stale SPEC/traceability.md; with `sdd.spec_index`, also on a REQ or
+                                       journey file without a linked row in SPEC/spec.md, or a row linking
+                                       a missing one
   spec_trace.py generate SPEC          rewrite SPEC/traceability.md from the FEAT, REQ and journey files
   spec_trace.py impact SPEC BASE HEAD  markdown: the journey steps and tests a BASE...HEAD diff touches
+  spec_trace.py checklist SPEC J-NN [J-NN ...] [--out FILE] [--force]
+                                       one owner checklist per approved journey, to stdout (never committed)
+  spec_trace.py sync-status SPEC [--write] [--backlog OWNER/NAME]
+                                       `sdd.tracker: github` only: each task row's Status from its issue and
+                                       the PRs that close it (sdd-tasks/references/task-issue.md § States),
+                                       then each FEAT's status as `status` derives it; dry run without --write
   spec_trace.py mark-done SPEC FEAT-NNN Tn [--pr REPO#N]
                                        set the task row's Status to `done` and append a History line
   spec_trace.py status SPEC [--write]  derive each FEAT's status from its task rows (in-progress at most);
@@ -22,8 +30,10 @@
                                        "until/once Tn" with Tn done, a Plan row count that differs from the
                                        table) and each listed REQ's proving test missing from its trace row
 
-Options (before the command): `--repo NAME` (repeatable) adds a clone name a `Proven by` test path may
-be rooted at, and `--date` fixes the date written by mark-done/status --write/validate/deliver (default: today).
+SPEC is optional everywhere and defaults to docs/spec under the working directory, so `impact BASE HEAD`
+and `sync-status` run as a review loop calls them. Options (before the command): `--repo NAME` (repeatable)
+adds a clone name a `Proven by` test path may be rooted at, and `--date` fixes the date written by
+mark-done/status --write/sync-status --write/validate/deliver (default: today).
 
 FEAT status (KIT-069): task rows derive `in-progress` at most. `validated` and `delivered` are written only by
 `validate` and `deliver`, each with its History line, which check_spec.py requires; a FEAT that reaches `delivered`
@@ -42,25 +52,46 @@ empty cell and a journey with no main step always fail.
 A test path's first segment names the clone it lives in: the spec's own repository (its directory name)
 or a directory beside it — clones sit side by side on the machine that writes journeys — plus any
 `--repo` names for clones CI does not check out. A path rooted at the spec's own repository must match
-a file in it; other roots are format-checked only until the project's journey CI runs them.
+a file in it; other roots are format-checked only until the project's journey CI runs them. With
+`sdd.components` (one repository, a folder per component; KIT-073) a path may also start with a component
+name or a top-level path of the repository: a path in a component folder other than `.` needs only that
+folder, since its row may write the test; any other path must match a file.
+
+sync-status (KIT-073) reads `sdd.github`: the backlog repository (default: the origin remote), the other
+repositories whose PRs close its issues, its earlier names, and the blocked and progress labels. It lists
+every issue and every PR once per repository through `gh api` (no per-issue request). An issue titled
+`[FEAT-nnn Tn]` or `[FEAT-nnn T1+T2]` belongs to those rows; a member issue closed as not planned that a
+bundle names in its title (`— bundled with FEAT-nnn Tn #N`) follows the bundle. A row is `done` once a
+merged PR closes its issue; a closed issue then keeps the row (a warning) or, closed as not planned, makes it
+`cancelled` (a `done` row stays), whatever labels it still carries; an open one is `blocked` with a blocked
+label, `doing` with an open PR or a progress label, else `todo`. A `superseded` or `cancelled` row is never
+rewritten. It never writes a FEAT's `validated` or `delivered`. --write also refreshes traceability.md, the
+Status cell of each FEAT row in spec.md and, where their markers are, the `<!-- sync-status:begin -->` ...
+`<!-- sync-status:end -->` block (in-progress FEATs) and the `<!-- sync-counts:begin -->` ...
+`<!-- sync-counts:end -->` block (`N FEATs: n `status`, …`, proposed and cancelled FEATs named).
 
 Run it after the frontmatter lint (`check_spec.py`), which this file is synced next to by
-platforms/tools/sync-project.sh. Upstreamed from a consumer project's tools/spec-trace implementation;
-the generated matrix text is byte-stable on purpose so a synced copy and a project-owned copy compare
-equal.
+platforms/tools/sync-project.sh and which resolves the `sdd` block it reads. Upstreamed from a consumer
+project's tools/spec-trace implementation (KIT-073 added sync-status, checklist and the index check).
 """
 from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
 import yaml
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import check_spec  # noqa: E402  (the sdd parameters, resolved against spec.schema.json)
 
 MATRIX = "traceability.md"
 
@@ -86,6 +117,17 @@ PENDING = "—"
 JOURNEY_STATUS = ("proposed", "approved", "retired")
 JOURNEY_FIELDS = ("id", "title", "status", "owner", "created", "updated")
 MAIN_COLUMNS = ("Rules", "Implemented by", "Proven by")
+TEXT_SKIP = ("Step", "At", "Implemented by", "Rules", "Proven by")
+STAGE = re.compile(r"\bstage ([A-Z][A-Za-z0-9-]*\d)\b")
+INDEX_LINK = re.compile(r"\]\(([^)]+)\)")
+ROW_FROZEN = ("superseded", "cancelled")  # sync-status never reopens a dropped row
+ISSUE_TITLE = re.compile(r"^\[(FEAT-\d{3,}) (T\d+(?:\+T\d+)*)\]")
+SYNC_BEGIN, SYNC_END = "<!-- sync-status:begin -->", "<!-- sync-status:end -->"
+COUNTS_BEGIN, COUNTS_END = "<!-- sync-counts:begin -->", "<!-- sync-counts:end -->"
+# feature.schema.json `status`, in lifecycle order; the counts line names the FEATs of the LISTED ones
+FEAT_STATUSES = ("proposed", "clarified", "planned", "in-progress", "validated", "delivered", "cancelled")
+COUNTS_LISTED = ("proposed", "cancelled")
+REMOTE = re.compile(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
 
 
 @dataclass
@@ -97,6 +139,7 @@ class Step:
     tasks: list[str] = field(default_factory=list)
     tests: list[str] = field(default_factory=list)
     manual: str | None = None
+    action: str = ""
 
     @property
     def ref(self):
@@ -113,6 +156,8 @@ class Spec:
     journeys: dict = field(default_factory=dict)  # J id -> {"path", "title", "status", "steps"}
     open_needs: dict = field(default_factory=dict)  # J id -> ids of the open NEEDs whose `journeys` list it
     errors: list = field(default_factory=list)
+    params: dict = field(default_factory=dict)      # the resolved `sdd` block of spec.md (check_spec.py)
+    param_errors: list = field(default_factory=list)
 
     @property
     def steps(self):
@@ -185,16 +230,32 @@ def test_roots(root: Path, extra: Iterable[str]) -> set:
     return roots
 
 
+def schemas_dir() -> Path:
+    """spec.schema.json beside this file (the synced copy) or in the kit's platforms/ci/schemas."""
+    return next((d for d in (HERE / "schemas", HERE.parent / "schemas") if (d / "spec.schema.json").is_file()),
+                HERE / "schemas")
+
+
+def load_params(spec_dir: Path) -> tuple:
+    """The resolved `sdd` block and the errors check_spec.py reports on it; ({}, [why]) without the schema."""
+    folder = schemas_dir()
+    if not (folder / "spec.schema.json").is_file():
+        return {}, [f"no spec.schema.json beside {Path(__file__).name}"]
+    return check_spec.load_params(spec_dir, folder)
+
+
 def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
     spec_dir = spec_dir.resolve()
     root = repo_root(spec_dir)
     spec = Spec(root=root, spec_dir=spec_dir, repos=test_roots(root, extra_repos))
+    spec.params, spec.param_errors = load_params(spec_dir)
     for path in sorted((spec_dir / "features").glob("FEAT-*.md")):
         data, body = split_frontmatter(path.read_text(encoding="utf-8"))
         if data and data.get("id"):
             spec.feats[data["id"]] = {"path": path, "requirements": data.get("requirements") or [],
                                       "tasks": task_rows(body), "status": data.get("status"),
-                                      "task_status": task_statuses(body)}
+                                      "task_status": task_statuses(body),
+                                      "title": data.get("title", data["id"])}
     for path in sorted((spec_dir / "requirements").rglob("REQ-*.md")):
         data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
         if data and data.get("id"):
@@ -256,8 +317,23 @@ def load_journey(spec, path):
         spec.errors.append(f"{where}: duplicate id {jid}")
         return
     steps = parse_steps(spec, jid, body)
+    goal = section(body, "Goal")
     spec.journeys[jid] = {"path": path, "title": data.get("title", ""), "status": data.get("status"),
-                          "steps": steps}
+                          "steps": steps, "preconditions": section(body, "Preconditions"),
+                          "stage": next(iter(STAGE.findall(goal)), "")}
+
+
+def section(body, name):
+    """The text under `## name` up to the next `## ` heading, stripped; empty when the section is absent."""
+    lines, found = [], False
+    for line in body.splitlines():
+        if line.startswith("## "):
+            if found:
+                break
+            found = line[3:].strip() == name
+        elif found:
+            lines.append(line)
+    return "\n".join(lines).strip()
 
 
 def markdown_tables(body):
@@ -300,7 +376,8 @@ def parse_step(spec, jid, row, header):
     if not STEP_ID.match(sid):
         spec.errors.append(f"{jid}: step id {sid!r} does not match S<n>, A<n> or P<n>")
         return None
-    step = Step(journey=jid, id=sid, at=row.get("At") or None)
+    action = next((v for k, v in row.items() if k not in TEXT_SKIP), "")
+    step = Step(journey=jid, id=sid, at=row.get("At") or None, action=action)
     if "Implemented by" not in header:
         spec.errors.append(f"{step.ref}: table has no 'Implemented by' column")
         return step
@@ -369,6 +446,8 @@ def parse_tests(spec: Spec, step: Step, cell: str) -> None:
         spec.errors.append(f"{step.ref}: Proven by holds text outside test refs and a trailing manual: {rest!r}")
     check_tasks(spec, step, tasks)
     for path in paths:
+        if component_path_error(spec, step, path) is not None:
+            continue
         m = TEST_PATH.match(path)
         if not m or m.group(1) not in spec.repos:
             spec.errors.append(f"{step.ref}: test path {path!r} is not rooted at a clone name "
@@ -378,6 +457,33 @@ def parse_tests(spec: Spec, step: Step, cell: str) -> None:
     step.tests = tasks + [f"`{p}`" for p in paths]
     if not step.tests and not step.manual and not pending:
         spec.errors.append(f"{step.ref}: Proven by cites no test{due}")
+
+
+def component_path_error(spec: Spec, step: Step, path: str):
+    """With `sdd.components`: None when the path is not this repository's (the clone-name rules decide), else ""
+    when it is valid, or the error it records. A path starts with a component name (read as its folder) or a
+    top-level entry of the repository; one in a component folder other than `.` needs only that folder (its row may
+    write the test), any other must match a file."""
+    components = spec.params.get("components") or {}
+    if not components:
+        return None
+    head, sep, rest = path.partition("/")
+    folder = components.get(head)
+    normal = path if folder is None else (rest if folder == "." else f"{folder}{sep}{rest}")
+    parts = normal.split("/")
+    if folder is None and not (head and (spec.root / head).exists() and head != spec.root.name):
+        return None
+    folders = {f for f in components.values() if f != "."}
+    if any(p in {"", ".", "..", ".git"} for p in parts) or re.search(r"\s", path) or \
+            not (spec.root / parts[0]).exists():
+        error = (f"{step.ref}: test path {path!r} is not rooted at a component ({', '.join(sorted(components))}) "
+                 "or a top-level path of this repository")
+    elif parts[0] not in folders and not any(spec.root.glob(normal)):
+        error = f"{step.ref}: test path {path!r} matches no file in this repository"
+    else:
+        return ""
+    spec.errors.append(error)
+    return error
 
 
 def symmetry_errors(spec):
@@ -459,11 +565,55 @@ def render_matrix(spec):
     return "\n".join(lines) + "\n"
 
 
+def journeys_on(spec) -> bool:
+    """`sdd.journeys`; absent = on when the spec has a journeys/ folder."""
+    value = spec.params.get("journeys")
+    return value if isinstance(value, bool) else (spec.spec_dir / "journeys").is_dir()
+
+
 def check(spec):
     errors = spec.errors + symmetry_errors(spec)
+    if spec.params.get("spec_index"):
+        errors += index_errors(spec)
     matrix = spec.spec_dir / MATRIX
-    if not matrix.exists() or matrix.read_text(encoding="utf-8") != render_matrix(spec):
+    # The matrix is required with journeys and kept fresh once it exists; a project with neither needs none.
+    if (journeys_on(spec) or matrix.exists()) and (
+            not matrix.exists() or matrix.read_text(encoding="utf-8") != render_matrix(spec)):
         errors.append(f"{matrix} is stale or missing: run spec_trace.py generate on the spec directory")
+    return errors
+
+
+def index_errors(spec):
+    """`sdd.spec_index`: every functional and non-functional REQ file and every journey file has a linked table row in
+    spec.md, and each such link points to an existing file. Paths are relative to the spec directory."""
+    index = spec.spec_dir / "spec.md"
+    if not index.exists():
+        return ["spec.md is missing"]
+    base = spec.spec_dir.resolve()
+    indexed, errors = set(), []
+    for line in index.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("|"):
+            continue
+        for match in INDEX_LINK.finditer(line):
+            target = match.group(1).split("#", 1)[0]
+            if not target or "://" in target:
+                continue
+            path = (index.parent / target).resolve()
+            try:
+                rel = path.relative_to(base).as_posix()
+            except ValueError:
+                continue
+            if not re.match(r"^(requirements/functional/REQ-F-|requirements/non-functional/REQ-NF-|journeys/J-)"
+                            r".*\.md$", rel):
+                continue
+            if path.is_file():
+                indexed.add(path)
+            else:
+                errors.append(f"spec.md: link points to missing file {rel}")
+    candidates = [*(base / "requirements" / "functional").glob("REQ-F-*.md"),
+                  *(base / "requirements" / "non-functional").glob("REQ-NF-*.md"), *(base / "journeys").glob("J-*.md")]
+    errors += [f"{path.relative_to(base).as_posix()} has no row in spec.md"
+               for path in sorted(candidates) if path.resolve() not in indexed]
     return errors
 
 
@@ -865,6 +1015,413 @@ def render_impact(found):
     return "\n".join(lines) + "\n"
 
 
+def task_status(spec, ref):
+    fid, tid = ref.split(" ")
+    return spec.feats.get(fid, {}).get("task_status", {}).get(tid, "unknown")
+
+
+def cell(text):
+    return (text or "—").replace("|", "\\|").replace("\n", "<br>")
+
+
+def render_checklist(spec, jid):
+    j = spec.journeys[jid]
+    rel = j["path"].relative_to(spec.root).as_posix()
+    lines = [f"# {jid} — {j['title']}", "",
+             f"Generated from `{rel}` by `spec_trace.py checklist`; steps are not hand-edited.", ""]
+    if j["stage"]:
+        lines += [f"Stage: {j['stage']}", ""]
+    lines += ["## Preconditions", "", j["preconditions"], "", "## Steps", "",
+              "| Step | At | Do and expect | Rules | Automated proof | Manual check | "
+              "Evidence (date, build, version, result) |", "|---|---|---|---|---|---|---|"]
+    for s in j["steps"]:
+        if s.id.startswith("P"):
+            continue
+        rules = "<br>".join(f"{r} — {spec.reqs[r]['title']}" for r in s.rules)
+        lines.append("| " + " | ".join([s.id, cell(s.at), cell(s.action), cell(rules),
+                                        cell("<br>".join(s.tests)), cell(s.manual), ""]) + " |")
+    lines += ["", "## Prerequisites", "", "| Step | Needs | Task | Status |", "|---|---|---|---|"]
+    for s in (s for s in j["steps"] if s.id.startswith("P")):
+        lines.append("| " + " | ".join([s.id, cell(s.action), cell("<br>".join(s.tasks)),
+                                        cell("<br>".join(task_status(spec, t) for t in s.tasks))]) + " |")
+    return "\n".join(lines) + "\n"
+
+
+def checklist(spec, ids, out, force):
+    """One checklist per approved journey, in id order; any error of those journeys fails before writing."""
+    ids = sorted(set(ids), key=natural_key)
+    errors = []
+    for jid in ids:
+        j = spec.journeys.get(jid)
+        if j is None:
+            errors.append(f"{jid}: unknown journey")
+            continue
+        if j["status"] != "approved":
+            errors.append(f"{jid}: status is {j['status']!r}, only approved journeys have a checklist")
+        rel = j["path"].relative_to(spec.root).as_posix()
+        errors += [e for e in spec.errors if e.startswith((f"{jid} ", f"{jid}:", rel))]
+    if not errors and out and Path(out).exists() and not force:
+        errors.append(f"{out} exists; pass --force to overwrite it")
+    if errors:
+        return report(errors, "")
+    text = "\n".join(render_checklist(spec, jid) for jid in ids)
+    if out:
+        Path(out).write_text(text, encoding="utf-8")
+    else:
+        print(text, end="")
+    return 0
+
+
+# --------------------------------------------------------------------------- sync-status (KIT-073)
+
+
+def origin_repo(root: Path):
+    shown = git(root, "remote", "get-url", "origin")
+    m = REMOTE.search(shown.stdout.strip()) if shown.returncode == 0 else None
+    return m.group(1) if m else None
+
+
+def github_settings(spec_dir: Path, repo: str | None = None) -> dict:
+    """`sdd.github` resolved: the backlog repository (`repo`, else the origin remote), the PR repositories, earlier
+    names and labels."""
+    params, _ = load_params(Path(spec_dir).resolve())
+    settings = dict(params.get("github") or {})
+    settings["repo"] = repo or settings.get("repo") or origin_repo(repo_root(Path(spec_dir).resolve()))
+    for key, default in (("pr_repos", []), ("aliases", []), ("blocked_labels", ["blocked"]),
+                         ("progress_labels", ["status:in-progress"])):
+        settings[key] = list(settings.get(key) or default)
+    return settings
+
+
+def run_gh(*args):
+    """One `gh api` REST call (GraphQL and `--paginate` fail through some proxies)."""
+    return subprocess.run(["gh", "api", *args], capture_output=True, text=True)
+
+
+def gh_json(query, gh=run_gh):
+    res = gh(query)
+    if res.returncode != 0:
+        raise SystemExit(f"gh api {query} failed: {res.stderr.strip()}")
+    return json.loads(res.stdout)
+
+
+def gh_paged(query, gh=run_gh):
+    """All pages of a REST list, `&page=N` by hand until an empty page."""
+    sep = "&" if "?" in query else "?"
+    out, page = [], 1
+    while True:
+        chunk = gh_json(f"{query}{sep}per_page=100&page={page}", gh)
+        if not chunk:
+            return out
+        out += chunk
+        page += 1
+
+
+def bundle_members(issue: dict) -> list:
+    """The primary row and the members a ` — bundled with ` title suffix records, in that order: `FEAT-nnn Tn #N`
+    members, or bare `#N` numbers for a bundle with no rows."""
+    title = issue.get("title") or ""
+    own = re.match(r"^\[(FEAT-\d{3,}) (T\d+)\]", title)
+    _, sep, suffix = title.partition(" — bundled with ")
+    if not sep:
+        return []
+    if re.fullmatch(r"#\d+(?:, #\d+)*", suffix):
+        head = (own[1], own[2], int(issue["number"])) if own else (None, None, int(issue["number"]))
+        refs = [head] + [(None, None, int(n)) for n in re.findall(r"#(\d+)", suffix)]
+        return refs if len({n for _, _, n in refs}) == len(refs) else []
+    if not own or not re.fullmatch(r"FEAT-\d{3,} T\d+ #\d+(?:, FEAT-\d{3,} T\d+ #\d+)*", suffix):
+        return []
+    members = re.findall(r"\b(FEAT-\d{3,}) (T\d+) #(\d+)\b", suffix)
+    refs = [(own[1], own[2], int(issue["number"]))] + [(f, tid, int(n)) for f, tid, n in members]
+    return refs if len({n for _, _, n in refs}) == len(refs) else []
+
+
+def issue_sections(body):
+    out, current = {}, None
+    for line in (body or "").splitlines():
+        m = re.match(r"^##\s+(.+?)\s*$", line)
+        if m:
+            current = m.group(1)
+            out[current] = []
+        elif current is not None:
+            out[current].append(line)
+    return {k: "\n".join(v).strip() for k, v in out.items()}
+
+
+def bundle_redirects(issues: list) -> dict:
+    """A member closed as not planned follows its bundle when its title names the member row and its `## Repository`
+    section equals the bundle's; never an unrelated closed issue."""
+    by_number = {i["number"]: i for i in issues}
+    out = {}
+    for primary in issues:
+        for feat, tid, n in bundle_members(primary)[1:]:
+            member = by_number.get(n, {})
+            reason = member.get("stateReason", member.get("state_reason", "")) or ""
+            named = feat is None or (member.get("title") or "").startswith(f"[{feat} {tid}]")
+            if (member.get("state", "").lower() == "closed" and reason.lower() == "not_planned" and named
+                    and issue_sections(member.get("body")).get("Repository") ==
+                    issue_sections(primary.get("body")).get("Repository")):
+                out[n] = primary
+    return out
+
+
+def task_issues(repo, gh=run_gh):
+    """`{'FEAT-NNN Tn': [{number, state, reason, labels}, ...]}`: the backlog issues of each row (a fix round may keep
+    the title, so a row can have several)."""
+    found = {}
+    items = [i for i in gh_paged(f"repos/{repo}/issues?state=all", gh) if "pull_request" not in i]
+    redirects = bundle_redirects(items)
+    for item in items:
+        m = ISSUE_TITLE.match(item.get("title") or "")
+        if not m:
+            continue
+        primary = redirects.get(item["number"])
+        effective = primary or item
+        record = {"number": item["number"], "state": effective["state"],
+                  "reason": (effective.get("state_reason") or effective.get("stateReason") or "").lower(),
+                  "labels": [lb["name"] for lb in effective.get("labels") or []]}
+        if primary:
+            record["bundle"] = primary["number"]
+        for tid in m.group(2).split("+"):
+            found.setdefault(f"{m.group(1)} {tid}", []).append(record)
+    return found
+
+
+def merge_issues(group):
+    """One view of a row's issues: any open issue means open, and only open issues lend their labels (a closed
+    issue's stale `blocked` says nothing about the open one); closed as not planned only when every one is."""
+    closed = [i for i in group if i["state"] != "open"]
+    return {"number": group[0]["number"], "labels": sorted({lb for i in group if i["state"] == "open"
+                                                            for lb in i["labels"]}),
+            "state": "open" if len(closed) < len(group) else "closed",
+            "reason": "not_planned" if closed and all(i["reason"] == "not_planned" for i in closed) else ""}
+
+
+def closing_prs(settings, gh=run_gh):
+    """`{issue number: [{ref, state, merged}]}` from one paged `pulls?state=all` listing per repository: a PR body's
+    `Closes <backlog or earlier name>#N`, and `Closes #N` inside the backlog repository only."""
+    repo = settings["repo"]
+    pr_repos = [repo, *[r for r in settings["pr_repos"] if r != repo]]
+    aliases = {repo, *settings["aliases"]}
+    full = re.compile(r"Closes\s+(?:" + "|".join(re.escape(name) for name in sorted(aliases)) + r")#(\d+)\b")
+    short = re.compile(r"Closes\s+#(\d+)\b")
+    with ThreadPoolExecutor(max_workers=len(pr_repos)) as pool:
+        listings = list(pool.map(lambda r: gh_paged(f"repos/{r}/pulls?state=all", gh), pr_repos))
+    out = {}
+    for pr_repo, pulls in zip(pr_repos, listings):
+        for pr in pulls:
+            body = pr.get("body") or ""
+            numbers = {int(n) for n in full.findall(body)}
+            if pr_repo == repo:
+                numbers |= {int(n) for n in short.findall(body)}
+            for number in numbers:
+                out.setdefault(number, []).append({"ref": f"{pr_repo.split('/')[-1]}#{pr['number']}",
+                                                   "state": pr.get("state"), "merged": pr.get("merged_at") is not None})
+    return out
+
+
+def derive_task_status(current, issue, prs, settings):
+    """(new status, refs or reasons, warn?): the GitHub state of one row; the first match wins."""
+    if current in ROW_FROZEN:
+        return current, [], False
+    if issue is None:
+        return current, ["no issue"], False
+    merged = sorted({p["ref"] for p in prs if p["merged"]}, key=natural_key)
+    if merged:
+        return "done", merged, False
+    if issue["state"] == "closed":  # before any label: a closed issue may keep a stale blocked or progress label
+        if issue["reason"] == "not_planned" and current == "done":  # a recorded delivery outranks a stray issue
+            return current, ["closed as not planned, but the row is done"], True
+        if issue["reason"] == "not_planned":
+            return "cancelled", ["closed as not planned"], False
+        return current, ["closed without a merged PR"], True
+    labels = set(issue["labels"])
+    blocked = labels & set(settings["blocked_labels"])
+    if blocked:
+        return "blocked", [f"label:{lb}" for lb in sorted(blocked)], False
+    open_prs = sorted({p["ref"] for p in prs if p["state"] == "open"}, key=natural_key)
+    progress = labels & set(settings["progress_labels"])
+    if open_prs or progress:
+        return "doing", open_prs or [f"label:{lb}" for lb in sorted(progress)], False
+    return "todo", [], False
+
+
+def sync_status(spec, settings, write, today, gh=run_gh):
+    """Each row's Status and each FEAT's status from GitHub; with `write`, written to the files."""
+    repo = settings["repo"]
+    if not repo:
+        raise SystemExit("sync-status: no backlog repository: set sdd.github.repo, pass --backlog or add an origin "
+                         "remote on GitHub")
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        issues_job = pool.submit(task_issues, repo, gh)
+        closing = closing_prs(settings, gh)
+        issues = issues_job.result()
+    lines, changed = [], {}
+    for fid in sorted(spec.feats, key=natural_key):
+        feat = spec.feats[fid]
+        for tid in sorted(feat["task_status"], key=natural_key):
+            key = f"{fid} {tid}"
+            group = issues.get(key, [])
+            if len(group) > 1:
+                lines.append(f"WARN {key}: task issues " + ", ".join(f"#{i['number']}" for i in group)
+                             + " — evidence merged")
+            issue = merge_issues(group) if group else None
+            prs = [p for i in group for n in {i["number"], i.get("bundle", i["number"])} for p in closing.get(n, [])]
+            current = feat["task_status"][tid]
+            new, via, warn = derive_task_status(current, issue, prs, settings)
+            if warn:
+                lines.append(f"WARN {key}: {repo.split('/')[-1]}#{issue['number']} {via[0]}")
+            elif via == ["no issue"]:
+                lines.append(f"{key}: {current} (no issue)")
+            if new != current:
+                feat["task_status"][tid] = new
+                changed.setdefault(fid, []).append((tid, current, new, via))
+                lines.append(f"{key}: {current} -> {new}" + (f" ({', '.join(via)})" if via else ""))
+        new_status = derived_status(feat)
+        if new_status != feat["status"]:
+            lines.append(f"{fid}: {feat['status']} -> {new_status}")
+            feat["sync_status"] = new_status
+    if not write:
+        print("\n".join(lines) or "sync-status: everything already derived")
+        return 0
+    written = apply_sync(spec, changed, today)
+    print("\n".join(lines))
+    print(f"sync-status: wrote {written} file(s)")
+    return 0
+
+
+def task_header(body):
+    """The cells of the task-table header (the `| ID |` table with a `Status` column), or None."""
+    for line in body.splitlines():
+        if line.startswith("| ID |"):
+            header = row_cells(line)
+            if "Status" in header:
+                return header
+    return None
+
+
+def rewrite_frontmatter(text, status, today):
+    """Set `status` (unless None) and `updated` in the raw frontmatter, never a YAML round trip."""
+    head, sep, rest = text.partition("\n---\n")
+    if status:
+        head = re.sub(r"(?m)^status:.*$", f"status: {status}", head, count=1)
+    if re.search(r"(?m)^updated:", head):
+        head = re.sub(r"(?m)^updated:.*$", f'updated: "{today}"', head, count=1)
+    elif status:
+        head = re.sub(r"(?m)^(status:.*)$", rf'\1\nupdated: "{today}"', head, count=1)
+    return head + sep + rest
+
+
+def apply_sync(spec, changed, today):
+    """Write the derived status into the FEAT files, traceability.md and spec.md; return the file count."""
+    written = 0
+    fids = set(changed) | {f for f, ft in spec.feats.items() if "sync_status" in ft}
+    for fid in sorted(fids, key=natural_key):
+        feat = spec.feats[fid]
+        text = feat["path"].read_text(encoding="utf-8")
+        header = task_header(split_frontmatter(text)[1])
+        for tid, old, new, via in changed.get(fid, []):
+            line = feat["tasks"][tid]
+            if len(row_cells(line)) != len(header):
+                raise SystemExit(f"{fid} {tid}: row has not the header's cell count; refusing to write")
+            pieces = UNESCAPED_PIPE.split(line)
+            pieces[header.index("Status") + 1] = f" {new} "
+            text = text.replace(line, "|".join(pieces), 1)
+        new_status = feat.get("sync_status")
+        if new_status and new_status != feat["status"]:
+            feat["status"] = new_status
+        feat["path"].write_text(rewrite_frontmatter(text, new_status, today), encoding="utf-8")
+        if fid in changed:
+            detail = "; ".join(f"{tid} {old} -> {new}" + (f" via {', '.join(via)}" if via else "")
+                               for tid, old, new, via in changed[fid])
+            append_history(feat["path"], f"- {today} sync: status derived from GitHub ({detail}).")
+        written += 1
+    matrix = spec.spec_dir / MATRIX
+    if spec.journeys or matrix.exists():
+        rendered = render_matrix(spec)
+        if not matrix.exists() or matrix.read_text(encoding="utf-8") != rendered:
+            matrix.write_text(rendered, encoding="utf-8")
+            written += 1
+    return written + (1 if sync_index(spec, today) else 0)
+
+
+def id_ranges(ids):
+    """['FEAT-005', 'FEAT-006', 'FEAT-007', 'FEAT-009'] -> ['FEAT-005–FEAT-007', 'FEAT-009']: a run of three or more
+    consecutive numbers collapses to a range."""
+    out, run = [], []
+
+    def flush():
+        out.extend([f"{run[0]}–{run[-1]}"] if len(run) > 2 else run)
+
+    for fid in sorted(ids, key=natural_key):
+        number = int(re.sub(r"\D", "", fid) or 0)
+        if run and number != int(re.sub(r"\D", "", run[-1]) or 0) + 1:
+            flush()
+            run = []
+        run.append(fid)
+    if run:
+        flush()
+    return out
+
+
+def counts_line(spec):
+    """`N FEATs: n `status`, …` in lifecycle order, zero counts left out, the proposed and cancelled FEATs named."""
+    by_status = {}
+    for fid in sorted(spec.feats, key=natural_key):
+        by_status.setdefault(str(spec.feats[fid]["status"]), []).append(fid)
+    order = list(FEAT_STATUSES) + sorted(s for s in by_status if s not in FEAT_STATUSES)
+    parts = [f"{len(by_status[s])} `{s}`" + (f" ({', '.join(id_ranges(by_status[s]))})" if s in COUNTS_LISTED else "")
+             for s in order if s in by_status]
+    total = len(spec.feats)
+    return f"{total} FEAT{'' if total == 1 else 's'}" + (": " + ", ".join(parts) if parts else "") + "."
+
+
+def sync_index(spec, today):
+    """spec.md: the Status cell of each FEAT row (a table row linking features/FEAT-nnn under a header with a Status
+    column), the sync-status block (the in-progress FEATs with their done rows) and the sync-counts block (the FEAT
+    counts per status, `counts_line`); a block is written only where its markers are."""
+    path = spec.spec_dir / "spec.md"
+    if not path.exists():
+        return False
+    original = path.read_text(encoding="utf-8")
+    lines, column = original.split("\n"), None
+    for i, line in enumerate(lines):
+        if not line.startswith("|"):
+            column = None
+            continue
+        cells = row_cells(line)
+        if "Status" in cells and column is None:
+            column = cells.index("Status")
+            continue
+        m = re.match(r"^\[(FEAT-\d{3,})\]\(features/", cells[0]) if cells else None
+        if column is None or not m or m.group(1) not in spec.feats or len(cells) <= column:
+            continue
+        status = spec.feats[m.group(1)]["status"]
+        if cells[column] != status:
+            pieces = UNESCAPED_PIPE.split(line)
+            pieces[column + 1] = f" {status} "
+            lines[i] = "|".join(pieces)
+    text = "\n".join(lines)
+    if SYNC_BEGIN in text and SYNC_END in text:
+        listing = []
+        for fid in sorted(spec.feats, key=natural_key):
+            feat = spec.feats[fid]
+            if feat["status"] == "in-progress":
+                done = sum(1 for s in feat["task_status"].values() if s == "done")
+                listing.append(f"- {fid} {feat['title']} ({done}/{len(feat['task_status'])} done)")
+        block = SYNC_BEGIN + "\n" + ("\n".join(listing) or "- none") + "\n" + SYNC_END
+        text = re.sub(re.escape(SYNC_BEGIN) + ".*?" + re.escape(SYNC_END), lambda _: block, text, count=1,
+                      flags=re.DOTALL)
+    if COUNTS_BEGIN in text and COUNTS_END in text:
+        block = COUNTS_BEGIN + "\n" + counts_line(spec) + "\n" + COUNTS_END
+        text = re.sub(re.escape(COUNTS_BEGIN) + ".*?" + re.escape(COUNTS_END), lambda _: block, text, count=1,
+                      flags=re.DOTALL)
+    if text == original:
+        return False
+    path.write_text(rewrite_frontmatter(text, None, today), encoding="utf-8")
+    return True
+
+
 def report(errors, ok_message):
     for error in errors:
         print(f"FAIL: {error}", file=sys.stderr)
@@ -872,6 +1429,10 @@ def report(errors, ok_message):
         return 1
     print(ok_message)
     return 0
+
+
+DEFAULT_SPEC = Path("docs/spec")
+SPEC_HELP = "the spec directory (default: docs/spec under the working directory)"
 
 
 def main(argv=None):
@@ -882,36 +1443,52 @@ def main(argv=None):
     parser.add_argument("--date", default=None, help="date for History and `updated` (default: today)")
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("check", "generate"):
-        p = sub.add_parser(name)
-        p.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+        sub.add_parser(name).add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     status = sub.add_parser("status")
-    status.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+    status.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     status.add_argument("--write", action="store_true")
     impact = sub.add_parser("impact")
-    impact.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+    impact.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     impact.add_argument("base")
     impact.add_argument("head")
     done = sub.add_parser("mark-done")
-    done.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+    done.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     done.add_argument("feat")
     done.add_argument("task")
     done.add_argument("--pr", help="merged task PR as <repo>#<n>")
     closing = sub.add_parser("validate")
-    closing.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+    closing.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     closing.add_argument("feat")
     closing.add_argument("--at", required=True, help="the main commit sdd-review ran the closure on")
     closing.add_argument("--check", action="store_true", help="report the gaps only; write nothing")
     release = sub.add_parser("deliver")
-    release.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+    release.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     release.add_argument("feat")
     release.add_argument("--in", dest="version", required=True, help="the release that delivered it")
     linting = sub.add_parser("lint")
-    linting.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+    linting.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     linting.add_argument("feat", nargs="?", help="the FEAT to lint (default: every validated or delivered one)")
+    sync = sub.add_parser("sync-status", help="row and FEAT status from GitHub (sdd.tracker: github)")
+    sync.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    sync.add_argument("--write", action="store_true")
+    sync.add_argument("--backlog", metavar="OWNER/NAME", help="the backlog repository (default: sdd.github.repo, "
+                                                               "else the origin remote)")
+    chk = sub.add_parser("checklist", help="owner checklist of approved journeys, to stdout")
+    chk.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    chk.add_argument("journeys", nargs="*", metavar="J-NN")
+    chk.add_argument("--out", help="write the checklist to FILE instead of stdout")
+    chk.add_argument("--force", action="store_true", help="overwrite --out when it exists")
     args = parser.parse_args(argv)
     today = args.date or datetime.date.today().isoformat()
+    if args.spec is not None and re.fullmatch(r"J-\d{2,}", str(args.spec)) and args.command == "checklist":
+        args.journeys, args.spec = [str(args.spec), *args.journeys], None
+    if args.spec is not None and re.fullmatch(r"FEAT-\d{3,}", str(args.spec)) and args.command == "lint":
+        args.feat, args.spec = str(args.spec), None
+    spec_dir = args.spec or DEFAULT_SPEC
+    if not spec_dir.is_dir():
+        return report([f"spec dir does not exist: {spec_dir}"], "")
 
-    spec = load(args.spec, args.repo)
+    spec = load(spec_dir, args.repo)
     matrix = spec.spec_dir / MATRIX
     summary = f"spec-trace: OK ({len(spec.journeys)} journeys, {len(spec.steps)} steps, {len(spec.reqs)} REQs)"
     if args.command == "generate":
@@ -928,6 +1505,20 @@ def main(argv=None):
             print("\n".join(changed) or "spec-trace status: nothing to rewrite")
             return 0
         return report(status_errors(spec), f"spec-trace status: OK ({len(spec.feats)} FEATs)")
+    if args.command == "sync-status":
+        if spec.param_errors:
+            print("FAIL: spec.md sdd block refused (check_spec.py --params): " + "; ".join(spec.param_errors),
+                  file=sys.stderr)
+            return 2
+        if spec.params.get("tracker", "github") != "github":
+            print(f"FAIL: sync-status reads GitHub issues, and sdd.tracker is {spec.params.get('tracker')}: task "
+                  "status lives in the TASK files", file=sys.stderr)
+            return 2
+        return sync_status(spec, github_settings(spec.spec_dir, args.backlog), args.write, today)
+    if args.command == "checklist":
+        if not args.journeys:
+            return report(["checklist needs one or more journey ids (J-NN)"], "")
+        return checklist(spec, args.journeys, args.out, args.force)
     if args.command == "validate":
         return validate(spec, args.feat, args.at, today, args.check)
     if args.command == "deliver":

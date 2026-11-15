@@ -5,7 +5,7 @@ kind: detail
 
 # Row checks
 
-Each row passes every check below before its table goes to the spec PR; a row that fails one is fixed first, never inside the implementing PR. The project's `row_check` command, when set, automates what it can, and its exit 0 is required; the checks it does not cover stay the writer's.
+Each row passes every check below before its table goes to the spec PR; a row that fails one is fixed first, never inside the implementing PR. The row-check command automates what it can, and its exit 0 is required; the checks it does not cover stay the writer's. With `row_check: null` that command is the kit's `python3 .github/spec-lint/row_checks.py check FEAT-nnn` (or `--all`, `--changed BASE HEAD`; § Automated rules): it reads the `sdd:` block (`check_spec.py --params` shows it resolved), checks the rows that are not settled (`--all-rows`: every row) and exits 1 on a FAIL (`--strict` makes the c and f warnings fail), 2 on a config it cannot use or on an internal error. A project command replaces it.
 
 ## Size and order
 
@@ -34,6 +34,22 @@ Each row passes every check below before its table goes to the spec PR; a row th
 
 - **Executable proof.** Every proof line runs unattended in CI or the review gates as a deterministic command. A manual check (UI, mail capture) is labelled as such and paired with an automated one.
 - **Proof wording.** A proof line contains none of the words the project's gates refuse; the item's `Notes` names the project's allowlist location, never a hard-coded list.
+
+## Automated rules
+
+| Rule | Level | Checks | Reads |
+|---|---|---|---|
+| a | FAIL | the KIT-068 columns and their values; a malformed row skips the rest | — |
+| b | FAIL | each Files entry starts at a top-level path or a component name, and the row stays in one component (a contract row that owns the protocol folder only warns) | `components` |
+| c | FAIL (WARN for a stack with `level: warn`) | a code path needs a test path of its stack | `row_checks.tests` |
+| d | WARN | a listed generated neighbour; an exact asset path where a `**` glob of its folder belongs | gates `generated_neighbours`, `row_checks.assets` |
+| e | FAIL (WARN for a manual clause with no automated sibling, or no command at all) | each proof clause runs allowlisted programs only, inside its component (`pr_gates.py` `command_allowed`, the PR gate's own code) | gates `proof_allowlist`; `proof_var_depths` (the `..` a variable may climb, `HOME` for `~`; any other `..` out of the component fails); `components` |
+| f | WARN | each Depends on token is `—`, a row of the table, `FEAT-nnn Tn` on disk or `#N` | — |
+| g | FAIL | each path a proof clause names is in Files of the row or of a same-FEAT dependency | — |
+| h | WARN | each message type the Task sends has its schema | `row_checks.protocol.schemas` |
+| i | WARN | a row that changes an artifact's policy cites the decision that sets it | `row_checks.artifacts` (JSON list of `{pattern, dec, policy}`) |
+| j | WARN | a row with Files on a visual path has one ``evidence: screen `<id>` [states `<s>`, …]`` or ``evidence: motion `<id>` `` clause per capture; each parses, and its catalog file is on `origin/main` or in Files | `visual_approval` `owner` or `reviewer`, `row_checks.visual` |
+| k | WARN | a contract row has, per consumer, an open row that depends on it and covers that consumer's tables | `row_checks.protocol.consumers` |
 
 ## Example
 
