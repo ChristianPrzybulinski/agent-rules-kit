@@ -388,6 +388,147 @@ class SyncProjectCheckTest(unittest.TestCase):
             self.assertFalse((repo / ".claude" / "settings.json").exists())
             self.assertFalse((repo / ".github" / "spec-lint").exists())
 
+    # KIT-067: spec.md sdd.rule_paths scopes a rule's globs; a block in each folder's AGENTS.md carries the rules for
+    # agents that load no rule by path.
+
+    def spec_md(self, extra):
+        (self.repo / "docs" / "spec" / "spec.md").write_text(SPEC_MD.format(extra=extra))
+
+    def text(self, rel):
+        return (self.repo / rel).read_text()
+
+    def test_rule_paths_scope_a_rule_and_check_flags_drift(self):
+        self.spec_md("sdd:\n  rule_paths:\n    json: [game/protocol]\n    godot: [game/client]\n")
+        result = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rules = self.repo / ".claude" / "rules"
+        json_rule = (rules / "guardrails-json.md").read_text().splitlines()
+        self.assertIn('  - "game/protocol/**/*.json"', json_rule)
+        self.assertNotIn('  - "**/*.json"', json_rule)
+        # the parameter wins over the profile folder
+        self.assertIn('  - "game/client/**/*.gd"', (rules / "guardrails-godot.md").read_text().splitlines())
+        self.assertNotIn('"client/', (rules / "guardrails-godot.md").read_text())
+        self.assertIn('  - "docs/spec/**/*.md"', (rules / "guardrails-spec.md").read_text().splitlines())
+        check = self.run_sync("--check", "--profile", "docs,godot:client")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        self.spec_md("sdd:\n  rule_paths:\n    json: [game/content]\n    godot: [game/client]\n")
+        drift = self.run_sync("--check", "--profile", "docs,godot:client")
+        self.assertEqual(drift.returncode, 1)
+        self.assertIn("sync: .claude/rules/guardrails-json.md diverges from the kit", drift.stdout)
+
+    def test_rule_paths_name_a_kit_rule(self):
+        self.spec_md("sdd:\n  rule_paths: {nope: [x]}\n")
+        before = self.claude_state()
+        for args in ((), ("--check",)):
+            result = self.run_sync(*args)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("sdd.rule_paths names rule 'nope', which the kit does not ship", result.stderr)
+        self.assertEqual(before, self.claude_state())
+
+    def test_invalid_sdd_block_refuses_the_sync(self):
+        self.spec_md("sdd:\n  tracker: jira\n")
+        before = self.claude_state()
+        for args in ((), ("--check",)):
+            result = self.run_sync(*args)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("sdd.tracker 'jira' is not one of ['github', 'none']", result.stderr)
+        self.assertEqual(before, self.claude_state())
+
+    def test_agents_md_block_per_folder(self):
+        for folder in ("client", "server"):
+            (self.repo / folder).mkdir()
+        (self.repo / "client" / "AGENTS.md").write_text("# Client\n\nHand-written line.\n")
+        profile = ("--profile", "docs,godot:client,java:server")
+        result = self.run_sync(*profile)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        godot, java, json_, python, spec = (rule_bullet(name) for name in ("godot", "java", "json", "python", "spec"))
+        client = self.text("client/AGENTS.md")
+        self.assertTrue(client.startswith("# Client\n\nHand-written line.\n\n" + BLOCK_BEGIN), client)
+        self.assertTrue(client.endswith(BLOCK_END + "\n"), client)
+        self.assertIn(godot, client)
+        self.assertIn("`client/**/*.gd`", client)
+        self.assertNotIn(java, client)
+        server = self.text("server/AGENTS.md")
+        self.assertTrue(server.startswith(BLOCK_BEGIN), server)
+        self.assertIn(java, server)
+        self.assertIn("`server/**/*.java`", server)
+        self.assertNotIn(godot, server)
+        spec_agents = self.text("docs/spec/AGENTS.md")
+        self.assertIn(spec, spec_agents)
+        self.assertIn("`docs/spec/**/*.md`", spec_agents)
+        root = self.text("AGENTS.md")
+        self.assertTrue(root.startswith("# x\n"), root)
+        self.assertIn(json_, root)
+        for absent in (godot, java, spec):
+            self.assertNotIn(absent, root)
+        # the map sends the python rule to godot and java profiles, but no profile is python: no AGENTS.md block
+        for rel in ("AGENTS.md", "client/AGENTS.md", "server/AGENTS.md", "docs/spec/AGENTS.md"):
+            self.assertNotIn(python, self.text(rel))
+        before = {rel: self.text(rel) for rel in ("AGENTS.md", "client/AGENTS.md", "server/AGENTS.md")}
+        check = self.run_sync("--check", *profile)
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        again = self.run_sync(*profile)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertEqual(before, {rel: self.text(rel) for rel in before})
+
+    def test_check_flags_agents_md_drift(self):
+        for folder in ("client", "server"):
+            (self.repo / folder).mkdir()
+        profile = ("--profile", "docs,godot:client,java:server")
+        self.assertEqual(self.run_sync(*profile).returncode, 0)
+        client = self.repo / "client" / "AGENTS.md"
+        client.write_text(client.read_text().replace(rule_bullet("godot"), "- edited by hand"))
+        (self.repo / "server" / "AGENTS.md").unlink()
+        check = self.run_sync("--check", *profile)
+        self.assertEqual(check.returncode, 1)
+        self.assertIn("sync: client/AGENTS.md path-rule block diverges from the kit", check.stdout)
+        self.assertIn("sync: server/AGENTS.md path-rule block missing", check.stdout)
+        self.assertEqual(self.run_sync(*profile).returncode, 0)
+        self.assertEqual(self.run_sync("--check", *profile).returncode, 0)
+        narrow = self.run_sync("--check", "--profile", "docs,godot:client")
+        self.assertEqual(narrow.returncode, 1)
+        self.assertIn("sync: server/AGENTS.md path-rule block is generated but not in profile", narrow.stdout)
+        write = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
+        self.assertFalse((self.repo / "server" / "AGENTS.md").exists(), "a file that held only the block goes")
+        self.assertIn(rule_bullet("godot"), client.read_text())
+
+    def test_agents_md_block_follows_rule_paths(self):
+        self.assertIn(BLOCK_BEGIN, self.text("AGENTS.md"), "setUp's docs install puts the json block at the root")
+        (self.repo / "game" / "protocol").mkdir(parents=True)
+        self.spec_md("sdd:\n  rule_paths: {json: [game/protocol]}\n")
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.text("AGENTS.md"), "# x\n", "the block leaves a hand-written file as it was")
+        self.assertIn(rule_bullet("json"), self.text("game/protocol/AGENTS.md"))
+        self.assertIn("`game/protocol/**/*.json`", self.text("game/protocol/AGENTS.md"))
+
+    def test_agents_md_skips_a_missing_folder(self):
+        result = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse((self.repo / "client").exists(), "the sync creates no folder")
+        check = self.run_sync("--check", "--profile", "docs,godot:client")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+
+SPEC_MD = """---
+project: "fixture"
+version: "0.1.0"
+updated: "2026-11-14"
+{extra}---
+
+# Fixture
+"""
+
+BLOCK_BEGIN = "<!-- agent-rules-kit: path rules begin"
+BLOCK_END = "<!-- agent-rules-kit: path rules end -->"
+
+
+def rule_bullet(name):
+    """The first always/never bullet of the kit rule, a line its AGENTS.md block must carry."""
+    body = (KIT / "plugins" / "guardrails" / "rules" / f"{name}.md").read_text().split("\n---\n", 1)[1]
+    return next(line for line in body.splitlines() if line.startswith("- "))
+
 
 if __name__ == "__main__":
     unittest.main()
