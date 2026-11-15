@@ -201,3 +201,8 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   History-split lint takes any number of inserted complete bullets and drops the width rule (`8549f51d4`: 28 to 38
   hits, the 10 added all real). Run output that is not UTF-8 is decoded with replacement. The `parallelize` trigger
   eval, re-run by the coordinator, moves to KIT-070; `doing` rows in `derived_status` are #247.
+- 2026-11-15: coordinator delta review of `17cc61d` (PARTIAL) fixed. The three rules-from-base fixes each resolved part
+  of the path through the head checkout, which the PR controls (the leaf, nothing, then the parent folder with
+  `realpath`, which follows a committed folder link). Now only the part in front of the repository is resolved: the
+  shortest prefix that is the repository's folder ends it and the rest stays lexical, so no committed link moves the
+  path. A rules path that names a folder exits 2; diff text that is not UTF-8 is decoded with replacement.

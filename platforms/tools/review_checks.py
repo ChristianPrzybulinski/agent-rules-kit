@@ -26,9 +26,10 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
       Added lines matching a grep-able DoD line of the project REVIEW.md (`<!-- grep: REGEX -->`, or
       `<!-- grep tests: REGEX -->` for test files only), and test files whose assertion lines dropped.
 
-Rules files inside the repository (--gates, --review) are read as --base has them (`git show B:path`), so a PR
-cannot loosen its own rules; a file outside the repository is read from disk. Every run is its own process group,
-and a timeout kills the whole group.
+Rules files inside the repository (--gates, --review) are read only from git, as --base has them (`git show B:path`),
+never from the checkout, so a PR cannot loosen its own rules; only the part of the path in front of the repository is
+resolved, so no link the head commits can move the path. A file outside the repository is read from disk. Every run
+is its own process group, which a timeout, Ctrl-C, SIGTERM or SIGHUP kills whole.
 
 A proof re-run first checks that every path the command names exists, `res://` against Godot's `--path` (a moved
 file is a stale proof, not a failure of the code), then fails a run whose output matches its stack's failure pattern
@@ -130,7 +131,8 @@ class Findings:
 
 
 def git(repo: Path, *args: str) -> str:
-    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True).stdout
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True,
+                          errors="replace").stdout
 
 
 def changed(repo: Path, base: str, head: str, deleted: bool = True) -> list[str]:
@@ -431,15 +433,23 @@ def red(args) -> int:
 
 
 def repo_rel(args, path) -> str | None:
-    """`path` relative to the (resolved) repository, or None outside it. Its folder is resolved, so an alias folder or
-    a `..` cannot hide the repository; its leaf is not, so a rules file the head links elsewhere is still the
-    repository's."""
-    given = os.path.join(os.getcwd(), path)
-    full = Path(os.path.realpath(os.path.dirname(given))) / os.path.basename(given)
-    try:
-        return full.relative_to(args.repo).as_posix()
-    except ValueError:
-        return None
+    """`path` relative to the repository ("" for its root), or None outside it. Only the part in front of the
+    repository is resolved: the shortest prefix of the normalized path that is the repository's folder (an alias such
+    as /var for /private/var counts) ends it, and the rest stays lexical, so no link the head commits (the file, its
+    folder or one above) can move the path, and base supplies the content."""
+    parts = Path(os.path.normpath(os.path.join(os.getcwd(), path))).parts
+    for i in range(1, len(parts) + 1):
+        try:
+            if os.path.samefile(Path(*parts[:i]), args.repo):
+                return "/".join(parts[i:])
+        except OSError:
+            continue
+    return None
+
+
+def object_type(repo: Path, rev: str, path: str) -> str | None:
+    done = subprocess.run(["git", "cat-file", "-t", f"{rev}:{path}"], cwd=repo, capture_output=True, text=True)
+    return done.stdout.strip() if done.returncode == 0 else None
 
 
 def rules_text(args, base: str | None, path) -> str | None:
@@ -453,9 +463,13 @@ def rules_text(args, base: str | None, path) -> str | None:
             sys.exit(2)
         return Path(path).read_text(encoding="utf-8")
     rev = base or "HEAD"
-    if not exists_at(args.repo, rev, rel):
+    kind = object_type(args.repo, rev, rel) if rel else "tree"
+    if kind is None:
         print(f"note: {rel} is not on base {rev}; its rules do not apply to this PR")
         return None
+    if kind != "blob":
+        print(f"review_checks: {rel or '.'} is a {kind} on {rev}, not a rules file", file=sys.stderr)
+        sys.exit(2)
     return git(args.repo, "show", f"{rev}:{rel}")
 
 
