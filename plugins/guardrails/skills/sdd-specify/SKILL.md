@@ -43,7 +43,7 @@ With product, fill in plain language:
 - Desired outcome: what the actor can do or see when this is done, and the sign that it worked.
 - Situations: who, when, expects; at least one that goes right and one that goes wrong. They are the input of `sdd-clarify`, so each names one case, not a solution.
 - Scope, Out of scope (and where each excluded part goes), Constraints (deadline, budget, licence, platform, must-not).
-- Evidence: an approved mock for a visual change, an `sdd-spike` report for a feel question (motion, camera, feedback, UI); stress-test a vague idea with `/grilling` first.
+- Evidence: an approved mock for a visual change, an `sdd-spike` report for a feel question (motion, camera, feedback, UI).
 
 Set `status: specified` and add `YYYY-MM-DD specify: described` to History. More than five open questions mean the NEED holds several needs: split it (`parent`) before `specified`.
 

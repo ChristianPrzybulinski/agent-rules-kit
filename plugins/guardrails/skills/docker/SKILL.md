@@ -1,7 +1,7 @@
 ---
 name: docker
-description: Docker, Compose and Twelve-Factor config. Use when editing compose, Dockerfile, env or deploy config, or fixing a container. Not for data (skill persistence).
-argument-hint: "[compose | dockerfile | up | diagnose | config]"
+description: Docker on a running or remote host - start, inspect, diagnose, deploy. Use when starting, fixing or deploying containers. Not for Compose rules (rule docker).
+argument-hint: "[up | diagnose | deploy] [service | host]"
 triggers:
   - user
   - model
@@ -13,59 +13,27 @@ allowed-tools:
   - edit
 ---
 
-# Docker and Twelve-Factor
+# Docker hosts
 
-Edit the repository's own Compose file; a repository without one starts from `~/.ai-kit/platforms/kits/docker/compose.yml`. Read `references/compose-v2-vs-v5.md` for the Compose v2+ CLI behavior. §1–§4 cover containers; §5–§9 cover the application's own configuration (Twelve-Factor).
+Operations on a running or remote Docker host. The file rules for Compose files, `Dockerfile*` and `.env.example` are rule `docker.md`, loaded with those files; a service's configuration design (Twelve-Factor) is skill `sdd-plan`, reference `twelve-factor.md`. A repository without a Compose file starts from `~/.ai-kit/platforms/kits/docker/compose.yml`, whose PostgreSQL service preloads `pg_stat_statements`. Compose CLI facts: `references/compose-v2-vs-v5.md`.
 
-## 1. Define Compose services
+## 1. Start and inspect
 
-- Pin image major/minor; never use `latest`.
-- Add a healthcheck per service and depend on `service_healthy`.
-- Put secrets in ignored `.env` with placeholders in `.env.example`.
-- Use named data volumes, read-only init mounts and host binding `127.0.0.1:`.
-- Enable `pg_stat_statements` for the local PostgreSQL service.
+Run `docker compose up -d --wait`, then `docker compose ps`. On failure, read `docker compose logs <service>` and run the service's health command; paste the literal output.
 
-## 2. Build Java images
-
-Use a multi-stage Maven/Java 25 build and Java 25 JRE runtime, copy only the jar, run as non-root and keep build outputs, `.git` and `.godot` in `.dockerignore`.
-
-## 3. Start and inspect
-
-Run `docker compose up -d --wait`, then `docker compose ps`. On failure inspect `docker compose logs <service>` and execute the service health command.
-
-## 4. Diagnose common failures
+## 2. Diagnose common failures
 
 - Port conflict → `lsof -i :<port>`.
-- Container-to-container connection → service name, not localhost.
-- macOS data slowness → named volume instead of bind-mounted database files.
-- Disk pressure → `docker system df`; ask before prune.
+- Container-to-container connection → the service name, not localhost.
+- macOS data slowness → a named volume instead of bind-mounted database files.
+- Disk pressure → `docker system df`; ask before any prune.
 - `docker compose down -v` destroys data; the user runs it (the guard hook blocks it for agents).
 
-## 5. Externalize configuration
+## 3. Work on a remote host
 
-- Put every environment-varying value in an environment variable; `application.yml` contains only safe defaults and `${VAR}` references.
-- Use typed configuration such as Spring `@ConfigurationProperties`; do not scatter environment lookups through domain code.
+- Run the same commands against the host the repo `AGENTS.md` or its runbook names (`ssh <host> docker compose ...`, or `DOCKER_HOST=ssh://<user>@<host>`), from the deployment folder it names; read the running state before changing it.
+- Before a deploy or an image upgrade on a host that holds data, take and prove a backup (skill `sdd-release`, reference `backup.md`).
+- Deploy the pinned, already-built artifact: pull it, `docker compose up -d --wait`, then the runbook's smoke; roll back by redeploying the previous tag. The same artifact moves between environments (`twelve-factor.md` § 3).
+- A data-destroying command (`down -v`, `volume rm`, `system prune`) stays the user's on a remote host too.
 
-## 6. Declare dependencies and backing services
-
-- Declare fixed dependencies in `pom.xml` or `project.godot`; do not rely on machine-installed libraries.
-- Attach Postgres, Redis, queues and APIs by URL/credentials from config.
-- PostgreSQL remains the source of truth; Redis is cache/ephemeral and the app degrades when it is unavailable.
-
-## 7. Separate build, release and run
-
-Build one immutable jar/export, inject configuration at run time and never edit a production artifact. The same artifact moves between environments.
-
-## 8. Keep processes disposable
-
-- Keep process memory stateless; persist durable state externally.
-- Bind the app's own port, stream structured logs to stdout with `correlation_id`, and create no app-managed log file.
-- Handle `SIGTERM` with graceful connection closure and transaction completion.
-
-## 9. Preserve parity and admin discipline
-
-- Use the same Postgres/Redis major versions locally and in production; do not substitute H2 for persistence integration tests.
-- Run Flyway migrations and admin tasks as versioned commands with the same configuration as the app.
-- Scale I/O with processes/virtual threads and CPU work with bounded pools only after measurement.
-
-Done when: images are pinned, services become healthy, data/secrets follow the volume/env rules and the failing container has literal diagnostic output; environment differences are config-only, artifacts are immutable, processes are stateless/disposable, logs stream to stdout, and local service majors match production.
+Done when: every service is healthy or a failing container has literal diagnostic output, a remote change had its backup first, and no data-destroying command ran as an agent.

@@ -1,5 +1,5 @@
 ---
-description: Always/never constraints for Python files; procedures stay in skills code-standards and testing.
+description: Always/never constraints for Python files; names, functions and errors are in rule code.md, tests in rule tests.md.
 trigger: glob
 globs:
   - "**/*.py"
@@ -9,7 +9,7 @@ paths:
   - "**/pyproject.toml"
 ---
 
-Always/never for `*.py` and `pyproject.toml`. Procedures: skill `code-standards` (tests: `testing`; untrusted input: `security`).
+Always/never for `*.py` and `pyproject.toml`; names, functions and errors: rule `code.md`; tests: rule `tests.md`; untrusted input: skill `security`.
 
 - Always: run the interpreter the repo names (`AGENTS.md`, `.python-version`, `requires-python`, a pinned path); on macOS a bare `python3` can be the Xcode 3.9, so read `python3 --version` before trusting a result.
 - Always: the standard library first; a third-party import or a new `pyproject.toml` dependency is a dependency change (ask first) with its version pinned.

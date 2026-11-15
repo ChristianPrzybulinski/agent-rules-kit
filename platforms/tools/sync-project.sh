@@ -13,7 +13,8 @@
 #                                                          marker, KIT_MANIFEST.json hashes)
 #        sync-project.sh --check [--profile <profile>[,<profile>...]] [--vendor-skills] [--workflow <file>] <repo-dir>
 #                                                          compares all of them with the kit and scans the
-#                                                          repo's *.md for obsolete kit paths;
+#                                                          repo's *.md for obsolete kit paths and
+#                                                          citations of skills KIT-070 removed;
 #                                                          exit 1 on any divergence or stale citation
 # --profile selects the kit rules copied into .claude/rules/ and the kit skills copied into
 # .claude/skills/: platforms/tools/sync-profiles.txt names the profiles that receive each one
@@ -305,6 +306,26 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
   return 1
 }
 
+# Kit skills removed by KIT-070 (the standards moved into rules and the sdd-plan and sdd-implement references).
+# A consumer citation of one, in a form that names the skill (skill `x`, `x` § n, guardrails:x, a skills/x/ path,
+# "the x skill"), dangles after a resync; the same exclusions and opt-out marker as the stale path scan apply.
+REMOVED_KIT_SKILLS='architecture|code-standards|godot-standards|java-standards|testing|persistence|protocol-contract|asset-import|grilling'
+REMOVED_KIT_SKILLS_PROSE='code-standards|godot-standards|java-standards|protocol-contract|asset-import'
+
+scan_removed_kit_skills() { # $1 = repo dir; prints one line per citation of a removed kit skill; returns 1 if any
+  local names="($REMOVED_KIT_SKILLS)" hits
+  hits="$(grep -rnE --include='*.md' --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.claude \
+      "skills? \`$names\`|\`$names\` (skill|§)|guardrails:$names([^a-z0-9-]|\$)|(^|[^A-Za-z0-9_.-])skills/$names/|(^|[^A-Za-z0-9_.-])($REMOVED_KIT_SKILLS_PROSE) skill" \
+      "$1" 2>/dev/null \
+    | sed "s|^${1%/}/||" \
+    | grep -vE '^([^:]*/)?(legacy|docs/sessions)/' \
+    | grep -vF -- "$STALE_OPT_OUT" || true)"
+  [[ -n "$hits" ]] || return 0
+  printf '%s\n' "$hits" | sed 's|^|sync: removed kit skill: |'
+  echo "sync: KIT-070 moved these skills into path rules and the sdd-plan and sdd-implement references (kit CHANGELOG, migration note); fix the citation or append $STALE_OPT_OUT"
+  return 1
+}
+
 warn_synced_folder() { # $1 = repo dir; reruns the plugin's SessionStart hook for it and prints its warning
   python3 - "$KIT_DIR/plugins/guardrails/hooks/hooks.json" "$1" <<'PY' || true
 import json, subprocess, sys
@@ -415,6 +436,7 @@ if [[ "$MODE" == check ]]; then
     fi
   fi
   scan_stale_kit_paths "$REPO" || FAILED=1
+  scan_removed_kit_skills "$REPO" || FAILED=1
   claude_file="$REPO/CLAUDE.md"
   if [[ ! -f "$claude_file" ]] \
       || ! grep -qF "$CLAUDE_MARKER v$expected;" "$claude_file" \

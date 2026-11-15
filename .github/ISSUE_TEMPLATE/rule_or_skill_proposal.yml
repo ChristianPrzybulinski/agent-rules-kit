@@ -23,7 +23,7 @@ body:
     id: owner
     attributes:
       label: Rule or skill it touches
-      placeholder: "skill testing, rules/java.md"
+      placeholder: "skill review, rules/java.md"
   - type: textarea
     id: problem
     attributes:

@@ -10,18 +10,10 @@
 
 | Skill | Invoked by | Description |
 |---|---|---|
-| `architecture` | user, model | Layers, ports, DDD blocks and pattern choice. Use when placing a class, defining an aggregate or picking a pattern. Not for contracts (skill protocol-contract). |
-| `asset-import` | user | Godot asset import with manifests and reproducible transforms. Use when bringing sprites, tilesets or maps into Godot. Not for drawing or retouching art. |
-| `code-standards` | user, model | Code names, functions, errors, YAGNI and doc closure. Use when writing or reviewing code, adding a dependency or updating docs. Not for tests (skill testing). |
-| `docker` | user, model | Docker, Compose and Twelve-Factor config. Use when editing compose, Dockerfile, env or deploy config, or fixing a container. Not for data (skill persistence). |
+| `docker` | user, model | Docker on a running or remote host - start, inspect, diagnose, deploy. Use when starting, fixing or deploying containers. Not for Compose rules (rule docker). |
 | `git` | user, model | Branch, commit, PR, `gh`, release and LFS policy. Use when creating a branch, commit, PR or release, or adding a large binary. Not for PR gates (skill review). |
-| `godot-standards` | user, model | Godot 2D and typed GDScript standards. Use when editing *.gd, *.tscn, project.godot or GDScript scenes. Not for asset import (skill asset-import). |
-| `grilling` | user, model | Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases. |
 | `investigate` | user, model | Root-cause investigation with reproduction. Use when a bug, slow behavior or incident has no named cause. Not for implementing fixes (skill sdd-implement). |
-| `java-standards` | user, model | Java 25, Spring/Quarkus and JUnit standards. Use when editing *.java, pom.xml, Spring/Quarkus code or JUnit tests. Not for general test policy (skill testing). |
 | `parallelize` | user, model | Parallel tool calls, background commands, safe ordering. Use when a session has independent steps or long commands. Not for task waves (skill sdd-implement). |
-| `persistence` | user, model | PostgreSQL and Redis rules. Use when changing a schema, migration or index, reading EXPLAIN or locks, or designing cache keys. Not for Compose (skill docker). |
-| `protocol-contract` | user, model | Client↔server contracts. Use when adding a message or field, changing a payload or fixing a client/server mismatch. Not for transport choice (skill sdd-plan). |
 | `review` | user, model | Completion verdict, claim check and PR gates. Use when asking “is it done?”, preparing a PR or testing a claim. Not for fixing failures (skill sdd-implement). |
 | `sdd-check` | user, model | SDD tool — read-only spec check that sdd-clarify and sdd-plan call. Use when a NEED, a FEAT or the spec needs gap checks. Not for ambiguity (skill sdd-clarify). |
 | `sdd-clarify` | user | SDD step 2 — turn a specified NEED into approved REQs by asking product. Use when a NEED is specified. Not for gap checks (skill sdd-check). |
@@ -36,16 +28,20 @@
 | `sdd-tasks` | user | SDD step 5 — task rows in a planned FEAT, then their cut into items. Use when a FEAT is planned or its rows change. Not for execution (skill sdd-implement). |
 | `security` | user, model | Security design and CVE, secret and endpoint scans. Use when changing a trust boundary or preparing a sensitive PR or release. Not for verdicts (skill review). |
 | `session` | user, model | Session start, closeout and handoff. Use when starting, switching topic, closing, handing off or a second human joins. Not for parallelism (skill parallelize). |
-| `testing` | user, model | Test policy. Use when choosing or reviewing tests, setting coverage/mutation gates or before refactoring legacy or ported code. Not for verdicts (skill review). |
 
 ## `rules/`
 
+- `assets.md`
+- `code.md`
 - `docker.md`
 - `godot.md`
 - `java.md`
 - `json.md`
+- `migrations.md`
+- `protocol.md`
 - `python.md`
 - `spec.md`
+- `tests.md`
 
 ## `agents/`
 
@@ -70,22 +66,14 @@
 
 ## `evals/`
 
-- `code-standards-one-decision-one-place`
 - `git-squash-body`
 - `git-trigger-commit-this`
-- `godot-standards-boot-exit-code`
 - `investigate-trigger-slow-job`
-- `java-standards-no-field-injection`
-- `parallelize-trigger-three-checks`
-- `protocol-contract-required-field-bumps-version`
 - `review-claimed-proof-not-rerun`
 - `review-trigger-can-i-merge`
 - `security-trigger-download-endpoint`
 - `session-closeout-no-rerun`
 - `session-trigger-handoff`
-- `testing-empty-return-passes`
-- `testing-gdscript-coverage-command`
-- `testing-gdscript-mutation-command`
 
 ## `hooks/`
 

@@ -37,7 +37,14 @@ Require a NEED with `status: refined` whose REQs are `approved`. Read the actual
 
 ## 4. Write the Plan sections
 
-`## Plan` holds one `### <section>` per name in `plan_sections`, in this order: Design, Contract, Data, UI, Flag, Tests, Observability, Risks, Dependencies (`Risks` and `Tests` always). Each holds its content or one line `— <why it does not apply>`. What each section holds: `references/plan-sections.md`.
+`## Plan` holds one `### <section>` per name in `plan_sections`, in this order: Design, Contract, Data, UI, Flag, Tests, Observability, Risks, Dependencies (`Risks` and `Tests` always). Each holds its content or one line `— <why it does not apply>`. What each section holds: `references/plan-sections.md`. The standards each section applies:
+
+| Section | Reference |
+|---|---|
+| Design | `references/architecture.md` (blocks: `references/pattern-catalog.md`); a trust boundary `references/security-design.md`; a service `references/twelve-factor.md`; a Godot client `references/godot/README.md` |
+| Contract | `references/contract.md` |
+| Data | `references/data.md` (versions `references/postgres-18.md`, `references/redis-7.md`) |
+| Tests | skill `sdd-implement`, references `tdd.md` and `test-gates.md` |
 
 - The Plan is the design: every choice the rows need is made here, so a task cell points to `Plan § <section>` and never restates it.
 - Contract: every changed message, endpoint, schema or table another FEAT reads passes the four checks of `references/contract.md`.
@@ -45,7 +52,7 @@ Require a NEED with `status: refined` whose REQs are `approved`. Read the actual
 
 ## 5. Record decisions
 
-A technical choice with a rejected reasonable alternative that outlives the FEAT (other FEATs or later work rely on it) gets a decision record (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`) with `status: proposed`. A choice that matters only inside this delivery stays in its Plan section, the rejected alternative in one line. A product choice is not made here: it returns to `sdd-clarify`. Do not hide a kit-rule exception in prose—record a blocker or explicit decision.
+A technical choice with a rejected reasonable alternative that outlives the FEAT (other FEATs or later work rely on it) gets a decision record (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`) with `status: proposed`. A choice that matters only inside this delivery stays in its Plan section, the rejected alternative in one line. A product choice is not made here: it returns to `sdd-clarify`. With several open choices, decide first the one the others depend on, never one whose answer hinges on a choice still open. Do not hide a kit-rule exception in prose—record a blocker or explicit decision.
 
 ## 6. Check restraint and consistency
 

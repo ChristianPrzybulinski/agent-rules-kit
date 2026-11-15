@@ -82,7 +82,9 @@ def expected_blocks(repo, version, rules_dir):
                  " do not edit -->",
                  "## Path rules",
                  "",
-                 "Generated for agents that load no rule by path; Claude Code loads the same rules from `.claude/rules/`."]
+                 "Generated for agents that load no rule by path; Claude Code loads the same rules from `.claude/rules/`. A kit"
+                 " skill or reference a rule names is in `.claude/skills/<skill>/` when this repository vendors it, else in"
+                 " `~/.ai-kit/plugins/guardrails/skills/<skill>/`."]
         for name, listed, body in sorted(rules):
             parts += ["", f"### `{name}`: " + ", ".join(f"`{glob}`" for glob in listed), "", body]
         parts += ["", END]

@@ -16,10 +16,15 @@ over-counts. A skill preloaded into a subagent (`skills:`) leaves no load in eit
 description, kit skills listed twice (bare and with a kit prefix; a listing does not tell a bundled skill from a
 vendored copy, so a bundled name that matches a kit skill counts too) and kit skills listed without a description.
 By default only the kit's own skills (plugins/*/skills/*/) are listed; --all lists every name found.
+--rules (KIT-070, #238) reports rule loads instead: for Claude Code, the records the plugin's InstructionsLoaded hook
+appends to --rule-log (default ~/.claude/plugins/data/guardrails-ai-kit/instructions-loaded.jsonl, plus its rotated
+.1 copy), counted per rule (`.claude/rules/<plugin>-<rule>.md` under the rule's name; any other file under its file
+name with --all) as loads, sessions and loads per load_reason; for Codex, the rollouts with a tool call that names a
+kit skill reference (`skills/<skill>/references/<path>.md`), as sessions per `<skill>/<path>`.
 Prints a table, or one JSON document with --json.
 
 Usage: skill_usage.py [--days N] [--claude-dir DIR] [--codex-dir DIR] [--project TEXT] [--skill NAME ...] [--all]
-                      [--listings] [--json]
+                      [--listings | --rules [--rule-log FILE]] [--json]
 """
 from __future__ import annotations
 
@@ -34,6 +39,9 @@ from pathlib import Path
 
 KIT = Path(__file__).resolve().parents[2]
 SKILL_FILE = re.compile(r"skills/([a-z0-9][a-z0-9-]*)/SKILL\.md")
+REFERENCE_FILE = re.compile(r"skills/([a-z0-9][a-z0-9-]*)/references/([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*\.md)")
+RULE_LOG = Path.home() / ".claude" / "plugins" / "data" / "guardrails-ai-kit" / "instructions-loaded.jsonl"
+LOAD_REASONS = ("session_start", "nested_traversal", "path_glob_match", "include", "compact")
 COMMAND = re.compile(r"<command-name>/((?:[a-z0-9-]+:)?[a-z0-9][a-z0-9-]*)</command-name>")
 CODEX_CALLS = ("function_call", "custom_tool_call", "local_shell_call")
 CLAUDE_METHODS = ("tool", "read", "slash", "bare")
@@ -41,6 +49,10 @@ CLAUDE_METHODS = ("tool", "read", "slash", "bare")
 
 def kit_skills() -> set[str]:
     return {path.parent.name for path in (KIT / "plugins").glob("*/skills/*/SKILL.md")}
+
+
+def kit_rules() -> set[str]:
+    return {path.stem for path in (KIT / "plugins").glob("*/rules/*.md")}
 
 
 def kit_plugins() -> set[str]:
@@ -140,13 +152,14 @@ def first_listing(path: Path) -> dict | None:
     return None
 
 
-def scan_codex(path: Path) -> tuple[set[str], str]:
-    """(skills loaded, working directory) of one rollout."""
+def scan_codex(path: Path, pattern: re.Pattern = SKILL_FILE) -> tuple[set[str], str]:
+    """(skills loaded, or `<skill>/<path>` references opened for REFERENCE_FILE, working directory) of one rollout."""
     found: set[str] = set()
     cwd = ""
+    needle = "SKILL.md" if pattern is SKILL_FILE else "references/"
     with open(path, encoding="utf-8", errors="replace") as handle:
         for line in handle:
-            if '"session_meta"' not in line and "SKILL.md" not in line:
+            if '"session_meta"' not in line and needle not in line:
                 continue
             try:
                 record = json.loads(line)
@@ -159,8 +172,90 @@ def scan_codex(path: Path) -> tuple[set[str], str]:
                 cwd = payload["cwd"]
             if payload.get("type") in CODEX_CALLS:
                 call = json.dumps([payload.get(key) for key in ("arguments", "input", "action")], ensure_ascii=False)
-                found.update(match.group(1) for match in SKILL_FILE.finditer(call.replace("\\/", "/")))
+                found.update("/".join(match.groups()) for match in pattern.finditer(call.replace("\\/", "/")))
     return found, cwd
+
+
+def rule_key(file_path: str, plugins: set[str]) -> str:
+    """A synced rule `.claude/rules/<plugin>-<rule>.md` counts under `<rule>` when the plugin is the kit's (now or
+    before a rename); any other instruction file under its file name."""
+    path = Path(file_path)
+    if path.parent.name == "rules" and path.parent.parent.name == ".claude":
+        plugin, separator, short = path.stem.partition("-")
+        return short if separator and plugin in plugins else path.stem
+    return path.name
+
+
+def rule_loads(logs: list[Path], days: float, project: str | None = None, now: float | None = None) -> dict:
+    cutoff = (time.time() if now is None else now) - days * 86400
+    plugins = kit_plugins()
+    sessions: set[str] = set()
+    rules: dict[str, dict] = defaultdict(lambda: {"loads": 0, "sessions": set(), "reasons": defaultdict(int)})
+    for log in logs:
+        for path in (log.with_name(log.name + ".1"), log):
+            try:
+                handle = open(path, encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            with handle:
+                for line in handle:
+                    try:
+                        record = json.loads(line)
+                    except ValueError:
+                        continue
+                    if not isinstance(record, dict) or not isinstance(record.get("file_path"), str):
+                        continue
+                    stamp, cwd = record.get("ts"), record.get("cwd")
+                    if not isinstance(stamp, (int, float)) or stamp < cutoff:
+                        continue
+                    if project and not (isinstance(cwd, str) and project.lower() in cwd.lower()):
+                        continue
+                    session = str(record.get("session_id"))
+                    sessions.add(session)
+                    entry = rules[rule_key(record["file_path"], plugins)]
+                    entry["loads"] += 1
+                    entry["sessions"].add(session)
+                    entry["reasons"][str(record.get("load_reason"))] += 1
+    return {"sessions": len(sessions), "rules": {name: {"loads": data["loads"], "sessions": len(data["sessions"]),
+                                                        **data["reasons"]} for name, data in rules.items()}}
+
+
+def codex_references(codex_dir: Path, days: float, project: str | None = None, now: float | None = None) -> dict:
+    cutoff = (time.time() if now is None else now) - days * 86400
+    sessions, references = 0, defaultdict(int)
+    for path in recent_files(codex_dir, "rollout-*.jsonl", cutoff):
+        found, cwd = scan_codex(path, REFERENCE_FILE)
+        if project and project.lower() not in cwd.lower():
+            continue
+        sessions += 1
+        for key in found:
+            references[key] += 1
+    return {"sessions": sessions, "references": {key: {"sessions": value} for key, value in sorted(references.items())}}
+
+
+def rules_report(args) -> dict:
+    claude = rule_loads(args.rule_log or [RULE_LOG], args.days, args.project)
+    if not args.all:
+        claude["rules"] = {name: claude["rules"].get(name, {"loads": 0, "sessions": 0})
+                           for name in sorted(kit_rules())}
+        for counts in claude["rules"].values():
+            counts.setdefault("path_glob_match", 0)
+    return {"days": args.days, "project": args.project, "claude": claude,
+            "codex": codex_references(args.codex_dir, args.days, args.project)}
+
+
+def rules_table(result: dict) -> str:
+    claude, codex = result["claude"], result["codex"]
+    scope = f" in projects matching '{result['project']}'" if result.get("project") else ""
+    width = max([len("rule")] + [len(name) for name in claude["rules"]])
+    rows = [f"Rule loads, last {result['days']:g} days{scope}: Claude Code sessions with a recorded load "
+            f"{claude['sessions']} (InstructionsLoaded log); Codex sessions {codex['sessions']}.",
+            f"{'rule':<{width}}  {'loads':>5}  {'sessions':>8}  path_glob_match"]
+    rows += [f"{name:<{width}}  {data['loads']:>5}  {data['sessions']:>8}  {data.get('path_glob_match', 0)}"
+             for name, data in claude["rules"].items()]
+    rows.append("Codex sessions that opened a kit skill reference:")
+    rows += [f"  {name}  {data['sessions']}" for name, data in codex["references"].items()] or ["  none"]
+    return "\n".join(rows)
 
 
 def claude_files(claude_dir: Path, project: str | None, cutoff: float) -> list[Path]:
@@ -292,10 +387,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--skill", action="append", help="list only this skill; repeatable")
     parser.add_argument("--all", action="store_true", help="list every skill name found, not only the kit's")
     parser.add_argument("--listings", action="store_true", help="report the Claude skill listings instead of loads")
+    parser.add_argument("--rules", action="store_true", help="report rule loads and Codex reference opens instead")
+    parser.add_argument("--rule-log", type=Path, action="append",
+                        help="InstructionsLoaded log to read with --rules; repeatable (default: the plugin's)")
     parser.add_argument("--json", action="store_true", help="print one JSON document")
     args = parser.parse_args(argv)
     if args.days <= 0:
         parser.error("--days must be positive")
+    if args.rules:
+        result = rules_report(args)
+        print(json.dumps(result, indent=2, sort_keys=True) if args.json else rules_table(result))
+        return 0
     if args.listings:
         result = listings(args.claude_dir, args.days, args.project)
         print(json.dumps(result, indent=2, sort_keys=True) if args.json else listing_table(result))
