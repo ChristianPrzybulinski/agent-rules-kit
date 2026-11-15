@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Initializes docs/spec/ in a repo. Usage: init-spec.sh <repo-dir>
+# Initializes docs/spec/ in a repo, spec.md with the sdd: parameters included. Usage: init-spec.sh <repo-dir>
 # Precondition: the repo must already have AGENTS.md (the sync generates CLAUDE.md importing it).
 set -euo pipefail
 
@@ -17,11 +17,14 @@ for d in needs features requirements/functional requirements/non-functional deci
   touch "$REPO/docs/spec/$d/.gitkeep"
 done
 
+# The template carries the sdd: process parameters at the kit defaults (KIT-067); /sdd-constitution sets them.
 if [[ ! -f "$REPO/docs/spec/spec.md" ]]; then
   cp "$KIT_DIR/plugins/guardrails/templates/spec-index.md" "$REPO/docs/spec/spec.md"
-  echo "created docs/spec/spec.md (edit the frontmatter)"
+  echo "created docs/spec/spec.md with the sdd: parameters at the kit defaults (edit the frontmatter)"
 else
   echo "docs/spec/spec.md already exists; not overwritten"
+  grep -q '^sdd:' "$REPO/docs/spec/spec.md" \
+    || echo "docs/spec/spec.md has no sdd: block, so every parameter takes its kit default; /sdd-constitution writes it"
 fi
 
 [[ -f "$REPO/AGENTS.md" ]] || { echo "init-spec: $REPO/AGENTS.md missing; create it from plugins/guardrails/templates/project-agents-*.md first"; exit 1; }

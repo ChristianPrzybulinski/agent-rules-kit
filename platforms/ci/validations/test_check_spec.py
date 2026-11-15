@@ -1,5 +1,6 @@
 """check_spec.py FEAT<->REQ cross-check (both frontmatters must agree on every link), progress files, conflict
 markers, the project's decision kinds and NEED intake records."""
+import importlib.util
 import json
 import os
 import shutil
@@ -497,6 +498,215 @@ class NeedTest(unittest.TestCase):
         self.assert_passes()
         self.need("NEED-002", debts="[DEC-001]")
         self.assert_fails("debts lists DEC-001, which is not an existing debt")
+
+
+class MiniYamlTest(unittest.TestCase):
+    """The structural parser against pyyaml on the same text (KIT-067 review): comments, quotes holding ' #'."""
+
+    TEXT = 'k: ["a #b", c]  # note\nt: it\'s here  # c\nq: "x # y"  # z\nm: {path: "p #1"}\n'
+    WANT = {"k": ["a #b", "c"], "t": "it's here", "q": "x # y", "m": {"path": "p #1"}}
+
+    def test_quoted_text_keeps_its_hash(self):
+        loader = importlib.util.spec_from_file_location("check_spec_under_test", CHECK_SPEC)
+        module = importlib.util.module_from_spec(loader)
+        loader.loader.exec_module(module)
+        self.assertEqual(module.mini_yaml(self.TEXT), self.WANT)
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("pyyaml missing: only the structural side ran")
+        self.assertEqual(yaml.safe_load(self.TEXT), self.WANT)
+
+
+SDD_FULL = """sdd:
+  needs: false
+  journeys: true
+  tracker: none
+  # Risks and Tests stay on in every project
+  plan_sections: [Design, Contract, Tests, Risks]
+  pr_unit: feat
+  task_minutes: 90
+  row_check: "python3 tools/row_lint.py check"
+  cut_command: python3 tools/cut.py
+  max_chain: 3
+  release: manual
+  review_rounds: 2
+  commits_by: orchestrator
+  protected_paths:
+    "game/protocol/": contract
+    platform/loop/**: loop
+  bundle: {rows: 3, points: 6, high_rows: 1}
+  rule_paths:
+    json: [game/protocol, game/content]
+    godot: [client]
+  visual_approval: owner
+  owner_approvals: [decision, approved-dec-change, protocol-version, in-game-evidence]
+"""
+
+SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
+                "plan_sections": ["Design", "Contract", "Data", "UI", "Flag", "Tests", "Observability", "Risks",
+                                  "Dependencies"],
+                "pr_unit": "task", "task_minutes": 30, "row_check": None, "cut_command": None, "max_chain": 4,
+                "release": "merge", "review_rounds": 3, "commits_by": "executor", "protected_paths": {},
+                "bundle": {"rows": 1, "points": 3, "high_rows": 1}, "rule_paths": {},
+                "visual_approval": "none", "owner_approvals": ["decision"]}
+
+
+class SddParamsTest(unittest.TestCase):
+    """The project's sdd: parameters in spec.md (KIT-067): schema-checked keys, kit defaults, a resolved view."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.spec = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def index(self, extra=""):
+        (self.spec / "spec.md").write_text(SPEC_INDEX.format(extra=extra))
+
+    def run_both(self, *args):
+        """The full check, then the structural one: python -S hides pyyaml and jsonschema."""
+        env = {k: v for k, v in os.environ.items() if k != "CI"}
+        runs = []
+        for flags in ([], ["-S"]):
+            runs.append(subprocess.run([sys.executable, *flags, str(CHECK_SPEC), *args, str(self.spec), str(SCHEMAS)],
+                                       capture_output=True, text=True, check=False, env=env))
+        self.assertIn("spec validation will be structural", runs[1].stderr)
+        return runs
+
+    def assert_passes(self):
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def assert_fails(self, *messages):
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 1, result.stderr)
+            for message in messages:
+                self.assertIn(message, result.stderr)
+
+    def params(self):
+        """check_spec.py --params in both modes; both print the same resolved block."""
+        runs = self.run_both("--params")
+        for result in runs:
+            self.assertEqual(result.returncode, 0, result.stderr)
+        resolved = [json.loads(result.stdout) for result in runs]
+        self.assertEqual(resolved[0], resolved[1])
+        return resolved[0]
+
+    def test_spec_without_block_passes(self):
+        self.index()
+        self.assert_passes()
+
+    def test_every_key_set_passes(self):
+        self.index(SDD_FULL)
+        self.assert_passes()
+
+    def test_flow_block_passes(self):
+        self.index("sdd: {tracker: none, pr_unit: feat, plan_sections: [Tests, Risks]}\n")
+        self.assert_passes()
+
+    def test_template_block_passes(self):
+        """The spec.md template that init-spec.sh copies carries the whole block with the kit defaults."""
+        template = VALIDATIONS.parents[2] / "plugins" / "guardrails" / "templates" / "spec-index.md"
+        (self.spec / "spec.md").write_text(template.read_text().replace("YYYY-MM-DD", "2026-11-14"))
+        self.assertIn("\nsdd:\n", template.read_text())
+        self.assert_passes()
+        self.assertEqual(self.params(), SDD_DEFAULTS)
+
+    def test_unknown_tracker_fails(self):
+        self.index("sdd:\n  tracker: jira\n")
+        self.assert_fails("sdd.tracker 'jira' is not one of ['github', 'none']")
+
+    def test_unknown_key_fails(self):
+        self.index("sdd:\n  trackr: none\n")
+        self.assert_fails("sdd.trackr is not a known key")
+
+    def test_block_must_be_a_map(self):
+        self.index("sdd: [needs]\n")
+        self.assert_fails("sdd must be a map")
+
+    def test_plan_sections_keep_risks_and_tests(self):
+        self.index("sdd:\n  plan_sections: [Design, Tests]\n")
+        self.assert_fails("sdd.plan_sections must include 'Risks'")
+
+    def test_unknown_plan_section_fails(self):
+        self.index("sdd:\n  plan_sections: [Design, Risks, Tests, Budget]\n")
+        self.assert_fails("sdd.plan_sections item 'Budget' is not one of")
+
+    def test_integer_below_minimum_fails(self):
+        self.index("sdd:\n  max_chain: 0\n  review_rounds: -1\n")
+        self.assert_fails("sdd.max_chain 0 is below the minimum 1", "sdd.review_rounds -1 is below the minimum 1")
+
+    def test_boolean_key_refuses_a_word(self):
+        self.index("sdd:\n  needs: maybe\n")
+        self.assert_fails("sdd.needs must be a boolean")
+
+    def test_bundle_unknown_key_fails(self):
+        self.index("sdd:\n  bundle: {rows: 3, pts: 6}\n")
+        self.assert_fails("sdd.bundle.pts is not a known key")
+
+    def test_rule_paths_must_stay_inside_the_repo(self):
+        self.index("sdd:\n  rule_paths: {json: [../shared]}\n")
+        self.assert_fails("sdd.rule_paths.json item '../shared' does not match")
+
+    def test_unknown_visual_approval_fails(self):
+        self.index("sdd:\n  visual_approval: product\n")
+        self.assert_fails("sdd.visual_approval 'product' is not one of ['owner', 'reviewer', 'none']")
+
+    def test_owner_approvals_list_change_kinds(self):
+        self.index("sdd:\n  owner_approvals: [decision, Protocol Version]\n")
+        self.assert_fails("sdd.owner_approvals item 'Protocol Version' does not match")
+
+    def test_owner_approvals_must_be_a_list(self):
+        self.index("sdd:\n  owner_approvals: decision\n")
+        self.assert_fails("sdd.owner_approvals must be a list")
+
+    def test_structural_parser_reads_comments_nulls_and_empty_values_like_pyyaml(self):
+        """Both modes resolve the same block from trailing comments, NULL/Null/~ and an empty value."""
+        self.index("protocol_version: 1  # bumped on a wire change\n"
+                   "sdd:\n"
+                   "  tracker: none  # no issue tracker\n"
+                   "  pr_unit: \"feat\"  # quoted, then a comment\n"
+                   "  row_check: NULL\n"
+                   "  cut_command: Null\n"
+                   "  plan_sections:\n"
+                   "    - Tests  # always on\n"
+                   "    - Risks\n"
+                   "  owner_approvals: [decision, protocol-version]  # flow list, then a comment\n")
+        self.assert_passes()
+        resolved = self.params()
+        self.assertEqual((resolved["tracker"], resolved["pr_unit"], resolved["row_check"], resolved["cut_command"]),
+                         ("none", "feat", None, None))
+        self.assertEqual(resolved["plan_sections"], ["Tests", "Risks"])
+        self.assertEqual(resolved["owner_approvals"], ["decision", "protocol-version"])
+
+    def test_empty_value_is_null_in_both_modes(self):
+        self.index("sdd:\n  row_check:\n")
+        self.assertIsNone(self.params()["row_check"])
+
+    def test_params_prints_the_kit_defaults(self):
+        self.index()
+        self.assertEqual(self.params(), SDD_DEFAULTS)
+
+    def test_params_without_spec_index_prints_the_kit_defaults(self):
+        self.assertEqual(self.params(), SDD_DEFAULTS)
+
+    def test_params_merge_values_over_defaults(self):
+        self.index("sdd:\n  tracker: none\n  bundle: {rows: 3}\n  rule_paths: {json: [game/protocol]}\n")
+        (self.spec / "journeys").mkdir()
+        resolved = self.params()
+        self.assertEqual(resolved["tracker"], "none")
+        self.assertEqual(resolved["bundle"], {"rows": 3, "points": 3, "high_rows": 1})
+        self.assertEqual(resolved["rule_paths"], {"json": ["game/protocol"]})
+        self.assertTrue(resolved["journeys"], "without the key, a journeys/ folder turns journeys on")
+        self.assertEqual(resolved["max_chain"], 4)
+
+    def test_params_refuse_an_invalid_block(self):
+        self.index("sdd:\n  pr_unit: wave\n")
+        for result in self.run_both("--params"):
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("sdd.pr_unit 'wave' is not one of ['task', 'feat']", result.stderr)
 
 
 if __name__ == "__main__":

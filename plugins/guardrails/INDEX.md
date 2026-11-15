@@ -25,7 +25,7 @@
 | `review` | user, model | Completion verdict, claim check and PR gates. Use when asking “is it done?”, preparing a PR or testing a claim. Not for fixing failures (skill sdd-implement). |
 | `sdd-check` | user, model | SDD tool — read-only spec check that sdd-clarify and sdd-plan call. Use when a NEED, a FEAT or the spec needs gap checks. Not for ambiguity (skill sdd-clarify). |
 | `sdd-clarify` | user | SDD step 2 — turn a specified NEED into approved REQs by asking product. Use when a NEED is specified. Not for gap checks (skill sdd-check). |
-| `sdd-constitution` | user | SDD step 0 — project constitution and spec index. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
+| `sdd-constitution` | user | SDD step 0 — constitution, spec index, parameters, REVIEW.md. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
 | `sdd-implement` | user | SDD step 6 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill review). |
 | `sdd-intake` | user, model | SDD entry — record an idea, need, improvement or problem as a NEED-nnn. Use when a request arrives. Not for classifying it (skill sdd-specify). |
 | `sdd-plan` | user | SDD step 4 — create the FEAT for a refined NEED: technical plan and decisions. Use when a NEED is refined. Not for task breakdown (skill sdd-tasks). |
