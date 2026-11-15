@@ -62,10 +62,13 @@ repositories whose PRs close its issues, its earlier names, and the blocked and 
 every issue and every PR once per repository through `gh api` (no per-issue request). An issue titled
 `[FEAT-nnn Tn]` or `[FEAT-nnn T1+T2]` belongs to those rows; a member issue closed as not planned that a
 bundle names in its title (`— bundled with FEAT-nnn Tn #N`) follows the bundle. A row is `done` once a
-merged PR closes its issue, `blocked` with a blocked label, `doing` with an open PR or a progress label,
-`cancelled` when closed as not planned, `todo` while open; a `superseded` row is never rewritten. It never
-writes a FEAT's `validated` or `delivered`. --write also refreshes traceability.md, the Status cell of each
-FEAT row in spec.md and a `<!-- sync-status:begin -->` ... `<!-- sync-status:end -->` block there.
+merged PR closes its issue; a closed issue then keeps the row (a warning) or, closed as not planned, makes it
+`cancelled` (a `done` row stays), whatever labels it still carries; an open one is `blocked` with a blocked
+label, `doing` with an open PR or a progress label, else `todo`. A `superseded` or `cancelled` row is never
+rewritten. It never writes a FEAT's `validated` or `delivered`. --write also refreshes traceability.md, the
+Status cell of each FEAT row in spec.md and, where their markers are, the `<!-- sync-status:begin -->` ...
+`<!-- sync-status:end -->` block (in-progress FEATs) and the `<!-- sync-counts:begin -->` ...
+`<!-- sync-counts:end -->` block (`N FEATs: n `status`, …`, proposed and cancelled FEATs named).
 
 Run it after the frontmatter lint (`check_spec.py`), which this file is synced next to by
 platforms/tools/sync-project.sh and which resolves the `sdd` block it reads. Upstreamed from a consumer
@@ -117,9 +120,13 @@ MAIN_COLUMNS = ("Rules", "Implemented by", "Proven by")
 TEXT_SKIP = ("Step", "At", "Implemented by", "Rules", "Proven by")
 STAGE = re.compile(r"\bstage ([A-Z][A-Za-z0-9-]*\d)\b")
 INDEX_LINK = re.compile(r"\]\(([^)]+)\)")
-ROW_FROZEN = ("superseded",)
+ROW_FROZEN = ("superseded", "cancelled")  # sync-status never reopens a dropped row
 ISSUE_TITLE = re.compile(r"^\[(FEAT-\d{3,}) (T\d+(?:\+T\d+)*)\]")
 SYNC_BEGIN, SYNC_END = "<!-- sync-status:begin -->", "<!-- sync-status:end -->"
+COUNTS_BEGIN, COUNTS_END = "<!-- sync-counts:begin -->", "<!-- sync-counts:end -->"
+# feature.schema.json `status`, in lifecycle order; the counts line names the FEATs of the LISTED ones
+FEAT_STATUSES = ("proposed", "clarified", "planned", "in-progress", "validated", "delivered", "cancelled")
+COUNTS_LISTED = ("proposed", "cancelled")
 REMOTE = re.compile(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
 
 
@@ -1220,6 +1227,12 @@ def derive_task_status(current, issue, prs, settings):
     merged = sorted({p["ref"] for p in prs if p["merged"]}, key=natural_key)
     if merged:
         return "done", merged, False
+    if issue["state"] == "closed":  # before any label: a closed issue may keep a stale blocked or progress label
+        if issue["reason"] == "not_planned" and current == "done":  # a recorded delivery outranks a stray issue
+            return current, ["closed as not planned, but the row is done"], True
+        if issue["reason"] == "not_planned":
+            return "cancelled", ["closed as not planned"], False
+        return current, ["closed without a merged PR"], True
     labels = set(issue["labels"])
     blocked = labels & set(settings["blocked_labels"])
     if blocked:
@@ -1228,12 +1241,6 @@ def derive_task_status(current, issue, prs, settings):
     progress = labels & set(settings["progress_labels"])
     if open_prs or progress:
         return "doing", open_prs or [f"label:{lb}" for lb in sorted(progress)], False
-    if issue["state"] == "closed":
-        if issue["reason"] == "not_planned" and current == "done":  # a recorded delivery outranks a stray issue
-            return current, ["closed as not planned, but the row is done"], True
-        if issue["reason"] == "not_planned":
-            return "cancelled", ["closed as not planned"], False
-        return current, ["closed without a merged PR"], True
     return "todo", [], False
 
 
@@ -1336,9 +1343,41 @@ def apply_sync(spec, changed, today):
     return written + (1 if sync_index(spec, today) else 0)
 
 
+def id_ranges(ids):
+    """['FEAT-005', 'FEAT-006', 'FEAT-007', 'FEAT-009'] -> ['FEAT-005–FEAT-007', 'FEAT-009']: a run of three or more
+    consecutive numbers collapses to a range."""
+    out, run = [], []
+
+    def flush():
+        out.extend([f"{run[0]}–{run[-1]}"] if len(run) > 2 else run)
+
+    for fid in sorted(ids, key=natural_key):
+        number = int(re.sub(r"\D", "", fid) or 0)
+        if run and number != int(re.sub(r"\D", "", run[-1]) or 0) + 1:
+            flush()
+            run = []
+        run.append(fid)
+    if run:
+        flush()
+    return out
+
+
+def counts_line(spec):
+    """`N FEATs: n `status`, …` in lifecycle order, zero counts left out, the proposed and cancelled FEATs named."""
+    by_status = {}
+    for fid in sorted(spec.feats, key=natural_key):
+        by_status.setdefault(str(spec.feats[fid]["status"]), []).append(fid)
+    order = list(FEAT_STATUSES) + sorted(s for s in by_status if s not in FEAT_STATUSES)
+    parts = [f"{len(by_status[s])} `{s}`" + (f" ({', '.join(id_ranges(by_status[s]))})" if s in COUNTS_LISTED else "")
+             for s in order if s in by_status]
+    total = len(spec.feats)
+    return f"{total} FEAT{'' if total == 1 else 's'}" + (": " + ", ".join(parts) if parts else "") + "."
+
+
 def sync_index(spec, today):
     """spec.md: the Status cell of each FEAT row (a table row linking features/FEAT-nnn under a header with a Status
-    column) and the sync-status block, the in-progress FEATs with their done rows."""
+    column), the sync-status block (the in-progress FEATs with their done rows) and the sync-counts block (the FEAT
+    counts per status, `counts_line`); a block is written only where its markers are."""
     path = spec.spec_dir / "spec.md"
     if not path.exists():
         return False
@@ -1370,6 +1409,10 @@ def sync_index(spec, today):
                 listing.append(f"- {fid} {feat['title']} ({done}/{len(feat['task_status'])} done)")
         block = SYNC_BEGIN + "\n" + ("\n".join(listing) or "- none") + "\n" + SYNC_END
         text = re.sub(re.escape(SYNC_BEGIN) + ".*?" + re.escape(SYNC_END), lambda _: block, text, count=1,
+                      flags=re.DOTALL)
+    if COUNTS_BEGIN in text and COUNTS_END in text:
+        block = COUNTS_BEGIN + "\n" + counts_line(spec) + "\n" + COUNTS_END
+        text = re.sub(re.escape(COUNTS_BEGIN) + ".*?" + re.escape(COUNTS_END), lambda _: block, text, count=1,
                       flags=re.DOTALL)
     if text == original:
         return False

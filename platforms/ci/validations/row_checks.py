@@ -176,6 +176,43 @@ def read_json(root: Path, rel: str | None, key: str):
         raise UsageError(f"sdd.row_checks.{key} {rel}: {error}")
 
 
+def _strings(value) -> bool:
+    return isinstance(value, list) and all(isinstance(v, str) for v in value)
+
+
+def checked_gates(gates, rel: str) -> dict:
+    """The gates config, refused with a usage error unless each key row_checks.py reads has its shape: a crash here
+    would exit 1, the FAIL code, and an unusable config would check nothing."""
+    where = f"sdd.row_checks.gates {rel}"
+    if not isinstance(gates, dict):
+        raise UsageError(f"{where}: must be an object, not {type(gates).__name__}")
+    for key in ("proof_allowlist", "generated_neighbours"):
+        if key in gates and not _strings(gates[key]):
+            raise UsageError(f"{where}: {key} must be a list of strings")
+    runners = gates.get("proof_script_runners", {})
+    if not isinstance(runners, dict) or not all(_strings(v) for v in runners.values()):
+        raise UsageError(f"{where}: proof_script_runners must map a program to a list of option strings")
+    depths = gates.get("proof_var_depths", {})
+    if not isinstance(depths, dict) or not all(isinstance(v, int) and not isinstance(v, bool) and v >= 0
+                                               for v in depths.values()):
+        raise UsageError(f"{where}: proof_var_depths must map a variable to a whole number of levels (0 or more)")
+    return gates
+
+
+def checked_artifacts(artifacts, rel: str) -> list:
+    """The artifact-policy registry: a list of {pattern, dec, policy} strings, else a usage error."""
+    where = f"sdd.row_checks.artifacts {rel}"
+    if not isinstance(artifacts, list):
+        raise UsageError(f"{where}: must be a list of {{pattern, dec, policy}} entries, not {type(artifacts).__name__}")
+    for n, entry in enumerate(artifacts, 1):
+        if not isinstance(entry, dict):
+            raise UsageError(f"{where}: entry {n} must be an object with the strings pattern, dec and policy")
+        missing = [k for k in ("pattern", "dec", "policy") if not isinstance(entry.get(k), str)]
+        if missing:
+            raise UsageError(f"{where}: entry {n} needs the strings {', '.join(missing)}")
+    return artifacts
+
+
 def load_config(spec_dir) -> Config:
     spec_dir = Path(spec_dir).resolve()
     if not spec_dir.is_dir():
@@ -185,7 +222,8 @@ def load_config(spec_dir) -> Config:
         raise UsageError("spec.md sdd block refused (check_spec.py --params): " + "; ".join(errors))
     root = repo_root(spec_dir)
     rc = params.get("row_checks") or {}
-    gates = read_json(root, rc.get("gates"), "gates") or {}
+    gates = read_json(root, rc.get("gates"), "gates")
+    gates = checked_gates(gates, rc["gates"]) if rc.get("gates") else {}
     cfg = Config(root=root, spec_dir=spec_dir, params=params, components=dict(params.get("components") or {}))
     if gates.get("proof_allowlist"):
         cfg.allowlist = list(gates["proof_allowlist"])
@@ -195,7 +233,8 @@ def load_config(spec_dir) -> Config:
     cfg.tests = [t for t in rc.get("tests") or [] if isinstance(t, dict) and t.get("code") and t.get("tests")]
     cfg.assets = rc.get("assets") or None
     cfg.protocol = rc.get("protocol") or None
-    cfg.artifacts = read_json(root, rc.get("artifacts"), "artifacts") or []
+    artifacts = read_json(root, rc.get("artifacts"), "artifacts")
+    cfg.artifacts = checked_artifacts(artifacts, rc["artifacts"]) if rc.get("artifacts") else []
     if params.get("visual_approval") in ("owner", "reviewer"):
         cfg.visual = rc.get("visual") or None
     has_main = subprocess.run(["git", "-C", str(root), "rev-parse", "--verify", "--quiet", "origin/main^{commit}"],
@@ -907,6 +946,9 @@ def main(argv=None) -> int:
         return cmd_check(args)
     except UsageError as error:
         print(f"row-checks: {error}", file=sys.stderr)
+        return 2
+    except Exception as error:  # noqa: BLE001  exit 1 means FAIL rows; a crash must never read as one, nor as clean
+        print(f"row-checks: internal error: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
 
 

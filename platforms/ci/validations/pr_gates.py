@@ -229,12 +229,18 @@ def _mask_quotes(cmd: str) -> str:
 
 _DOTDOT = re.compile(r"(?:^|[/=~])\.\.(?:/|$)")
 _PROOF_VAR = re.compile(r"^\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))")
+_GLUED_SHORT = re.compile(r"^-[A-Za-z](?=.)")
 
 
 def _outside_sandbox(token: str, cwd: str, var_depths: dict) -> bool:
     """`token` reads outside what a proof sandbox run in the repository folder `cwd` grants: a `..` that climbs out
     of `cwd` (or any `..` in an absolute path), or one anchored on `$VAR`/`~` that climbs above the depth
-    `var_depths` grants that variable (`~` is `HOME`); a variable `var_depths` does not name may not climb at all."""
+    `var_depths` grants that variable (`~` is `HOME`); a variable `var_depths` does not name may not climb at all.
+    A value glued to an option, `--file=../x`, `-C..` or `-f$HOME/../x`, is judged by these same rules."""
+    if "=" in token.split("/", 1)[0]:
+        return _outside_sandbox(token.split("=", 1)[1], cwd, var_depths)
+    if _GLUED_SHORT.match(token):
+        return _outside_sandbox(token[2:], cwd, var_depths)
     if not _DOTDOT.search(token):
         return False
     var = _PROOF_VAR.match(token)
@@ -255,11 +261,6 @@ def _outside_sandbox(token: str, cwd: str, var_depths: dict) -> bool:
         return False
     if token.startswith("/"):
         return True
-    if "=" in token.split("/", 1)[0]:
-        # `--file=../x` glues the `..` behind `=`: judge the option's value, not the glued word
-        token = token.split("=", 1)[1]
-        if token.startswith("/"):
-            return True
     resolved = posixpath.normpath(posixpath.join(cwd, token))
     return resolved == ".." or resolved.startswith("../") or (
         cwd != "." and not (resolved == cwd or resolved.startswith(cwd + "/")))
