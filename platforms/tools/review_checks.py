@@ -189,22 +189,30 @@ def every(stacks: dict, key: str) -> list[str]:
 # --------------------------------------------------------------------------- red
 
 
+def kill_group(proc: subprocess.Popen) -> None:
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    try:
+        proc.communicate(timeout=10)
+    except subprocess.TimeoutExpired:
+        pass
+
+
 def run_group(argv: list[str], cwd: Path, timeout: int) -> tuple[int | str, str]:
-    """Run argv in its own process group; a timeout kills the whole group, so no child of the shell outlives it."""
+    """Run argv in its own process group; a timeout, Ctrl-C or any other exit kills the whole group, so no child of
+    the shell outlives the tool."""
     proc = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                             start_new_session=True)
     try:
         stdout, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        try:
-            proc.communicate(timeout=10)
-        except subprocess.TimeoutExpired:
-            pass
+        kill_group(proc)
         return "timeout", f"timed out after {timeout} s"
+    except BaseException:
+        kill_group(proc)
+        raise
     return proc.returncode, stdout + stderr
 
 
@@ -212,7 +220,7 @@ def render(command: str, cwd: str, tests: list[str]) -> str:
     """The command template with the tests filled in (TEMPLATE_ARG), paths relative to cwd."""
     rel = [os.path.relpath(t, cwd) for t in tests]
     items = {"tests": [shlex.quote(r) for r in rel], "res": [shlex.quote(f"res://{r}") for r in rel],
-             "classes": [Path(t).stem for t in tests]}
+             "classes": [shlex.quote(Path(t).stem) for t in tests]}
 
     def fill(m):
         prefix, values = m.group(1), items[m.group(2)]
@@ -422,32 +430,33 @@ def red(args) -> int:
 # --------------------------------------------------------------------------- scope
 
 
-def rules_text(repo: Path, base: str | None, path) -> str | None:
+def repo_rel(args, path) -> str | None:
+    """`path` relative to the repository, or None outside it. Decided on the path as given (absolute, no symlink
+    resolved), so a rules file the head deletes or replaces by a link (to /dev/null, to a file outside) is still the
+    repository's, and its rules are read from base."""
+    full = Path(os.path.abspath(path))
+    for root in args.roots:
+        try:
+            return full.relative_to(root).as_posix()
+        except ValueError:
+            pass
+    return None
+
+
+def rules_text(args, base: str | None, path) -> str | None:
     """A rules file (REVIEW.md, the gates config). Inside the repository it is read as `base` has it, so a PR cannot
     loosen its own rules (None when base lacks it); outside, from disk."""
-    full = Path(path).resolve()
-    try:
-        rel = full.relative_to(repo).as_posix()
-    except ValueError:
-        return full.read_text(encoding="utf-8")
-    if base is None:
-        return full.read_text(encoding="utf-8")
-    if not exists_at(repo, base, rel):
+    rel = repo_rel(args, path)
+    if rel is None or base is None:
+        return Path(path).read_text(encoding="utf-8")
+    if not exists_at(args.repo, base, rel):
         print(f"note: {rel} is not on base {base}; its rules do not apply to this PR")
         return None
-    return git(repo, "show", f"{base}:{rel}")
-
-
-def in_repo(repo: Path, path) -> bool:
-    try:
-        Path(path).resolve().relative_to(repo)
-        return True
-    except ValueError:
-        return False
+    return git(args.repo, "show", f"{base}:{rel}")
 
 
 def gates_config(args) -> dict:
-    text = rules_text(args.repo, getattr(args, "base", None), args.gates) if args.gates else None
+    text = rules_text(args, getattr(args, "base", None), args.gates) if args.gates else None
     return json.loads(text) if text else {}
 
 
@@ -613,7 +622,7 @@ def dod_lines(text: str) -> list[tuple[str, str, bool, re.Pattern]]:
 
 def dod(args) -> int:
     repo, out = args.repo, Findings("dod")
-    text = rules_text(repo, args.base, args.review) if args.review else None
+    text = rules_text(args, args.base, args.review) if args.review else None
     rules = dod_lines(text) if text else []
     counts = {}
     for path, line, text in added_lines(repo, args.base, args.head):
@@ -667,19 +676,21 @@ def main(argv=None) -> int:
     p = sub.add_parser("dod")
     p.add_argument("--base", required=True)
     p.add_argument("--head", required=True)
-    p.add_argument("--review", help="the project REVIEW.md (default: REVIEW.md in --repo when it exists)")
+    p.add_argument("--review", help="the project REVIEW.md (default: REVIEW.md in --repo when base has it)")
     args = parser.parse_args(argv)
+    given = Path(os.path.abspath(args.repo))
     args.repo = args.repo.resolve()
+    args.roots = (args.repo, given)
     if args.command in ("proof", "feat-proofs"):
         if args.run and not (args.allow or args.gates):
             parser.error(f"{args.command} --run needs --allow or --gates (the project's proof allowlist)")
-        if args.command == "proof" and args.gates and in_repo(args.repo, args.gates) and not args.base:
+        if args.command == "proof" and args.gates and repo_rel(args, args.gates) is not None and not args.base:
             parser.error("proof --gates inside the repository needs --base: the allowlist is read as the base has it, "
                          "never from the PR head")
         args.cwd = args.cwd or str(args.repo)
         return proof(args) if args.command == "proof" else feat_proofs(args)
-    if args.command == "dod" and not args.review and (args.repo / "REVIEW.md").is_file():
-        args.review = str(args.repo / "REVIEW.md")
+    if args.command == "dod" and not args.review and exists_at(args.repo, args.base, "REVIEW.md"):
+        args.review = str(args.repo / "REVIEW.md")  # base's rules apply even when the head deletes the file
     return {"red": red, "scope": scope, "dod": dod}[args.command](args)
 
 

@@ -106,8 +106,10 @@ Claude ran independent checks at once without loading the skill. Issue #240 send
   `platforms/ci/README.md`, `INDEX.md`.
 
 Consumer adoption: a project resyncs, then adds `- YYYY-MM-DD delivered before sdd-review` to each FEAT already
-`delivered`, or runs `check_spec.py --baseline-init` once so `baseline.json` holds those `feature-closure` findings
-(each legacy line added later shrinks it); otherwise `check_spec.py` refuses them; FEATs at `in-progress` with every row done stay there until `sdd-review`.
+`delivered`, or, while it has no `docs/spec/baseline.json` yet, runs `check_spec.py --baseline-init` once so the new
+baseline holds those `feature-closure` findings (each legacy line added later shrinks it). `--baseline-init` refuses
+once the file exists (`check_spec.py`: the baseline only shrinks, and `--baseline-update` only lowers it), so a project
+that already has a baseline adds the legacy lines. Otherwise `check_spec.py` refuses those FEATs; FEATs at `in-progress` with every row done stay there until `sdd-review`.
 
 After KIT-068 (#244) merged: `session/references/handoff-record.md` and `templates/doc-session-handoff.md` read the
 rows' items (issues, or TASK files) instead of the progress file, which stays only for FEATs cut before KIT-068.
@@ -135,10 +137,15 @@ The owner's adjustment 2: `KIT-069-CALIBRATION-2026-11-14.md` (read-only measure
   every delivered FEAT it reports 1,085 findings, 758 of them trace gaps, so it runs per FEAT at closure, not in CI.
 - [FACT] `review_checks.py feat-proofs --feat FEAT-109` without `--run` (lint only, nothing executed) flags T2, T3 and T9,
   the three `-Dtest=… verify` rows the report found by hand.
-- [FACT] History-split lint (added in the review round): on every consumer FEAT at `8549f51d4` it flags 29 bullets in 29
+- [FACT] History-split lint (added in the review round): on every consumer FEAT at `8549f51d4` it flags 28 bullets in 26
   FEATs, among them the report's FEAT-084, FEAT-097, FEAT-063 and FEAT-099; 4 of 4 spot-checked hits are a sync or done
   line inside an earlier bullet. The cause was the insertion point of `append_history` (after a bullet's first line),
-  which now goes past the bullet's continuation lines.
+  which now goes past the bullet's continuation lines. A first line the tool writes (`sdd-review: validated at <sha>`,
+  `done: T2`, ...) or one wider than the FEAT's widest wrapped line plus 8 characters is complete as written and not
+  flagged. On the closed consumer FEATs at `d23561cba` this takes the hits from 12 to 11: the one dropped, FEAT-030:611,
+  is a 226-character bullet on one line in a FEAT that wraps at 122; the 11 kept are real splits (FEAT-016:194,
+  FEAT-030:619, FEAT-046:259, FEAT-048:225, FEAT-054:316 and :323, FEAT-057:1448, FEAT-058:1908, FEAT-063:449,
+  FEAT-068:356, FEAT-069:346). At `8549f51d4` the same bullet is the only one dropped (29 to 28).
 - Dropped, with the reason: a lint for an unfolded `[DECISION]` in Open questions flags 676 lines over 91 consumer FEATs
   (18 on the five calibration FEATs), because the consumer answers questions in place with `[DECISION]`; the report's
   one real unfold was a `[PROPOSAL]` left in Scope, which the Scope lint reports, so `sdd-review` folds what that lint
@@ -179,3 +186,9 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   with no test as an ERROR; rules files are read from base; `&` separates proof commands (`pr_gates.py`, Files widened
   by the coordinator); runs are process groups; `res://` follows `--path`; the History-split lint; the `[DECISION]`
   lint and the content-id check dropped with their reasons.
+- 2026-11-15: coordinator delta review of `8ec83eb` (PARTIAL) fixed: a rules file the head deletes or links to
+  `/dev/null` or outside is still read from base (`dod` defaults to base's `REVIEW.md`; `scope --gates` too); Ctrl-C
+  kills a run's process group; the History-split lint skips tool-written lines and lines wider than the FEAT wraps (0
+  false positives left at `d23561cba`, so it stays blocking); `&>/dev/null` is a safe redirect; `{classes}` stems are
+  shell-quoted; a parity test pins the two closure-line readers; `--baseline-init` applies only before the first
+  baseline; `spec-index.md` status wording (Files widened by the coordinator).

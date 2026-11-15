@@ -677,13 +677,33 @@ def proving_tokens(path):
 SENTENCE_END = re.compile(r"[.!?;)\]`'\"»]\s*$")  # a colon introduces the bullet's continuation, so it ends nothing
 
 
-def history_splits(fid, history):
+# The one-line History bullets this tool writes: complete as written, though some end on a sha, a version or a row id.
+TOOL_LINE = re.compile(r"^- \d{4}-\d{2}-\d{2} (sdd-review: (validated|delivered) at \S+( \(release: merge\))?"
+                       r"|sdd-release: delivered in \S+|done: T\d+( \([^()]*\))?|delivered before sdd-review"
+                       r"|status: validated -> in-progress \(reopened: [^()]*\)|[\w-]+: delivered \([^()]*\))\s*$")
+WRAP_SLACK = 8  # a wrapped first line can run a few characters past the file's widest continuation line
+
+
+def wrap_width(body):
+    """The widest indented (wrapped) line of the FEAT outside code fences: the width its author wraps at."""
+    width, fence = 0, False
+    for line in body.splitlines():
+        if line.startswith("```"):
+            fence = not fence
+        elif not fence and line.startswith((" ", "\t")) and line.strip():
+            width = max(width, len(line))
+    return width
+
+
+def history_splits(fid, history, width):
     """A History bullet that stops mid-sentence, followed by another bullet and then an indented line: a line was
-    inserted inside the first bullet (the calibration's sync line in FEAT-097)."""
+    inserted inside the first bullet (the calibration's sync line in FEAT-097). A bullet this tool wrote, or one wider
+    than the FEAT wraps at (`width`, written on one line), is complete as written (consumer FEAT-030 at d23561cba)."""
     lines, found = history.splitlines(), []
     for i in range(len(lines) - 2):
         first, inserted, rest = lines[i], lines[i + 1], lines[i + 2]
-        if (first.startswith("- ") and not SENTENCE_END.search(first) and inserted.startswith("- ")
+        if (first.startswith("- ") and not SENTENCE_END.search(first) and not TOOL_LINE.match(first)
+                and len(first) <= width + WRAP_SLACK and inserted.startswith("- ")
                 and rest.startswith((" ", "\t")) and rest.strip()):
             found.append(f"{fid}: History bullet '{first[:48].strip()}…' is split by the line inserted after it "
                          f"('{inserted[:48].strip()}…'): move that line below the bullet's last line")
@@ -705,7 +725,7 @@ def lint_feat(spec, fid):
               if "[PROPOSAL]" in line]
     found += [f"{fid}: [HYPOTHESIS] in Open questions: {line.strip()}"
               for line in secs.get("Open questions", "").splitlines() if "[HYPOTHESIS]" in line]
-    found += history_splits(fid, secs.get("History", ""))
+    found += history_splits(fid, secs.get("History", ""), wrap_width(body))
     found += [f"{fid}: [HYPOTHESIS] in done row {tid}" for tid, row in feat["tasks"].items()
               if "[HYPOTHESIS]" in row and feat["task_status"].get(tid) in ROW_CLOSED]
     for title, text in secs.items():
