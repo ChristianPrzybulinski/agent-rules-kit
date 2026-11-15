@@ -1,13 +1,13 @@
 ---
 id: KIT-076
-title: "The kit's ci, gitleaks and CodeQL workflows run on every pull request and push to main as required checks"
+title: "The kit's ci, gitleaks and CodeQL workflows run on every pull request and push to main as required checks, with linted, pinned and time-bounded workflows"
 status: confirmed
 confirmed: "2026-11-15 (owner, chat, relayed by the coordinator session \"Revisão de regras e skills\": \"Revisão + CI verde\")"
 issue: "#264"
 pr: "#272"
 ---
 
-# KIT-076 — The kit's ci, gitleaks and CodeQL workflows run on every pull request and push to main as required checks
+# KIT-076 — The kit's ci, gitleaks and CodeQL workflows run on every pull request and push to main as required checks, with linted, pinned and time-bounded workflows
 
 This record supersedes KIT-014's trigger rule ("no kit workflow runs on push or pull request") and the
 `workflow_dispatch`-only trigger of KIT-063. Both records stay as history.
@@ -71,22 +71,88 @@ of it.
   - a pull request skips a secret that is already on `main`;
   - a pull request fails on a secret it adds, and the log stays redacted;
   - `push` and `workflow_dispatch` find the old secret.
-- Docs: `.github/CONTRIBUTING.md` § CI requirements, the PR template, the root README's `.github/` row, `CHANGELOG.md`
-  and a History line in KIT-014 and KIT-063.
+- Docs: `.github/CONTRIBUTING.md` § CI requirements, the PR template, the root README's `.github/` row,
+  `platforms/kits/github/README.md`, `CHANGELOG.md` and a History line in KIT-014 and KIT-063.
 
 Not changed:
 
-- repository settings: the coordinator sets the ruleset and `allow_auto_merge` after this merges;
-- `release.yml`, `evals.yml` (it needs a secret that is not set) and `dependabot.yml`;
-- the workflows shipped in `platforms/kits/github/workflows/`.
+- repository settings: the coordinator sets the ruleset, `allow_auto_merge` and Dependabot security updates after
+  this merges.
+
+### Widened: five Actions practices
+
+The owner widened this record on 2026-11-15 (chat, relayed by the coordinator, "Sim, inclua").
+
+1. **actionlint and zizmor.** `ci.yml` gains the `workflow-lint` job, a required check. It runs actionlint 1.7.12 and
+   zizmor 1.32.0, each pinned by version and sha-256; the digests match the `digest` GitHub's release API reports for
+   `actionlint_1.7.12_linux_amd64.tar.gz` and `zizmor-x86_64-unknown-linux-gnu.tar.gz`. They lint
+   `.github/workflows/*.yml` and `platforms/kits/github/workflows/*.yml`, the templates every consumer copies.
+   - actionlint runs shellcheck on `run:` scripts, which `ubuntu-latest` ships.
+   - zizmor runs at its default persona with online audits. The audits read public action metadata with the job's
+     read-only token, which also checks that each SHA pin is a commit of the named repository.
+   - On `4f035d1`, zizmor 1.32.0 found 71 findings in the ten files. Every one is fixed, and no config or ignore
+     comment silences any:
+     - every action pinned by commit SHA with a version comment;
+     - every checkout states `persist-credentials`: `false`, or `true` with its reason in `ci-godot.yml`'s test job,
+       whose `git lfs pull` authenticates with it (zizmor accepts an explicit `true`);
+     - `pr-contract.yml` passes `inputs.script`, `inputs.config` and `inputs.repo` through `env:` instead of
+       `${{ }}` in `run:` (`template-injection`);
+     - read-only top-level `permissions` (`contents: read`, or `{}` where the job needs nothing), and
+       `release.yml`'s `contents: write` moved to its one job.
+   - The pedantic persona still lists 18, which the gate does not run:
+     - 11 jobs without a `name`;
+     - 4 workflows without job-level `concurrency`; for the reusable templates the caller's workflow owns it;
+     - `ci-godot.yml`'s `container` tag, which follows the `godot-version` input, so a digest pin would fix one
+       Godot version.
+2. **`timeout-minutes` on every job**, in both folders. The rule is 3 × the longest measured green run of the job,
+   rounded up to 5 minutes, with a 5-minute floor; GitHub's 360-minute job limit for hosted runners is the ceiling. The
+   factor 3 covers the shared-runner spread measured here: the unit-test step took 277 s and 354 s on the same tree.
+   The table below lists each value and its basis.
+3. **A weekly CodeQL `schedule`** (`23 5 * * 1`, Mondays 05:23 UTC) beside `pull_request` and `push`. It reruns new
+   queries on a quiet `main`. GitHub's "Events that trigger workflows" page says scheduled workflows run on the latest
+   commit of the default branch, and that "in a public repository, scheduled workflows are automatically disabled when
+   no repository activity has occurred in 60 days". `.github/CONTRIBUTING.md` says so and names the Actions tab to
+   re-enable it.
+4. **Dependabot covers the templates.** `.github/dependabot.yml` adds a `github-actions` entry for
+   `/platforms/kits/github/workflows` beside `/`.
+   - GitHub's "Dependabot options reference" says only that with `/` Dependabot searches `/.github/workflows` and the
+     root `action.yml`; it does not describe any other directory.
+   - Dependabot's source does (`dependabot/dependabot-core`, `github_actions/lib/dependabot/github_actions/
+     file_fetcher.rb`, last changed in `51cb2e3` on 2026-10-14). For a `directory` other than `/` it sets
+     `workflows_dir = "."` and fetches every file in that folder matching `/\.ya?ml$/`. So the entry reads the five
+     templates.
+   - What would prove this wrong: no Dependabot pull request or log line ever names a file under
+     `platforms/kits/github/workflows/` after an action release. The fallback would be a test that fails when a
+     template pins a different SHA for an action that `.github/workflows/` also uses.
+5. **Dependabot security updates** are a repository setting, so this PR does not change them. They are a coordinator
+   step after the merge (see below).
+
+| Job | Timeout (min) | Longest measured green run | Basis |
+|---|---|---|---|
+| `ci.yml` `ci` | 20 | 396 s | PR #272 run 43764113002; dispatches 360 s and 368 s |
+| `ci.yml` `workflow-lint` | 5 | 8 s | dispatch run 43766325153 |
+| `gitleaks.yml` `gitleaks` | 5 | 10 s | full-history dispatch run 43762692739 |
+| `codeql.yml` `codeql (python)`, `codeql (actions)` | 5 | 55 s | PR #272 run 43762637246 |
+| `release.yml` `release` | 5 | 13 s | `v12.1.0` run 43531254664 (2 green runs) |
+| `evals.yml` `eval` | 360 | none | never run: the `ANTHROPIC_API_KEY` secret is not set; GitHub's limit written out until the first green run |
+| `ci-godot.yml` `changes` | 5 | 7 s | a consumer project, 9 green runs |
+| `ci-godot.yml` `import-and-test` | 45 | 828 s | the consumer's current Godot test job (1 green run); the template's own job peaked at 122 s in 50 runs |
+| `ci-godot.yml` `lint` | 5 | 70 s | the consumer's current lint job; 18 s in 5 earlier runs |
+| `ci-java.yml` `changes` | 5 | 40 s | a consumer project, 5 green runs |
+| `ci-java.yml` `build` | 10 | 105 s | a consumer project, 85 green runs |
+| `ci-java.yml` `dependency-check` | 360 | 13,987 s | a cold NVD sync, 83 green runs; 3 × exceeds GitHub's limit, so the limit (the old 150 was below a measured green run) |
+| `gitleaks.yml` (template) `scan` | 5 | 21 s | this kit's own runs of the same `gitleaks/gitleaks-action`, 97 green runs |
+| `pr-contract.yml` `contract` | 5 | 42 s | a consumer project, 15 green runs |
+| `spec-lint.yml` `validate` | 5 | 60 s | a consumer job that runs the same `check_spec.py` steps plus gitleaks and more, 100 green runs |
 
 ### Required check contexts
 
-The ruleset requires these four contexts, all reported by the GitHub Actions app (integration id 15368):
+The ruleset requires these five contexts, all reported by the GitHub Actions app (integration id 15368):
 
 | Context | Workflow | Job |
 |---|---|---|
 | `ci` | `.github/workflows/ci.yml` | `check` |
+| `workflow-lint` | `.github/workflows/ci.yml` | `workflow-lint` |
 | `gitleaks` | `.github/workflows/gitleaks.yml` | `scan` |
 | `codeql (python)` | `.github/workflows/codeql.yml` | `analyze`, matrix `python` |
 | `codeql (actions)` | `.github/workflows/codeql.yml` | `analyze`, matrix `actions` |
@@ -96,13 +162,20 @@ A job's `name` is its context, so renaming one leaves the ruleset waiting foreve
 
 1. The independent review returns READY on the head.
 2. The coordinator arms auto-merge.
-3. GitHub merges once the four checks pass on that head.
+3. GitHub merges once the five checks pass on that head.
+
+Coordinator steps after the merge, none of them in this PR:
+
+- a ruleset on `main` that requires the five contexts above;
+- `allow_auto_merge`;
+- Dependabot security updates (`security_and_analysis.dependabot_security_updates`), together with the vulnerability
+  alerts they need.
 
 ## Options considered
 
 | Option | Verdict |
 |---|---|
-| A. `pull_request` + `push` to `main` + dispatch, the four jobs required, auto-merge armed only after a review READY (chosen) | every PR and every `main` commit gets a clean-runner proof at no cost; a broken gate shows on the PR that breaks it; the review stays the merge decision |
+| A. `pull_request` + `push` to `main` + dispatch, the five jobs required, auto-merge armed only after a review READY (chosen) | every PR and every `main` commit gets a clean-runner proof at no cost; a broken gate shows on the PR that breaks it; the review stays the merge decision |
 | B. Keep dispatch only and the local gates (KIT-014) | zero runs, but `main`'s CI broke unnoticed (run 43761316770), and the coordinator dispatches by hand before each merge |
 | C. Required checks that merge on their own (auto-merge armed when the PR opens) | fewer steps, but on #246 green gates missed bypasses the reviews found in all 7 rounds |
 | D. `paths:` filters on the triggers | a required check that a filter skips never reports, so the PR waits forever; nearly every kit PR touches `platforms/` or `plugins/` anyway (KIT-014 option C) |
@@ -157,3 +230,4 @@ Local (macOS, python3 3.9.6, shellcheck 0.11.0, gitleaks 8.30.1), all exit 0:
 
 - 2026-11-15: confirmed (owner, chat, relayed by the coordinator: "Revisão + CI verde"). Issue #264.
 - 2026-11-15: implemented in #272; the runner proof is above.
+- 2026-11-15: widened by the owner ("Sim, inclua", relayed by the coordinator): the five Actions practices above.
