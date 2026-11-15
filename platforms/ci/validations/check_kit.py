@@ -393,10 +393,13 @@ if agents_md.exists():
         fail(rel(agents_md), f"{agents_lines} lines (>{AGENTS_MAX_LINES})")
 elif KIT_PLUGIN in plugins:
     fail(f"plugins/{KIT_PLUGIN}/AGENTS.md", f"{KIT_PLUGIN} plugin requires AGENTS.md")
+agents_bullets = {line[2:] for line in agents_md.read_text(encoding="utf-8").splitlines()
+                  if line.startswith("- ")} if agents_md.exists() else set()
 
 
 # --- 5. Subagents and hooks ---
 agent_owners = {}  # profile name -> plugin name
+agent_skills = {}  # profile path -> the skills it preloads (KIT-071), checked once the skills are known
 for name, plugin_dir in plugins.items():
     agents_root = plugin_dir / "agents"
     if not agents_root.exists():
@@ -430,11 +433,17 @@ for name, plugin_dir in plugins.items():
             if data["name"] in agent_owners:
                 fail(rel(profile), f"agent '{data['name']}' already defined in plugin '{agent_owners[data['name']]}'")
             agent_owners[data["name"]] = name
+        if isinstance(data.get("skills"), list):
+            agent_skills[profile] = data["skills"]
 
-hooks_path = plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN) / "hooks/hooks.json"
+hooks_path =plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN) / "hooks/hooks.json"
 guard_commands = []
 post_edit_commands = []
 session_start_commands = []
+git_context_commands = []
+checklist_commands = []
+GIT_CONTEXT_MARKER = "ai-kit git, after this "
+CHECKLIST_MARKER = "ai-kit session start:"
 if hooks_path.exists():
     hooks_data = read_json(hooks_path)
     if not isinstance(hooks_data, dict) or set(hooks_data) != {"hooks"}:
@@ -483,7 +492,11 @@ if hooks_path.exists():
                     if not isinstance(command, str) or not command:
                         fail(rel(hooks_path), f"{location} command missing")
                     elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
-                        guard_commands.append((command, timeout))
+                        # KIT-071: the guard denies; the git context hook only adds context after a commit or PR.
+                        if GIT_CONTEXT_MARKER in command:
+                            git_context_commands.append((command, timeout))
+                        else:
+                            guard_commands.append((command, timeout))
         post_tool_hooks = hook_events.get("PostToolUse", [])
         if not isinstance(post_tool_hooks, list):
             fail(rel(hooks_path), "hooks.PostToolUse must be an array")
@@ -554,7 +567,10 @@ if hooks_path.exists():
                     if not isinstance(command, str) or not command:
                         fail(rel(hooks_path), f"{location} command missing")
                     elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
-                        session_start_commands.append((command, timeout))
+                        if CHECKLIST_MARKER in command:
+                            checklist_commands.append((command, timeout))
+                        else:
+                            session_start_commands.append((command, timeout))
 elif KIT_PLUGIN in plugins:
     fail(f"plugins/{KIT_PLUGIN}/hooks/hooks.json", f"{KIT_PLUGIN} plugin requires hooks/hooks.json")
 
@@ -729,6 +745,62 @@ else:
                 elif result.stdout != "":
                     fail(rel(session_start_cases_path), f"session-start case '{name}': expected silence, got {result.stdout!r}")
 
+# KIT-071: the session-start checklist and the git context hook add context only; they never deny or warn.
+if hooks_path.exists() and not checklist_commands:
+    fail(rel(hooks_path), f"SessionStart needs the checklist hook (a command with '{CHECKLIST_MARKER}')")
+for command, timeout in checklist_commands:
+    payload = json.dumps({"hook_event_name": "SessionStart", "source": "startup", "cwd": str(KIT)})
+    try:
+        result = subprocess.run(["bash", "-c", command], input=payload, text=True, capture_output=True,
+                                timeout=timeout, check=False)
+        context = (json.loads(result.stdout).get("hookSpecificOutput") or {}).get("additionalContext") or ""
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, AttributeError):
+        result, context = None, ""
+    counts["hook_cases"] += 1
+    if result is None or result.returncode != 0 or not all(
+            word in context for word in ("outcome", "AGENTS.md", "README", "branch", "HEAD", "skill `session`")):
+        fail(rel(hooks_path), "SessionStart checklist must exit 0 with additionalContext naming the outcome, "
+             "AGENTS.md, README, branch, HEAD and skill `session`")
+
+git_context_cases_path = KIT / "platforms/ci/validations/hook_git_context_cases.json"
+git_context_cases = read_json(git_context_cases_path) if git_context_cases_path.exists() else None
+if hooks_path.exists() and not git_context_commands:
+    fail(rel(hooks_path), f"PreToolUse needs the git context hook (a command with '{GIT_CONTEXT_MARKER}')")
+if git_context_cases is None:
+    if not git_context_cases_path.exists():
+        fail(rel(git_context_cases_path), "hook git context cases missing")
+elif not isinstance(git_context_cases, dict):
+    fail(rel(git_context_cases_path), "top level must be an object")
+else:
+    expectations = {"commit": GIT_CONTEXT_MARKER + "commit", "PR": GIT_CONTEXT_MARKER + "PR", "silent": ""}
+    for key in expectations:
+        if not isinstance(git_context_cases.get(key), list) or len(git_context_cases[key]) < 5:
+            fail(rel(git_context_cases_path), f"{key} must be an array of at least 5 commands")
+    for command, timeout in git_context_commands:
+        for key, want in expectations.items():
+            for case in git_context_cases.get(key) or []:
+                if not isinstance(case, str):
+                    fail(rel(git_context_cases_path), f"{key} case must be a string: {case!r}")
+                    continue
+                payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": case}})
+                try:
+                    result = subprocess.run(["bash", "-c", command], input=payload, text=True, capture_output=True,
+                                            timeout=timeout, check=False)
+                except subprocess.TimeoutExpired:
+                    fail(rel(git_context_cases_path), f"{key} case timed out: {case}")
+                    continue
+                counts["hook_cases"] += 1
+                try:
+                    output = (json.loads(result.stdout) or {}).get("hookSpecificOutput") or {} if result.stdout else {}
+                except (json.JSONDecodeError, AttributeError):
+                    output = None
+                if result.returncode != 0 or output is None or "permissionDecision" in output:
+                    fail(rel(git_context_cases_path), f"{key} case must exit 0 without a decision: {case}")
+                elif want and not str(output.get("additionalContext", "")).startswith(want):
+                    fail(rel(git_context_cases_path), f"{key} case got no '{want}' context: {case}")
+                elif not want and result.stdout != "":
+                    fail(rel(git_context_cases_path), f"silent case printed {result.stdout!r}: {case}")
+
 
 # --- 6. Skills ---
 skill_names = {}
@@ -832,6 +904,11 @@ if description_total > DESCRIPTIONS_BUDGET:
     longest = ", ".join(f"{name}={length}" for name, length in sorted(
         skill_descriptions, key=lambda item: (-item[1], item[0]))[:5])
     fail("skills", f"description budget {description_total} chars (>{DESCRIPTIONS_BUDGET}); longest: {longest}")
+
+for profile, preloaded in agent_skills.items():
+    for skill in preloaded:
+        if skill not in skill_names:
+            fail(rel(profile), f"skills: '{skill}' is not a kit skill")
 
 
 # --- 7. Rules ---
@@ -968,6 +1045,12 @@ for name, plugin_dir in plugins.items():
                 fail(rel(entry), "eval case without prompt.md or case.yaml")
             if not any((entry / "graders").glob("*.md")):
                 fail(rel(entry), "eval case without graders/*.md")
+            # KIT-071: a run loads no CLAUDE.md, so a trigger case appends its always-on line; it must not drift.
+            case_data = frontmatter(entry / "prompt.md")[0] if (entry / "prompt.md").exists() else None
+            appended = (case_data or {}).get("append_system_prompt")
+            if FULL and appended is not None and appended not in agents_bullets:
+                fail(rel(entry / "prompt.md"), f"append_system_prompt must repeat one bullet of {rel(agents_md)} "
+                     "without its '- '")
 
 
 # --- 10. Relative links ---

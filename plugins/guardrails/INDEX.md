@@ -39,6 +39,7 @@
 
 ## `rules/`
 
+- `docker.md`
 - `godot.md`
 - `java.md`
 - `json.md`

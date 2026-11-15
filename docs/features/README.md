@@ -87,5 +87,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-063-codeql-secret-scanning.md`](KIT-063-codeql-secret-scanning.md) | done | #221 | #222 |
 | [`KIT-064-project-decision-kinds.md`](KIT-064-project-decision-kinds.md) | done | #225 | #226 |
 | [`KIT-065-owner-review-autonomy.md`](KIT-065-owner-review-autonomy.md) | confirmed | #229 | #230 |
+| [`KIT-071-guaranteed-skill-use.md`](KIT-071-guaranteed-skill-use.md) | confirmed | #233 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

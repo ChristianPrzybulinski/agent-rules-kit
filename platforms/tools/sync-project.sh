@@ -4,7 +4,8 @@
 #                                                          installs/updates .github/spec-lint/ (repos with docs/spec only),
 #                                                          CLAUDE.md (imports AGENTS.md),
 #                                                          .claude/settings.json (ai-kit marketplace +
-#                                                          enabledPlugins guardrails@ai-kit) and
+#                                                          enabledPlugins guardrails@ai-kit +
+#                                                          includeGitInstructions false) and
 #                                                          .claude/rules/guardrails-<rule>.md (the profile's
 #                                                          path rules, marked as generated); with
 #                                                          --vendor-skills also .claude/skills/<name>/
@@ -378,6 +379,8 @@ else:
         parts.append("missing: " + ",".join(missing))
     if extra:
         parts.append("extra: " + ",".join(extra))
+    if data.get("includeGitInstructions") is not False:
+        parts.append("includeGitInstructions: want false")
 if parts:
     print(f"sync: .claude/settings.json diverges for profile {profile} ({'; '.join(parts)})")
     sys.exit(1)
@@ -575,6 +578,8 @@ for key in [k for k in enabled if k.endswith("@ai-kit")]:
     del enabled[key]
 for name in plugins:
     enabled[name + "@ai-kit"] = True
+# KIT-071: Claude Code's built-in commit and PR instructions compete with skill git.
+data["includeGitInstructions"] = False
 text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 try:
     current = open(path, encoding="utf-8").read()

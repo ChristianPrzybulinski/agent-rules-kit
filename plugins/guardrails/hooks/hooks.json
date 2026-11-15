@@ -10,6 +10,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "^(exec|Bash)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c 'import sys,json,re\ntry:\n    d=json.load(sys.stdin)\nexcept Exception:\n    sys.exit(0)\nc=(d.get(\"tool_input\") or {}).get(\"command\") if isinstance(d,dict) and isinstance(d.get(\"tool_input\"),dict) else \"\"\nc=c if isinstance(c,str) else \"\"\nS=r\"(?:^|[;&|({]|\\$\\()[ \\t]*(?:(?:[A-Za-z_]\\w*=\\S*|sudo|env|command|nohup|time)[ \\t]+)*\"\nG=S+r\"git(?:[ \\t]+-[Cc][ \\t]+\\S+|[ \\t]+--[\\w-]+(?:=\\S+)?)*[ \\t]+\"\nk=\"commit\" if re.search(G+r\"commit(?=\\s|$)\",c,re.M) else \"PR\" if re.search(S+r\"gh[ \\t]+pr[ \\t]+create(?=\\s|$)\",c,re.M) else \"\"\nT={\"commit\":\"the title is `<type>(<scope>): <imperative>`, the files were staged by explicit path (never `git add -A`, `git add .` or `git commit -a`) and the body says why, what changed and the proof; fix the commit now if it falls short and is not pushed. Before a push: `git fetch`, then `git log --oneline origin/main..HEAD` lists only this branch commits; no force-push without the user OK, and then only `--force-with-lease`.\",\"PR\":\"the body states what changed, why, the trade-offs and follow-ups, whether a revert fully undoes it, each test command with its result and what it proves (`Not tested:` for what none covers) and the linked issues; complete it with `gh pr edit` if it falls short. Next: `gh pr checks <n> --watch`, then report each check by name and conclusion, a failing one first.\"}\nif k:\n    print(json.dumps({\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"ai-kit git, after this \"+k+\" (skill git): \"+T[k]}}))\n'",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -31,6 +41,16 @@
           {
             "type": "command",
             "command": "python3 -c 'import json,os,subprocess,sys,time\ntry:\n    d=json.load(sys.stdin)\nexcept Exception:\n    d={}\nd=d if isinstance(d,dict) else {}\nc=d.get(\"cwd\")\nc=os.path.realpath(c if isinstance(c,str) and c else os.getcwd())\ndef top(p):\n    while not os.path.exists(os.path.join(p,\".git\")):\n        if os.path.dirname(p)==p:\n            return None\n        p=os.path.dirname(p)\n    return p\nif d.get(\"source\")==\"compact\":\n    T=time.monotonic()+4\n    def state(r,x):\n        g=lambda *a: subprocess.run([\"git\",\"-C\",r]+list(a),stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,errors=\"replace\",timeout=max(0.1,min(2,T-time.monotonic()))).stdout.strip()\n        try:\n            s,v=g(\"status\",\"--short\",\"--branch\"),g(\"rev-parse\",\"--short\",\"HEAD\")\n        except Exception:\n            s=\"\"\n        return r+\" at \"+(v or \"no commit\")+x+\":\\n\"+(s if len(s)<=2000 else s[:2000]+\"\\n[truncated]\") if s else \"\"\n    o=[]\n    t=d.get(\"transcript_path\")\n    try:\n        with open(t if isinstance(t,str) else \"\",\"rb\") as f:\n            n=f.seek(0,2)\n            f.seek(max(0,n-4194304))\n            b=f.read().decode(\"utf-8\",\"replace\").splitlines()[1 if n>4194304 else 0:]\n    except Exception:\n        b=[]\n    q=top(c)\n    for l in reversed(b):\n        if len(o)>=2:\n            break\n        if \"tool_use\" not in l:\n            continue\n        try:\n            u=[y[\"input\"].get(\"file_path\") or y[\"input\"].get(\"notebook_path\") for y in reversed(json.loads(l)[\"message\"][\"content\"]) if y.get(\"type\")==\"tool_use\" and y.get(\"name\") in (\"Edit\",\"Write\",\"MultiEdit\",\"NotebookEdit\")]\n        except Exception:\n            continue\n        for f in u:\n            r=top(os.path.realpath(os.path.dirname(f))) if isinstance(f,str) and os.path.isabs(f) and os.path.isdir(os.path.dirname(f)) else None\n            if r and r!=q and r not in o and len(o)<2:\n                o.append(r)\n    p=[state(c,\"\")]+[state(r,\" (edited in this session)\") for r in o if T-time.monotonic()>1]\n    p=[x for x in p if x]\n    if p:\n        print(json.dumps({\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"ai-kit: git state after compaction; check the summary against it. \"+\"\\n\".join(p)}}))\n    sys.exit(0)\ng=top(c)\nif not g:\n    sys.exit(0)\nh=os.path.expanduser(\"~\")\ne=os.environ.get\nk=os.path.normcase\ninside=lambda r: k(g+os.sep).startswith(k(os.path.realpath(r).rstrip(os.sep)+os.sep))\nroots=[os.path.join(h,\"Library\",\"Mobile Documents\"),os.path.join(h,\"Library\",\"CloudStorage\")]\nroots+=[e(v) for v in (\"OneDrive\",\"OneDriveCommercial\",\"OneDriveConsumer\") if e(v)]\nfor f in (os.path.join(h,\".dropbox\",\"info.json\"),os.path.join(e(\"APPDATA\") or h,\"Dropbox\",\"info.json\"),os.path.join(e(\"LOCALAPPDATA\") or h,\"Dropbox\",\"info.json\")):\n    try:\n        roots+=[a[\"path\"] for a in json.load(open(f)).values() if isinstance(a,dict) and isinstance(a.get(\"path\"),str)]\n    except Exception:\n        pass\nif sys.platform==\"darwin\":\n    for n in (\"Documents\",\"Desktop\"):\n        f=os.path.join(h,n)\n        if not inside(f):\n            continue\n        try:\n            r=subprocess.run([\"xattr\",\"-p\",\"com.apple.file-provider-domain-id\",f],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=2)\n        except Exception:\n            continue\n        if r.returncode==0 and r.stdout.strip():\n            roots.append(f)\nhit=[r for r in roots if inside(r)]\nif hit:\n    m=\"ai-kit: \"+c+\" is inside the cloud-synced folder \"+hit[0]+\"; the sync client indexes every file under .git, which slows Git and can block moves. Move the repository out of it, for example to ~/Developer.\"\n    print(json.dumps({\"systemMessage\":m,\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":m}}))'",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "^(startup|clear)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '%s\\n' '{\"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"ai-kit session start: before the first change, name the one outcome of this session in one sentence; read the repository AGENTS.md and README; verify the working directory, Git root, branch and head commit (`git rev-parse --show-toplevel`, `git branch --show-current`, `git rev-parse HEAD`); skill `session` holds the start, handoff and closeout steps.\"}}'",
             "timeout": 5
           }
         ]
