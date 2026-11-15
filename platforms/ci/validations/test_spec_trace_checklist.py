@@ -281,6 +281,48 @@ class DefaultSpecTest(Base):
         self.assertIn("FEAT-001 T1 -> done", out)
 
 
+class MatrixWithoutJourneysTest(unittest.TestCase):
+    """`traceability.md` is required when journeys are on (`sdd.journeys`, absent = on when docs/spec/journeys/
+    exists) and kept fresh once it exists; a project with neither passes `check`, since sync-project.sh vendors
+    spec_trace.py to every project with docs/spec (sync-status needs no journeys)."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name).resolve() / "repo"
+        self.spec = self.root / "docs/spec"
+        write(self.root, "docs/spec/features/FEAT-001.md", FEAT.format(fid="FEAT-001", reqs="REQ-F-001"))
+        write(self.root, "docs/spec/requirements/functional/REQ-F-001.md",
+              REQ.format(rid="REQ-F-001", feats="FEAT-001"))
+        self.spec_md()
+
+    def spec_md(self, sdd=""):
+        write(self.root, "docs/spec/spec.md",
+              f'---\nproject: "fixture"\nversion: "0.1.0"\nupdated: "2026-10-05"\n{sdd}---\n\n# Spec\n')
+
+    def stale(self):
+        return [e for e in trace.check(trace.load(self.spec)) if "is stale or missing" in e]
+
+    def test_no_journeys_and_no_matrix_pass(self):
+        self.assertEqual(trace.check(trace.load(self.spec)), [])
+        code, out, _ = run_main("check", str(self.spec))
+        self.assertEqual(code, 0, out)
+
+    def test_journeys_on_without_a_folder_still_need_the_matrix(self):
+        self.spec_md("sdd:\n  journeys: true\n")
+        self.assertTrue(self.stale())
+
+    def test_a_journeys_folder_still_needs_the_matrix(self):
+        (self.spec / "journeys").mkdir()
+        self.assertTrue(self.stale())
+
+    def test_an_existing_matrix_stays_fresh_without_journeys(self):
+        self.assertEqual(run_main("generate", str(self.spec))[0], 0)
+        self.assertEqual(self.stale(), [])
+        write(self.root, "docs/spec/requirements/functional/REQ-F-002.md", REQ.format(rid="REQ-F-002", feats=""))
+        self.assertTrue(self.stale())  # the matrix has a row per REQ
+
+
 class ComponentPathsTest(unittest.TestCase):
     """sdd.components: a test path may be rooted at a component name or folder of this repository."""
 

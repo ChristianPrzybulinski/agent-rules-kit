@@ -1,5 +1,6 @@
-"""sync-project.sh vendors the spec tools (KIT-073): row_checks.py and pr_gates.py land in .github/spec-lint/ next
-to check_spec.py, run from there, and --check reports a missing or edited copy."""
+"""sync-project.sh vendors the spec tools (KIT-073): row_checks.py, pr_gates.py and spec_trace.py land in
+.github/spec-lint/ next to check_spec.py, also without journeys (sync-status needs none), run from there, and
+--check reports a missing or edited copy. The journey schema stays journey-gated."""
 import os
 import subprocess
 import tempfile
@@ -48,10 +49,18 @@ class VendoredSpecTools(unittest.TestCase):
                               check=False, env=dict(os.environ, CI=""))
 
     def test_the_tools_are_copied_byte_for_byte(self):
-        for name in ("row_checks.py", "pr_gates.py", "check_spec.py"):
+        for name in ("row_checks.py", "pr_gates.py", "check_spec.py", "spec_trace.py"):
             copy = self.repo / ".github" / "spec-lint" / name
             self.assertTrue(copy.is_file(), name)
             self.assertEqual(copy.read_bytes(), (KIT / "platforms/ci/validations" / name).read_bytes(), name)
+        self.assertFalse((self.repo / ".github/spec-lint/schemas/journey.schema.json").exists())
+
+    def test_the_vendored_spec_trace_runs_without_journeys(self):
+        for args in (["check"], ["status"], ["sync-status", "--help"]):
+            done = subprocess.run(["python3", ".github/spec-lint/spec_trace.py", *args], cwd=self.repo,
+                                  capture_output=True, text=True, check=False)
+            self.assertEqual(done.returncode, 0, f"{args}: {done.stdout}{done.stderr}")
+        self.assertFalse((self.repo / "docs/spec/traceability.md").exists())
 
     def test_the_vendored_row_checks_run_from_the_copy(self):
         done = subprocess.run(["python3", ".github/spec-lint/row_checks.py", "check", "FEAT-001"], cwd=self.repo,
@@ -71,6 +80,12 @@ class VendoredSpecTools(unittest.TestCase):
         copy.write_text(original)  # --check stops at the first divergence
         (self.repo / ".github" / "spec-lint" / "pr_gates.py").unlink()
         self.assertIn("pr_gates.py missing", self.sync("--check").stdout)
+
+    def test_check_reports_a_missing_spec_trace_without_journeys(self):
+        (self.repo / ".github" / "spec-lint" / "spec_trace.py").unlink()
+        done = self.sync("--check")
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("spec_trace.py missing", done.stdout)
 
 
 if __name__ == "__main__":
