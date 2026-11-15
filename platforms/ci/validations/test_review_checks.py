@@ -7,6 +7,7 @@ builds a throwaway Git repository."""
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -212,6 +213,13 @@ def symlink_commit(repo, rel, target, message, **files):
     path.unlink()
     if target is not None:
         os.symlink(target, path)
+    return repo.commit(message, **files)
+
+
+def link_folder_commit(repo, rel, target, message, **files):
+    """Commit the folder `rel` replaced by a symlink to `target`, plus `files`."""
+    shutil.rmtree(repo.root / rel)
+    os.symlink(target, repo.root / rel)
     return repo.commit(message, **files)
 
 
@@ -803,7 +811,7 @@ class RulesFromBaseTest(ToolCase):
                   (1, "calc.py.bak is outside Files")),
     }
     CASES = ("alias", "alias-deleted", "relative", "dotdot", "leaf-dev-null", "leaf-outside", "deleted", "edit",
-             "outside", "first-pr")
+             "outside", "first-pr", "parent-outside", "parent-in-repo", "parent-absent", "grandparent")
 
     def run_case(self, kind, case):
         rules, strict, loose, code, _ = self.KINDS[kind]
@@ -813,19 +821,34 @@ class RulesFromBaseTest(ToolCase):
         # a file outside the repository: the loosened rules, except for `outside`, where its rules must show
         outside = tmp / f"{kind}-{case}-{rules}"
         outside.write_text((strict if kind == "dod" else loose) if case == "outside" else loose, encoding="utf-8")
+        # the parent cases keep the rules in a folder the head relinks: outside, to a looser in-repo folder, to a folder
+        # base lacks, or one level up (the grandparent)
+        nested = case.startswith(("parent", "grandparent"))
+        rel = f"conf/sub/{rules}" if case == "grandparent" else f"conf/{rules}" if nested else rules
+        folder = tmp / f"{kind}-{case}-folder"
+        (folder / "sub").mkdir(parents=True)
+        (folder / rules).write_text(loose, encoding="utf-8")
+        (folder / "sub" / rules).write_text(loose, encoding="utf-8")
         base_files = {"calc.py": CALC, "tests__test_add.py": TEST_ADD}
         if case not in ("outside", "first-pr"):
-            base_files[rules] = strict
+            base_files[rel] = strict
+        if case == "parent-in-repo":
+            base_files[f"looser/{rules}"] = loose
         base = self.repo.commit("base", **base_files)
         links = {"leaf-dev-null": "/dev/null", "leaf-outside": str(outside), "deleted": None, "alias-deleted": None}
-        if case in links:
+        folders = {"parent-outside": str(folder), "parent-in-repo": "looser", "parent-absent": "fresh",
+                   "grandparent": str(folder)}
+        if case in folders:
+            extra = {f"fresh/{rules}": loose} if case == "parent-absent" else {}
+            head = link_folder_commit(self.repo, "conf", folders[case], case, **extra, **code)
+        elif case in links:
             head = symlink_commit(self.repo, rules, links[case], case, **code)
         elif case == "outside":
             head = self.repo.commit(case, **code)
         else:  # the head writes the rules that would flip the outcome if the tool read them
             flip = strict if (case == "first-pr" and kind == "dod") else loose
             head = self.repo.commit(case, **{rules: flip}, **code)
-        repo, cwd, path = str(root), None, str(root / rules)
+        repo, cwd, path = str(root), None, str(root / rel)
         if case.startswith("alias"):
             alias = tmp / f"{case}-{kind}"
             os.symlink(tmp, alias)
@@ -837,7 +860,8 @@ class RulesFromBaseTest(ToolCase):
         elif case == "outside":
             path = str(outside)
         argv = (["dod", "--base", base, "--head", head, "--review", path] if kind == "dod" else
-                ["scope", "--base", base, "--head", head, "--files", "calc.py", rules, "--gates", path])
+                ["scope", "--base", base, "--head", head, "--files", "calc.py", rel, "conf", "conf/**", "fresh/**",
+                 "--gates", path])
         return self.run_tool(*argv, repo=repo, cwd=cwd)
 
     def expected(self, kind, case):
@@ -861,6 +885,33 @@ class RulesFromBaseTest(ToolCase):
 
     def test_scope_reads_its_rules_as_base_has_them(self):
         self.check_matrix("scope")
+
+    def test_a_rules_path_that_names_a_folder_is_a_usage_error(self):
+        base = self.repo.commit("conf", **{"conf/keep.txt": "kept\n"})
+        head = self.repo.commit("todo", **{"calc.py": CALC_SUB + "\n# TODO: handle overflow\n"})
+        elsewhere = Path(self.tmp.name) / "elsewhere"
+        elsewhere.mkdir()
+        for name, path in (("in-repo", str(self.repo.root / "conf")), ("outside", str(elsewhere))):
+            for argv in (["dod", "--review", path], ["scope", "--files", "calc.py", "--gates", path]):
+                with self.subTest(folder=name, command=argv[0]):
+                    code, out = self.run_tool(argv[0], "--base", base, "--head", head, *argv[1:])
+                    self.assertNotIn("Traceback", out)
+                    self.assertEqual(code, 2, out)
+
+
+class DiffDecodingTest(ToolCase):
+    def test_a_diff_line_that_is_not_utf8_is_read_not_a_crash(self):
+        (self.repo.root / "notes.txt").write_bytes(b"caf\xe9 TODO: decide the default\n")
+        head = self.repo.commit("latin-1 notes")
+        review = Path(self.tmp.name) / "REVIEW.md"
+        review.write_text(REVIEW, encoding="utf-8")
+        code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", str(review))
+        self.assertNotIn("Traceback", out)
+        self.assertEqual(code, 1, out)
+        self.assertIn("No TODO left behind", out)
+        code, out = self.run_tool("scope", "--base", self.base, "--head", head, "--files", "notes.txt")
+        self.assertNotIn("Traceback", out)
+        self.assertEqual(code, 0, out)
 
 
 class DodTest(ToolCase):
