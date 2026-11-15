@@ -206,3 +206,9 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   `realpath`, which follows a committed folder link). Now only the part in front of the repository is resolved: the
   shortest prefix that is the repository's folder ends it and the rest stays lexical, so no committed link moves the
   path. A rules path that names a folder exits 2; diff text that is not UTF-8 is decoded with replacement.
+- 2026-11-15: the four sibling holes, coordinator's call on `ca13b6c` (the head decided what the checks see): an
+  in-repo `--patterns` file is read from base like `--gates` and `--review` (`proof` needs `--base` for one); diffs
+  use raw file names (`core.quotePath=false`, C-quoting decoded, `-z` for name lists) and `--text --no-textconv
+  --no-ext-diff`; a deleted test file's assertions count as dropped, a rename (`-M`) does not. Found while rewriting
+  the parser: an added line `++ x` read as a file header hid the rest of its file; headers are now read only between
+  `diff --git` and the first hunk.
