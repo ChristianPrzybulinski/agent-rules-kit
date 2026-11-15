@@ -108,6 +108,10 @@ platforms/ci/validations -p 'test_*.py'` ran 550 tests, OK (skipped=5); the touc
 fail on base for the missing behavior (`--rules` unrecognized, no nested `godot/` folder, no `InstructionsLoaded`
 hook).
 
+Review round 1, on `e15eae4`: `check.sh` and `CI=1 check.sh` exit 0, `check_kit.py --links` exit 0, `smoke.sh` exit 0,
+the full unit discovery ran 554 tests, OK (skipped=5), gitleaks found no leaks, and `review_checks.py red --base 00d8123
+--head HEAD` printed `red: OK — 10 of 10 failing tests are Red on base, and head passes` (all assertions).
+
 ## History
 
 - 2026-11-14: confirmed (owner, chat of the SDD review session).
