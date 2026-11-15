@@ -16,6 +16,11 @@
                                        `release: merge` (spec.md `sdd:`, the default)
   spec_trace.py deliver SPEC FEAT-NNN --in VERSION
                                        sdd-release: `validated` to `delivered`
+  spec_trace.py lint SPEC [FEAT-NNN]   sdd-review's closure lint on FEAT-NNN, or on every validated or
+                                       delivered FEAT: stale markers ("Not verified", an Audit "Pending",
+                                       [PROPOSAL] in Scope, [HYPOTHESIS] in Open questions or a done row,
+                                       "until/once Tn" with Tn done, a Plan row count that differs from the
+                                       table) and each listed REQ's proving test missing from its trace row
 
 Options (before the command): `--repo NAME` (repeatable) adds a clone name a `Proven by` test path may
 be rooted at, and `--date` fixes the date written by mark-done/status --write/validate/deliver (default: today).
@@ -606,6 +611,89 @@ def validate(spec, fid, ref, today, check_only):
     return 0
 
 
+NUMBER_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+                "eleven": 11, "twelve": 12}
+ROW_COUNT = re.compile(r"\b(\d+|" + "|".join(NUMBER_WORDS) + r")\s+(?:task\s+)?rows\b", re.I)
+CONDITIONAL = re.compile(r"\b(until|once)\s+(?:(FEAT-\d{3,})\s+)?(T\d+)\b", re.I)
+
+
+def sections(body):
+    """{heading: text} of a markdown body split on `## ` headings, HTML comments removed."""
+    out, current = {}, None
+    for line in re.sub(r"(?s)<!--.*?-->", "", body).splitlines():
+        if line.startswith("## "):
+            current = line[3:].strip()
+            out[current] = []
+        elif current is not None:
+            out[current].append(line)
+    return {k: "\n".join(v) for k, v in out.items()}
+
+
+def proving_tokens(path):
+    """The tests a REQ's `Proving test` line names: backticked names reduced to their stem, else task refs."""
+    text = path.read_text(encoding="utf-8")
+    match = re.search(r"(?ms)^- Proving test:(.*?)(?=^- |^#|\Z)", text)
+    if not match:
+        return []
+    spans = BACKTICKED.findall(match.group(1))
+    if spans:
+        return [Path(span.split()[0]).name.split(".")[0] for span in spans if span.split()]
+    return TASK_REF.findall(match.group(1))
+
+
+def lint_feat(spec, fid):
+    """Stale markers and trace gaps on one FEAT."""
+    feat = spec.feats[fid]
+    _, body = split_frontmatter(feat["path"].read_text(encoding="utf-8"))
+    secs, found = sections(body), []
+    for title, text in secs.items():
+        for line in text.splitlines():
+            if "Not verified" in line:
+                found.append(f"{fid}: 'Not verified' left in {title}: {line.strip()}")
+    if re.search(r"\bpending\b", secs.get("Audit", ""), re.I):
+        found.append(f"{fid}: Audit still says Pending")
+    found += [f"{fid}: [PROPOSAL] in Scope: {line.strip()}" for line in secs.get("Scope", "").splitlines()
+              if "[PROPOSAL]" in line]
+    found += [f"{fid}: [HYPOTHESIS] in Open questions: {line.strip()}"
+              for line in secs.get("Open questions", "").splitlines() if "[HYPOTHESIS]" in line]
+    found += [f"{fid}: [HYPOTHESIS] in done row {tid}" for tid, row in feat["tasks"].items()
+              if "[HYPOTHESIS]" in row and feat["task_status"].get(tid) in ROW_CLOSED]
+    for title, text in secs.items():
+        if title == "History":
+            continue
+        for m in CONDITIONAL.finditer(text):
+            other = spec.feats.get(m.group(2) or fid, {})
+            state = other.get("task_status", {}).get(m.group(3))
+            if state in ROW_CLOSED:
+                found.append(f"{fid}: '{m.group(1)} {m.group(3)}' but {m.group(3)} is {state} ({title}): rewrite it as "
+                             "the current fact or delete it")
+    for m in ROW_COUNT.finditer(secs.get("Plan", "")):
+        said = int(m.group(1)) if m.group(1).isdigit() else NUMBER_WORDS[m.group(1).lower()]
+        if said != len(feat["tasks"]):
+            found.append(f"{fid}: Plan says {said} rows, the task table has {len(feat['tasks'])}")
+    if spec.journeys:
+        for rid in feat["requirements"]:
+            if rid not in spec.reqs:
+                continue
+            cell = tests_of([s for s in spec.steps if rid in s.rules])
+            for token in proving_tokens(spec.reqs[rid]["path"]):
+                if cell == "—":
+                    found.append(f"{rid}: its trace row lists no test (proving test {token}, {fid})")
+                    break
+                if token not in cell:
+                    found.append(f"{rid}: proving test {token} is not in its trace row ({cell})")
+    return found
+
+
+def lint(spec, fid):
+    """The closure lint on fid, or on every validated or delivered FEAT; returns the exit code."""
+    if fid and fid not in spec.feats:
+        raise SystemExit(f"{fid} is not a FEAT in {spec.spec_dir}")
+    targets = [fid] if fid else [f for f, feat in spec.feats.items() if feat["status"] in STATUS_CLOSED]
+    found = [line for target in targets for line in lint_feat(spec, target)]
+    return report(found, f"spec-trace lint: OK ({len(targets)} FEATs)")
+
+
 def deliver(spec, fid, ref, today):
     """sdd-release's status move; returns the exit code."""
     feat = spec.feats.get(fid)
@@ -750,6 +838,9 @@ def main(argv=None):
     release.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
     release.add_argument("feat")
     release.add_argument("--in", dest="version", required=True, help="the release that delivered it")
+    linting = sub.add_parser("lint")
+    linting.add_argument("spec", type=Path, help="the spec directory (e.g. docs/spec)")
+    linting.add_argument("feat", nargs="?", help="the FEAT to lint (default: every validated or delivered one)")
     args = parser.parse_args(argv)
     today = args.date or datetime.date.today().isoformat()
 
@@ -774,6 +865,8 @@ def main(argv=None):
         return validate(spec, args.feat, args.at, today, args.check)
     if args.command == "deliver":
         return deliver(spec, args.feat, args.version, today)
+    if args.command == "lint":
+        return lint(spec, args.feat)
     if args.command == "impact":
         print(render_impact(changes(spec, args.base, args.head)), end="")
         return 0

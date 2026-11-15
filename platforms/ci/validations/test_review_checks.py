@@ -99,7 +99,7 @@ reports.mkdir(exist_ok=True)
 sys.exit(0 if ok else 1)
 """
 WIDGET_TEST = "class WidgetTest { @Test void sums() { assertEquals(3, new Widget().sum()); } }\n"
-FAKE_GODOT = "#!/bin/sh\necho 'ERROR: Can\'t load script: tools/build.gd'\nexit 0\n"
+FAKE_GODOT = "#!/bin/sh\necho \"ERROR: Can't load script: tools/build.gd\"\nexit 0\n"
 
 BODY = """\
 ## What
