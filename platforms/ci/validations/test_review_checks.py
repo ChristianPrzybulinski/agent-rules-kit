@@ -682,8 +682,8 @@ class FeatProofsTest(ToolCase):
         self.assertNotIn("exit 1", out)
 
     def test_cancelled_row_is_skipped_like_a_superseded_one(self):
-        self.feat.write_text(FEAT_PROOFS + "| T5 | dropped | `y/**` | `python3 -c \"import sys; sys.exit(1)\"` | cancelled |\n",
-                             encoding="utf-8")
+        cancelled = "| T5 | dropped | `y/**` | `python3 -c \"import sys; sys.exit(1)\"` | cancelled |\n"
+        self.feat.write_text(FEAT_PROOFS + cancelled, encoding="utf-8")
         code, out = self.proofs("--rows", "T5")
         self.assertEqual(code, 0, out)
         self.assertIn("T5: cancelled, skipped", out)

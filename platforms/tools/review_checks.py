@@ -30,13 +30,14 @@ Rules files inside the repository (--gates, --review) are read as --base has the
 cannot loosen its own rules; a file outside the repository is read from disk. Every run is its own process group,
 and a timeout kills the whole group.
 
-A proof re-run first checks that every path the command names exists (`res://` against Godot's `--path`) (a moved file is a stale proof, not a failure
-of the code), then fails a run whose output matches its stack's failure pattern even when it exits 0 (a Godot `-s`
-run that cannot load its script exits 0). STACKS holds the patterns; --patterns FILE (JSON, same shape) extends them.
+A proof re-run first checks that every path the command names exists, `res://` against Godot's `--path` (a moved
+file is a stale proof, not a failure of the code), then fails a run whose output matches its stack's failure pattern
+even when it exits 0 (a Godot `-s` run that cannot load its script exits 0). STACKS holds the patterns; --patterns
+FILE (JSON, same shape) extends them.
 
 Exit 0 when nothing was found (red: OK or EXEMPT), 1 on a finding (FAIL, NONE, a stale or failed proof, a line not
-run), 3 when red only flags what the reviewer must judge, 2 on a usage error or a red run where no test ran. Scope, proof-block and allowlist rules
-are pr_gates.py's, imported so the CI gate and this tool agree.
+run), 3 when red only flags what the reviewer must judge, 2 on a usage error or a red run where no test ran. Scope,
+proof-block and allowlist rules are pr_gates.py's, imported so the CI gate and this tool agree.
 """
 from __future__ import annotations
 
@@ -345,8 +346,8 @@ def red(args) -> int:
     print(f"red: PR test files: {', '.join(tests)}")
     groups, uncovered = red_groups(tests, gates_config(args).get("red", []), args.run)
     if uncovered:
-        print(f"red: ERROR — no test command for {', '.join(uncovered)}: add a `red` entry (glob, cwd, command) to the "
-              "gates config, or pass --run")
+        print(f"red: ERROR — no test command for {', '.join(uncovered)}: add a `red` entry (glob, cwd, command) "
+              "to the gates config, or pass --run")
         return 2
     for cwd, command, _ in groups:
         print(f"red: run in {cwd}: {command}")
