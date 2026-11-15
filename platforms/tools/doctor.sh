@@ -404,7 +404,7 @@ for plugin_id, entries in (records.items() if isinstance(records, dict) else [])
         if isinstance(path, str) and os.path.isfile(os.path.join(path, ".claude", "skills", "KIT_MANIFEST.json")):
             projects.add(path)
 def trust_root(path):
-    """The key Claude Code keeps the folder's trust under: the main checkout root, or the folder outside git."""
+    """Where Claude Code records trust for the folder: the main checkout root, or the folder itself outside git."""
     try:
         common = subprocess.run(["git", "-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"],
                                 capture_output=True, text=True, check=True).stdout.strip()
