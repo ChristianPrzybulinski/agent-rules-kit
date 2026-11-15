@@ -4,7 +4,7 @@ title: "Claude Code and Codex load the cross-cutting skills at their events, by 
 status: confirmed
 confirmed: "2026-11-14 (owner, chat of the KIT-067 design session: the skill-usage plan, relayed to the implementing session as items 1-7)"
 issue: "#233"
-pr: ""
+pr: "#235"
 ---
 
 # KIT-071 — Claude Code and Codex load the cross-cutting skills at their events, by trigger lines, hooks, preload and a rule, and the kit measures it
