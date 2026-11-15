@@ -96,6 +96,9 @@ STACKS = {
 }
 # A red command template: `{tests}` (paths relative to the entry's cwd), `{res}` (the same as `res://` paths) and
 # `{classes}` (file stems, comma-joined); a prefix inside the braces repeats before each item: `{-a res}`.
+# The run's own summary follows its last separator line (unittest's dashes, a pytest `===` line); a runner report a
+# failure message quotes comes before it.
+SUMMARY_START = re.compile(r"^(-{20,}|={3,}.*)$", re.M)
 TEMPLATE_ARG = re.compile(r"\{(?:([^{}\s]+) )?(tests|classes|res)\}")
 ASSERTION = re.compile(r"\bassert|\bexpect\(|\bshould\b|\bverify\(|\bcheck\(")
 TEST_DEF = re.compile(r"^\s*(def|func)\s+test|@Test\b|@ParameterizedTest\b|\b(it|test)\s*\(")
@@ -236,24 +239,34 @@ def red_groups(tests: list[str], entries: list[dict], run: str | None) -> tuple[
     return groups, rest
 
 
-def run_side(tree: Path, groups, timeout: int) -> tuple[int | str, str]:
-    """Run every group in its folder of the tree; the first failing exit code, and the outputs joined."""
-    code, outputs = 0, []
+def run_side(tree: Path, groups, timeout: int) -> tuple[int | str, str, list]:
+    """Run every group in its folder of the tree; the first failing exit code, the outputs joined, and each group's
+    (command, exit code, output)."""
+    code, outputs, parts = 0, [], []
     for cwd, command, _ in groups:
         part_code, part_out = run_group(["/bin/sh", "-c", command], tree / cwd, timeout)
+        parts.append((command, part_code, part_out))
         outputs.append(part_out if len(groups) == 1 else f"== {cwd}: {command}\n{part_out}")
         if code == 0 and part_code != 0:
             code = part_code
-    return code, "\n".join(outputs)
+    return code, "\n".join(outputs), parts
 
 
-def no_test_ran(code, output: str, groups, stacks: dict) -> str:
-    """Why a run ran no test (a command that cannot start, or a stack's no-test line), or ''."""
-    if code in (126, 127):
-        return f"exit {code}: the command could not start"
-    for _, command, _ in groups:
+def own_summary(output: str) -> str:
+    """The output from its last separator line on: the run's own summary (SUMMARY_START)."""
+    starts = [m.start() for m in SUMMARY_START.finditer(output)]
+    return output[starts[-1]:] if starts else output
+
+
+def no_test_ran(parts, stacks: dict) -> str:
+    """Why a run ran no test (a command that cannot start, or a stack's no-test line in a group's own summary), or
+    ''."""
+    for command, code, output in parts:
+        if code in (126, 127):
+            return f"exit {code}: the command could not start"
+        tail = own_summary(output)
         for rules in stacks_for(command, stacks):
-            hit = next((p for p in rules.get("no_tests", []) if re.search(p, output)), None)
+            hit = next((p for p in rules.get("no_tests", []) if re.search(p, tail)), None)
             if hit:
                 return f"its output matches {hit!r}"
     return ""
@@ -350,8 +363,8 @@ def red(args) -> int:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(subprocess.run(["git", "show", f"{args.head}:{path}"], cwd=repo, check=True,
                                                       capture_output=True).stdout)
-            exit_code, output = run_side(tree, groups, args.timeout)
-            results[side] = (exit_code, output, junit_cases(tree, args.junit))
+            exit_code, output, parts = run_side(tree, groups, args.timeout)
+            results[side] = (exit_code, output, junit_cases(tree, args.junit), parts)
             sha = git(repo, "rev-parse", "--short", rev).strip()
             print(f"red: {side} {sha}{' + PR test files' if side == 'base' else ''}: exit {exit_code}")
     finally:
@@ -359,11 +372,12 @@ def red(args) -> int:
             subprocess.run(["git", "worktree", "remove", "--force", str(tree)], cwd=repo, capture_output=True)
         subprocess.run(["git", "worktree", "prune"], cwd=repo, capture_output=True)
         shutil.rmtree(tmp, ignore_errors=True)
-    (base_code, base_out, base_cases), (head_code, head_out, _) = results["base"], results["head"]
+    base_code, base_out, base_cases, base_parts = results["base"]
+    head_code, head_out, _, head_parts = results["head"]
     print(f"red: base output, last {EXCERPT_LINES} lines")
     print(excerpt(base_out))
-    for side, code_, output in (("base", base_code, base_out), ("head", head_code, head_out)):
-        why = no_test_ran(code_, output, groups, stacks)
+    for side, parts, output in (("base", base_parts, base_out), ("head", head_parts, head_out)):
+        why = no_test_ran(parts, stacks)
         if why:
             print(f"red: ERROR — no test ran on {side} ({why}): fix the test command or the gates config; this is no "
                   f"verdict on the PR\n{excerpt(output)}")
