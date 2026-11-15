@@ -505,20 +505,43 @@ class StatusTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("FEAT-001: status='clarified' but its task rows imply 'in-progress'", err)
 
-    def test_write_derives_in_progress_then_delivered(self):
+    def test_write_derives_in_progress_and_stops_there_when_every_row_is_done(self):
+        """KIT-069: rows imply in-progress at most; validated is sdd-review's, delivered sdd-release's."""
         self.feat(status="clarified", t1="done")
         self.run_main("status", str(self.spec), "--write")
         self.assertIn("status: in-progress\n", self.text())
         self.assertIn('updated: "2026-10-06"', self.text())
         self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
         self.feat(status="in-progress", t1="done", t2="done")
-        self.run_main("status", str(self.spec), "--write")
-        self.assertIn("status: delivered\n", self.text())
         self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
+        self.run_main("status", str(self.spec), "--write")
+        self.assertIn("status: in-progress\n", self.text())
+
+    def test_planned_feat_with_every_row_done_derives_in_progress(self):
+        self.feat(status="planned", t1="done", t2="done")
+        code, _, err = self.run_main("status", str(self.spec))
+        self.assertEqual(code, 1)
+        self.assertIn("FEAT-001: status='planned' but its task rows imply 'in-progress'", err)
 
     def test_cancelled_feat_is_never_rewritten(self):
         self.feat(status="cancelled", t1="done")
         self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
+
+    def test_validated_or_delivered_feat_is_never_rewritten_by_rows(self):
+        for status in ("validated", "delivered"):
+            with self.subTest(status=status):
+                self.feat(status=status, t1="done", t2="done")
+                self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
+                self.run_main("status", str(self.spec), "--write")
+                self.assertIn(f"status: {status}\n", self.text())
+
+    def test_validated_or_delivered_feat_with_an_open_row_fails(self):
+        for status in ("validated", "delivered"):
+            with self.subTest(status=status):
+                self.feat(status=status, t1="done", t2="todo")
+                code, _, err = self.run_main("status", str(self.spec))
+                self.assertEqual(code, 1)
+                self.assertIn(f"FEAT-001: status={status!r} but T2 is 'todo'", err)
 
 
 CORPUS = os.environ.get("SPEC_TRACE_CORPUS")

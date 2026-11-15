@@ -1,0 +1,243 @@
+"""spec_trace.py validate and deliver (KIT-069): the only writers of FEAT `validated` and `delivered`.
+
+`validate` is sdd-review's: every task row done, a `## Closure` record written, and every step of a journey that a NEED
+listing the FEAT names cites its tasks and tests; it moves the FEAT to `validated`, or straight to `delivered` under
+`release: merge` (the default). `deliver` is sdd-release's: `validated` to `delivered`. A FEAT reaching `delivered`
+moves each NEED whose listed FEATs are now all delivered to `delivered` too."""
+import contextlib
+import io
+import subprocess
+import sys
+import tempfile
+import textwrap
+import unittest
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import spec_trace as trace  # noqa: E402
+
+SPEC_INDEX = """\
+---
+project: "Fixture"
+version: "0.1.0"
+updated: "2026-11-14"
+{sdd}---
+
+# Spec
+"""
+
+FEAT = """\
+---
+id: {fid}
+title: "Fixture feature {fid}"
+status: {status}
+requirements: [{reqs}]
+created: "2026-11-01"
+updated: "2026-11-01"
+---
+
+# {fid}
+
+## Tasks
+
+| ID | Task | Files | Status |
+|---|---|---|---|
+| T1 | first | `a/**` | {t1} |
+| T2 | second | `b/**` | {t2} |
+
+## Closure
+
+{closure}
+
+## History
+
+- 2026-11-01 plan: created from NEED-001.
+"""
+
+REQ = """\
+---
+id: {rid}
+title: "Fixture rule {rid}"
+type: functional
+status: approved
+priority: must
+features: [{feats}]
+created: "2026-11-01"
+---
+
+# {rid}
+"""
+
+NEED = """\
+---
+id: {nid}
+title: "Fixture need {nid}"
+type: improvement
+status: refined
+origin: "owner"
+requirements: [{reqs}]
+journeys: [J-01]
+features: [{feats}]
+created: "2026-11-01"
+updated: "2026-11-01"
+---
+
+# {nid}
+
+## History
+
+- 2026-11-01 intake: recorded.
+"""
+
+JOURNEY = """\
+---
+id: J-01
+title: "Fixture journey"
+status: approved
+owner: product
+created: "2026-11-01"
+updated: "2026-11-01"
+---
+
+# J-01
+
+| Step | Player action → visible result | Rules | Implemented by | Proven by |
+|---|---|---|---|---|
+| S1 | opens | REQ-F-001 | FEAT-001 T1 | FEAT-001 T2 |
+| S2 | confirms | — | {s2_tasks} | {s2_tests} |
+"""
+
+CLOSURE = "Main: 1a2b3c4 · 2026-11-14 · outcome validated"
+
+
+def write(root, rel, text):
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(textwrap.dedent(text), encoding="utf-8")
+    return path
+
+
+class ClosureCommandTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "game-docs"
+        self.spec = self.root / "docs/spec"
+        self.fixture()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def fixture(self, release=None, status="in-progress", t2="done", closure=CLOSURE, s2_tasks="FEAT-001 T2",
+                s2_tests="manual: look at it", need_feats="FEAT-001"):
+        sdd = f"sdd:\n  release: {release}\n" if release else ""
+        write(self.root, "docs/spec/spec.md", SPEC_INDEX.format(sdd=sdd))
+        write(self.root, "docs/spec/features/FEAT-001.md",
+              FEAT.format(fid="FEAT-001", status=status, reqs="REQ-F-001", t1="done", t2=t2, closure=closure))
+        write(self.root, "docs/spec/features/FEAT-002.md",
+              FEAT.format(fid="FEAT-002", status="in-progress", reqs="REQ-F-002", t1="done", t2="todo", closure=""))
+        write(self.root, "docs/spec/requirements/functional/REQ-F-001.md", REQ.format(rid="REQ-F-001", feats="FEAT-001"))
+        write(self.root, "docs/spec/requirements/functional/REQ-F-002.md", REQ.format(rid="REQ-F-002", feats="FEAT-002"))
+        reqs = "REQ-F-001, REQ-F-002" if "FEAT-002" in need_feats else "REQ-F-001"
+        write(self.root, "docs/spec/needs/NEED-001-fixture.md", NEED.format(nid="NEED-001", reqs=reqs, feats=need_feats))
+        write(self.root, "docs/spec/journeys/J-01.md", JOURNEY.format(s2_tasks=s2_tasks, s2_tests=s2_tests))
+
+    def run_main(self, *argv):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = trace.main(["--date", "2026-11-14", *argv])
+        return code, out.getvalue() + err.getvalue()
+
+    def feat_text(self, fid="FEAT-001"):
+        return (self.spec / f"features/{fid}.md").read_text(encoding="utf-8")
+
+    def need_text(self):
+        return (self.spec / "needs/NEED-001-fixture.md").read_text(encoding="utf-8")
+
+    def validate(self, *extra):
+        return self.run_main("validate", str(self.spec), "FEAT-001", "--at", "1a2b3c4", *extra)
+
+    def test_validate_under_release_manual_sets_validated(self):
+        self.fixture(release="manual")
+        code, out = self.validate()
+        self.assertEqual(code, 0, out)
+        self.assertIn("status: validated\n", self.feat_text())
+        self.assertIn('updated: "2026-11-14"', self.feat_text())
+        self.assertIn("- 2026-11-14 sdd-review: validated at 1a2b3c4\n", self.feat_text())
+        self.assertIn("status: refined\n", self.need_text())
+
+    def test_validate_under_release_merge_delivers_the_feat_and_its_need(self):
+        code, out = self.validate()
+        self.assertEqual(code, 0, out)
+        self.assertIn("status: delivered\n", self.feat_text())
+        self.assertIn("- 2026-11-14 sdd-review: delivered at 1a2b3c4 (release: merge)\n", self.feat_text())
+        self.assertIn("status: delivered\n", self.need_text())
+        self.assertIn("- 2026-11-14 sdd-review: delivered (FEAT-001)\n", self.need_text())
+
+    def test_validate_refuses_a_row_not_done(self):
+        self.fixture(t2="todo")
+        before = self.feat_text()
+        code, out = self.validate()
+        self.assertEqual(code, 1, out)
+        self.assertIn("FEAT-001 T2 is todo", out)
+        self.assertEqual(self.feat_text(), before)
+
+    def test_validate_refuses_without_a_closure_record(self):
+        self.fixture(closure="<!-- sdd-review writes the closure record here -->")
+        code, out = self.validate()
+        self.assertEqual(code, 1, out)
+        self.assertIn("## Closure", out)
+
+    def test_validate_refuses_a_journey_step_still_pending(self):
+        self.fixture(s2_tasks="—", s2_tests="—")
+        code, out = self.validate()
+        self.assertEqual(code, 1, out)
+        self.assertIn("J-01 S2", out)
+        self.assertIn("NEED-001", out)
+
+    def test_validate_check_reports_and_writes_nothing(self):
+        before = self.feat_text()
+        code, out = self.validate("--check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ready to validate", out)
+        self.assertEqual(self.feat_text(), before)
+
+    def test_validate_refuses_a_feat_already_cancelled(self):
+        self.fixture(status="cancelled")
+        code, out = self.validate()
+        self.assertEqual(code, 1, out)
+        self.assertIn("cancelled", out)
+
+    def test_deliver_moves_validated_to_delivered(self):
+        self.fixture(release="manual", status="validated")
+        code, out = self.run_main("deliver", str(self.spec), "FEAT-001", "--in", "v1.4.0")
+        self.assertEqual(code, 0, out)
+        self.assertIn("status: delivered\n", self.feat_text())
+        self.assertIn("- 2026-11-14 sdd-release: delivered in v1.4.0\n", self.feat_text())
+        self.assertIn("status: delivered\n", self.need_text())
+        self.assertIn("- 2026-11-14 sdd-release: delivered (FEAT-001)\n", self.need_text())
+
+    def test_deliver_leaves_a_need_whose_other_feat_is_open(self):
+        self.fixture(release="manual", status="validated", need_feats="FEAT-001, FEAT-002")
+        code, out = self.run_main("deliver", str(self.spec), "FEAT-001", "--in", "v1.4.0")
+        self.assertEqual(code, 0, out)
+        self.assertIn("status: delivered\n", self.feat_text())
+        self.assertIn("status: refined\n", self.need_text())
+
+    def test_deliver_refuses_a_feat_sdd_review_has_not_validated(self):
+        code, out = self.run_main("deliver", str(self.spec), "FEAT-001", "--in", "v1.4.0")
+        self.assertEqual(code, 1, out)
+        self.assertIn("sdd-review", out)
+        self.assertIn("status: in-progress\n", self.feat_text())
+
+    def test_check_spec_accepts_what_validate_wrote(self):
+        self.fixture(release="manual")
+        self.assertEqual(self.validate()[0], 0)
+        self.assertEqual(self.run_main("deliver", str(self.spec), "FEAT-001", "--in", "v1.4.0")[0], 0)
+        result = subprocess.run([sys.executable, str(HERE / "check_spec.py"), str(self.spec),
+                                 str(HERE.parent / "schemas")], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
