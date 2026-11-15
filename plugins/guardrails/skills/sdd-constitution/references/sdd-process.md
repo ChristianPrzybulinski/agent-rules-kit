@@ -39,7 +39,7 @@ A NEED moves `proposed → triaged → specified → refined → delivered`, or 
 
 Two regimes, after Böckeler/Thoughtworks (2025-10: spec-first, spec-anchored, spec-as-source; the kit has no spec-as-source):
 - spec-anchored: maintained and validated for the life of the product: `protocol/` schemas and examples, content schemas, decisions, requirements (REQ-F/REQ-NF), journeys (where the project has them) and the `spec.md` index. Every change is a reviewed PR.
-- spec-first: NEED files, FEAT bodies, task tables and `TASK-nnn` files. Written to frame and cut the work, frozen as history once delivered or closed; FEAT `status` and task `Status` are derived by tooling from the items, never edited by hand.
+- spec-first: NEED files, FEAT bodies, task tables and `TASK-nnn` files. Written to frame and cut the work, frozen as history once delivered or closed; task `Status` and FEAT `status` up to `in-progress` are derived by tooling from the items, `validated` and `delivered` are written by `spec_trace.py validate`/`deliver`, and none is edited by hand.
 
 ## Project layout
 

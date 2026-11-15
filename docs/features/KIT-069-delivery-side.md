@@ -106,7 +106,8 @@ Claude ran independent checks at once without loading the skill. Issue #240 send
   `platforms/ci/README.md`, `INDEX.md`.
 
 Consumer adoption: a project resyncs, then adds `- YYYY-MM-DD delivered before sdd-review` to each FEAT already
-`delivered`, or `check_spec.py` refuses it; FEATs at `in-progress` with every row done stay there until `sdd-review`.
+`delivered`, or runs `check_spec.py --baseline-init` once so `baseline.json` holds those `feature-closure` findings
+(each legacy line added later shrinks it); otherwise `check_spec.py` refuses them; FEATs at `in-progress` with every row done stay there until `sdd-review`.
 
 After KIT-068 (#244) merged: `session/references/handoff-record.md` and `templates/doc-session-handoff.md` read the
 rows' items (issues, or TASK files) instead of the progress file, which stays only for FEATs cut before KIT-068.
@@ -134,6 +135,15 @@ The owner's adjustment 2: `KIT-069-CALIBRATION-2026-11-14.md` (read-only measure
   every delivered FEAT it reports 1,085 findings, 758 of them trace gaps, so it runs per FEAT at closure, not in CI.
 - [FACT] `review_checks.py feat-proofs --feat FEAT-109` without `--run` (lint only, nothing executed) flags T2, T3 and T9,
   the three `-Dtest=… verify` rows the report found by hand.
+- [FACT] History-split lint (added in the review round): on every consumer FEAT at `8549f51d4` it flags 29 bullets in 29
+  FEATs, among them the report's FEAT-084, FEAT-097, FEAT-063 and FEAT-099; 4 of 4 spot-checked hits are a sync or done
+  line inside an earlier bullet. The cause was the insertion point of `append_history` (after a bullet's first line),
+  which now goes past the bullet's continuation lines.
+- Dropped, with the reason: a lint for an unfolded `[DECISION]` in Open questions flags 676 lines over 91 consumer FEATs
+  (18 on the five calibration FEATs), because the consumer answers questions in place with `[DECISION]`; the report's
+  one real unfold was a `[PROPOSAL]` left in Scope, which the Scope lint reports, so `sdd-review` folds what that lint
+  flags and has no `[DECISION]` step. The content-id check is dropped from the kit: the content pack is a consumer
+  artifact the kit does not model, so the consumer's own content tooling owns it.
 - Falsifier: a larger sample (the report proposes 20 FEATs and 30 PRs) in which the dropped REQ re-run finds a real
   `main` failure that the wave's broad suite missed, or a PR whose tests all pass on base yet hide a defect.
 
@@ -164,3 +174,8 @@ against `0855809`'s tool and pass after. Results are in the PR body.
 - 2026-11-15: merged with KIT-068 (#244, coordinator's list): the closure rule id `feature-closure` in `RULES`, the
   legacy line in #244's delivered fixture, `sdd-process.md` without `sdd-to-card`, item-state wording in
   `spec-feature.md` and the handoff record; `cancelled` rows close like done ones (found by the merge).
+- 2026-11-15: coordinator review of `5a4b780` (PARTIAL, 13 findings) fixed: a refused release reopens a validated FEAT
+  (`status --write`); `red` takes per-stack commands from the gates config (`{classes}`, `{-a res}`) and reads a run
+  with no test as an ERROR; rules files are read from base; `&` separates proof commands (`pr_gates.py`, Files widened
+  by the coordinator); runs are process groups; `res://` follows `--path`; the History-split lint; the `[DECISION]`
+  lint and the content-id check dropped with their reasons.

@@ -37,7 +37,7 @@ Under `release: merge` (the default `sdd:` value) `sdd-review` already moved eac
 ## 4. Get the product acceptance
 
 - The owner accepts on the test environment: a playtest for a game, or the captures compared with each UI REQ's mock (`visual_approval`). Record who, when and their words in the release PR or the FEAT's History.
-- A refusal returns the FEAT: a task row for a defect, `sdd-clarify` for a wrong REQ.
+- A refusal returns the FEAT: a task row for a defect, `sdd-clarify` for a wrong REQ. With the new row open, `spec_trace.py status --write` moves the validated FEAT back to `in-progress` with a History line, and `sdd-review` closes it again once the row merges.
 
 ## 5. Turn the flag on, with a rollback plan
 
