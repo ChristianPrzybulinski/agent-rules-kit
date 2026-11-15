@@ -937,6 +937,39 @@ class RulesFromBaseTest(ToolCase):
 
 class RulesErrorTest(ToolCase):
     """A rules file base holds but the tool cannot read is a usage error (exit 2), never a crash read as a finding."""
+
+    def proof_body(self, proof):
+        body = Path(self.tmp.name) / "proof-body.md"
+        body.write_text(BODY.format(proof=proof, session="019a2b3c-4d5e"), encoding="utf-8")
+        return str(body)
+
+    def test_a_base_that_is_not_a_commit_is_a_usage_error_for_gates(self):
+        self.repo.commit("gates", **{"r__gates.json": json.dumps({"proof_allowlist": ["python3"]})})
+        code, out = self.run_tool("proof", "--body", self.proof_body("python3 -c \"print('ok')\""), "--run",
+                                  "--gates", str(self.repo.root / "r/gates.json"), "--base", "no-such-ref",
+                                  "--cwd", str(self.repo.root))
+        self.assertEqual(code, 2, out)
+        self.assertIn("no-such-ref", out)
+        self.assertNotIn("is not on base", out)
+
+    def test_a_base_that_is_not_a_commit_never_drops_the_patterns(self):
+        """A shallow CI clone without the base commit must not run the proof without base's fail_output."""
+        self.repo.commit("patterns", **{"patterns.json": json.dumps({"python": {"fail_output": ["SENTINEL"]}})})
+        code, out = self.run_tool("proof", "--body", self.proof_body("python3 -c \"print('SENTINEL')\""), "--run",
+                                  "--allow", "python3", "--patterns", str(self.repo.root / "patterns.json"),
+                                  "--base", "no-such-ref", "--cwd", str(self.repo.root))
+        self.assertEqual(code, 2, out)
+        self.assertIn("no-such-ref", out)
+
+    def test_a_repo_that_is_not_a_git_repository_is_a_usage_error(self):
+        plain = Path(self.tmp.name) / "plain"
+        plain.mkdir()
+        (plain / "gates.json").write_text(json.dumps({"proof_allowlist": ["python3"]}), encoding="utf-8")
+        code, out = self.run_tool("proof", "--body", self.proof_body("python3 -c \"print('ok')\""), "--run",
+                                  "--gates", str(plain / "gates.json"), "--base", "1a2b3c4", "--cwd", str(plain),
+                                  repo=str(plain))
+        self.assertEqual(code, 2, out)
+        self.assertIn("not a git repository", out)
     CASES = {  # case: rules file, its text at base, the command that reads it
         "gates-not-json": ("gates.json", "{bad", "scope"),
         "gates-not-an-object": ("gates.json", "[]", "scope"),
