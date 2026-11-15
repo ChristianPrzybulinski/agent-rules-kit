@@ -113,7 +113,14 @@ Review round 1, on `e15eae4`: `check.sh` and `CI=1 check.sh` exit 0, `check_kit.
 the full unit discovery ran 554 tests, OK (skipped=5), gitleaks found no leaks, and `review_checks.py red --base 00d8123
 --head HEAD` printed `red: OK — 10 of 10 failing tests are Red on base, and head passes` (all assertions).
 
+Review round 2, on `7b38a62`: `check.sh` and `CI=1 check.sh` exit 0, `check_kit.py --links` exit 0, `smoke.sh` exit 0,
+the full unit discovery ran 560 tests, OK (skipped=6), gitleaks found no leaks, `shellcheck -S info` on
+`sync-project.sh` exits 0, `review_checks.py red --base 91f5fe4 --head HEAD` printed `red: OK — 5 of 5 failing tests
+are Red on base, and head passes`, and deleting each of the 8 form lines of the scan in a copy failed exactly its
+subtest of `test_each_removed_skill_form_alone_fails`.
+
 ## History
 
 - 2026-11-14: confirmed (owner, chat of the SDD review session).
 - 2026-11-15: review of PR #261 at `00d8123` BLOCKED (coordinator); fix round on the same branch.
+- 2026-11-15: delta review at `91f5fe4` BLOCKED on two items (coordinator); second fix round.
