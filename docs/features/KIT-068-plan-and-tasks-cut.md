@@ -4,7 +4,7 @@ title: "One FEAT per delivery with fixed Plan sections; sdd-tasks writes the row
 status: confirmed
 confirmed: "2026-11-14 (owner, chat of the SDD review session: \"e aprovo\" for the split of the redesign into PRs and their order; \"Aprovo todos\" for the six further adjustments, items 3 and 5 here; \"orquestre a implementação de tudo que passamos\" for this run)"
 issue: "#243"
-pr: ""
+pr: "#244"
 ---
 
 # KIT-068 — Plan sections and one FEAT per delivery; tasks write, then cut; a shrinking spec baseline
