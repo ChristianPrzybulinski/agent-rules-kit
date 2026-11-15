@@ -30,9 +30,10 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
 Rules files inside the repository (--gates, --review, --patterns) are read only from git, as --base has them (`git show B:path`),
 never from the checkout, so a PR cannot loosen its own rules; only the part of the path in front of the repository is
 resolved, so no link the head commits can move the path. A file outside the repository is read from disk. Every run
-is its own process group, which a timeout, Ctrl-C, SIGTERM or SIGHUP kills whole. Diffs are read with raw file
-names and `--text --no-textconv --no-ext-diff`, so no `.gitattributes` (the head's or base's) and no odd file name
-hides a line.
+is its own process group, which a timeout, Ctrl-C, SIGTERM or SIGHUP kills whole. Diffs are read as bytes split only
+on newlines, with fixed a/ and b/ prefixes, raw file names and `--text --no-textconv --no-ext-diff`; the tests cover a
+`-diff` or `binary` attribute in the head or base, a quote, tab, space or non-ASCII character in a file name, a CR, FF
+or U+2028 inside an added line, and a reviewer's diff.noprefix or prefix config.
 
 A proof re-run first checks that every path the command names exists, `res://` against Godot's `--path` (a moved
 file is a stale proof, not a failure of the code), then fails a run whose output matches its stack's failure pattern
@@ -134,18 +135,43 @@ class Findings:
 
 
 def git(repo: Path, *args: str) -> str:
-    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True,
-                          errors="replace").stdout
+    """git's output, read as bytes and decoded as UTF-8 (bad bytes replaced). Callers split it only on "\\n" or
+    "\\0": text mode turns a CR into a line break, and str.splitlines() also splits on FF, \\x1c-\\x1e, NEL, U+2028
+    and U+2029, so a line the PR adds could otherwise start a fake header."""
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True).stdout.decode("utf-8", "replace")
 
 
-# Every diff the checks read: file names as raw UTF-8, and no attribute (the head's .gitattributes or base's), text
-# conversion or external driver decides which lines are seen.
-DIFF = ("-c", "core.quotePath=false", "diff", "--no-color", "--text", "--no-textconv", "--no-ext-diff")
+def usage_error(message: str):
+    print(f"review_checks: {message}", file=sys.stderr)
+    sys.exit(2)
+
+
+# Every diff the checks read: file names as raw UTF-8, fixed `a/` and `b/` prefixes whatever the reviewer's git config
+# says, and no attribute (the head's .gitattributes or base's), text conversion or external driver decides which
+# lines are seen.
+DIFF = ("-c", "core.quotePath=false", "diff", "--no-color", "--text", "--no-textconv", "--no-ext-diff",
+        "--src-prefix=a/", "--dst-prefix=b/")
 
 
 def changed(repo: Path, base: str, head: str, deleted: bool = True) -> list[str]:
+    """The changed paths, with no rename folding: a move lists its old path too, so scope and protected labels see
+    where the file came from."""
     flags = [] if deleted else ["--diff-filter=d"]
-    return [p for p in git(repo, *DIFF, "--name-only", "-z", *flags, f"{base}...{head}").split("\0") if p]
+    return [p for p in git(repo, *DIFF, "--name-only", "-z", "--no-renames", *flags, f"{base}...{head}").split("\0")
+            if p]
+
+
+def renames(repo: Path, base: str, head: str) -> list[tuple[str, str]]:
+    """(old, new) for each file the PR moves, by the same rename detection (-M) as added_lines."""
+    tokens, found, i = git(repo, *DIFF, "--name-status", "-z", "-M", f"{base}...{head}").split("\0"), [], 0
+    while i < len(tokens) and tokens[i]:
+        if tokens[i][0] in "RC":
+            if tokens[i][0] == "R":
+                found.append((tokens[i + 1], tokens[i + 2]))
+            i += 3
+        else:
+            i += 2
+    return found
 
 
 def matches(path: str, globs) -> bool:
@@ -181,10 +207,10 @@ def git_path(name: str) -> str:
 
 def added_lines(repo: Path, base: str, head: str):
     """Yield (path, head line number, text) for every added line, and (path, None, text) for every removed one. A
-    deleted file's lines are removed lines of its old path; a rename (-M) yields only what changed. File headers are
-    read only between `diff --git` and the first hunk, so a content line that looks like one (`++ x`) is content."""
+    deleted file's lines are removed lines of its old path; a pure rename (-M) yields none. The patch is split only on "\\n" (a CR-only file is one line), and file headers are read only between
+    `diff --git` and the first hunk, so a content line that looks like one (`++ x`) stays content."""
     path, old, line, header = None, None, 0, False
-    for raw in git(repo, *DIFF, "-M", "-U0", f"{base}...{head}").splitlines():
+    for raw in git(repo, *DIFF, "-M", "-U0", f"{base}...{head}").split("\n"):
         if raw.startswith("diff --git "):
             path, old, header = None, None, True
         elif header and raw.startswith("--- "):
@@ -212,8 +238,9 @@ def load_stacks(args) -> dict:
     """STACKS, extended by the project's --patterns JSON file of the same shape (lists append, `command` replaces). It
     is a rules file: inside the repository it is read as base has it (`rules_text`)."""
     stacks = {name: {k: list(v) if isinstance(v, list) else v for k, v in rules.items()} for name, rules in STACKS.items()}
-    text = rules_text(args, getattr(args, "base", None), args.patterns) if args.patterns else None
-    for name, rules in (json.loads(text) if text else {}).items():
+    for name, rules in rules_json(args, args.patterns, "--patterns").items():
+        if not isinstance(rules, dict):
+            usage_error(f"--patterns {args.patterns}: the entry for {name!r} must be a JSON object")
         target = stacks.setdefault(name, {"command": r"$^", "fail_output": [], "lint": [], "missing_symbol": [],
                                           "assertion": [], "no_tests": []})
         for key, value in rules.items():
@@ -500,23 +527,34 @@ def rules_text(args, base: str | None, path) -> str | None:
     rel = repo_rel(args, path)
     if rel is None:
         if not Path(path).is_file():
-            print(f"review_checks: {path} is not a file", file=sys.stderr)
-            sys.exit(2)
-        return Path(path).read_text(encoding="utf-8")
+            usage_error(f"{path} is not a file")
+        return Path(path).read_text(encoding="utf-8", errors="replace")
     rev = base or "HEAD"
     kind = object_type(args.repo, rev, rel) if rel else "tree"
     if kind is None:
         print(f"note: {rel} is not on base {rev}; its rules do not apply to this PR")
         return None
     if kind != "blob":
-        print(f"review_checks: {rel or '.'} is a {kind} on {rev}, not a rules file", file=sys.stderr)
-        sys.exit(2)
+        usage_error(f"{rel or '.'} is a {kind} on {rev}, not a rules file")
     return git(args.repo, "show", f"{rev}:{rel}")
 
 
+def rules_json(args, path, flag: str) -> dict:
+    """A JSON rules file (`--gates`, `--patterns`) read by rules_text; one the tool cannot read is a usage error."""
+    text = rules_text(args, getattr(args, "base", None), path) if path else None
+    if not text:
+        return {}
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as err:
+        usage_error(f"{flag} {path} is not valid JSON ({err.msg}, line {err.lineno})")
+    if not isinstance(data, dict):
+        usage_error(f"{flag} {path} must be a JSON object")
+    return data
+
+
 def gates_config(args) -> dict:
-    text = rules_text(args, getattr(args, "base", None), args.gates) if args.gates else None
-    return json.loads(text) if text else {}
+    return rules_json(args, args.gates, "--gates")
 
 
 def widened_paths(body: str) -> list[str]:
@@ -670,12 +708,16 @@ def feat_proofs(args) -> int:
 def dod_lines(text: str) -> list[tuple[str, str, bool, re.Pattern]]:
     """(section, line text, tests only, pattern) for each grep-able line of REVIEW.md."""
     found, section = [], ""
-    for raw in text.splitlines():
+    for raw in text.split("\n"):
         if raw.startswith("## "):
             section = raw[3:].strip()
         elif (m := DOD_MARKER.search(raw)):
             text = DOD_MARKER.sub("", raw).strip().lstrip("- ").strip()
-            found.append((section, text, bool(m.group(1)), re.compile(m.group(2))))
+            try:
+                pattern = re.compile(m.group(2))
+            except re.error as err:
+                usage_error(f"REVIEW.md line {raw.strip()!r}: its grep pattern does not compile ({err})")
+            found.append((section, text, bool(m.group(1)), pattern))
     return found
 
 
@@ -693,6 +735,10 @@ def dod(args) -> int:
         for section, rule, tests_only, pattern in rules:
             if (test or not tests_only) and pattern.search(text):
                 out.add(f"{section}: {path}:{line}: {text.strip()} — {rule}")
+    for old, new in renames(repo, args.base, args.head):  # a test moved out of the test globs keeps no assertion
+        if matches(old, TEST_GLOBS) and not matches(new, TEST_GLOBS):
+            kept = sum(1 for text in git(repo, "show", f"{args.base}:{old}").split("\n") if ASSERTION.search(text))
+            counts.setdefault(old, [0, 0])[1] += kept
     for path, (added, removed) in sorted(counts.items()):
         if removed > added:
             out.add(f"Correctness: {path}: {removed} assertion lines removed, {added} added — a loosened check the "

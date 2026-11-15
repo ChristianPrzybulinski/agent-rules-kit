@@ -212,3 +212,10 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   --no-ext-diff`; a deleted test file's assertions count as dropped, a rename (`-M`) does not. Found while rewriting
   the parser: an added line `++ x` read as a file header hid the rest of its file; headers are now read only between
   `diff --git` and the first hunk.
+- 2026-11-15: coordinator review of `3ef926b` (BLOCKED) fixed. The parser holes shared one premise: git's patch text
+  was trusted for its line structure and headers. git output is now read as bytes and split only on `\n` (a CR, FF or
+  U+2028 inside an added line had reopened header mode, and a CR-only file lost every line after its first);
+  `changed()` lists names with `--no-renames`, so a move shows its old, possibly protected, path; a test file moved out
+  of the test globs drops its assertions; diffs fix `--src-prefix=a/ --dst-prefix=b/`; a base rules file the tool
+  cannot read exits 2. Not here: #248 (a rename that leaves the runner's discovery pattern), #249 (`feat-proofs` needs
+  `--base` like `proof`).
