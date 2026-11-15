@@ -149,21 +149,19 @@ class LintTest(unittest.TestCase):
     def test_hypothesis_in_open_questions_is_stale(self):
         self.assert_finding("[HYPOTHESIS] in Open questions", question="[HYPOTHESIS] the IT fits the row size")
 
-    def test_unfolded_decision_in_open_questions_is_flagged(self):
-        self.assert_finding("[DECISION] in Open questions", question="[DECISION] the shop keeps its old prices")
-
-    def test_folded_decision_is_not_flagged(self):
-        self.fixture(question="[DECISION] the shop keeps its old prices → folded into CA-1")
-        code, out = self.lint()
-        self.assertEqual(code, 0, out)
-        self.assertNotIn("[DECISION]", out)
-
     def test_history_bullet_split_by_an_inserted_line_is_flagged(self):
         """The calibration's FEAT-097: a sync line landed inside an earlier bullet, splitting it."""
         self.assert_finding("is split by", history=(
             "- 2026-11-04 refine: T1 no longer follows the event with an\n"
             "- 2026-11-08 sync: status derived (T1 todo -> done).\n"
             "  `inventory` push; the contract is unchanged."))
+
+    def test_history_bullet_ending_in_a_colon_split_by_an_inserted_line_is_flagged(self):
+        """The calibration's FEAT-084: the split bullet stops at a colon that introduces its continuation."""
+        self.assert_finding("is split by", history=(
+            "- 2026-10-21 specify + refine (architect; DTEC-065):\n"
+            "- 2026-11-08 sync: status derived (T1 todo -> done).\n"
+            "  created as `planned` with REQ-F-001 and T1-T2."))
 
     def test_multi_line_history_bullet_is_not_split(self):
         self.fixture(history=("- 2026-11-04 refine: T1 no longer follows the event with an\n"

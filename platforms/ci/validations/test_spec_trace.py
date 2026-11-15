@@ -562,6 +562,14 @@ class StatusTest(unittest.TestCase):
         self.assertIn("- 2026-10-06 status: validated -> in-progress (reopened: T2 todo)", self.text())
         self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
 
+    def test_a_history_line_goes_after_the_last_bullet_s_continuation(self):
+        """append_history never splits a multi-line bullet (the calibration's History-split defect)."""
+        self.feat(status="validated", t1="done", t2="todo")
+        self.path.write_text(self.text().replace("- 2026-10-05 specify: created.",
+                                                 "- 2026-10-05 specify: created with the\n  two rows below."))
+        self.assertEqual(self.run_main("status", str(self.spec), "--write")[0], 0)
+        self.assertIn("created with the\n  two rows below.\n- 2026-10-06 status: validated -> in-progress", self.text())
+
     def test_validated_or_delivered_feat_with_an_open_row_fails(self):
         for status in ("validated", "delivered"):
             with self.subTest(status=status):
