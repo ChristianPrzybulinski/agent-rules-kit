@@ -1,6 +1,9 @@
 """review_checks.py (KIT-069): the mechanical review steps a reviewer reads instead of redoing by hand — the Red check
 (the PR's tests fail on base and pass on head), Files scope with `## Files widened`, the PR body and proof re-run, and
-the grep-able DoD lines of a project REVIEW.md. Each test builds a throwaway Git repository."""
+the grep-able DoD lines of a project REVIEW.md, and the re-run of a FEAT's task proofs. The Red classifier follows the
+KIT-069 calibration: an assertion failure, or a compile error on a symbol the PR adds, is Red; a test-only PR is exempt;
+a runtime error, all tests passing on base and a data-only Red are flagged for the reviewer, not blocked. Each test
+builds a throwaway Git repository."""
 import os
 import subprocess
 import sys
@@ -33,6 +36,70 @@ class SubTest(unittest.TestCase):
     def test_sub(self):
         self.assertEqual(calc.sub(5, 3), 2)
 """
+
+CALC_MUL_BUG = CALC + "\n\ndef mul(a, b):\n    return a + b\n"
+CALC_MUL = CALC + "\n\ndef mul(a, b):\n    return a * b\n"
+TEST_MUL = """\
+import unittest
+import calc
+
+
+class MulTest(unittest.TestCase):
+    def test_mul(self):
+        self.assertEqual(calc.mul(2, 3), 6)
+"""
+CALC_FIRST_BUG = CALC + "\n\ndef first(xs):\n    return xs[1]\n"
+CALC_FIRST = CALC + "\n\ndef first(xs):\n    return xs[0]\n"
+TEST_FIRST = """\
+import unittest
+import calc
+
+
+class FirstTest(unittest.TestCase):
+    def test_first(self):
+        self.assertEqual(calc.first([7]), 7)
+"""
+KNOWN = "KNOWN = {{{names}}}\n\n\ndef known(name):\n    return name in KNOWN\n"
+TEST_NAMES = """\
+import unittest
+import known
+
+NAMES = [{names}]
+
+
+class NamesTest(unittest.TestCase):
+    def test_names(self):
+        for name in NAMES:
+            self.assertTrue(known.known(name), name)
+"""
+# A stand-in build: it fails to compile the test until the PR's class exists, then passes.
+BUILD = """\
+import pathlib
+import sys
+if not pathlib.Path("src/Widget.java").exists():
+    print("[ERROR] src/test/WidgetTest.java:[3,8] cannot find symbol")
+    print("  symbol:   class {symbol}")
+    print("  location: class WidgetTest")
+    sys.exit(1)
+print("Tests run: 1, Failures: 0")
+"""
+# A stand-in runner that writes a JUnit report: one assertion failure and one error on base, both pass on head.
+JUNIT_RUN = """\
+import pathlib
+import sys
+ok = pathlib.Path("src/Widget.java").exists()
+failed = ('<testcase classname="WidgetTest" name="sums"><failure message="expected: 3 but was: 2" '
+          'type="org.opentest4j.AssertionFailedError">at WidgetTest.sums</failure></testcase>'
+          '<testcase classname="WidgetTest" name="loads"><error message="boom" '
+          'type="java.lang.NullPointerException">at WidgetTest.loads</error></testcase>')
+passed = '<testcase classname="WidgetTest" name="sums"/><testcase classname="WidgetTest" name="loads"/>'
+reports = pathlib.Path("reports")
+reports.mkdir(exist_ok=True)
+(reports / "TEST-WidgetTest.xml").write_text('<testsuite name="WidgetTest">' + (passed if ok else failed) + '</testsuite>')
+sys.exit(0 if ok else 1)
+"""
+WIDGET_TEST = "class WidgetTest { @Test void sums() { assertEquals(3, new Widget().sum()); } }\n"
+FAKE_GODOT = "#!/bin/sh\necho 'ERROR: Can\'t load script: tools/build.gd'\nexit 0\n"
 
 BODY = """\
 ## What
@@ -100,8 +167,10 @@ class ToolCase(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_tool(self, *argv):
+    def run_tool(self, *argv, path_prefix=None):
         env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+        if path_prefix:
+            env["PATH"] = f"{path_prefix}{os.pathsep}{env['PATH']}"
         done = subprocess.run([sys.executable, str(TOOL), "--repo", str(self.repo.root), *argv],
                               capture_output=True, text=True, env=env, timeout=120)
         return done.returncode, done.stdout + done.stderr
@@ -111,23 +180,86 @@ class ToolCase(unittest.TestCase):
 
 
 class RedTest(ToolCase):
-    def red(self, head):
-        return self.run_tool("red", "--base", self.base, "--head", head, "--run", RUN)
+    def red(self, head, *extra, base=None, run=RUN):
+        return self.run_tool("red", "--base", base or self.base, "--head", head, "--run", run, *extra)
 
-    def test_new_test_fails_on_base_and_passes_on_head(self):
+    def test_missing_symbol_the_pr_adds_is_red(self):
         head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
         code, out = self.red(head)
         self.assertEqual(code, 0, out)
         self.assertIn("red: OK", out)
         self.assertIn("tests/test_sub.py", out)
-        self.assertIn("has no attribute 'sub'", out)  # the base failure excerpt the reviewer judges
+        self.assertIn("new-symbol (sub)", out)
+        self.assertIn("has no attribute 'sub'", out)  # the base excerpt the reviewer reads
 
-    def test_new_test_that_already_passes_on_base_catches_nothing(self):
-        head = self.repo.commit("add twice", **{"tests__test_add_again.py": TEST_ADD.replace("AddTest", "Again")})
+    def test_assertion_failure_on_base_is_red(self):
+        base = self.repo.commit("mul bug", **{"calc.py": CALC_MUL_BUG})
+        head = self.repo.commit("mul fix", **{"calc.py": CALC_MUL, "tests__test_mul.py": TEST_MUL})
+        code, out = self.red(head, base=base)
+        self.assertEqual(code, 0, out)
+        self.assertIn("red: OK", out)
+        self.assertIn("test_mul", out)
+        self.assertIn("assertion", out)
+
+    def test_runtime_error_only_is_flagged_not_blocked(self):
+        base = self.repo.commit("first bug", **{"calc.py": CALC_FIRST_BUG})
+        head = self.repo.commit("first fix", **{"calc.py": CALC_FIRST, "tests__test_first.py": TEST_FIRST})
+        code, out = self.red(head, base=base)
+        self.assertEqual(code, 3, out)
+        self.assertIn("red: FLAG", out)
+        self.assertIn("runtime", out)
+
+    def test_every_test_passing_on_base_despite_a_production_change_is_flagged(self):
+        head = self.repo.commit("sub, add test only", **{
+            "calc.py": CALC_SUB, "tests__test_add_again.py": TEST_ADD.replace("AddTest", "Again")})
         code, out = self.red(head)
-        self.assertEqual(code, 1, out)
-        self.assertIn("red: FAIL", out)
-        self.assertIn("base passed", out)
+        self.assertEqual(code, 3, out)
+        self.assertIn("red: FLAG", out)
+        self.assertIn("every test passes on base", out)
+
+    def test_red_made_only_of_data_entries_is_flagged(self):
+        base = self.repo.commit("names", **{"known.py": KNOWN.format(names="'a', 'b'"),
+                                             "tests__test_names.py": TEST_NAMES.format(names="'a', 'b'")})
+        head = self.repo.commit("add c", **{"known.py": KNOWN.format(names="'a', 'b', 'c'"),
+                                             "tests__test_names.py": TEST_NAMES.format(names="'a', 'b', 'c'")})
+        code, out = self.red(head, base=base)
+        self.assertEqual(code, 3, out)
+        self.assertIn("red: FLAG", out)
+        self.assertIn("data", out)
+
+    def test_test_only_pr_is_exempt_without_a_run(self):
+        before = self.worktrees()
+        head = self.repo.commit("more tests", **{"tests__test_add_again.py": TEST_ADD.replace("AddTest", "Again")})
+        code, out = self.red(head)
+        self.assertEqual(code, 0, out)
+        self.assertIn("red: EXEMPT", out)
+        self.assertIn("not run", out)
+        self.assertEqual(self.worktrees(), before)
+
+    def test_compile_error_on_a_symbol_the_pr_adds_is_red(self):
+        base = self.repo.commit("build", **{"build.py": BUILD.format(symbol="Widget")})
+        head = self.repo.commit("widget", **{"src__Widget.java": "public class Widget { int sum() { return 3; } }\n",
+                                              "src__test__WidgetTest.java": WIDGET_TEST})
+        code, out = self.red(head, base=base, run=f"{sys.executable} build.py")
+        self.assertEqual(code, 0, out)
+        self.assertIn("new-symbol (Widget)", out)
+
+    def test_compile_error_on_a_symbol_the_pr_does_not_add_is_flagged(self):
+        base = self.repo.commit("build", **{"build.py": BUILD.format(symbol="Gadget")})
+        head = self.repo.commit("widget", **{"src__Widget.java": "public class Widget { int sum() { return 3; } }\n",
+                                              "src__test__WidgetTest.java": WIDGET_TEST})
+        code, out = self.red(head, base=base, run=f"{sys.executable} build.py")
+        self.assertEqual(code, 3, out)
+        self.assertIn("missing-symbol (Gadget)", out)
+
+    def test_junit_reports_give_a_class_per_test(self):
+        base = self.repo.commit("runner", **{"junit_run.py": JUNIT_RUN})
+        head = self.repo.commit("widget", **{"src__Widget.java": "public class Widget { int sum() { return 3; } }\n",
+                                              "src__test__WidgetTest.java": WIDGET_TEST})
+        code, out = self.red(head, "--junit", "reports/*.xml", base=base, run=f"{sys.executable} junit_run.py")
+        self.assertEqual(code, 0, out)
+        self.assertIn("WidgetTest.sums: assertion", out)
+        self.assertIn("WidgetTest.loads: runtime", out)
 
     def test_new_test_that_fails_on_head_is_reported(self):
         head = self.repo.commit("wrong sub", **{"calc.py": CALC_SUB.replace("a - b", "a + b"),
@@ -258,6 +390,99 @@ class ProofTest(ToolCase):
     def test_run_without_an_allowlist_is_a_usage_error(self):
         code, out = self.run_tool("proof", "--body", self.body(), "--run")
         self.assertEqual(code, 2, out)
+
+
+class ProofOutputTest(ToolCase):
+    """Proof re-run checks shared by `proof --run` and `feat-proofs`: paths exist before the run, a stack's output
+    pattern fails a run that exits 0, a stack lint flags a command that cannot prove what it names."""
+
+    def body(self, proof):
+        path = Path(self.tmp.name) / "body.md"
+        path.write_text(BODY.format(proof=proof, session="019a2b3c-4d5e"), encoding="utf-8")
+        return str(path)
+
+    def test_missing_path_is_reported_and_not_run(self):
+        code, out = self.run_tool("proof", "--body", self.body("python3 tools/content-projection/check.py"),
+                                  "--run", "--allow", "python3", "--cwd", str(self.repo.root))
+        self.assertEqual(code, 1, out)
+        self.assertIn("tools/content-projection/check.py does not exist", out)
+        self.assertNotIn("exit 2", out)
+
+    def test_godot_output_pattern_fails_a_run_that_exits_0(self):
+        self.repo.commit("tool", **{"tools__build.gd": "extends SceneTree\n"})
+        bin_dir = Path(self.tmp.name) / "bin"
+        bin_dir.mkdir()
+        (bin_dir / "godot").write_text(FAKE_GODOT)
+        (bin_dir / "godot").chmod(0o755)
+        code, out = self.run_tool("proof", "--body", self.body("godot --headless --path . -s tools/build.gd"),
+                                  "--run", "--allow", "godot", "--cwd", str(self.repo.root), path_prefix=str(bin_dir))
+        self.assertEqual(code, 1, out)
+        self.assertIn("exit 0", out)
+        self.assertIn("Can't load script", out)
+
+    def test_project_patterns_extend_the_stack_table(self):
+        patterns = Path(self.tmp.name) / "patterns.json"
+        patterns.write_text('{"python": {"fail_output": ["DEPRECATED"]}}', encoding="utf-8")
+        code, out = self.run_tool("proof", "--body", self.body("python3 -c \"print('DEPRECATED api')\""), "--run",
+                                  "--allow", "python3", "--patterns", str(patterns), "--cwd", str(self.repo.root))
+        self.assertEqual(code, 1, out)
+        self.assertIn("DEPRECATED", out)
+
+    def test_maven_dtest_with_verify_is_linted_without_running(self):
+        code, out = self.run_tool("proof", "--body", self.body("./mvnw -B -ntp -Dtest=HaircutBuyIT verify"))
+        self.assertEqual(code, 1, out)
+        self.assertIn("-Dtest", out)
+        self.assertIn("verify", out)
+
+
+FEAT_PROOFS = """\
+---
+id: FEAT-001
+title: "Fixture feature"
+status: in-progress
+requirements: []
+created: "2026-11-01"
+---
+
+# FEAT-001
+
+## Tasks
+
+| ID | Task | Files | Proof of completion | Status |
+|---|---|---|---|---|
+| T1 | adds sub | `calc.py` | `python3 -c "import calc; assert calc.sub(3, 1) == 2"` | done |
+| T2 | old importer | `tools/**` | `python3 tools/projection/check.py` | done |
+| T3 | screen | `ui/**` | evidence: screen shop-haircut, owner approves | done |
+| T4 | replaced | `x/**` | `python3 -c "import sys; sys.exit(1)"` | superseded |
+"""
+
+
+class FeatProofsTest(ToolCase):
+    def setUp(self):
+        super().setUp()
+        self.repo.commit("sub", **{"calc.py": CALC_SUB})
+        self.feat = Path(self.tmp.name) / "FEAT-001.md"
+        self.feat.write_text(FEAT_PROOFS, encoding="utf-8")
+
+    def proofs(self, *extra):
+        return self.run_tool("feat-proofs", "--feat", str(self.feat), "--run", "--allow", "python3",
+                             "--cwd", str(self.repo.root), *extra)
+
+    def test_each_row_proof_reruns_and_stale_ones_are_found(self):
+        code, out = self.proofs()
+        self.assertEqual(code, 1, out)
+        self.assertIn("T1", out)
+        self.assertIn("exit 0", out)
+        self.assertIn("T2: tools/projection/check.py does not exist", out)
+        self.assertIn("T3: not run (no command", out)
+        self.assertIn("T4: superseded", out)
+        self.assertNotIn("exit 1", out)
+
+    def test_rows_filter_runs_only_the_named_rows(self):
+        code, out = self.proofs("--rows", "T1")
+        self.assertEqual(code, 0, out)
+        self.assertIn("feat-proofs: OK", out)
+        self.assertNotIn("T2", out)
 
 
 class DodTest(ToolCase):
