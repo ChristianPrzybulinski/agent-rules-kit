@@ -225,12 +225,12 @@ class ToolCase(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_tool(self, *argv, path_prefix=None):
+    def run_tool(self, *argv, path_prefix=None, repo=None, cwd=None):
         env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
         if path_prefix:
             env["PATH"] = f"{path_prefix}{os.pathsep}{env['PATH']}"
-        done = subprocess.run([sys.executable, str(TOOL), "--repo", str(self.repo.root), *argv],
-                              capture_output=True, text=True, env=env, timeout=120)
+        done = subprocess.run([sys.executable, str(TOOL), "--repo", repo or str(self.repo.root), *argv],
+                              capture_output=True, text=True, env=env, timeout=120, cwd=cwd)
         return done.returncode, done.stdout + done.stderr
 
     def worktrees(self):
@@ -621,7 +621,8 @@ class ProofTest(StubCase):
             os.kill(pid, 9)
         self.assertFalse(alive, "the shell's child outlived the timeout")
 
-    def test_an_interrupt_kills_the_shell_and_its_children(self):
+    def signalled(self, sig):
+        """Send `sig` to the tool while its proof run's shell waits on a child; (tool exit, child still alive)."""
         proof = "sh -c 'sleep 30 & echo $! > child.pid; wait'"
         env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
         tool = subprocess.Popen([sys.executable, str(TOOL), "--repo", str(self.repo.root), "proof", "--body",
@@ -632,7 +633,8 @@ class ProofTest(StubCase):
         while not (pid_file.exists() and pid_file.read_text().strip()) and time.time() < deadline:
             time.sleep(0.1)
         pid = int(pid_file.read_text())
-        tool.send_signal(signal.SIGINT)
+        pid_file.unlink()
+        tool.send_signal(sig)
         tool.communicate(timeout=20)
         alive, deadline = True, time.time() + 5
         while alive and time.time() < deadline:
@@ -643,7 +645,27 @@ class ProofTest(StubCase):
                 alive = False
         if alive:
             os.kill(pid, 9)
+        return tool.returncode, alive
+
+    def test_an_interrupt_kills_the_shell_and_its_children(self):
+        _, alive = self.signalled(signal.SIGINT)
         self.assertFalse(alive, "the shell's child outlived the interrupt")
+
+    def test_a_supervisor_s_terminate_or_hangup_kills_the_shell_and_its_children(self):
+        """A loop timeout kills the tool's group, which no longer holds the run (it has its own session)."""
+        for sig in (signal.SIGTERM, signal.SIGHUP):
+            with self.subTest(signal=sig.name):
+                code, alive = self.signalled(sig)
+                self.assertFalse(alive, f"the shell's child outlived {sig.name}")
+                self.assertEqual(code, 128 + sig)
+
+    def test_output_that_is_not_utf8_is_read_not_a_crash(self):
+        code, out = self.run_tool("proof", "--body",
+                                  self.body('python3 -c "import sys; sys.stdout.buffer.write(bytes([255, 10]))"'),
+                                  "--run", "--allow", "python3", "--cwd", str(self.repo.root))
+        self.assertNotIn("Traceback", out)
+        self.assertEqual(code, 0, out)
+        self.assertIn("→ exit 0", out)
 
     def test_a_quiet_redirect_of_both_streams_is_allowed(self):
         code, out = self.run_tool("proof", "--body", self.body("python3 -c \"print('quiet')\" &>/dev/null"), "--run",
@@ -766,6 +788,79 @@ class FeatProofsTest(ToolCase):
         self.assertEqual(code, 0, out)
         self.assertIn("feat-proofs: OK", out)
         self.assertNotIn("T2", out)
+
+
+class RulesFromBaseTest(ToolCase):
+    """A rules file inside the repository is read as base has it however its path is spelled (an alias folder, a
+    relative or `../` path) and whatever the head did to it (edited, deleted, a link to /dev/null or outside); a file
+    outside the repository is read from disk; a file base lacks applies no rule. One matrix for `dod` and `scope`."""
+    STRICT_REVIEW, LOOSE_REVIEW = REVIEW, REVIEW.replace(" <!-- grep: \\bTODO\\b -->", "")
+    STRICT_GATES, LOOSE_GATES = json.dumps({"generated_neighbours": [".uid"]}), json.dumps({"generated_neighbours": [".bak"]})
+    KINDS = {  # kind: rules file, base text, loosened text, the head's code change, the base rules' outcome
+        "dod": ("REVIEW.md", STRICT_REVIEW, LOOSE_REVIEW, {"calc.py": CALC_SUB + "\n# TODO: handle overflow\n"},
+                (1, "No TODO left behind")),
+        "scope": ("gates.json", STRICT_GATES, LOOSE_GATES, {"calc.py": CALC_SUB, "calc.py.bak": CALC},
+                  (1, "calc.py.bak is outside Files")),
+    }
+    CASES = ("alias", "alias-deleted", "relative", "dotdot", "leaf-dev-null", "leaf-outside", "deleted", "edit",
+             "outside", "first-pr")
+
+    def run_case(self, kind, case):
+        rules, strict, loose, code, _ = self.KINDS[kind]
+        tmp = Path(self.tmp.name)
+        self.repo = Repo(tmp / f"{kind}-{case}")
+        root = self.repo.root
+        # a file outside the repository: the loosened rules, except for `outside`, where its rules must show
+        outside = tmp / f"{kind}-{case}-{rules}"
+        outside.write_text((strict if kind == "dod" else loose) if case == "outside" else loose, encoding="utf-8")
+        base_files = {"calc.py": CALC, "tests__test_add.py": TEST_ADD}
+        if case not in ("outside", "first-pr"):
+            base_files[rules] = strict
+        base = self.repo.commit("base", **base_files)
+        links = {"leaf-dev-null": "/dev/null", "leaf-outside": str(outside), "deleted": None, "alias-deleted": None}
+        if case in links:
+            head = symlink_commit(self.repo, rules, links[case], case, **code)
+        elif case == "outside":
+            head = self.repo.commit(case, **code)
+        else:  # the head writes the rules that would flip the outcome if the tool read them
+            flip = strict if (case == "first-pr" and kind == "dod") else loose
+            head = self.repo.commit(case, **{rules: flip}, **code)
+        repo, cwd, path = str(root), None, str(root / rules)
+        if case.startswith("alias"):
+            alias = tmp / f"{case}-{kind}"
+            os.symlink(tmp, alias)
+            repo, cwd, path = ".", str(root), str(alias / root.name / rules)
+        elif case == "relative":
+            repo, cwd, path = ".", str(root), rules
+        elif case == "dotdot":
+            repo, cwd, path = "..", str(root / "tests"), f"../{rules}"
+        elif case == "outside":
+            path = str(outside)
+        argv = (["dod", "--base", base, "--head", head, "--review", path] if kind == "dod" else
+                ["scope", "--base", base, "--head", head, "--files", "calc.py", rules, "--gates", path])
+        return self.run_tool(*argv, repo=repo, cwd=cwd)
+
+    def expected(self, kind, case):
+        if case == "outside":
+            return (1, "No TODO left behind") if kind == "dod" else (0, "scope: OK")
+        if case == "first-pr":
+            return (0, "is not on base") if kind == "dod" else (1, "calc.py.bak is outside Files")
+        return self.KINDS[kind][4]
+
+    def check_matrix(self, kind):
+        for case in self.CASES:
+            with self.subTest(kind=kind, case=case):
+                code, out = self.run_case(kind, case)
+                self.assertNotIn("Traceback", out)
+                want_code, want_text = self.expected(kind, case)
+                self.assertEqual(code, want_code, out)
+                self.assertIn(want_text, out)
+
+    def test_dod_reads_its_rules_as_base_has_them(self):
+        self.check_matrix("dod")
+
+    def test_scope_reads_its_rules_as_base_has_them(self):
+        self.check_matrix("scope")
 
 
 class DodTest(ToolCase):

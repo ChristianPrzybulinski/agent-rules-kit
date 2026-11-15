@@ -172,6 +172,31 @@ class LintTest(unittest.TestCase):
             "- 2026-11-08 sync: status derived (T1 todo -> done).\n"
             f"{SPLIT_REST}"))
 
+    def test_a_short_history_bullet_split_by_an_inserted_line_is_flagged(self):
+        """The calibration's FEAT-097 as first written: short lines, so no wrap width can tell the split."""
+        self.assert_finding("is split by", history=(
+            "- 2026-11-04 refine: T1 no longer follows the event with an\n"
+            "- 2026-11-08 sync: status derived (T1 todo -> done).\n"
+            "  `inventory` push; the contract is unchanged."))
+
+    def test_history_bullet_split_by_three_inserted_lines_is_flagged(self):
+        """Consumer FEAT-004:558 and FEAT-021:140 at 8549f51d4: several tool lines landed inside one bullet."""
+        self.assert_finding("is split by", history=(
+            f"{SPLIT_FIRST}\n"
+            "- 2026-11-08 sync: status derived (T1 todo -> done).\n"
+            "- 2026-11-09 done: T2\n"
+            "- 2026-11-10 sdd-review: validated at 1a2b3c4\n"
+            f"{SPLIT_REST}"))
+
+    def test_an_unterminated_line_then_a_complete_one_then_a_wrapped_bullet_is_not_split(self):
+        """The indented line belongs to the wrapped bullet: an incomplete bullet stops the walk."""
+        self.fixture(history=("- 2026-11-03 owner review in chat\n"
+                              "- 2026-11-04 sync: status derived (T1 todo -> done).\n"
+                              f"{SPLIT_FIRST}\n{SPLIT_REST}"))
+        code, out = self.lint()
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("split", out)
+
     def test_multi_line_history_bullet_is_not_split(self):
         self.fixture(history=(f"{SPLIT_FIRST}\n{SPLIT_REST}\n"
                               "- 2026-11-08 sync: status derived (T1 todo -> done)."))
