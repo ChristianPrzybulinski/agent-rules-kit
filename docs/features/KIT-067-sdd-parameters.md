@@ -57,8 +57,9 @@ godot rule in 0 of 18 sessions that edited `.gd` files and the java rule in 3 of
   each failure naming its key (`sdd.tracker 'jira' is not one of ['github', 'none']`); `--params <spec-dir>
   <schemas-dir>` prints the resolved block as JSON, every absent key at its default. The structural parser now reads
   maps nested by indentation, nested flow lists and maps, booleans, negative integers, `Null`/`NULL`, an empty value
-  as null and trailing comments, as pyyaml does, so a project without pyyaml can carry the block.
-  `test_check_spec.py` adds `SddParamsTest` (22 tests, each in both modes).
+  as null and trailing comments (a ` #` inside quoted text, a flow item's included, stays), as pyyaml does, so a
+  project without pyyaml can carry the block. `test_check_spec.py` adds `SddParamsTest` (22 tests, each in both
+  modes) and `MiniYamlTest` (the structural parser against pyyaml on the same text).
 - `plugins/guardrails/skills/sdd-constitution/references/sdd-parameters.md` (new): each key, its values, its default
   and the step that reads it, marked KIT-068 or KIT-069 where that change wires it and "not wired yet (#237)" for
   `needs`; the `rule_paths` example for a monorepo. `journeys` is read now: one line each in `sdd-clarify` (journey
@@ -78,13 +79,14 @@ godot rule in 0 of 18 sessions that edited `.gd` files and the java rule in 3 of
   invalid block or a `rule_paths` key that names no kit rule (exit 2, both modes); a `rule_paths` entry scopes that
   rule's globs and wins over the profile folders. `platforms/tools/sync_agents_md.py` (new) writes the rendered rules
   into a generated block in the `AGENTS.md` of each folder a rule's globs start in, appended to a hand-written file
-  or in a new one, removed when no rule needs it, keeping the text around it and the file's line ending; a folder
-  that does not exist gets none, and a rule named after a profile the repository does not have (the map sends `java`
-  to a godot repository) gets none. It refuses, before any write, a target `AGENTS.md` that is a symbolic link, a
-  target folder that resolves outside the repository and broken block markers; its scan for stale blocks skips nested
+  or in a new one, removed when no rule needs it, keeping the text around it and the file's dominant line ending; a
+  folder that does not exist gets none, and a rule named after a profile the repository does not have (the map sends
+  `java` to a godot repository) gets none. It refuses, before any write, a target `AGENTS.md` that is a symbolic link, a
+  target folder reached through a symbolic link (outside the repository, or onto a folder another target writes) and
+  broken block markers; its scan for stale blocks skips nested
   checkouts (a folder holding `.git`) and build folders, and a target there gets a warning. `--check` reports a
   missing, diverging or stale block. A `rule_paths` entry for a rule the profile does not receive gets a warning.
-  `test_sync_project.py` adds 15 tests.
+  `test_sync_project.py` adds 17 tests.
 - Text: `sdd-process.md` (the block), `README.md` (Codex row), `docs/projects.md`, `platforms/ci/README.md`,
   `platforms/tools/README.md`, `platforms/kits/sdd/README.md`, `platforms/kits/github/README.md`, `INDEX.md`.
 
@@ -113,11 +115,12 @@ resync.
 
 `bash platforms/tools/check.sh` (also with `CI=1`), `bash platforms/tools/smoke.sh`,
 `python3 platforms/ci/validations/check_kit.py --links`, the `test_check_spec`, `test_spec_trace` and `test_sync_project`
-suites, and `gitleaks git --redact --log-opts=origin/main..HEAD`. 37 new tests in all (22 in `SddParamsTest`, 15 in
-`test_sync_project.py`). On the base `da2f9a8`, 25 of the first 27 fail (the review's count); the 2 that pass assert
-that a `spec.md` without the block passes and that the sync creates no folder. The review fix round adds 10, of which
-8 fail on `4dea207`; the 2 that pass cover refusals that already worked without a test (a symbolic-link `AGENTS.md`,
-broken markers). Results are in the PR body.
+suites, and `gitleaks git --redact --log-opts=origin/main..HEAD`. 40 new tests in all (22 in `SddParamsTest`, 1 in
+`MiniYamlTest`, 17 in `test_sync_project.py`). On the base `da2f9a8`, 25 of the first 27 fail (the review's count);
+the 2 that pass assert that a `spec.md` without the block passes and that the sync creates no folder. The review fix
+round adds 10, of which 8 fail on `4dea207`; the 2 that pass cover refusals that already worked without a test (a
+symbolic-link `AGENTS.md`, broken markers). The delta review at `540b6d5` adds 3, all failing on `c1530b7`, plus a
+changed message in the outside-repository test. Results are in the PR body.
 
 ## History
 
@@ -129,3 +132,6 @@ broken markers). Results are in the PR body.
   nested checkouts skipped, CRLF and the blank line around a removed block kept, parser parity with pyyaml, warnings for
   an unread `rule_paths` entry and a target the scan skips, `journeys` wired, `needs` marked not wired (#237), the
   Codex probe above.
+- 2026-11-14: delta review at `540b6d5` (READY, nits): any symbolic link on a target folder's path is refused (two
+  targets on one real folder never settled), a stray CRLF no longer turns an LF file to CRLF, a quoted flow item
+  holding ` #` keeps it.
