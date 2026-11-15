@@ -533,6 +533,16 @@ class ScopeTest(ToolCase):
         self.assertIn("protected/core.py is outside Files", out)
         self.assertIn("protected: protected/core.py needs label core-change", out)
 
+    def test_a_widened_test_moved_into_files_with_a_changed_assertion_goes_back_to_a_stop(self):
+        (self.repo.root / "tests/test_add.py").unlink()
+        head = self.repo.commit("move and loosen", **{"calc.py": CALC_SUB, "tests__test_add_more.py":
+                                                      TEST_ADD.replace("(0, 0), 0", "(0, 0), 1")})
+        body = self.body("## Files widened\n\n- `tests/test_add.py`: imports calc, which changed\n")
+        code, out = self.run_tool("scope", "--base", self.base, "--head", head, "--files", "calc.py",
+                                  "tests/test_add_more.py", "--body", body)
+        self.assertEqual(code, 1, out)
+        self.assertIn("tests/test_add.py: widened test changes an assertion", out)
+
     def test_widened_existing_test_path_passes(self):
         head = self.repo.commit("sub", **{"calc.py": CALC_SUB,
                                           "tests__test_add.py": TEST_ADD + "\n# reads calc.sub too\n"})
@@ -953,6 +963,42 @@ class RulesErrorTest(ToolCase):
                 self.assertEqual(code, 2, out)
 
 
+class ConfigShapeTest(ToolCase):
+    """A base config value of the wrong type is no finding: the tool exits 2 (a usage error, or a crash caught at the
+    top), never the finding code 1."""
+    CASES = {  # case: rules file, its JSON at base, how the command reads it
+        "protected_paths-a-list": ("gates.json", {"protected_paths": []}, "scope"),
+        "generated_neighbours-a-number": ("gates.json", {"generated_neighbours": 5}, "scope"),  # pr_gates.py
+        "red-an-object": ("gates.json", {"red": {"glob": "tests/**"}}, "red"),
+        "red-entry-without-glob": ("gates.json", {"red": [{"command": "true"}]}, "red"),
+        "proof_allowlist-a-number": ("gates.json", {"proof_allowlist": 5}, "proof-gates"),
+        "fail_output-a-number": ("patterns.json", {"python": {"fail_output": 5}}, "proof-patterns"),
+        "fail_output-not-a-regex": ("patterns.json", {"python": {"fail_output": ["("]}}, "proof-patterns"),
+        "lint-not-a-pair": ("patterns.json", {"python": {"lint": ["x"]}}, "proof-patterns"),
+    }
+
+    def test_a_base_config_value_of_the_wrong_type_exits_2(self):
+        body = Path(self.tmp.name) / "body.md"
+        body.write_text(BODY.format(proof="python3 -c \"print('ok')\"", session="019a2b3c-4d5e"), encoding="utf-8")
+        for name, (rel, data, how) in self.CASES.items():
+            with self.subTest(case=name):
+                self.repo = Repo(Path(self.tmp.name) / name)
+                base = self.repo.commit("base", **{"calc.py": CALC, "tests__test_add.py": TEST_ADD,
+                                                   rel: json.dumps(data)})
+                head = self.repo.commit("head", **{"calc.py": CALC_SUB, "tests__test_add.py": TEST_ADD
+                                                   + "        self.assertEqual(calc.add(1, 1), 2)\n"})
+                path, root = str(self.repo.root / rel), str(self.repo.root)
+                argv = {"scope": ["scope", "--base", base, "--head", head, "--files", "calc.py", "tests/**",
+                                  "--gates", path],
+                        "red": ["red", "--base", base, "--head", head, "--gates", path, "--run", "true"],
+                        "proof-gates": ["proof", "--body", str(body), "--run", "--gates", path, "--base", base,
+                                        "--cwd", root],
+                        "proof-patterns": ["proof", "--body", str(body), "--run", "--allow", "python3", "--base", base,
+                                           "--patterns", path, "--cwd", root]}[how]
+                code, out = self.run_tool(*argv)
+                self.assertEqual(code, 2, out)
+
+
 class DiffVisibilityTest(ToolCase):
     """The head cannot decide what the checks see in the diff: an unusual file name, a diff attribute or a deletion."""
 
@@ -1024,6 +1070,56 @@ class DiffVisibilityTest(ToolCase):
         code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review())
         self.assertEqual(code, 1, out)
         self.assertIn("tests/test_add.py: 2 assertion lines removed, 0 added", out)
+
+    def moved_away_while_base_moves_on(self, base_change):
+        """The PR moves tests/test_add.py out of the test globs; base, after the fork, deletes or edits it."""
+        git(self.repo.root, "checkout", "-q", "-b", "pr")
+        (self.repo.root / "attic").mkdir()
+        (self.repo.root / "tests/test_add.py").rename(self.repo.root / "attic/add_cases.py")
+        head = self.repo.commit("move the test away")
+        git(self.repo.root, "checkout", "-q", "main")
+        if base_change == "deleted":
+            (self.repo.root / "tests/test_add.py").unlink()
+            base = self.repo.commit("base drops the test")
+        else:
+            base = self.repo.commit("base adds 2 assertions", **{"tests__test_add.py": TEST_ADD
+                                    + "        self.assertEqual(calc.add(1, 1), 2)\n        self.assertTrue(calc.add)\n"})
+        return self.run_tool("dod", "--base", base, "--head", head, "--review", self.review())
+
+    def test_a_move_out_of_the_test_globs_reads_the_old_file_at_the_fork_when_base_deleted_it(self):
+        code, out = self.moved_away_while_base_moves_on("deleted")
+        self.assertNotIn("Traceback", out)
+        self.assertEqual(code, 1, out)
+        self.assertIn("tests/test_add.py: 2 assertion lines removed, 0 added", out)
+
+    def test_a_move_out_of_the_test_globs_counts_the_old_file_at_the_fork_when_base_edited_it(self):
+        code, out = self.moved_away_while_base_moves_on("edited")
+        self.assertEqual(code, 1, out)
+        self.assertIn("tests/test_add.py: 2 assertion lines removed, 0 added", out)
+
+    def test_a_rule_anchored_at_the_line_end_sees_a_crlf_line(self):
+        """Stratics' server files are CRLF: a rule ending in `$` must match the added line without its CR."""
+        for number, rule in enumerate((r"TODO$", r"TODO[ \t]*$", r"^# TODO$")):
+            with self.subTest(rule=rule):
+                self.repo = Repo(Path(self.tmp.name) / f"crlf-{number}")
+                (self.repo.root / "Server.java").write_bytes(b"int x = 1;\r\n")
+                base = self.repo.commit("base")
+                (self.repo.root / "Server.java").write_bytes(b"int x = 1;\r\n# TODO\r\n")
+                head = self.repo.commit("todo")
+                review = Path(self.tmp.name) / f"anchored-{number}.md"
+                review.write_text(f"## Docs\n- No TODO left behind. <!-- grep: {rule} -->\n", encoding="utf-8")
+                code, out = self.run_tool("dod", "--base", base, "--head", head, "--review", str(review))
+                self.assertEqual(code, 1, out)
+                self.assertIn("Docs: Server.java:2:", out)
+
+    def test_a_cr_only_review_file_on_base_keeps_each_rule(self):
+        rules = ("# Review\r\r## Docs\r- No TODO left behind. <!-- grep: \\bTODO\\b -->\r\r## Correctness\r"
+                 "- No skipped test. <!-- grep tests: unittest\\.skip -->\r")
+        base = self.repo.commit("cr-only rules", **{"REVIEW.md": rules})
+        head = self.repo.commit("todo", **{"calc.py": CALC_SUB + "\n# TODO: handle overflow\n"})
+        code, out = self.run_tool("dod", "--base", base, "--head", head, "--review", str(self.repo.root / "REVIEW.md"))
+        self.assertEqual(code, 1, out)
+        self.assertIn("Docs: calc.py:", out)
 
     SEPARATORS = {"CR": "\r", "FF": "\x0c", "U+2028": "\u2028"}
     INJECTION = "x = 2  # {sep}diff --git a/n b/n"
