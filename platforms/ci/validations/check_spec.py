@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Validates docs/spec against the kit schemas. Usage: check_spec.py [--params] <spec-dir> <schemas-dir>
+"""Validates docs/spec against the kit schemas.
+
+Usage: check_spec.py [--params | --baseline-init | --baseline-update] [--baseline-against <older.json>]
+                     <spec-dir> <schemas-dir>
 
 With pyyaml+jsonschema: full validation. Without them: minimal YAML parser
 (frontmatter maps nested by indentation, flow lists and maps) + structural checks (required, enums, id pattern).
 spec.md may set `sdd`, the project's process parameters (KIT-067): each key is checked against spec.schema.json in
 both modes, and `--params` prints the resolved block (every absent key at its schema default) as JSON.
-Also validates docs/spec/progress/*.json (executor progress) when the folder exists, and fails on a
-merge-conflict marker left in any Markdown file under the spec dir.
+Also validates docs/spec/progress/*.json (executor progress of FEATs cut before KIT-068) when the folder exists, and
+fails on a merge-conflict marker left in any Markdown file under the spec dir.
 Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id prefix, e.g.
 `{tech: TEC, product: PRD}`); then each decision's `kind` must be declared and its id carries that kind's prefix.
 NEED-nnn intake records (docs/spec/needs/, top level only: NEED-nnn-data/ folders hold evidence) link forward only:
@@ -14,6 +17,20 @@ every listed id must exist with the right kind, a refined or delivered NEED name
 lists only delivered FEATs, or, for a decision NEED with no FEAT, an approved decision. A REQ that no FEAT implements
 yet must be listed by an open NEED, not a delivered, rejected, merged, routed or parked one (REQs are written before
 the FEAT that delivers them).
+
+Task rows (KIT-068): a FEAT's `## Tasks` table (header `| ID | Task | ...`, rows `T<n>`). With `sdd.tracker: none` each
+cut item is docs/spec/tasks/TASK-nnn-slug.md (task.schema.json); its `feat` and `rows` and the rows' `Item` cell name
+each other. On a FEAT that is not validated, delivered or cancelled, the longest chain of own-FEAT `Depends on` ids
+(`FEAT-nnn T1, T2` belongs to FEAT-nnn up to the next `;`) is at most `sdd.max_chain`, and a cycle fails; more rows than
+`sdd.max_feat_tasks` and a Task cell over 1000 characters only warn.
+
+Every failure carries a rule id (RULES) and its artifact (the id in the file name, else the path under the spec dir).
+docs/spec/baseline.json, `{"rules": {rule: {artifact: count}}}`, holds old findings so they neither block nor hide new
+ones: a held finding prints as BASELINE on stdout, a finding above its count fails, and a count above what is found
+fails until --baseline-update lowers it. The file only shrinks: --baseline-init writes it once, --baseline-update never
+adds or raises an entry, and --baseline-against fails when the file adds or raises an entry over an older copy (for
+example `git show origin/main:docs/spec/baseline.json`). sdd-check rows (C<n>, Q<n>) may hold entries too; this script
+keeps them and leaves their comparison to `sdd-check all`.
 """
 import json
 import os
@@ -28,12 +45,42 @@ try:
 except ImportError:
     FULL = False
 
-failures = []
+failures = []  # (rule, artifact key, message); report() prints them once the baseline is applied
+SPEC_DIR = None  # set by main(); a finding's key is relative to it
+
+# Rule ids a baseline may hold; each fail() call names one.
+RULES = ("frontmatter", "schema", "id-file", "id-duplicate", "decision-kinds", "sdd-params", "conflict-marker",
+         "need-link", "need-status", "progress", "link-missing", "link-one-sided", "req-unlisted", "task-file",
+         "task-item", "task-chain")
 
 
-def fail(msg):
-    failures.append(msg)
-    print(f"FAIL: {msg}", file=sys.stderr)
+def artifact_key(path):
+    """A finding's baseline key: the artifact id its file name carries, else its path under the spec dir."""
+    path = Path(path)
+    m = ID_PREFIX.match(path.stem)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    if SPEC_DIR is not None:
+        try:
+            return path.relative_to(SPEC_DIR).as_posix()
+        except ValueError:
+            pass
+    return path.as_posix()
+
+
+def fail(msg, rule, path):
+    failures.append((rule, artifact_key(path), msg))
+
+
+def warn(msg, rule):
+    print(f"WARN: {msg} [{rule}]", file=sys.stderr)
+
+
+def report(blocking, held=()):
+    for rule, _, msg in held:
+        print(f"BASELINE: {msg} [{rule}]")
+    for rule, _, msg in blocking:
+        print(f"FAIL: {msg} [{rule}]", file=sys.stderr)
 
 
 YAML_TRUE = {"true", "True", "TRUE", "yes", "Yes", "YES", "on", "On", "ON"}
@@ -179,24 +226,24 @@ def mini_yaml(text):
 def frontmatter(path):
     lines = path.read_text(encoding="utf-8").splitlines()
     if not lines or lines[0] != "---":
-        fail(f"{path}: frontmatter does not start with --- on line 1")
+        fail(f"{path}: frontmatter does not start with --- on line 1", "frontmatter", path)
         return None
     try:
         end = lines.index("---", 1)
     except ValueError:
-        fail(f"{path}: frontmatter without closing ---")
+        fail(f"{path}: frontmatter without closing ---", "frontmatter", path)
         return None
     text = "\n".join(lines[1:end])
     if FULL:
         try:
             return yaml.safe_load(text) or {}
         except yaml.YAMLError as e:
-            fail(f"{path}: invalid YAML: {e}")
+            fail(f"{path}: invalid YAML: {e}", "frontmatter", path)
             return None
     try:
         return mini_yaml(text)
     except ValueError as e:
-        fail(f"{path}: invalid frontmatter ({e})")
+        fail(f"{path}: invalid frontmatter ({e})", "frontmatter", path)
         return None
 
 
@@ -224,6 +271,9 @@ STRUCT = {
                        "status": ["proposed", "triaged", "specified", "refined", "delivered",
                                   "rejected", "merged", "routed", "parked"]},
              "id": r"^NEED-\d{3,}$"},
+    "task": {"req": ["id", "feat", "rows", "title", "status", "created"],
+             "enums": {"status": ["todo", "doing", "blocked", "done", "cancelled"]},
+             "id": r"^TASK-\d{3,}$"},
 }
 
 ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|[A-Z][A-Z0-9]{1,7})-(\d+)")
@@ -232,7 +282,7 @@ ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|[A-Z][A-Z0-9]{1,7})-(\d+)")
 DEFAULT_DECISION_PREFIX = "DEC"
 DECISION_KIND = re.compile(r"^[a-z][a-z0-9-]*$")
 DECISION_PREFIX = re.compile(r"^[A-Z][A-Z0-9]{1,7}$")
-RESERVED_PREFIXES = {"FEAT", "REQ", "DEBT", "J", "NEED"}
+RESERVED_PREFIXES = {"FEAT", "REQ", "DEBT", "J", "NEED", "TASK"}
 
 
 def decision_kinds(path, data):
@@ -241,18 +291,18 @@ def decision_kinds(path, data):
         return None
     declared = data["decision_kinds"]
     if not isinstance(declared, dict) or not declared:
-        fail(f"{path}: decision_kinds must map each decision kind to its id prefix, e.g. {{tech: TEC}}")
+        fail(f"{path}: decision_kinds must map each decision kind to its id prefix, e.g. {{tech: TEC}}", "decision-kinds", path)
         return {}
     kinds, owners = {}, {}
     for kind, prefix in declared.items():
         kind, prefix = str(kind), str(prefix)
         if not DECISION_KIND.match(kind):
-            fail(f"{path}: decision kind {kind!r} does not match {DECISION_KIND.pattern}")
+            fail(f"{path}: decision kind {kind!r} does not match {DECISION_KIND.pattern}", "decision-kinds", path)
         if not DECISION_PREFIX.match(prefix) or prefix in RESERVED_PREFIXES:
             fail(f"{path}: decision prefix {prefix!r} must match {DECISION_PREFIX.pattern} "
-                 f"and not be one of {sorted(RESERVED_PREFIXES)}")
+                 f"and not be one of {sorted(RESERVED_PREFIXES)}", "decision-kinds", path)
         if prefix in owners:
-            fail(f"{path}: decision prefix {prefix} is declared for both {owners[prefix]!r} and {kind!r}")
+            fail(f"{path}: decision prefix {prefix} is declared for both {owners[prefix]!r} and {kind!r}", "decision-kinds", path)
         owners[prefix] = kind
         kinds[kind] = prefix
     return kinds
@@ -263,15 +313,15 @@ def check_decision(path, data, fid, kinds):
     if kinds is None:
         if prefix != DEFAULT_DECISION_PREFIX:
             fail(f"{path}: id {fid}: a decision id is {DEFAULT_DECISION_PREFIX}-nnn unless spec.md declares "
-                 f"decision_kinds")
+                 f"decision_kinds", "decision-kinds", path)
         return
     kind = data.get("kind")
     if kind is None:
-        fail(f"{path}: kind missing; spec.md decision_kinds declares {sorted(kinds)}")
+        fail(f"{path}: kind missing; spec.md decision_kinds declares {sorted(kinds)}", "decision-kinds", path)
     elif str(kind) not in kinds:
-        fail(f"{path}: kind {kind!r} is not in spec.md decision_kinds {sorted(kinds)}")
+        fail(f"{path}: kind {kind!r} is not in spec.md decision_kinds {sorted(kinds)}", "decision-kinds", path)
     elif prefix != kinds[str(kind)]:
-        fail(f"{path}: id {fid} prefix does not match kind {kind!r} ({kinds[str(kind)]}-nnn)")
+        fail(f"{path}: id {fid} prefix does not match kind {kind!r} ({kinds[str(kind)]}-nnn)", "decision-kinds", path)
 
 # Project process parameters: spec.md may set `sdd` (KIT-067). spec.schema.json is the single source of its keys,
 # values and defaults; the checks below read it in both modes, so a bad value names its key with or without jsonschema.
@@ -292,34 +342,34 @@ def check_value(path, name, value, rule):
     if types is not None:
         types = types if isinstance(types, list) else [types]
         if not any(is_type(value, t) for t in types):
-            fail(f"{path}: {name} must be {' or '.join(TYPE_NAMES[t] for t in types)}, not {value!r}")
+            fail(f"{path}: {name} must be {' or '.join(TYPE_NAMES[t] for t in types)}, not {value!r}", "sdd-params", path)
             return False
     if "enum" in rule and not any(value == v and type(value) is type(v) for v in rule["enum"]):
-        fail(f"{path}: {name} {value!r} is not one of {rule['enum']}")
+        fail(f"{path}: {name} {value!r} is not one of {rule['enum']}", "sdd-params", path)
         return False
     ok = True
     if is_type(value, "integer") and "minimum" in rule and value < rule["minimum"]:
-        fail(f"{path}: {name} {value} is below the minimum {rule['minimum']}")
+        fail(f"{path}: {name} {value} is below the minimum {rule['minimum']}", "sdd-params", path)
         ok = False
     if isinstance(value, str):
         if len(value) < rule.get("minLength", 0):
-            fail(f"{path}: {name} must not be empty")
+            fail(f"{path}: {name} must not be empty", "sdd-params", path)
             ok = False
         if "pattern" in rule and not re.search(rule["pattern"], value):
-            fail(f"{path}: {name} {value!r} does not match {rule['pattern']}")
+            fail(f"{path}: {name} {value!r} does not match {rule['pattern']}", "sdd-params", path)
             ok = False
     if isinstance(value, list):
         if len(value) < rule.get("minItems", 0):
-            fail(f"{path}: {name} must list at least {rule['minItems']} item")
+            fail(f"{path}: {name} must list at least {rule['minItems']} item", "sdd-params", path)
             ok = False
         seen = [json.dumps(item, sort_keys=True) for item in value]
         if rule.get("uniqueItems") and len(set(seen)) != len(seen):
-            fail(f"{path}: {name} lists an item twice")
+            fail(f"{path}: {name} lists an item twice", "sdd-params", path)
             ok = False
         for item in value:
             ok = check_value(path, f"{name} item", item, rule.get("items", {})) and ok
         if "const" in rule.get("contains", {}) and rule["contains"]["const"] not in value:
-            fail(f"{path}: {name} must include {rule['contains']['const']!r}")
+            fail(f"{path}: {name} must include {rule['contains']['const']!r}", "sdd-params", path)
             ok = False
     for sub in rule.get("allOf", []):
         ok = check_value(path, name, value, sub) and ok
@@ -329,12 +379,12 @@ def check_value(path, name, value, rule):
         for key, item in value.items():
             key = str(key)
             if key_pattern and not re.search(key_pattern, key):
-                fail(f"{path}: {name} key {key!r} does not match {key_pattern}")
+                fail(f"{path}: {name} key {key!r} does not match {key_pattern}", "sdd-params", path)
                 ok = False
             elif key in props:
                 ok = check_value(path, f"{name}.{key}", item, props[key]) and ok
             elif extra is False:
-                fail(f"{path}: {name}.{key} is not a known key; known: {sorted(props)}")
+                fail(f"{path}: {name}.{key} is not a known key; known: {sorted(props)}", "sdd-params", path)
                 ok = False
             elif isinstance(extra, dict):
                 ok = check_value(path, f"{name}.{key}", item, extra) and ok
@@ -372,6 +422,7 @@ def print_params(spec_dir, schemas_dir):
     spec_schema = json.loads((schemas_dir / "spec.schema.json").read_text())
     resolved = sdd_params(index, data if isinstance(data, dict) else {}, spec_schema, spec_dir)
     if failures or data is None:
+        report(failures)
         sys.exit(1)
     print(json.dumps(resolved, indent=2, sort_keys=True))
 
@@ -386,7 +437,7 @@ def check_conflict_markers(spec_dir):
     for path in sorted(spec_dir.rglob("*.md")):
         for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if CONFLICT_MARKER.match(line):
-                fail(f"{path}:{n}: merge-conflict marker {line[:7]!r} left in the file")
+                fail(f"{path}:{n}: merge-conflict marker {line[:7]!r} left in the file", "conflict-marker", path)
 
 
 NEED_LINKS = {"requirements": "requirement", "decisions": "decision", "debts": "debt", "features": "feature"}
@@ -415,27 +466,27 @@ def check_needs(spec_dir: Path, needs: dict, ids: dict, kind_of: dict, feat_stat
         for field, kind in NEED_LINKS.items():
             for link in as_list(data.get(field)):
                 if kind_of.get(str(link)) != kind:
-                    fail(f"{path}: {field} lists {link}, which is not an existing {kind}")
+                    fail(f"{path}: {field} lists {link}, which is not an existing {kind}", "need-link", path)
         for link in as_list(data.get("journeys")):
             if str(link) not in journeys:
-                fail(f"{path}: journeys lists {link}, which has no file under journeys/")
+                fail(f"{path}: journeys lists {link}, which has no file under journeys/", "need-link", path)
         parent = data.get("parent")
         if parent and str(parent) == nid:
-            fail(f"{path}: parent is the NEED itself")
+            fail(f"{path}: parent is the NEED itself", "need-link", path)
         elif parent and kind_of.get(str(parent)) != "need":
-            fail(f"{path}: parent {parent} is not an existing NEED")
+            fail(f"{path}: parent {parent} is not an existing NEED", "need-link", path)
         status = data.get("status")
         if status in ("refined", "delivered") and not any(as_list(data.get(f)) for f in NEED_PRODUCT_LINKS):
-            fail(f"{path}: status {status} needs at least one link in {', '.join(NEED_PRODUCT_LINKS)}")
+            fail(f"{path}: status {status} needs at least one link in {', '.join(NEED_PRODUCT_LINKS)}", "need-status", path)
         if status == "delivered":
             delivered_by = as_list(data.get("features"))
             decided = [d for d in as_list(data.get("decisions")) if dec_status.get(str(d)) == "approved"]
             if not delivered_by and not (data.get("type") == "decision" and decided):
                 fail(f"{path}: status delivered needs the features that delivered it "
-                     f"(a decision NEED with no FEAT: an approved decision)")
+                     f"(a decision NEED with no FEAT: an approved decision)", "need-status", path)
             for fid in delivered_by:
                 if fid in feat_status and feat_status[fid] != "delivered":
-                    fail(f"{path}: status delivered, but {fid} is {feat_status[fid]}")
+                    fail(f"{path}: status delivered, but {fid} is {feat_status[fid]}", "need-status", path)
 
 
 PROGRESS_TASK_KEYS = ("id", "title", "files", "proof", "passes", "notes")
@@ -444,25 +495,25 @@ PROGRESS_TASK_KEYS = ("id", "title", "files", "proof", "passes", "notes")
 def check_progress_structure(path, data):
     """No-jsonschema fallback: required keys, FEAT id shape, task keys and boolean passes."""
     if not isinstance(data, dict):
-        fail(f"{path}: progress must be a JSON object")
+        fail(f"{path}: progress must be a JSON object", "progress", path)
         return
     for k in ("feat", "generated", "tasks"):
         if k not in data:
-            fail(f"{path}: required field missing: {k}")
+            fail(f"{path}: required field missing: {k}", "progress", path)
     if "feat" in data and not re.match(r"^FEAT-\d{3,}$", str(data["feat"])):
-        fail(f"{path}: feat {data['feat']!r} does not match ^FEAT-\\d{{3,}}$")
+        fail(f"{path}: feat {data['feat']!r} does not match ^FEAT-\\d{{3,}}$", "progress", path)
     tasks = data.get("tasks")
     if "tasks" in data and (not isinstance(tasks, list) or not tasks):
-        fail(f"{path}: tasks must be a non-empty list")
+        fail(f"{path}: tasks must be a non-empty list", "progress", path)
     for task in tasks if isinstance(tasks, list) else []:
         if not isinstance(task, dict):
-            fail(f"{path}: every task must be an object")
+            fail(f"{path}: every task must be an object", "progress", path)
             continue
         for k in PROGRESS_TASK_KEYS:
             if k not in task:
-                fail(f"{path}: task {task.get('id', '?')}: required field missing: {k}")
+                fail(f"{path}: task {task.get('id', '?')}: required field missing: {k}", "progress", path)
         if "passes" in task and not isinstance(task["passes"], bool):
-            fail(f"{path}: task {task.get('id', '?')}: passes must be a boolean")
+            fail(f"{path}: task {task.get('id', '?')}: passes must be a boolean", "progress", path)
 
 
 def check_progress(pdir, schema, feats):
@@ -475,46 +526,281 @@ def check_progress(pdir, schema, feats):
         try:
             data = json.loads(path.read_text())
         except ValueError as e:
-            fail(f"{path}: invalid JSON: {e}")
+            fail(f"{path}: invalid JSON: {e}", "progress", path)
             continue
         if schema is not None:
             try:
                 js_validate(data, schema, format_checker=FormatChecker())
             except Exception as e:
-                fail(f"{path}: schema progress: {getattr(e, 'message', e)}")
+                fail(f"{path}: schema progress: {getattr(e, 'message', e)}", "progress", path)
         else:
             check_progress_structure(path, data)
         if not isinstance(data, dict) or not isinstance(data.get("feat"), str):
             continue
         if path.stem != data["feat"]:
-            fail(f"{path}: feat {data['feat']} != file name")
+            fail(f"{path}: feat {data['feat']} != file name", "progress", path)
         if data["feat"] not in feats:
-            fail(f"{path}: feat {data['feat']} does not exist in features/")
+            fail(f"{path}: feat {data['feat']} does not exist in features/", "progress", path)
         seen = set()
         for task in data.get("tasks") if isinstance(data.get("tasks"), list) else []:
             tid = task.get("id") if isinstance(task, dict) else None
             if isinstance(tid, str):
                 if tid in seen:
-                    fail(f"{path}: duplicate task id {tid}")
+                    fail(f"{path}: duplicate task id {tid}", "progress", path)
                 seen.add(tid)
     return count
 
 
+PIPE = re.compile(r"(?<!\\)\|")
+ROW_ID = re.compile(r"^T-?(\d+)$")
+TASK_ID = re.compile(r"^TASK-\d{3,}$")
+DEP_TOKEN = re.compile(r"\b(FEAT-\d{3,} )?T-?(\d+)\b")
+FEAT_HISTORY = ("validated", "delivered", "cancelled")  # spec-first: the task table is frozen history
+TASK_CELL_MAX = 1000
+
+
+def task_table(path):
+    """The FEAT's task rows: {row id: {column: cell}} from every table whose header starts `| ID | Task |`."""
+    header, rows = None, {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        text = line.strip()
+        if not text.startswith("|"):
+            header = None
+            continue
+        cells = [cell.strip() for cell in PIPE.split(text)[1:-1]]
+        if cells[:2] == ["ID", "Task"]:
+            header = cells
+        elif header and cells and ROW_ID.match(cells[0]):
+            rows[cells[0]] = dict(zip(header, cells))
+    return rows
+
+
+def own_dependencies(cell, fid):
+    """Row numbers of the FEAT's own rows a `Depends on` cell names: `FEAT-nnn T1, T2` stays FEAT-nnn up to `;`."""
+    found = []
+    for group in cell.split(";"):
+        current = fid
+        for m in DEP_TOKEN.finditer(group):
+            current = m.group(1).strip() if m.group(1) else current
+            if current == fid:
+                found.append(int(m.group(2)))
+    return found
+
+
+def chains(deps):
+    """Returns (longest chain of row numbers, first cycle found or None) over {row: [rows it depends on]}."""
+    memo, cycles = {}, []
+
+    def walk(n, stack):
+        if n in memo:
+            return memo[n]
+        if n in stack:
+            cycles.append(stack[stack.index(n):] + [n])
+            return []
+        best = []
+        for m in deps.get(n, ()):
+            if m in deps:
+                path = walk(m, stack + [n])
+                best = path if len(path) > len(best) else best
+        memo[n] = best + [n]
+        return memo[n]
+
+    longest = []
+    for n in deps:
+        path = walk(n, [])
+        longest = path if len(path) > len(longest) else longest
+    return longest, (cycles[0] if cycles else None)
+
+
+def positive(value, default):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 1 else default
+
+
+def check_task_table(fid, path, status, rows, params):
+    """An open FEAT's table: longest own Depends on chain and cycles fail; row count and long Task cells warn."""
+    if status in FEAT_HISTORY or not rows:
+        return
+    label = {int(ROW_ID.match(rid).group(1)): rid for rid in rows}
+    deps = {int(ROW_ID.match(rid).group(1)): own_dependencies(cells.get("Depends on", ""), fid)
+            for rid, cells in rows.items()}
+    longest, cycle = chains(deps)
+    if cycle:
+        fail(f"{path}: Depends on cycle {' → '.join(label[n] for n in cycle)}", "task-chain", path)
+    max_chain = positive(params.get("max_chain"), 4)
+    if len(longest) > max_chain:
+        fail(f"{path}: longest Depends on chain is {len(longest)} rows ({' → '.join(label[n] for n in longest)}), "
+             f"above sdd.max_chain {max_chain}", "task-chain", path)
+    max_rows = positive(params.get("max_feat_tasks"), 30)
+    if len(rows) > max_rows:
+        warn(f"{path}: {len(rows)} task rows, above sdd.max_feat_tasks {max_rows}: sdd-plan splits the NEED into "
+             f"several FEATs", "task-size")
+    for rid, cells in rows.items():
+        size = len(cells.get("Task", ""))
+        if size > TASK_CELL_MAX:
+            warn(f"{path}: {rid} Task cell has {size} characters, above {TASK_CELL_MAX}: point to the Plan section "
+                 f"instead of restating it", "task-cell")
+
+
+def check_task_items(tasks, tables, ids):
+    """TASK-nnn files and the FEAT rows' Item cells name each other (tracker: none)."""
+    for tid, data in tasks.items():
+        path, fid = ids[tid], str(data.get("feat"))
+        if fid not in tables:
+            fail(f"{path}: feat {fid} does not exist in features/", "task-file", path)
+            continue
+        table = tables[fid]["rows"]
+        for rid in map(str, as_list(data.get("rows"))):
+            if rid not in table:
+                fail(f"{path}: row {rid} is not a row of the {fid} task table", "task-file", path)
+            elif table[rid].get("Item", "") != tid:
+                fail(f"{path}: {fid} {rid} Item is {table[rid].get('Item', '')!r}, not {tid}", "task-item", path)
+    for fid, table in tables.items():
+        path = table["path"]
+        for rid, cells in table["rows"].items():
+            item = cells.get("Item", "")
+            if not TASK_ID.match(item):
+                continue
+            if item not in tasks:
+                fail(f"{path}: {rid} Item {item} has no file under tasks/", "task-item", path)
+            elif str(tasks[item].get("feat")) != fid:
+                fail(f"{path}: {rid} Item {item}, but {item} feat is {tasks[item].get('feat')}", "task-item", path)
+            elif rid not in map(str, as_list(tasks[item].get("rows"))):
+                fail(f"{path}: {rid} Item {item}, but {item} rows does not list {rid}", "task-item", path)
+
+
+BASELINE = "baseline.json"
+CHECK_ROW = re.compile(r"^[CQ]\d+$")  # sdd-check rows; sdd-check all compares them
+
+
+def read_baseline(path):
+    """Returns (file data, {rule: {key: count}}), or (None, {}) without the file; a bad entry fails rule baseline."""
+    if not path.exists():
+        return None, {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as e:
+        fail(f"{path}: invalid JSON: {e}", "baseline", path)
+        return None, {}
+    rules = data.get("rules") if isinstance(data, dict) else None
+    if not isinstance(rules, dict):
+        fail(f"{path}: must be {{\"rules\": {{rule: {{artifact: count}}}}}}", "baseline", path)
+        return None, {}
+    held = {}
+    for rule, keys in rules.items():
+        if rule not in RULES and not CHECK_ROW.match(str(rule)):
+            fail(f"{path}: unknown rule {rule!r}; check_spec.py rules are {', '.join(RULES)}, sdd-check rows "
+                 f"C<n> and Q<n>", "baseline", path)
+            continue
+        if not isinstance(keys, dict):
+            fail(f"{path}: {rule} must map each artifact to its count", "baseline", path)
+            continue
+        for key, count in keys.items():
+            if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+                fail(f"{path}: {rule} {key} must be a count of at least 1", "baseline", path)
+            else:
+                held.setdefault(rule, {})[key] = count
+    return data, held
+
+
+def found_counts():
+    counts = {}
+    for rule, key, _ in failures:
+        if rule in RULES:
+            counts.setdefault(rule, {}).setdefault(key, 0)
+            counts[rule][key] += 1
+    return counts
+
+
+def write_baseline(path, data, rules):
+    data = dict(data or {})
+    data["rules"] = {rule: dict(sorted(keys.items())) for rule, keys in sorted(rules.items()) if keys}
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def lowered(held, counts):
+    """The baseline --baseline-update writes: each of this script's entries at most what is found; never more."""
+    rules = {}
+    for rule, keys in held.items():
+        for key, count in keys.items():
+            kept = count if rule not in RULES else min(count, counts.get(rule, {}).get(key, 0))
+            if kept:
+                rules.setdefault(rule, {})[key] = kept
+            if kept != count:
+                print(f"baseline: {rule} {key} lowered from {count} to {kept}")
+    return rules
+
+
+def apply_baseline(path, held, counts):
+    """Splits the failures into (blocking, held); a count that differs from what is found fails rule baseline."""
+    blocking, kept = [], []
+    for finding in failures:
+        rule, key, _ = finding
+        allowed = held.get(rule, {}).get(key, 0)
+        (kept if allowed and counts[rule][key] <= allowed else blocking).append(finding)
+    for rule, keys in held.items():
+        if rule not in RULES:
+            continue
+        for key, allowed in keys.items():
+            n = counts.get(rule, {}).get(key, 0)
+            noun = "finding" if allowed == 1 else "findings"
+            if n < allowed:
+                blocking.append(("baseline", BASELINE, f"{path} holds {allowed} {rule} {noun} for {key}, found {n}: "
+                                 f"lower it with check_spec.py --baseline-update"))
+            elif n > allowed:
+                blocking.append(("baseline", BASELINE, f"{path} holds {allowed} {rule} {noun} for {key}, found {n}"))
+    return blocking, kept
+
+
+def check_against(path, held, older_path):
+    """--baseline-against: the baseline may only shrink, so an entry added or raised over the older copy fails."""
+    try:
+        older = json.loads(older_path.read_text(encoding="utf-8")).get("rules", {})
+    except (OSError, ValueError, AttributeError) as e:
+        return [("baseline", BASELINE, f"{older_path}: cannot read the older baseline: {e}")]
+    findings = []
+    for rule, keys in held.items():
+        for key, count in keys.items():
+            before = older.get(rule, {}).get(key) if isinstance(older.get(rule), dict) else None
+            if before is None:
+                findings.append(("baseline", BASELINE, f"{path} adds {rule} {key}"))
+            elif count > before:
+                findings.append(("baseline", BASELINE, f"{path} raises {rule} {key} from {before} to {count}"))
+    return findings
+
+
+USAGE = ("usage: check_spec.py [--params | --baseline-init | --baseline-update] [--baseline-against <older.json>] "
+         "<spec-dir> <schemas-dir>")
+
+
+def parse_args(argv):
+    opts, args, rest = {"against": None}, [], list(argv)
+    while rest:
+        arg = rest.pop(0)
+        if arg in ("--params", "--baseline-init", "--baseline-update"):
+            opts[arg] = True
+        elif arg == "--baseline-against" and rest:
+            opts["against"] = Path(rest.pop(0))
+        elif arg.startswith("--"):
+            sys.exit(USAGE)
+        else:
+            args.append(arg)
+    modes = [m for m in ("--params", "--baseline-init", "--baseline-update") if opts.get(m)]
+    if len(args) != 2 or len(modes) > 1:
+        sys.exit(USAGE)
+    return opts, Path(args[0]), Path(args[1])
+
+
 def main():
-    args = sys.argv[1:]
-    params = bool(args) and args[0] == "--params"
-    if params:
-        args = args[1:]
-    if len(args) != 2:
-        sys.exit("usage: check_spec.py [--params] <spec-dir> <schemas-dir>")
-    spec_dir, schemas_dir = Path(args[0]), Path(args[1])
+    global SPEC_DIR
+    opts, spec_dir, schemas_dir = parse_args(sys.argv[1:])
+    SPEC_DIR = spec_dir
     if not spec_dir.is_dir():
         sys.exit(f"spec dir does not exist: {spec_dir}")
     if not FULL:
         if os.environ.get("CI") == "1":
             sys.exit("FAIL: pyyaml/jsonschema missing (CI=1 requires deps; pip install pyyaml jsonschema)")
         print("WARN: pyyaml/jsonschema missing; spec validation will be structural.", file=sys.stderr)
-    if params:
+    if opts.get("--params"):
         print_params(spec_dir, schemas_dir)
         return
     spec_schema = json.loads((schemas_dir / "spec.schema.json").read_text())
@@ -533,45 +819,46 @@ def main():
     if (spec_dir / "spec.md").exists():
         targets.append((spec_dir / "spec.md", "spec"))
     for sub, kind in [("features", "feature"), ("requirements", "requirement"),
-                      ("decisions", "decision"), ("debts", "debt"), ("needs", "need")]:
+                      ("decisions", "decision"), ("debts", "debt"), ("needs", "need"), ("tasks", "task")]:
         d = spec_dir / sub
         if d.is_dir():
-            for f in sorted(d.glob("*.md") if sub == "needs" else d.rglob("*.md")):
+            for f in sorted(d.glob("*.md") if sub in ("needs", "tasks") else d.rglob("*.md")):
                 targets.append((f, kind))
 
     ids, kind_of = {}, {}
-    feats, reqs, feat_status, dec_status, needs = {}, {}, {}, {}, {}
+    feats, reqs, feat_status, dec_status, needs, tasks, tables = {}, {}, {}, {}, {}, {}, {}
     kinds = None  # spec.md is the first target, so its decision_kinds is read before any decision
+    params = sdd_params(spec_dir / "spec.md", {}, spec_schema, spec_dir)
     for path, kind in targets:
         data = frontmatter(path)
         if data is None or not isinstance(data, dict):
             continue
         if kind == "spec":
             kinds = decision_kinds(path, data)
-            sdd_params(path, data, spec_schema, spec_dir)
+            params = sdd_params(path, data, spec_schema, spec_dir)
         if FULL and kind in schemas:
             try:
                 js_validate(data, schemas[kind], format_checker=FormatChecker())
             except Exception as e:
-                fail(f"{path}: schema {kind}: {getattr(e, 'message', e)}")
+                fail(f"{path}: schema {kind}: {getattr(e, 'message', e)}", "schema", path)
         else:
             rule = STRUCT[kind]
             for k in rule["req"]:
                 if k not in data:
-                    fail(f"{path}: required field missing: {k}")
+                    fail(f"{path}: required field missing: {k}", "schema", path)
             for k, allowed in rule["enums"].items():
                 if k in data and data[k] not in allowed:
-                    fail(f"{path}: {k}={data[k]!r} not in {allowed}")
+                    fail(f"{path}: {k}={data[k]!r} not in {allowed}", "schema", path)
             if rule["id"] and "id" in data and not re.match(rule["id"], str(data["id"])):
-                fail(f"{path}: id {data['id']!r} does not match {rule['id']}")
+                fail(f"{path}: id {data['id']!r} does not match {rule['id']}", "schema", path)
 
         fid = data.get("id")
         if fid:
             m = ID_PREFIX.match(path.stem)
             if not m or f"{m.group(1)}-{m.group(2)}" != str(fid):
-                fail(f"{path}: id={fid} != file name prefix")
+                fail(f"{path}: id={fid} != file name prefix", "id-file", path)
             if fid in ids:
-                fail(f"{path}: duplicate id {fid} (also in {ids[fid]})")
+                fail(f"{path}: duplicate id {fid} (also in {ids[fid]})", "id-duplicate", path)
             ids[fid] = path
             kind_of[str(fid)] = kind
         if kind == "decision" and fid:
@@ -580,20 +867,25 @@ def main():
         if kind == "feature" and fid:
             feats[fid] = data.get("requirements") or []
             feat_status[fid] = data.get("status")
+            tables[str(fid)] = {"path": path, "rows": task_table(path)}
+            check_task_table(str(fid), path, data.get("status"), tables[str(fid)]["rows"], params)
         if kind == "requirement" and fid:
             reqs[fid] = data.get("features") or []
         if kind == "need" and fid:
             needs[fid] = data
+        if kind == "task" and fid:
+            tasks[str(fid)] = data
 
     progress_files = check_progress(spec_dir / "progress", progress_schema, feats)
     check_conflict_markers(spec_dir)
     check_needs(spec_dir, needs, ids, kind_of, feat_status, dec_status)
+    check_task_items(tasks, tables, ids)
 
     # cross-references FEAT <-> REQ
     for fid, rlist in feats.items():
         for r in rlist:
             if r not in reqs:
-                fail(f"{ids[fid]}: requirements lists {r} which does not exist")
+                fail(f"{ids[fid]}: requirements lists {r} which does not exist", "link-missing", ids[fid])
     need_reqs = {str(r) for data in needs.values() if data.get("status") not in NEED_SETTLED
                  for r in as_list(data.get("requirements"))}
     settled_reqs = {str(r): nid for nid, data in needs.items() if data.get("status") in NEED_SETTLED
@@ -601,24 +893,42 @@ def main():
     for rid, flist in reqs.items():
         if not flist and rid not in need_reqs:
             closed = f" ({settled_reqs[rid]} lists it but is closed or delivered)" if rid in settled_reqs else ""
-            fail(f"{ids[rid]}: {rid} has no FEAT implementing it and no NEED listing it{closed}")
+            fail(f"{ids[rid]}: {rid} has no FEAT implementing it and no NEED listing it{closed}", "req-unlisted", ids[rid])
         for f in flist:
             if f not in feats:
-                fail(f"{ids[rid]}: features lists {f} which does not exist")
+                fail(f"{ids[rid]}: features lists {f} which does not exist", "link-missing", ids[rid])
     # both sides agree: a link written on one side only drifts. Together with the check above, every REQ is
     # listed by some FEAT, or by an open NEED until sdd-plan creates the FEAT that delivers it.
     for fid, rlist in feats.items():
         for r in rlist:
             if r in reqs and fid not in reqs[r]:
-                fail(f"{ids[fid]}: requirements lists {r}, but {r} features does not list {fid}")
+                fail(f"{ids[fid]}: requirements lists {r}, but {r} features does not list {fid}", "link-one-sided", ids[fid])
     for rid, flist in reqs.items():
         for f in flist:
             if f in feats and rid not in feats[f]:
-                fail(f"{ids[rid]}: features lists {f}, but {f} requirements does not list {rid}")
+                fail(f"{ids[rid]}: features lists {f}, but {f} requirements does not list {rid}", "link-one-sided", ids[rid])
 
-    if failures:
+    baseline_path = spec_dir / BASELINE
+    counts = found_counts()
+    if opts.get("--baseline-init"):
+        if baseline_path.exists():
+            report([("baseline", BASELINE, f"{baseline_path} exists and may only shrink: --baseline-update lowers "
+                     f"it")])
+            sys.exit(1)
+        write_baseline(baseline_path, None, counts)
+        print(f"baseline: wrote {sum(map(len, counts.values()))} entries to {baseline_path}")
+    data, held = read_baseline(baseline_path)
+    if opts.get("--baseline-update") and data is not None:
+        held = lowered(held, counts)
+        write_baseline(baseline_path, data, held)
+    blocking, kept = apply_baseline(baseline_path, held, counts)
+    if opts["against"] is not None:
+        blocking += check_against(baseline_path, held, opts["against"])
+    report(blocking, kept)
+    if blocking:
         sys.exit(1)
-    print(f"spec: OK ({len(ids)} artifacts)")
+    held_note = f"; {len(kept)} finding{'' if len(kept) == 1 else 's'} held by {BASELINE}" if kept else ""
+    print(f"spec: OK ({len(ids)} artifacts{held_note})")
     if progress_files:
         print(f"progress: OK ({progress_files} files)")
 

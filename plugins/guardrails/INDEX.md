@@ -64,6 +64,7 @@
 - `spec-need.md`
 - `spec-requirement-functional.md`
 - `spec-requirement-non-functional.md`
+- `spec-task.md`
 
 ## `evals/`
 
