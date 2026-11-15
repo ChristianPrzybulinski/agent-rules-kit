@@ -25,7 +25,7 @@ skills/sdd-check         | docs
 skills/sdd-clarify       | docs
 skills/sdd-constitution  | docs
 skills/sdd-implement     | docs
-skills/sdd-journey       | docs
+skills/sdd-intake        | docs
 skills/sdd-plan          | docs
 skills/sdd-specify       | docs
 skills/sdd-spike         | docs

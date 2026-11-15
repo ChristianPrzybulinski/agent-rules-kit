@@ -7,7 +7,9 @@ kind: detail
 
 Adapted from [github/spec-kit](https://github.com/github/spec-kit) as repository skills; project artifacts live under `docs/spec/`, never in the kit.
 
-Entry points: vague idea → `/grilling` first, then `sdd-specify` when problem/value is describable; described feature → `sdd-specify`; new project/principles → `sdd-constitution`; one user-visible flow → `sdd-journey`; vague feel question (motion, camera, feedback, UI) → `sdd-spike`, whose report feeds `sdd-specify` and whose branch never merges.
+Entry: every request (idea, need, improvement, problem) is recorded by `sdd-intake` as a `NEED-nnn`. `sdd-specify` decides its type, route and priority: `new`, `improvement`, `platform` and `decision` go on to refinement, a `fix` of behavior an artifact already states and a `content`-only change are routed without it. The NEED (business) becomes REQs (functional, `sdd-clarify`), then a FEAT (technical, `sdd-plan`). A vague idea is stress-tested with `/grilling`; a bug with no named cause goes through `investigate` and a feel or feasibility question through an `sdd-spike` (its branch never merges), and both reports enter `sdd-intake` as the NEED's evidence. A new project or new principles start with `sdd-constitution`.
+
+The chain is intake → specify → clarify → plan → tasks → to-card → implement → review. `sdd-check` is not a step: it is the read-only tool that `sdd-clarify` calls in its functional scope (blocks `refined`) and `sdd-plan` in its full scope (the functional items again plus the technical ones, blocks `planned`); anyone may run it as an audit (`all`).
 
 ## Flow
 
@@ -16,10 +18,11 @@ Repeat `implement → review` per issue until READY. Run `to-card` after `tasks`
 | Step | Skill | Input | Output |
 |---|---|---|---|
 | 0 | `sdd-constitution` | product/stack | project rules + spec index |
-| 1 | `sdd-specify` | feature description | proposed FEAT + REQs |
-| 2 | `sdd-clarify` | FEAT questions | clarified FEAT |
-| 3 | `sdd-check` | clarified FEAT + artifacts | validator, consistency and quality report |
-| 4 | `sdd-plan` | checked FEAT | Plan + DECs; planned |
+| entry | `sdd-intake` | request | NEED proposed |
+| 1 | `sdd-specify` | proposed NEED; later the triaged one | decide: triaged, or closed; describe: specified |
+| 2 | `sdd-clarify` | specified NEED | REQs (new, amended), journeys, product decisions; NEED refined |
+| tool (was 3) | `sdd-check` | called by clarify (NEED, functional) and plan (FEAT, full); `all` for audits | read-only report that blocks refined or planned |
+| 4 | `sdd-plan` | refined NEED | FEAT with technical criteria, Plan + decisions; planned |
 | 5 | `sdd-tasks` | Plan | ordered task rows |
 | 6 | `sdd-implement` | one task issue | code/tests/docs; PR per issue |
 | 7 | `review` | FEAT + delivery | READY/PARTIAL/NOT READY |
@@ -27,11 +30,9 @@ Repeat `implement → review` per issue until READY. Run `to-card` after `tasks`
 
 ## Identifiers and status
 
-`FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DEC-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `J-nn` → `journeys/`. A project that numbers decisions per kind declares `decision_kinds` (kind → prefix) in `spec.md`; each decision then carries its `kind` and that kind's prefix. Number sequentially inside each prefix; never reuse.
+`NEED-nnn` → `needs/`; `FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DEC-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `J-nn` → `journeys/`. A project that numbers decisions per kind declares `decision_kinds` (kind → prefix) in `spec.md`; each decision then carries its `kind` and that kind's prefix. Number sequentially inside each prefix; never reuse. When two or more spec sessions run against one specification at the same time, each session's prompt reserves a block of ids for every kind it may create (`NEED`, `FEAT`, `REQ-F`, `REQ-NF`, `DEC` or each declared decision prefix, `DEBT`, `J`); a session takes ids only from its own block. A reserved id left unused stays a gap and is never reused.
 
-When two or more spec sessions run against one specification at the same time, each session's prompt reserves a block of ids for every kind it may create (`FEAT`, `REQ-F`, `REQ-NF`, `DEC` or each declared decision prefix, `DEBT`, `J`); a session takes ids only from its own block. A reserved id left unused stays a gap and is never reused.
-
-Feature status moves forward: `proposed → clarified → planned → in-progress → validated → delivered` (or `cancelled`). From `in-progress` on the value is derived (see Regimes). During implementation the executor's state is `docs/spec/progress/FEAT-nnn.json` (`passes` per task, set only after the literal proof output); after merge the task row and FEAT status derived from GitHub are the source of truth and the progress file is advisory. `delivered` means merged to `main` with no flag or the flag on. Journeys: `proposed → approved` (or `retired`).
+A NEED moves `proposed → triaged → specified → refined → delivered`, or closes `rejected`, `merged`, `routed` or `parked` (a parked NEED returns to `triaged` when taken up): `triaged` once product confirms type, route and priority (the agent routes a fix or a duplicate, which product reviews later), `specified` once its outcome, Situations, scope and constraints are written, `refined` once product approves its REQs after a clean functional check, `delivered` once every FEAT it lists is delivered (set by the step that delivers its last FEAT; a `decision` NEED with no FEAT, by the approval of its decision record in `sdd-clarify`). Its links are written only in the NEED. A REQ moves `proposed → approved` (or `retired`; absent means `approved`) and is listed by the FEATs that implement it, or by its NEED until `sdd-plan` creates one. Journeys (`proposed → approved` or `retired`) are written inside `sdd-clarify` and checked by `sdd-check`, only where the project keeps them. A FEAT moves `proposed → planned → in-progress → validated → delivered` (or `cancelled`; `clarified` remains on FEATs older than the NEED flow); from `in-progress` on the value is derived (see Regimes). During implementation the executor's state is `docs/spec/progress/FEAT-nnn.json` (`passes` per task, set only after the literal proof output); after merge the task row and FEAT status derived from GitHub are the source of truth and the progress file is advisory. `delivered` means merged to `main` with no flag or the flag on.
 
 Every spec/decision classifies claims as `[FACT]`, `[DECISION]`, `[PROPOSAL]`, `[HYPOTHESIS]` or `[BLOCKER]`.
 
@@ -39,13 +40,14 @@ Every spec/decision classifies claims as `[FACT]`, `[DECISION]`, `[PROPOSAL]`, `
 
 Two regimes, after Böckeler/Thoughtworks (2025-10: spec-first, spec-anchored, spec-as-source; the kit has no spec-as-source):
 - spec-anchored: maintained and validated for the life of the product: `protocol/` schemas and examples, content schemas, decisions, requirements (REQ-F/REQ-NF), journeys (where the project has them) and the `spec.md` index. Every change is a reviewed PR.
-- spec-first: FEAT bodies and task tables. Written to cut the work, frozen as history once delivered; FEAT `status` and task `State` are derived by tooling from GitHub, never edited by hand.
+- spec-first: NEED files, FEAT bodies and task tables. Written to frame and cut the work, frozen as history once delivered or closed; FEAT `status` and task `State` are derived by tooling from GitHub, never edited by hand.
 
 ## Project layout
 
 ```text
 docs/spec/
 ├── spec.md
+├── needs/NEED-nnn-slug.md (+ NEED-nnn-data/ when the evidence is bulky)
 ├── features/FEAT-nnn-slug.md
 ├── requirements/{functional,non-functional}/REQ-*.md
 ├── decisions/DEC-nnn-slug.md

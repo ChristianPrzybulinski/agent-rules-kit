@@ -2,11 +2,15 @@
 id: REQ-F-000
 title: "[The system must ... — 1 testable sentence]"
 type: functional
+status: proposed
 priority: must
 features: []
-source: "[product | legacy:<path> | <decision id>]"
+source: "[NEED-nnn S<n> | legacy:<path> | <decision id>]"
 created: "YYYY-MM-DD"
 ---
+<!-- Written by sdd-clarify from a NEED Situation; scope and split rules: skills/sdd-clarify/references/req-scope.md.
+     status: proposed → approved (product, when its NEED is refined) → retired (never deleted). Absent means approved.
+     features is filled by sdd-plan; until then the NEED that lists this REQ is its link. -->
 
 # REQ-F-000 — [Title]
 
@@ -14,15 +18,29 @@ created: "YYYY-MM-DD"
 
 The system must [observable behavior], when [condition], for [actor].
 
+<!-- One rule sentence. Numbers or formulas the actor experiences go in Values. How the code does it (algorithm, draw
+     order, data structure, message) belongs to the technical step, never here. -->
+
+| Value | Meaning |
+|---|---|
+| [number or formula] | [what the actor experiences] |
+
 ## Rationale
 
-[Why. If it comes from legacy, cite the file and mark `[FACT]` or `[HYPOTHESIS]`.]
+[Why: the NEED Situation it comes from (NEED-nnn S<n>) and the decision it follows, if any. From legacy: cite the file
+and mark `[FACT]` or `[HYPOTHESIS]`.]
 
 ## Verification
 
-- Proving test: [type + description in 1 line]
-- Concrete example: input `[...]` → output `[...]`
+- Proving test: [type: unit / integration / contract / e2e + description in 1 line]
+- Examples: input `[...]` → output `[...]`
+- Counterexamples: [what would violate this requirement — taken from the Situations that go wrong]
+- Mock (a screen only): [path of the mock product approved, the visual reference the review compares against]
 
 ## Features that implement it
 
-- `FEAT-000`
+- `FEAT-000` <!-- sdd-plan -->
+
+## History
+
+- YYYY-MM-DD NEED-nnn: created — [why, one line].
