@@ -26,13 +26,14 @@ pr: "#262"
 
 - `platforms/ci/validations/spec_trace.py`: `sync-status [--write] [--backlog OWNER/REPO]` (only with `sdd.tracker:
   github`; `gh api` REST GETs of the backlog issues and of each PR repository's pulls; row Status per `task-issue.md`
-  § States, `todo`/`doing`/`blocked`/`done`/`cancelled`; a `done` row stays `done`; FEAT status by KIT-069's
-  `derived_status`, never `validated` or `delivered`; with `--write` the FEAT files, `traceability.md` and the `spec.md`
-  Status cells, the in-progress block and, between `<!-- sync-counts:begin -->` and `<!-- sync-counts:end -->`, a
-  counts line `N FEATs: n `status`, …`; a closed issue is read before its labels, and a `cancelled` row is never
-  reopened), `checklist J-NN … [--out FILE] [--force]`, the `spec.md` index check behind
-  `sdd.spec_index`, journey test paths under `sdd.components`. Every subcommand's spec argument is optional (default
-  `docs/spec`). The release checklist with fixed runbooks stays in the project.
+  § States, `todo`/`doing`/`blocked`/`done`/`cancelled`; a `done` row stays `done` while a merged closing PR exists,
+  and with none a closed issue keeps it with a warning; FEAT status by KIT-069's `derived_status`, never `validated`
+  or `delivered`; with `--write` the FEAT files, `traceability.md` and the `spec.md` Status cells, the in-progress
+  block and, between `<!-- sync-counts:begin -->` and `<!-- sync-counts:end -->`, a counts line ``N FEATs: n `status`,
+  …``; a closed issue is read before its labels, only open issues lend labels, and a `cancelled` row is never
+  reopened), `checklist J-NN … [--out FILE] [--force]`, the `spec.md` index check behind `sdd.spec_index`, journey
+  test paths under `sdd.components`. Every subcommand's spec argument is optional (default `docs/spec`). The release
+  checklist with fixed runbooks stays in the project.
 - `platforms/ci/validations/row_checks.py` (new): `check FEAT-nnn … | --all | --changed BASE HEAD [--all-rows]
   [--strict]`, rules a–k read from `components`, `row_checks` (`gates`, `tests`, `assets`, `protocol`, `artifacts`,
   `visual`) and `visual_approval`; `sdd.row_check: null` now means this command. A config it cannot use, or any
@@ -41,8 +42,9 @@ pr: "#262"
   project's docs at the resync.
 - `platforms/ci/validations/pr_gates.py`: one `command_allowed(cmd, allowlist, cwd=None, var_depths=None)` with the
   optional working-directory sandbox (`proof_var_depths`) and the refusal of `! git diff` without `--quiet` or
-  `--exit-code`; a value glued to an option (`--file=…`, `-C..`) goes through the same rules; `row_checks.py`
-  imports it.
+  `--exit-code`; a value glued to an option (`--file=…`, `-C..`, each suffix of `-rf..`) goes through the same rules,
+  and under the sandbox a word whose shell expansion it cannot predict (`$'..'`, `${X:-y}`, `~+`, `{..,.}`, `.*`) is
+  refused; `row_checks.py` imports it.
 - `platforms/ci/validations/check_spec.py`: `load_params(spec_dir, schemas_dir)` for the tools that read the block.
 - `platforms/ci/schemas/spec.schema.json`, `plugins/guardrails/templates/spec-index.md`: the keys `components`,
   `spec_index`, `github`, `row_checks` with their defaults.
@@ -79,3 +81,6 @@ pr: "#262"
 - 2026-11-15: independent review of `4f8ba01` BLOCKED on four findings, fixed test-first: `sync-status` reopened
   `cancelled` rows; a malformed row-checks config exited 1; glued option values bypassed the sandbox; the counts
   sentence was not ported and `suggest` was dropped without a reason. Non-blocking follow-ups: #265-#270.
+- 2026-11-15: delta review of `578566e` BLOCKED on the sandbox again (bash builds `..` from quoting, braces, globs
+  and parameter operators no spelling list holds): the sandbox now accepts only expansions it can predict. Also
+  fixed: a closed issue's labels reached the open one; a crash's traceback was lost.

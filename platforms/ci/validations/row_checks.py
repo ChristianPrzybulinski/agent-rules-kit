@@ -38,6 +38,7 @@ import posixpath
 import re
 import subprocess
 import sys
+import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -948,6 +949,7 @@ def main(argv=None) -> int:
         print(f"row-checks: {error}", file=sys.stderr)
         return 2
     except Exception as error:  # noqa: BLE001  exit 1 means FAIL rows; a crash must never read as one, nor as clean
+        traceback.print_exc()
         print(f"row-checks: internal error: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
 

@@ -5,7 +5,7 @@ kind: detail
 
 # Row checks
 
-Each row passes every check below before its table goes to the spec PR; a row that fails one is fixed first, never inside the implementing PR. The row-check command automates what it can, and its exit 0 is required; the checks it does not cover stay the writer's. With `row_check: null` that command is the kit's `python3 .github/spec-lint/row_checks.py check FEAT-nnn` (or `--all`, `--changed BASE HEAD`; § Automated rules): it reads the `sdd:` block (`check_spec.py --params` shows it resolved), checks the rows that are not settled (`--all-rows`: every row) and exits 1 on a FAIL (`--strict` makes the c and f warnings fail), 2 on a config it cannot use. A project command replaces it.
+Each row passes every check below before its table goes to the spec PR; a row that fails one is fixed first, never inside the implementing PR. The row-check command automates what it can, and its exit 0 is required; the checks it does not cover stay the writer's. With `row_check: null` that command is the kit's `python3 .github/spec-lint/row_checks.py check FEAT-nnn` (or `--all`, `--changed BASE HEAD`; § Automated rules): it reads the `sdd:` block (`check_spec.py --params` shows it resolved), checks the rows that are not settled (`--all-rows`: every row) and exits 1 on a FAIL (`--strict` makes the c and f warnings fail), 2 on a config it cannot use or on an internal error. A project command replaces it.
 
 ## Size and order
 

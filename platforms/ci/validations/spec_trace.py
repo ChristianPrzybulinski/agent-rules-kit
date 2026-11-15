@@ -1188,9 +1188,11 @@ def task_issues(repo, gh=run_gh):
 
 
 def merge_issues(group):
-    """One view of a row's issues: any open issue means open; closed as not planned only when every one is."""
+    """One view of a row's issues: any open issue means open, and only open issues lend their labels (a closed
+    issue's stale `blocked` says nothing about the open one); closed as not planned only when every one is."""
     closed = [i for i in group if i["state"] != "open"]
-    return {"number": group[0]["number"], "labels": sorted({lb for i in group for lb in i["labels"]}),
+    return {"number": group[0]["number"], "labels": sorted({lb for i in group if i["state"] == "open"
+                                                            for lb in i["labels"]}),
             "state": "open" if len(closed) < len(group) else "closed",
             "reason": "not_planned" if closed and all(i["reason"] == "not_planned" for i in closed) else ""}
 
