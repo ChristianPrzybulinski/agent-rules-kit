@@ -121,6 +121,7 @@ class UnpredictableExpansions(unittest.TestCase):
     def test_tilde_forms_other_than_home_are_refused(self):
         self.refused("test -f ~+/x", EXPANSION, DEPTHS)
         self.refused("test -f ~root/x", EXPANSION, DEPTHS)
+        self.refused("grep -q x A=x:~/../y", EXPANSION, DEPTHS)  # bash expands `~` after `:` in `NAME=...`
 
     def test_a_glob_that_could_match_dot_or_dotdot_is_refused(self):
         for cmd in ("grep -r x .*", "grep -q x .?/client/secret", "grep -r x .[.]/client", "grep -r x src/[.]*/x"):
