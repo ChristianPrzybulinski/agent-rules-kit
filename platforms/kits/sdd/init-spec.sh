@@ -6,13 +6,14 @@ set -euo pipefail
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 REPO="${1:?usage: init-spec.sh <repo-dir>}"
 
-mkdir -p "$REPO/docs/spec/features" \
+mkdir -p "$REPO/docs/spec/needs" \
+         "$REPO/docs/spec/features" \
          "$REPO/docs/spec/requirements/functional" \
          "$REPO/docs/spec/requirements/non-functional" \
          "$REPO/docs/spec/decisions" \
          "$REPO/docs/spec/debts"
 
-for d in features requirements/functional requirements/non-functional decisions debts; do
+for d in needs features requirements/functional requirements/non-functional decisions debts; do
   touch "$REPO/docs/spec/$d/.gitkeep"
 done
 

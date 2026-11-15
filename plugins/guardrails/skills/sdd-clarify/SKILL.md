@@ -1,35 +1,53 @@
 ---
 name: sdd-clarify
-description: SDD step 2 — resolve ambiguous FEAT criteria. Use when a FEAT has open questions or vague terms. Not for gap checks (skill sdd-check).
-argument-hint: "FEAT-nnn"
+description: SDD step 2 — turn a specified NEED into approved REQs by asking product. Use when a NEED is specified. Not for gap checks (skill sdd-check).
+argument-hint: "NEED-nnn"
 triggers:
   - user
 disable-model-invocation: true
 allowed-tools:
   - read
+  - glob
+  - grep
   - edit
+  - exec
 ---
 
 # SDD 2 — Clarify
 
-Process: `../sdd-constitution/references/sdd-process.md`.
+The functional refinement: makes each Situation of a `specified` NEED precise as REQs, a journey step or a product decision, and ends with the NEED `refined`. No technical choice, FEAT, debt or task row. Process: `../sdd-constitution/references/sdd-process.md`. Scope rules: `references/req-scope.md`. Templates: `../../templates/spec-requirement-functional.md`, `../../templates/spec-requirement-non-functional.md`.
 
-## 1. Find product ambiguity
+## 1. Map each Situation
 
-Read the FEAT and linked requirements. Collect clarification markers, criteria without a sad path, undefined glossary terms and vague quantities such as “fast”, “many” or “safe”.
+Read the NEED, `docs/spec/spec.md` and the REQs and journeys its Triage names. Work each Situation as an example map: the rules it implies become REQs, its examples and counterexamples become their Verification, and what is still unknown becomes a question for §2. A size L NEED or a new area may start with a short event-storming pass (domain events, the commands that cause them, the rules between). For every Situation choose one, following `references/req-scope.md`:
 
-## 2. Ask one focused round
+- reuse: an existing REQ already states it; nothing changes;
+- amend: an existing REQ states it differently; edit that REQ and add a History line;
+- new: write a REQ-F or REQ-NF with `status: proposed` and `source: NEED-nnn S<n>` (next unused id, or the session's reserved block);
+- journey: the Situations add, change, reorder or remove a step of a flow of two or more screens or interactions, and the project keeps `docs/spec/journeys/` → `references/journeys.md`; a new step holds `—` in `Implemented by` and `Proven by` until `sdd-tasks` fills them, and the NEED lists the journey in `journeys`;
+- decision: product must choose between two or more reasonable options → a product decision record with `status: proposed`, cited in each REQ's Rationale;
+- cut: out of scope, with where it goes.
 
-Prioritize scope/risk questions. Ask at most five per round, one question per call of the runtime's ask tool (`AskUserQuestion`, `ask_user_question`), else as a numbered text list; each has one-line context with a concrete example, two to four options, consequences and a marked recommendation.
+Each REQ: one rule sentence and a Values table for the numbers the actor experiences; Verification with the proving test type, examples and counterexamples (from the Situations that go wrong); a REQ about a screen also cites the mock product approved. A rule that must always hold (an invariant, such as a maximum count) is a REQ of its own, which `sdd-plan` maps to what protects it. Every domain term a REQ uses is in the `spec.md` glossary; add a missing one in the same change.
 
-Do not answer a product, cost or risk choice yourself. Route a technical decision to `sdd-plan` and a DEC.
+## 2. Ask, one question at a time
 
-## 3. Incorporate answers
+Collect clarification markers, undefined glossary terms and vague quantities ("fast", "many", "safe"). Ask first the question other answers depend on, never one whose answer hinges on a question still open. Ask one question per call of the runtime's ask tool (`AskUserQuestion`, `ask_user_question`), else in text: one line of context with a concrete example, two to four options with consequences, and a marked recommendation. Never answer a product, cost or risk choice yourself; a technical question waits for `sdd-plan`.
 
-Edit the criterion, scope, requirement or glossary where the answer belongs; do not append an answers section. Record `YYYY-MM-DD clarify: <question> → <answer>` in History.
+Put each answer where it belongs (REQ, NEED, glossary), never in an answers section, and record `YYYY-MM-DD clarify: <question> → <answer>` in the NEED's History. A vague quantity becomes a number or a `[HYPOTHESIS]` with its measurement method. An answer that reveals a new Situation returns the NEED to `sdd-specify` part 2.
 
-## 4. Close ambiguity
+## 3. Record and check
 
-Repeat only if markers remain. Set `status: clarified` when every vague quantity is numeric or a hypothesis with a measurement method.
+- Fill the NEED's Refinement table (one row per Situation: what it became and why) and its `requirements`, `journeys` and `decisions` fields.
+- Run the project spec validator (and `spec_trace.py check` when journeys exist; it accepts a step's `—` while an open NEED lists its journey), then `sdd-check NEED-nnn` (functional scope). A critical or high finding goes back to the step that owns it.
 
-Done when: no clarification markers remain, criteria include relevant sad paths, new terms are in the glossary and product choices came from the user.
+## 4. Close
+
+With no open question, a clean functional check and product's approval of the REQs, journeys and decisions: set the REQs `approved`, the journeys and product decisions `approved`, the NEED `refined` (a `decision` NEED with no FEAT: `delivered`, since its approved decision is the delivery), and add `YYYY-MM-DD clarify: refined` (or `delivered`) to its History.
+
+## Rules
+
+- One behavior or quality per REQ; amend an existing REQ instead of writing a second one for the same behavior.
+- No algorithm, message, table or framework in a REQ; no FEAT, debt or task row in this step.
+
+Done when: every Situation maps to a REQ, a journey step, a decision or a cut; no clarification marker remains; the functional check is unblocked; and the NEED validates as `refined` with its links filled.

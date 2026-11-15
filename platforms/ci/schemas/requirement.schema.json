@@ -9,6 +9,7 @@
     "id": { "type": "string", "pattern": "^REQ-(F|NF)-[0-9]{3,}$" },
     "title": { "type": "string", "minLength": 5, "maxLength": 120 },
     "type": { "type": "string", "enum": ["functional", "non-functional"] },
+    "status": { "type": "string", "enum": ["proposed", "approved", "retired"] },
     "category": {
       "type": "string",
       "enum": ["performance", "security", "reliability", "compatibility", "usability", "maintainability", "observability", "scalability"]
