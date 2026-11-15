@@ -148,3 +148,5 @@ fail.
   delivered failed at once) and the step with no rule (it could keep `—` forever); without `needs/` the rule is
   `main`'s. `sdd-tasks` fills both cells; a delivered NEED no longer counts as listing a REQ; `platforms/ci/README.md`
   and `spec-journey.md` state the rules (orchestrator's design).
+- 2026-11-14: `sdd-tasks` also fills a journey step whose `Rules` is `—`, and writes test task rows in `Proven by` until
+  the test file exists (gaps the second round's executor reported).
