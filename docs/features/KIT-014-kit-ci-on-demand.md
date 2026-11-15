@@ -67,3 +67,6 @@ requires these checks.
 
 - 2026-10-26: confirmed (owner, chat), after the Actions usage audit of the four repositories. Proposal merged in
   #98 (`5cbd86f`); implemented in #99.
+- 2026-11-15: the trigger rule is superseded by KIT-076 (#264): `ci.yml`, `gitleaks.yml` and `codeql.yml` run on
+  every pull request and push to `main` as required checks, since the public repository's standard-runner minutes
+  are free. This record stays as history.

@@ -881,7 +881,7 @@ fi
 godot_skills="$(awk -F'|' '/^skills\// { name = $1; gsub(/ /, "", name); if ((" " $2 " ") ~ / godot /) { sub(/^skills\//, "", name); print name } }' \
   "$SOURCE/platforms/tools/sync-profiles.txt")"
 [[ -n "$godot_skills" ]] || fail "sync-profiles.txt sends no skill to profile godot"
-expected_skills="$(printf '%s\n' $godot_skills | wc -l | tr -d ' ')"
+expected_skills="$(printf '%s\n' "$godot_skills" | wc -l | tr -d ' ')"
 expected_files=$(( $(for n in $godot_skills; do find "$SOURCE/plugins/guardrails/skills/$n" -type f; done | wc -l) + expected_skills ))
 mkdir -p "$ROOT/vendor-proj/.claude/skills/review-loop"
 printf '# proj\n' > "$ROOT/vendor-proj/AGENTS.md"

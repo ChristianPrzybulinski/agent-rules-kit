@@ -4,3 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  # The workflow templates projects copy (KIT-076). For a directory other than "/", Dependabot reads every *.yml in
+  # that folder (dependabot-core github_actions/file_fetcher.rb, `workflows_dir = "."`); GitHub's docs describe "/" only.
+  - package-ecosystem: github-actions
+    directory: /platforms/kits/github/workflows
+    schedule:
+      interval: weekly

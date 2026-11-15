@@ -7,10 +7,13 @@ permissions:
 jobs:
   eval:
     runs-on: ubuntu-latest
+    # KIT-076: no green run exists yet (the secret is not set), so GitHub's 360-minute job limit, written out;
+    # set it from the first green run
+    timeout-minutes: 360
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false  # the eval agent runs Bash; it gets no git token
       - name: install Claude Code
@@ -22,7 +25,7 @@ jobs:
           claude plugin eval plugins --trust-plugin --scaffold --allow-tools Bash Edit Write --tag ready \
             --ablation with-without --threshold 0.8 --model claude-sonnet-5-5 --judge-model claude-haiku-4-5 \
             --no-publish --max-cost-usd 20 --output-dir eval-results --json results.json --report report.html
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         if: always()
         with:
           name: evals
