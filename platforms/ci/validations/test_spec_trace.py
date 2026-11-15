@@ -218,7 +218,7 @@ type: improvement
 status: {status}
 origin: "owner"
 journeys: [{journeys}]
-created: "2026-11-14"
+{extra}created: "2026-11-14"
 ---
 
 # {nid}
@@ -261,9 +261,9 @@ class PendingStepTest(unittest.TestCase):
         feat = FEAT.format(fid="FEAT-001", reqs="REQ-F-001").replace("status: clarified", f"status: {status}")
         write(self.root, "docs/spec/features/FEAT-001.md", feat)
 
-    def need(self, status, nid="NEED-001", journeys="J-01"):
+    def need(self, status, nid="NEED-001", journeys="J-01", extra=""):
         write(self.root, f"docs/spec/needs/{nid}-fixture.md",
-              PENDING_NEED.format(nid=nid, status=status, journeys=journeys))
+              PENDING_NEED.format(nid=nid, status=status, journeys=journeys, extra=extra))
 
     def journey(self, old, new):
         write(self.root, "docs/spec/journeys/J-01.md", PENDING_JOURNEY.replace(old, new))
@@ -303,6 +303,21 @@ class PendingStepTest(unittest.TestCase):
         self.assertEqual(self.check(), [])
         self.need("delivered", nid="NEED-002")
         self.assert_errors(self.check(), "J-01 S2: Implemented by cites no task", "J-01 S2: Proven by cites no test")
+
+    def test_need_whose_feats_delivered_every_req_no_longer_holds_the_wait(self):
+        self.req(feats="FEAT-001")
+        self.feat("delivered")
+        self.need("refined", extra="features: [FEAT-001]\nrequirements: [REQ-F-001]\n")
+        self.assert_errors(self.check(), "J-01 S1: Implemented by cites no task", "J-01 S1: Proven by cites no test")
+
+    def test_need_with_a_req_no_delivered_feat_covers_still_holds_the_wait(self):
+        self.req(feats="FEAT-001")
+        self.feat("delivered")
+        self.need("refined", extra="features: [FEAT-001]\nrequirements: [REQ-F-001, REQ-F-002]\n")
+        self.assertEqual(self.check(), [])
+        self.feat("in-progress")
+        self.need("refined", extra="features: [FEAT-001]\nrequirements: [REQ-F-001]\n")
+        self.assertEqual(self.check(), [])
 
     def test_step_without_rules_waits_only_while_a_need_is_open(self):
         self.req()
