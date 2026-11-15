@@ -87,15 +87,17 @@ every session twice; `skill_usage.py` keeps one path per real file.
    SubagentStart group (no matcher, so every agent type), both one inline `python3 -c` that differs only in its event
    argument. At SessionStart it adds the checklist: name the one outcome; read the repository `AGENTS.md` and README;
    verify the working directory, Git root, branch and head commit with the three `git` commands; skill `session` holds
-   the steps. In both events it adds the attribution line (end each commit with `Co-Authored-By: <your model's display
-   name, as in Claude Sonnet 5.5> <noreply@anthropic.com>` and each PR body with the Claude Code footer unless the
-   project's rules say otherwise), and only while item 2's setting is in force and the user chose no attribution of
-   their own: the user file (`$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`), the project's
-   `.claude/settings.json` and its `.claude/settings.local.json`, read in that order with the later file winning
-   (project root from `CLAUDE_PROJECT_DIR`, else the payload's `cwd`), leave `includeGitInstructions` at `false`, or
-   `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS` is `1`, and none sets `attribution` or the deprecated `includeCoAuthoredBy`.
-   It makes no network call, ignores a missing or broken file, and takes about 0.05 s; it does not read `--settings`
-   or managed settings.
+   the steps. In both events, while item 2's setting is in force, it adds the attribution line: end each commit with
+   the trailer and each PR body with the footer, unless the project's rules say otherwise. The settings are the user
+   file (`$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`), the project's `.claude/settings.json` and
+   its `.claude/settings.local.json`, read in that order with the later file winning (project root from
+   `CLAUDE_PROJECT_DIR`, else the payload's `cwd`); the setting is in force when they leave `includeGitInstructions`
+   at `false` or `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS` is `1`. The user's own attribution wins, as it would in
+   Claude Code: a string `attribution.commit` or `attribution.pr` replaces the default trailer
+   (`Co-Authored-By: <your model's display name, as in Claude Sonnet 5.5> <noreply@anthropic.com>`) or footer, an
+   empty one drops that half, and `attribution: false` or the deprecated `includeCoAuthoredBy: false` silences the
+   line. It makes no network call, ignores a missing or broken file, and takes about 0.05 s; it does not read
+   `--settings` or managed settings.
    - [FACT] With the plugin loaded (`--plugin-dir`) and the project setting `false`, the first round's probe session
      said its commit would end with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`, Claude Code's own format.
    - [FACT] SessionStart context does not reach a subagent: in the coordinator's probe at `a647618`, an Agent-tool
@@ -109,6 +111,12 @@ every session twice; `skill_usage.py` keeps one path per real file.
      `SubagentStart` carrying the attribution line alone, and the subagent wrote
      `Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>`. With the `a647618` plugin (no SubagentStart group), the
      subagent answered `NONE` and its transcript names no trailer.
+   - [FACT] Third-round probe, the same setup with `"attribution": {"commit": "Co-Authored-By: Bot
+     <bot@example.invalid>"}` beside `includeGitInstructions: false`: the subagent transcript's SubagentStart
+     `hook_additional_context` says to end each commit message with `Co-Authored-By: Bot <bot@example.invalid>` and each
+     PR body with the default footer, and the subagent wrote `Co-Authored-By: Bot <bot@example.invalid>`. At `259636f`
+     the hook stayed silent there and the coordinator's probe got `NONE` in both the session and the subagent, so a
+     custom trailer was lost.
    - [FACT] The first round's placeholder `Claude <your model name>` let haiku write its raw model id; the placeholder
      now asks for the display name and drops the leading `Claude`, which the display name already holds.
    - [HYPOTHESIS] Local Devin, which also loads this file, ignores the `SubagentStart` key. Devin's hook docs list
@@ -233,3 +241,5 @@ both review fix rounds are in the PR body:
 - 2026-11-15: second review fix round after the coordinator's PARTIAL at `a647618`: the attribution line also at
   SubagentStart, only where Claude Code's own attribution is off and the user set none, with a display-name
   placeholder; `origin/main` (KIT-066) merged in; follow-up #245.
+- 2026-11-15: third round after the coordinator's READY at `259636f`: the attribution line carries a custom
+  `attribution.commit` or `attribution.pr`, which `259636f` dropped; `origin/main` (KIT-067) merged in.

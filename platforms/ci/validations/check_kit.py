@@ -781,12 +781,19 @@ else:
                     fail(rel(session_start_cases_path), f"session-start case '{name}': expected silence, got {result.stdout!r}")
 
 # KIT-071: the session-start checklist, the subagent attribution and the git context hook add context only; they never
-# deny or warn. The attribution line speaks only where includeGitInstructions is false and no attribution setting exists,
-# so a user's own attribution choice wins; each case runs with an empty HOME and a throwaway project.
-ATTRIBUTION_CASES = (("off", {"includeGitInstructions": False}, True), ("default", {}, False),
-                     ("own attribution", {"includeGitInstructions": False, "attribution": {"commit": ""}}, False))
+# deny or warn. The attribution line speaks only where includeGitInstructions is false, then with the user's own
+# attribution text where one is set and nothing where it is empty, so the user's choice wins; each case runs with an empty
+# HOME and a throwaway project. A case is (name, settings, words the line must hold, words it must not); no words: silent.
+DEFAULT_TRAILER = "Co-Authored-By: <your model's display name"
+DEFAULT_FOOTER = "Generated with [Claude Code]"
+CUSTOM_TRAILER = "Co-Authored-By: Bot <bot@example.invalid>"
+ATTRIBUTION_CASES = (
+    ("off", {"includeGitInstructions": False}, (DEFAULT_TRAILER, DEFAULT_FOOTER), ()),
+    ("default", {}, (), ()),
+    ("hidden attribution", {"includeGitInstructions": False, "attribution": {"commit": "", "pr": ""}}, (), ()),
+    ("custom attribution", {"includeGitInstructions": False, "attribution": {"commit": CUSTOM_TRAILER}},
+     (CUSTOM_TRAILER, DEFAULT_FOOTER), (DEFAULT_TRAILER,)))
 CHECKLIST_WORDS = ("outcome", "AGENTS.md", "README", "branch", "HEAD", "skill `session`")
-ATTRIBUTION_WORDS = ("Co-Authored-By: <your model's display name", "Generated with [Claude Code]")
 
 
 def run_start_hook(command, timeout, event, settings):
@@ -813,34 +820,36 @@ if hooks_path.exists() and not checklist_commands:
     fail(rel(hooks_path), f"SessionStart needs the checklist hook (a command with '{CHECKLIST_MARKER}')")
 if hooks_path.exists() and not attribution_commands:
     fail(rel(hooks_path), f"SubagentStart needs the attribution hook (a command with '{ATTRIBUTION_MARKER}')")
-checklist_attribution = set()
+checklist_attribution = {}
 for command, timeout in checklist_commands:
-    for name, settings, speaks in ATTRIBUTION_CASES:
+    for name, settings, want, absent in ATTRIBUTION_CASES:
         code, event, context, _ = run_start_hook(command, timeout, "SessionStart", settings)
         counts["hook_cases"] += 1
+        line = context[context.find(ATTRIBUTION_MARKER):] if ATTRIBUTION_MARKER in context else ""
         if code != 0 or event != "SessionStart" or not all(word in context for word in CHECKLIST_WORDS):
             fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must exit 0 with additionalContext naming "
                  "the outcome, AGENTS.md, README, branch, HEAD and skill `session`")
-        elif speaks and not all(word in context for word in ATTRIBUTION_WORDS):
-            fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must state the Co-Authored-By trailer and "
-                 "the PR footer")
-        elif not speaks and "Co-Authored-By" in context:
+        elif want and not (all(word in line for word in want) and not any(word in line for word in absent)):
+            fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must state {' and '.join(want)}"
+                 + (f" and not {' or '.join(absent)}" if absent else ""))
+        elif not want and (line or "Co-Authored-By" in context):
             fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must leave attribution to Claude Code")
-        elif speaks:
-            checklist_attribution.add(context[context.find(ATTRIBUTION_MARKER):])
+        elif want:
+            checklist_attribution[name] = line
 for command, timeout in attribution_commands:
-    for name, settings, speaks in ATTRIBUTION_CASES:
+    for name, settings, want, absent in ATTRIBUTION_CASES:
         code, event, context, stdout = run_start_hook(command, timeout, "SubagentStart", settings)
         counts["hook_cases"] += 1
         if code != 0:
             fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must exit 0")
-        elif speaks and (event != "SubagentStart" or not context.startswith(ATTRIBUTION_MARKER)
-                         or not all(word in context for word in ATTRIBUTION_WORDS)):
-            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must add the trailer and the PR footer "
-                 "as SubagentStart additionalContext")
-        elif speaks and checklist_attribution and context not in checklist_attribution:
-            fail(rel(hooks_path), "SubagentStart attribution must repeat the SessionStart checklist's attribution line")
-        elif not speaks and stdout != "":
+        elif want and (event != "SubagentStart" or not context.startswith(ATTRIBUTION_MARKER)
+                       or not all(word in context for word in want) or any(word in context for word in absent)):
+            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must add {' and '.join(want)}"
+                 + (f" and not {' or '.join(absent)}" if absent else "") + " as SubagentStart additionalContext")
+        elif want and name in checklist_attribution and context != checklist_attribution[name]:
+            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must repeat the SessionStart "
+                 "checklist's attribution line")
+        elif not want and stdout != "":
             fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must stay silent, got {stdout!r}")
 
 git_context_cases_path = KIT / "platforms/ci/validations/hook_git_context_cases.json"

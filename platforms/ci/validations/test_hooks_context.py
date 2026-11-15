@@ -3,9 +3,10 @@ context.
 
 All three only add context: they exit 0, never deny and stay within the per-hook latency budget. The attribution line
 (trailer and PR footer) speaks only where the effective settings (user, then project, then local) set
-includeGitInstructions to false, or CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS is set, and no attribution setting exists, so a
-user's own attribution wins. SessionStart context never reaches a subagent (review probe, 2026-11-14), hence the
-SubagentStart copy. check_kit.py runs the git context cases (hook_git_context_cases.json) and the three attribution
+includeGitInstructions to false, or CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS is set; it then carries the user's own
+attribution.commit and attribution.pr text where set, drops an empty one, and stays silent for attribution: false or
+includeCoAuthoredBy: false, so the user's choice wins. SessionStart context never reaches a subagent (review probe, 2026-11-14), hence the
+SubagentStart copy. check_kit.py runs the git context cases (hook_git_context_cases.json) and the four attribution
 cases; these tests cover the settings layers, malformed input, the budget and that check_kit.py fails when a hook
 breaks."""
 import json
@@ -109,13 +110,30 @@ class ContextHooksTest(unittest.TestCase):
 
     def test_own_attribution_setting_wins(self):
         self.settings("project/.claude/settings.json", {"includeGitInstructions": False})
-        for rel, data in ((".claude/settings.json", {"attribution": {"commit": "", "pr": ""}}),  # the user file
-                          ("project/.claude/settings.local.json", {"attribution": {"commit": "Co-Authored-By: Bot <b@x>"}}),
-                          ("project/.claude/settings.local.json", {"includeCoAuthoredBy": False})):
+        user, local = ".claude/settings.json", "project/.claude/settings.local.json"
+        footer = "end each PR body with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`"
+        for rel, data, want, absent in (
+                (user, {"attribution": {"commit": "", "pr": ""}}, None, ()),
+                (user, {"attribution": False}, None, ()),
+                (local, {"includeCoAuthoredBy": False}, None, ()),
+                (local, {"attribution": {"commit": "Co-Authored-By: Bot <b@x>"}},
+                 ("end each commit message with `Co-Authored-By: Bot <b@x>`", footer), (TRAILER,)),
+                (user, {"attribution": {"pr": "Made with a bot"}},
+                 (TRAILER, "end each PR body with `Made with a bot`"), ("Generated with",)),
+                (local, {"attribution": {"commit": "", "pr": "Made with a bot"}},
+                 ("end each PR body with `Made with a bot`",), ("Co-Authored-By", "commit message"))):
             with self.subTest(rel=rel, data=data):
                 self.settings(rel, data)
-                self.assertIsNone(self.start(SUBAGENT[0], "SubagentStart"))
-                self.assertNotIn("Co-Authored-By", self.start(CHECKLIST[0], "SessionStart"))
+                subagent, checklist = self.start(SUBAGENT[0], "SubagentStart"), self.start(CHECKLIST[0], "SessionStart")
+                if want is None:
+                    self.assertIsNone(subagent)
+                    self.assertNotIn(ATTRIBUTION_MARKER, checklist)
+                else:
+                    for word in want:
+                        self.assertIn(word, subagent)
+                    for word in absent:
+                        self.assertNotIn(word, subagent)
+                    self.assertTrue(checklist.endswith(" " + subagent))
                 (Path(self.tmp.name) / rel).unlink()
 
     def test_settings_layers(self):
@@ -217,6 +235,17 @@ class CheckKitCatchesBrokenHooksTest(unittest.TestCase):
         result = self.check(hooks)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("SubagentStart needs the attribution hook", result.stderr)
+
+    def test_ignored_custom_attribution_fails(self):
+        hooks = json.loads(json.dumps(HOOKS))
+        for group in hooks["hooks"]["SessionStart"] + hooks["hooks"]["SubagentStart"]:
+            for hook in group["hooks"]:
+                if ATTRIBUTION_MARKER in hook["command"]:
+                    hook["command"] = hook["command"].replace('if isinstance(a.get("commit"),str)', "if False", 1)
+        self.assertNotEqual(hooks, HOOKS)
+        result = self.check(hooks)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("(custom attribution settings) must state Co-Authored-By: Bot <bot@example.invalid>", result.stderr)
 
     def test_unconditional_attribution_fails(self):
         hooks = json.loads(json.dumps(HOOKS))
