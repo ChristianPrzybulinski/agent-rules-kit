@@ -4,7 +4,7 @@ title: "The coding standards move from skills nobody loads into path rules and t
 status: confirmed
 confirmed: "2026-11-14 (owner, chat of the SDD review session: \"Dev skills consolidation\" and item 1 of the six further adjustments, \"Aprovo todos\")"
 issue: "#256"
-pr: ""
+pr: "#261"
 ---
 
 # KIT-070 — The coding standards move from skills nobody loads into path rules and the references of the SDD step that uses them
