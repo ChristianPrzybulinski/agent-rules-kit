@@ -72,10 +72,11 @@ the FEAT (technical). `sdd-check` leaves the chain and becomes the read-only too
   earlier on this branch, is folded into `sdd-specify`. A consumer that vendors skills keeps its old `sdd-journey` copy
   until its resync.
 - `plugins/guardrails/skills/sdd-check/`: no longer a numbered step but a tool, still user and model invocable for audits
-  (`all`). Functional scope (`NEED-nnn`, called by `sdd-clarify`, blocks `refined`): C1, C2, C4, C5, C6, the new C11 (a
-  REQ states how instead of what: algorithm, message, table, framework; medium; it enforces `req-scope.md`), the journey
-  links and Q1–Q7. Full scope (`FEAT-nnn`, called by `sdd-plan`, blocks `planned`): the functional items again plus C3,
-  C7–C10 and Q8–Q11.
+  (`all`). Functional scope (`NEED-nnn`, called by `sdd-clarify`, blocks `refined`): C1 (NEED→REQ), C2, C4, C5, C6, the
+  new C11 (a REQ states how instead of what: algorithm, message, table, framework; medium; it enforces `req-scope.md`),
+  the journey links, Q1 read against each REQ's Verification, Q2–Q4 and Q7. Full scope (`FEAT-nnn`, called by
+  `sdd-plan`, blocks `planned`): the functional items again (C1 as FEAT↔REQ, Q1 against the FEAT's criteria) plus C3,
+  C7–C10, Q5, Q6 and Q8–Q11; C8's criterion↔task half waits until the task rows exist.
 - `plugins/guardrails/skills/sdd-plan/`: starts at a `refined` NEED and creates the FEAT, one delivery: the REQs it
   implements on both sides, technical acceptance criteria that cite the REQs they prove, then the Plan and technical
   decisions; `planned` after a clean full-scope check. `sdd-tasks` notes that criteria cite REQs.
@@ -84,11 +85,15 @@ the FEAT (technical). `sdd-check` leaves the chain and becomes the read-only too
   (no algorithm), counterexamples in Verification and a `## History`. `spec-feature.md` is created by `sdd-plan`: one
   line plus the NEED id, Scope lists the REQs delivered, and the criteria table gains a `Proves` column.
 - `platforms/ci/schemas/need.schema.json` (new) and `requirement.schema.json` (optional `status`).
-  `platforms/ci/validations/check_spec.py` validates `needs/` (kinds and existence of every link, journeys by file,
-  `parent`, `refined`/`delivered` backed by links, `delivered` only with delivered FEATs, `NEED` reserved as a decision
-  prefix) and accepts a REQ with no FEAT when a NEED lists it. `spec_trace.py` has no such rule and is unchanged.
-  `test_check_spec.py` adds `NeedTest` (13 tests) and `DecisionKindsTest.test_need_prefix_is_reserved`, each in full and
-  structural mode.
+  `platforms/ci/validations/check_spec.py` validates `needs/` at its top level only, so a `NEED-nnn-data/` folder holds
+  any evidence (kinds and existence of every link, journeys by file, `parent`, `refined`/`delivered` backed by links,
+  `delivered` only with delivered FEATs, or for a `decision` NEED with no FEAT an approved decision, `NEED` reserved as a
+  decision prefix) and accepts a REQ with no FEAT when an open NEED lists it (a rejected, merged, routed or parked one
+  does not count). `spec_trace.py` lets a main or alternative journey step hold `—` in `Implemented by` and `Proven by`
+  until a FEAT that lists one of its REQs is `validated` or `delivered`, so a step written in clarify does not block
+  `refined`; from then on both are required, and a prerequisite row always cites its task. `test_check_spec.py` adds
+  `NeedTest` (19 tests) and `DecisionKindsTest.test_need_prefix_is_reserved`, each in full and structural mode;
+  `test_spec_trace.py` adds `PendingStepTest` (5 tests).
 - Text: `sdd-process.md` (entry, chain, flow table with `sdd-check` as a tool in place of step 3, NEED/REQ/FEAT statuses),
   `rules/spec.md` (templates, ids, link rule, NEED provenance, Request language), `sdd-constitution` and
   `spec-index.md` (`needs/`, Needs index), `init-spec.sh`, `sync-project.sh` (copies `need.schema.json`),
@@ -108,6 +113,12 @@ suites, and `gitleaks git --redact --log-opts=origin/main..HEAD`. With `origin/m
 of the 14 new tests fail. Of the 4 that pass, 3 assert that valid NEEDs pass, which the old checker allows because it
 ignores `needs/`, and 1 refuses an unknown REQ status, which the old schema refuses because it allows no `status`.
 Results are in the PR body.
+Of the review fix round's 12 new or changed tests (`PendingStepTest`, six `NeedTest` tests and the renamed
+`test_main_step_without_tests_fails_once_its_feat_is_delivered`), 5 fail against the checkers of `46c2602` (8 failures,
+the closed-NEED test failing for each of its 4 statuses): the two pending-step tests, the data folder, the delivered
+decision NEED and the closed NEEDs. The 7 that pass there guard what must not change: a delivered FEAT still requires
+refs, a prerequisite row and an empty cell still fail, a journey with no step fails, a delivered NEED without an
+approved decision fails, and the decisions and debts link kinds.
 
 ## History
 
@@ -123,3 +134,9 @@ Results are in the PR body.
   `sdd-clarify`; `investigate` and `sdd-spike` re-enter through `sdd-intake`; the spike takes feasibility questions
   (owner, chat: "concordo com sua proposta" for the development and clarify proposal, "concordo" for the side doors,
   "aprovo" for the split that puts them in this record).
+- 2026-11-14: review fix round (independent review NOT READY): a journey step holds `—` until a FEAT listing one of its
+  REQs is validated or delivered, so clarify's new steps no longer deadlock `refined` (orchestrator's design, journeys
+  stay in clarify as the owner approved); `check_spec.py` skips `NEED-nnn-data/` folders, lets a `decision` NEED with an
+  approved decision and no FEAT be `delivered` and ignores REQs listed only by closed NEEDs; `sdd-check` rows and
+  checklist items match the stage they run in (C1, C8, Q1, Q5, Q6); nits in `sdd-clarify`, `sdd-specify` and
+  `spec-need.md`; `req-scope.md` cites a decision in Rationale, not `source`, and `rules/spec.md` says open NEED.

@@ -12,7 +12,7 @@ A REQ is one behavior (REQ-F) or one quality (REQ-NF) that product commits to an
 | In the REQ | Elsewhere |
 |---|---|
 | actor, condition, visible result | how the code does it (algorithm, draw order, data structure) → technical step (Plan, tech decision) |
-| a number or formula the actor experiences (odds, limit, reward, damage) | why one option over others → product decision record; the REQ cites it in `source` |
+| a number or formula the actor experiences (odds, limit, reward, damage) | why one option over others → product decision record; the REQ cites it in Rationale |
 | examples and counterexamples | the order of steps in a flow → journey |
 | | position and look on screen → approved mock, screen spec; the REQ says what is shown, not where |
 | | a tuning value that changes without changing the rule → content; the REQ names the rule and the value's source |

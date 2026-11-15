@@ -23,9 +23,9 @@ Read the NEED, `docs/spec/spec.md` and the REQs and journeys its Triage names. W
 
 - reuse: an existing REQ already states it; nothing changes;
 - amend: an existing REQ states it differently; edit that REQ and add a History line;
-- new: write a REQ-F or REQ-NF with `status: proposed` (next unused id, or the session's reserved block), its Rationale citing `NEED-nnn S<n>`;
-- journey: the Situations add, change, reorder or remove a step of a flow of two or more screens or interactions, and the project keeps `docs/spec/journeys/` → `references/journeys.md`;
-- decision: product must choose between two or more reasonable options → a product decision record with `status: proposed`, cited in each REQ's `source`;
+- new: write a REQ-F or REQ-NF with `status: proposed` and `source: NEED-nnn S<n>` (next unused id, or the session's reserved block);
+- journey: the Situations add, change, reorder or remove a step of a flow of two or more screens or interactions, and the project keeps `docs/spec/journeys/` → `references/journeys.md`; a new step holds `—` in `Implemented by` and `Proven by` until its tasks and tests exist;
+- decision: product must choose between two or more reasonable options → a product decision record with `status: proposed`, cited in each REQ's Rationale;
 - cut: out of scope, with where it goes.
 
 Each REQ: one rule sentence and a Values table for the numbers the actor experiences; Verification with the proving test type, examples and counterexamples (from the Situations that go wrong); a REQ about a screen also cites the mock product approved. A rule that must always hold (an invariant, such as a maximum count) is a REQ of its own, which `sdd-plan` maps to what protects it. Every domain term a REQ uses is in the `spec.md` glossary; add a missing one in the same change.
@@ -39,11 +39,11 @@ Put each answer where it belongs (REQ, NEED, glossary), never in an answers sect
 ## 3. Record and check
 
 - Fill the NEED's Refinement table (one row per Situation: what it became and why) and its `requirements`, `journeys` and `decisions` fields.
-- Run the project spec validator (and `spec_trace.py check` when journeys exist), then `sdd-check NEED-nnn` (functional scope). A critical or high finding goes back to the step that owns it.
+- Run the project spec validator (and `spec_trace.py check` when journeys exist; it accepts a step's `—` until a FEAT listing one of its REQs is validated or delivered), then `sdd-check NEED-nnn` (functional scope). A critical or high finding goes back to the step that owns it.
 
 ## 4. Close
 
-With no open question, a clean functional check and product's approval of the REQs, journeys and decisions: set the REQs `approved`, the journeys and product decisions `approved`, the NEED `refined`, and add `YYYY-MM-DD clarify: refined` to its History.
+With no open question, a clean functional check and product's approval of the REQs, journeys and decisions: set the REQs `approved`, the journeys and product decisions `approved`, the NEED `refined` (a `decision` NEED with no FEAT: `delivered`, since its approved decision is the delivery), and add `YYYY-MM-DD clarify: refined` (or `delivered`) to its History.
 
 ## Rules
 

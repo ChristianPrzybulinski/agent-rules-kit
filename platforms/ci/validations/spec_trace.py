@@ -17,7 +17,10 @@ Journeys live in <spec>/journeys/J-NN.md. Every markdown table whose first heade
 step table. Row ids: `S<n>` main path, `A<n>` alternative path (column `At` names its main step),
 `P<n>` prerequisite. Cells: `Rules` holds REQ ids only, `Implemented by` holds `FEAT-nnn Tn` refs only,
 `Proven by` holds test refs — `FEAT-nnn Tn` test tasks, backticked paths rooted at a clone name, and an
-optional trailing `manual: <check>`.
+optional trailing `manual: <check>`. Journeys are written in sdd-clarify, before the FEAT and its tasks
+exist, so a main or alternative step may hold `—` in `Implemented by` and `Proven by` until a FEAT that
+lists one of its `Rules` REQs is validated or delivered; from then on both cite refs. A prerequisite row
+always cites its task.
 
 A test path's first segment names the clone it lives in: the spec's own repository (its directory name)
 or a directory beside it — clones sit side by side on the machine that writes journeys — plus any
@@ -57,6 +60,8 @@ SEPARATORS = re.compile(r"<br>|[\s,·;—]+")
 PR_REF = re.compile(r"^[\w.-]+#\d+$")
 UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
 STATUS_FROZEN = ("validated", "cancelled")
+STATUS_DONE = ("validated", "delivered")
+PENDING = "—"
 JOURNEY_STATUS = ("proposed", "approved", "retired")
 JOURNEY_FIELDS = ("id", "title", "status", "owner", "created", "updated")
 MAIN_COLUMNS = ("Rules", "Implemented by", "Proven by")
@@ -249,21 +254,40 @@ def parse_step(spec, jid, row, header):
         spec.errors.append(f"{step.ref}: table has no 'Implemented by' column")
         return step
     step.tasks = only_ids(spec, step, "Implemented by", row["Implemented by"], TASK_REF)
-    if not step.tasks:
-        spec.errors.append(f"{step.ref}: Implemented by cites no task (FEAT-nnn Tn)")
     check_tasks(spec, step, step.tasks)
-    if sid.startswith("P"):
-        return step
     missing = [c for c in MAIN_COLUMNS if c not in header]
-    if missing:
-        spec.errors.append(f"{step.ref}: table lacks column(s) {missing}")
+    if sid.startswith("P") or missing:
+        if not step.tasks:
+            spec.errors.append(f"{step.ref}: Implemented by cites no task (FEAT-nnn Tn)")
+        if missing and not sid.startswith("P"):
+            spec.errors.append(f"{step.ref}: table lacks column(s) {missing}")
         return step
     step.rules = only_ids(spec, step, "Rules", row["Rules"], REQ_ID)
     for rid in step.rules:
         if rid not in spec.reqs:
             spec.errors.append(f"{step.ref}: Rules cites {rid}, which does not exist")
-    parse_tests(spec, step, row["Proven by"])
+    done = done_feats(spec, step)
+    if not step.tasks and not awaits(row["Implemented by"], done):
+        spec.errors.append(f"{step.ref}: Implemented by cites no task (FEAT-nnn Tn){why_due(done)}")
+    parse_tests(spec, step, row["Proven by"], done)
     return step
+
+
+def done_feats(spec: Spec, step: Step) -> list[str]:
+    """The FEATs listing one of the step's REQs whose status is validated or delivered, with that status."""
+    return [f"{fid} is {feat['status']}" for fid, feat in sorted(spec.feats.items())
+            if feat["status"] in STATUS_DONE and set(feat["requirements"]) & set(step.rules)]
+
+
+def awaits(cell: str, done: list[str]) -> bool:
+    """A `—` cell waits for the FEAT and its tasks until a FEAT listing one of the step's REQs is done."""
+    return cell.strip() == PENDING and not done
+
+
+def why_due(done: list[str]) -> str:
+    if not done:
+        return ""
+    return f"; `{PENDING}` waits only until a FEAT listing one of its REQs is validated or delivered: {', '.join(done)}"
 
 
 def only_ids(spec, step, column, cell, pattern):
@@ -284,7 +308,8 @@ def check_tasks(spec, step, refs):
             spec.errors.append(f"{step.ref}: {ref} is not a row of the {fid} task table")
 
 
-def parse_tests(spec, step, cell):
+def parse_tests(spec: Spec, step: Step, cell: str, done: list[str]) -> None:
+    pending = awaits(cell, done)
     manual = MANUAL.search(cell)
     if manual:
         step.manual = manual.group(1).strip()
@@ -304,8 +329,8 @@ def parse_tests(spec, step, cell):
         elif m.group(1) == spec.root.name and not any(spec.root.glob(path[len(m.group(1)) + 1:])):
             spec.errors.append(f"{step.ref}: test path {path!r} matches no file in this repository")
     step.tests = tasks + [f"`{p}`" for p in paths]
-    if not step.tests and not step.manual:
-        spec.errors.append(f"{step.ref}: Proven by cites no test")
+    if not step.tests and not step.manual and not pending:
+        spec.errors.append(f"{step.ref}: Proven by cites no test{why_due(done)}")
 
 
 def symmetry_errors(spec):

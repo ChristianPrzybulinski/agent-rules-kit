@@ -9,9 +9,11 @@ Also validates docs/spec/progress/*.json (executor progress) when the folder exi
 merge-conflict marker left in any Markdown file under the spec dir.
 Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id prefix, e.g.
 `{tech: TEC, product: PRD}`); then each decision's `kind` must be declared and its id carries that kind's prefix.
-NEED-nnn intake records (docs/spec/needs/) link forward only: every listed id must exist with the right kind, a
-refined or delivered NEED names what it became, and a delivered one lists only delivered FEATs. A REQ that no FEAT
-implements yet must be listed by a NEED (REQs are written before the FEAT that delivers them).
+NEED-nnn intake records (docs/spec/needs/, top level only: NEED-nnn-data/ folders hold evidence) link forward only:
+every listed id must exist with the right kind, a refined or delivered NEED names what it became, and a delivered one
+lists only delivered FEATs, or, for a decision NEED with no FEAT, an approved decision. A REQ that no FEAT implements
+yet must be listed by an open NEED, not a rejected, merged, routed or parked one (REQs are written before the FEAT that
+delivers them).
 """
 import json
 import os
@@ -377,6 +379,7 @@ def check_conflict_markers(spec_dir):
 
 NEED_LINKS = {"requirements": "requirement", "decisions": "decision", "debts": "debt", "features": "feature"}
 NEED_PRODUCT_LINKS = ("requirements", "journeys", "decisions")
+NEED_CLOSED = ("rejected", "merged", "routed", "parked")
 JOURNEY_FILE = re.compile(r"^(J-\d{2,})(?:-[a-z0-9-]+)?$")
 
 
@@ -386,7 +389,7 @@ def as_list(value):
     return [] if value in (None, "") else [value]
 
 
-def check_needs(spec_dir, needs, ids, kind_of, feat_status):
+def check_needs(spec_dir: Path, needs: dict, ids: dict, kind_of: dict, feat_status: dict, dec_status: dict) -> None:
     """A NEED links forward only: listed ids exist with the right kind; status refined/delivered is backed by links."""
     journeys = set()
     if (spec_dir / "journeys").is_dir():
@@ -413,8 +416,10 @@ def check_needs(spec_dir, needs, ids, kind_of, feat_status):
             fail(f"{path}: status {status} needs at least one link in {', '.join(NEED_PRODUCT_LINKS)}")
         if status == "delivered":
             delivered_by = as_list(data.get("features"))
-            if not delivered_by:
-                fail(f"{path}: status delivered needs the features that delivered it")
+            decided = [d for d in as_list(data.get("decisions")) if dec_status.get(str(d)) == "approved"]
+            if not delivered_by and not (data.get("type") == "decision" and decided):
+                fail(f"{path}: status delivered needs the features that delivered it "
+                     f"(a decision NEED with no FEAT: an approved decision)")
             for fid in delivered_by:
                 if fid in feat_status and feat_status[fid] != "delivered":
                     fail(f"{path}: status delivered, but {fid} is {feat_status[fid]}")
@@ -518,11 +523,11 @@ def main():
                       ("decisions", "decision"), ("debts", "debt"), ("needs", "need")]:
         d = spec_dir / sub
         if d.is_dir():
-            for f in sorted(d.rglob("*.md")):
+            for f in sorted(d.glob("*.md") if sub == "needs" else d.rglob("*.md")):
                 targets.append((f, kind))
 
     ids, kind_of = {}, {}
-    feats, reqs, feat_status, needs = {}, {}, {}, {}
+    feats, reqs, feat_status, dec_status, needs = {}, {}, {}, {}, {}
     kinds = None  # spec.md is the first target, so its decision_kinds is read before any decision
     for path, kind in targets:
         data = frontmatter(path)
@@ -558,6 +563,7 @@ def main():
             kind_of[str(fid)] = kind
         if kind == "decision" and fid:
             check_decision(path, data, fid, kinds)
+            dec_status[str(fid)] = data.get("status")
         if kind == "feature" and fid:
             feats[fid] = data.get("requirements") or []
             feat_status[fid] = data.get("status")
@@ -568,22 +574,26 @@ def main():
 
     progress_files = check_progress(spec_dir / "progress", progress_schema, feats)
     check_conflict_markers(spec_dir)
-    check_needs(spec_dir, needs, ids, kind_of, feat_status)
+    check_needs(spec_dir, needs, ids, kind_of, feat_status, dec_status)
 
     # cross-references FEAT <-> REQ
     for fid, rlist in feats.items():
         for r in rlist:
             if r not in reqs:
                 fail(f"{ids[fid]}: requirements lists {r} which does not exist")
-    need_reqs = {str(r) for data in needs.values() for r in as_list(data.get("requirements"))}
+    need_reqs = {str(r) for data in needs.values() if data.get("status") not in NEED_CLOSED
+                 for r in as_list(data.get("requirements"))}
+    closed_reqs = {str(r): nid for nid, data in needs.items() if data.get("status") in NEED_CLOSED
+                   for r in as_list(data.get("requirements"))}
     for rid, flist in reqs.items():
         if not flist and rid not in need_reqs:
-            fail(f"{ids[rid]}: {rid} has no FEAT implementing it and no NEED listing it")
+            closed = f" ({closed_reqs[rid]} lists it but is closed)" if rid in closed_reqs else ""
+            fail(f"{ids[rid]}: {rid} has no FEAT implementing it and no NEED listing it{closed}")
         for f in flist:
             if f not in feats:
                 fail(f"{ids[rid]}: features lists {f} which does not exist")
     # both sides agree: a link written on one side only drifts. Together with the check above, every REQ is
-    # listed by some FEAT, or by a NEED until sdd-plan creates the FEAT that delivers it.
+    # listed by some FEAT, or by an open NEED until sdd-plan creates the FEAT that delivers it.
     for fid, rlist in feats.items():
         for r in rlist:
             if r in reqs and fid not in reqs[r]:

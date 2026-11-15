@@ -5,19 +5,19 @@ kind: detail
 
 # Check list
 
-Grade each item pass / fail / not-applicable with evidence `path:line`; a security or integrity fail is `critical`.
+Grade each item pass / fail / not-applicable with evidence `path:line`; a security or integrity fail is `critical`. The functional scope (`NEED-nnn`) grades Q1 against each REQ's Verification, Q2–Q4 and Q7; the full scope (`FEAT-nnn`) grades every item, Q1 against the FEAT's criteria.
 
 ## Testability and completeness
 
-- Q1. Each criterion has happy/sad behavior and names its unit/integration/contract/e2e proof; every name, type, exact text or order a test will assert appears in the FEAT.
+- Q1. Each criterion (full) or REQ Verification (functional) has happy/sad behavior, as examples and counterexamples, and names its unit/integration/contract/e2e proof; in the full scope, every name, type, exact text or order a test will assert appears in the FEAT.
 - Q2. Invalid input, missing resource, conflict, timeout and permission errors are defined.
 - Q3. Network reconnect/retry and numeric size/frequency/quantity limits are explicit or hypotheses.
 
 ## Security and integrity
 
 - Q4. Actor and per-entity authorization are specified.
-- Q5. Server validation versus client intent is explicit.
-- Q6. Money/inventory/reward effects define idempotency and transaction boundaries.
+- Q5. Server validation versus client intent is explicit (full scope only).
+- Q6. Money/inventory/reward effects define idempotency and transaction boundaries (full scope only).
 - Q7. Personal data, retention and non-production test data are identified.
 
 ## Data, compatibility and operation
