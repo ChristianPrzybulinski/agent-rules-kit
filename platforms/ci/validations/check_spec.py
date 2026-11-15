@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Validates docs/spec against the kit schemas. Usage: check_spec.py <spec-dir> <schemas-dir>
+"""Validates docs/spec against the kit schemas. Usage: check_spec.py [--params] <spec-dir> <schemas-dir>
 
 With pyyaml+jsonschema: full validation. Without them: minimal YAML parser
-(flat frontmatter) + structural checks (required, enums, id pattern).
+(frontmatter maps nested by indentation, flow lists and maps) + structural checks (required, enums, id pattern).
+spec.md may set `sdd`, the project's process parameters (KIT-067): each key is checked against spec.schema.json in
+both modes, and `--params` prints the resolved block (every absent key at its schema default) as JSON.
 Also validates docs/spec/progress/*.json (executor progress) when the folder exists, and fails on a
 merge-conflict marker left in any Markdown file under the spec dir.
 Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id prefix, e.g.
@@ -32,38 +34,131 @@ def fail(msg):
     print(f"FAIL: {msg}", file=sys.stderr)
 
 
-def mini_yaml(text):
-    """Minimal parser: 'k: v', 'k: [a,b]', 'k: {a: b}', 'k:' + '- item' lines, ints, null, quoted strings."""
-    data, key = {}, None
-    for raw in text.splitlines():
-        line = raw.rstrip()
-        if not line.strip() or line.strip().startswith("#"):
-            continue
-        m = re.match(r"^-\s+(.*)$", line.strip())
-        if m and key is not None:
-            data.setdefault(key, []).append(m.group(1).strip().strip('"\''))
-            continue
-        m = re.match(r"^([A-Za-z_]+):\s*(.*)$", line)
+YAML_TRUE = {"true", "True", "TRUE", "yes", "Yes", "YES", "on", "On", "ON"}
+YAML_FALSE = {"false", "False", "FALSE", "no", "No", "NO", "off", "Off", "OFF"}
+MINI_KEY = re.compile(r"""^("[^"]*"|'[^']*'|[^\s"'#\-\[\]{},][^:]*?):(?:\s+(.*))?$""")
+
+
+def mini_scalar(text):
+    """A plain or quoted scalar: quoted text, null/~, YAML booleans, integers, else the text itself."""
+    text = text.strip()
+    if text[:1] in ("'", '"'):
+        return text.strip("\"'")
+    if text in ("null", "~"):
+        return None
+    if text in YAML_TRUE:
+        return True
+    if text in YAML_FALSE:
+        return False
+    if re.fullmatch(r"-?\d+", text):
+        return int(text)
+    return text
+
+
+def _skip_spaces(text, i):
+    while i < len(text) and text[i] == " ":
+        i += 1
+    return i
+
+
+def _flow_scalar(text, i, stops, convert=True):
+    i = _skip_spaces(text, i)
+    if i < len(text) and text[i] in ("'", '"'):
+        end = text.find(text[i], i + 1)
+        if end < 0:
+            raise ValueError("unclosed quote")
+        return text[i + 1:end], end + 1
+    start = i
+    while i < len(text) and text[i] not in stops:
+        i += 1
+    raw = text[start:i].strip()
+    return (mini_scalar(raw) if convert else raw), i
+
+
+def _flow_value(text, i, stops):
+    """Parses one flow value ([..], {..} or a scalar) from text[i:]; returns (value, index after it)."""
+    i = _skip_spaces(text, i)
+    if i < len(text) and text[i] in "[{":
+        closing = "]" if text[i] == "[" else "}"
+        result = [] if closing == "]" else {}
+        i = _skip_spaces(text, i + 1)
+        if i < len(text) and text[i] == closing:
+            return result, i + 1
+        while True:
+            if closing == "]":
+                item, i = _flow_value(text, i, ",]")
+                result.append(item)
+            else:
+                key, i = _flow_scalar(text, i, ":", convert=False)
+                if i >= len(text) or text[i] != ":":
+                    raise ValueError("map entry without ':'")
+                result[key], i = _flow_value(text, i + 1, ",}")
+            i = _skip_spaces(text, i)
+            if i < len(text) and text[i] == ",":
+                i += 1
+            elif i < len(text) and text[i] == closing:
+                return result, i + 1
+            else:
+                raise ValueError(f"expected ',' or {closing!r}")
+    return _flow_scalar(text, i, stops)
+
+
+def mini_value(val, line):
+    if (val[0], val[-1]) in (("[", "]"), ("{", "}")):
+        try:
+            value, end = _flow_value(val, 0, "")
+        except ValueError as e:
+            raise ValueError(f"map outside the format: {line!r} ({e})")
+        if val[end:].strip():
+            raise ValueError(f"map outside the format: {line!r}")
+        return value
+    return mini_scalar(val)
+
+
+def _mini_list(lines, pos, indent):
+    items = []
+    while pos < len(lines) and lines[pos][0] == indent and (lines[pos][1] == "-" or lines[pos][1].startswith("- ")):
+        item = lines[pos][1][1:].strip()
+        items.append(mini_value(item, lines[pos][1]) if item else None)
+        pos += 1
+    return items, pos
+
+
+def _mini_map(lines, pos, indent):
+    data = {}
+    while pos < len(lines) and lines[pos][0] >= indent:
+        ind, line = lines[pos]
+        m = MINI_KEY.match(line) if ind == indent else None
         if not m:
             raise ValueError(f"line outside the format: {line!r}")
-        key, val = m.group(1), m.group(2).strip()
-        if val == "":
-            data[key] = []  # may become a list or stay empty
-        elif val in ("null", "~"):
-            data[key] = None
-        elif val.startswith("[") and val.endswith("]"):
-            inner = val[1:-1].strip()
-            data[key] = [v.strip().strip('"\'') for v in inner.split(",")] if inner else []
-        elif val.startswith("{") and val.endswith("}"):
-            inner = val[1:-1].strip()
-            pairs = [item.split(":", 1) for item in inner.split(",")] if inner else []
-            if any(len(pair) != 2 for pair in pairs):
-                raise ValueError(f"map outside the format: {line!r}")
-            data[key] = {k.strip().strip('"\''): v.strip().strip('"\'') for k, v in pairs}
-        elif val.isdigit():
-            data[key] = int(val)
+        key, val = m.group(1), (m.group(2) or "").strip()
+        if key[:1] in ("'", '"'):
+            key = key[1:-1]
+        pos += 1
+        nxt = lines[pos] if pos < len(lines) else None
+        if val:
+            data[key] = mini_value(val, line)
+        elif nxt and nxt[0] >= indent and (nxt[1] == "-" or nxt[1].startswith("- ")):
+            data[key], pos = _mini_list(lines, pos, nxt[0])
+        elif nxt and nxt[0] > indent:
+            data[key], pos = _mini_map(lines, pos, nxt[0])
         else:
-            data[key] = val.strip('"\'')
+            data[key] = []  # may become a list or stay empty
+    return data, pos
+
+
+def mini_yaml(text):
+    """Minimal parser: 'k: v' maps nested by indentation, '- item' lists, flow [..] and {..} (nested), ints,
+    booleans, null and quoted strings; comment lines and blank lines are skipped."""
+    lines = []
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        lines.append((len(raw) - len(raw.lstrip(" ")), stripped))
+    data, pos = _mini_map(lines, 0, 0)
+    if pos < len(lines):
+        raise ValueError(f"line outside the format: {lines[pos][1]!r}")
     return data
 
 
@@ -163,6 +258,109 @@ def check_decision(path, data, fid, kinds):
         fail(f"{path}: kind {kind!r} is not in spec.md decision_kinds {sorted(kinds)}")
     elif prefix != kinds[str(kind)]:
         fail(f"{path}: id {fid} prefix does not match kind {kind!r} ({kinds[str(kind)]}-nnn)")
+
+# Project process parameters: spec.md may set `sdd` (KIT-067). spec.schema.json is the single source of its keys,
+# values and defaults; the checks below read it in both modes, so a bad value names its key with or without jsonschema.
+TYPE_NAMES = {"boolean": "a boolean", "integer": "an integer", "string": "a string", "null": "null",
+              "array": "a list", "object": "a map"}
+
+
+def is_type(value, name):
+    if name == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    expected = {"boolean": bool, "string": str, "array": list, "object": dict}.get(name)
+    return value is None if name == "null" else isinstance(value, expected)
+
+
+def check_value(path, name, value, rule):
+    """Checks one value against the JSON Schema subset the `sdd` block uses; returns False after a failure."""
+    types = rule.get("type")
+    if types is not None:
+        types = types if isinstance(types, list) else [types]
+        if not any(is_type(value, t) for t in types):
+            fail(f"{path}: {name} must be {' or '.join(TYPE_NAMES[t] for t in types)}, not {value!r}")
+            return False
+    if "enum" in rule and not any(value == v and type(value) is type(v) for v in rule["enum"]):
+        fail(f"{path}: {name} {value!r} is not one of {rule['enum']}")
+        return False
+    ok = True
+    if is_type(value, "integer") and "minimum" in rule and value < rule["minimum"]:
+        fail(f"{path}: {name} {value} is below the minimum {rule['minimum']}")
+        ok = False
+    if isinstance(value, str):
+        if len(value) < rule.get("minLength", 0):
+            fail(f"{path}: {name} must not be empty")
+            ok = False
+        if "pattern" in rule and not re.search(rule["pattern"], value):
+            fail(f"{path}: {name} {value!r} does not match {rule['pattern']}")
+            ok = False
+    if isinstance(value, list):
+        if len(value) < rule.get("minItems", 0):
+            fail(f"{path}: {name} must list at least {rule['minItems']} item")
+            ok = False
+        seen = [json.dumps(item, sort_keys=True) for item in value]
+        if rule.get("uniqueItems") and len(set(seen)) != len(seen):
+            fail(f"{path}: {name} lists an item twice")
+            ok = False
+        for item in value:
+            ok = check_value(path, f"{name} item", item, rule.get("items", {})) and ok
+        if "const" in rule.get("contains", {}) and rule["contains"]["const"] not in value:
+            fail(f"{path}: {name} must include {rule['contains']['const']!r}")
+            ok = False
+    for sub in rule.get("allOf", []):
+        ok = check_value(path, name, value, sub) and ok
+    if isinstance(value, dict):
+        props, extra = rule.get("properties", {}), rule.get("additionalProperties", True)
+        key_pattern = rule.get("propertyNames", {}).get("pattern")
+        for key, item in value.items():
+            key = str(key)
+            if key_pattern and not re.search(key_pattern, key):
+                fail(f"{path}: {name} key {key!r} does not match {key_pattern}")
+                ok = False
+            elif key in props:
+                ok = check_value(path, f"{name}.{key}", item, props[key]) and ok
+            elif extra is False:
+                fail(f"{path}: {name}.{key} is not a known key; known: {sorted(props)}")
+                ok = False
+            elif isinstance(extra, dict):
+                ok = check_value(path, f"{name}.{key}", item, extra) and ok
+    return ok
+
+
+def sdd_params(path, data, spec_schema, spec_dir):
+    """Checks spec.md's `sdd` block and returns it resolved: every absent key at its schema default; `journeys`
+    without a value is on when spec_dir/journeys exists (the behavior before the parameter)."""
+    rule = spec_schema.get("properties", {}).get("sdd")
+    if rule is None:
+        return {}
+    if "sdd" in data:
+        check_value(path, "sdd", data["sdd"], rule)
+    given = data.get("sdd") if isinstance(data.get("sdd"), dict) else {}
+    resolved = {}
+    for key, prop in rule["properties"].items():
+        if key == "journeys":
+            default = (spec_dir / "journeys").is_dir()
+        elif "properties" in prop:
+            default = {sub: subprop.get("default") for sub, subprop in prop["properties"].items()}
+        else:
+            default = prop.get("default")
+        value = given.get(key, default)
+        if "properties" in prop and isinstance(value, dict):
+            value = {**default, **value}
+        resolved[key] = value
+    return resolved
+
+
+def print_params(spec_dir, schemas_dir):
+    """check_spec.py --params: the resolved `sdd` block as JSON on stdout; exit 1 when the block is invalid."""
+    index = spec_dir / "spec.md"
+    data = frontmatter(index) if index.exists() else {}
+    spec_schema = json.loads((schemas_dir / "spec.schema.json").read_text())
+    resolved = sdd_params(index, data if isinstance(data, dict) else {}, spec_schema, spec_dir)
+    if failures or data is None:
+        sys.exit(1)
+    print(json.dumps(resolved, indent=2, sort_keys=True))
+
 
 # Start, base (diff3) and end markers git writes in a conflicted file. A bare "=======" line is not matched:
 # it is also a Markdown setext heading underline, and a conflict always carries the start and end markers.
@@ -285,13 +483,23 @@ def check_progress(pdir, schema, feats):
 
 
 def main():
-    spec_dir, schemas_dir = Path(sys.argv[1]), Path(sys.argv[2])
+    args = sys.argv[1:]
+    params = bool(args) and args[0] == "--params"
+    if params:
+        args = args[1:]
+    if len(args) != 2:
+        sys.exit("usage: check_spec.py [--params] <spec-dir> <schemas-dir>")
+    spec_dir, schemas_dir = Path(args[0]), Path(args[1])
     if not spec_dir.is_dir():
         sys.exit(f"spec dir does not exist: {spec_dir}")
     if not FULL:
         if os.environ.get("CI") == "1":
             sys.exit("FAIL: pyyaml/jsonschema missing (CI=1 requires deps; pip install pyyaml jsonschema)")
         print("WARN: pyyaml/jsonschema missing; spec validation will be structural.", file=sys.stderr)
+    if params:
+        print_params(spec_dir, schemas_dir)
+        return
+    spec_schema = json.loads((schemas_dir / "spec.schema.json").read_text())
 
     schemas = {}
     for name in STRUCT:
@@ -322,6 +530,7 @@ def main():
             continue
         if kind == "spec":
             kinds = decision_kinds(path, data)
+            sdd_params(path, data, spec_schema, spec_dir)
         if FULL and kind in schemas:
             try:
                 js_validate(data, schemas[kind], format_checker=FormatChecker())
