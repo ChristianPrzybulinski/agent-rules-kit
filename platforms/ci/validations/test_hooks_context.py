@@ -54,7 +54,7 @@ class ContextHooksTest(unittest.TestCase):
         output = json.loads(result.stdout)["hookSpecificOutput"]
         self.assertEqual(output["hookEventName"], "SessionStart")
         for word in ("one outcome", "AGENTS.md", "README", "git rev-parse --show-toplevel", "git branch --show-current",
-                     "git rev-parse HEAD", "skill `session`"):
+                     "git rev-parse HEAD", "skill `session`", "Co-Authored-By: Claude <your model name>", "Generated with [Claude Code]"):
             self.assertIn(word, output["additionalContext"])
 
     def test_checklist_runs_only_on_startup_and_clear(self):

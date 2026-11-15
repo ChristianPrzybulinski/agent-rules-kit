@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf '%s\\n' '{\"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"ai-kit session start: before the first change, name the one outcome of this session in one sentence; read the repository AGENTS.md and README; verify the working directory, Git root, branch and head commit (`git rev-parse --show-toplevel`, `git branch --show-current`, `git rev-parse HEAD`); skill `session` holds the start, handoff and closeout steps.\"}}'",
+            "command": "printf '%s\\n' '{\"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"ai-kit session start: before the first change, name the one outcome of this session in one sentence; read the repository AGENTS.md and README; verify the working directory, Git root, branch and head commit (`git rev-parse --show-toplevel`, `git branch --show-current`, `git rev-parse HEAD`); skill `session` holds the start, handoff and closeout steps. In Claude Code with `includeGitInstructions: false` (set by the kit sync) the built-in attribution is gone: end each commit message with `Co-Authored-By: Claude <your model name> <noreply@anthropic.com>` and each PR body with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`, unless the project rules say otherwise.\"}}'",
             "timeout": 5
           }
         ]

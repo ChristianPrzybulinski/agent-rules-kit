@@ -759,9 +759,9 @@ for command, timeout in checklist_commands:
         result, context = None, ""
     counts["hook_cases"] += 1
     if result is None or result.returncode != 0 or not all(
-            word in context for word in ("outcome", "AGENTS.md", "README", "branch", "HEAD", "skill `session`")):
+            word in context for word in ("outcome", "AGENTS.md", "README", "branch", "HEAD", "skill `session`", "Co-Authored-By")):
         fail(rel(hooks_path), "SessionStart checklist must exit 0 with additionalContext naming the outcome, "
-             "AGENTS.md, README, branch, HEAD and skill `session`")
+             "AGENTS.md, README, branch, HEAD, skill `session` and the Co-Authored-By trailer")
 
 git_context_cases_path = KIT / "platforms/ci/validations/hook_git_context_cases.json"
 git_context_cases = read_json(git_context_cases_path) if git_context_cases_path.exists() else None
