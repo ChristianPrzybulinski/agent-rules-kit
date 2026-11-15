@@ -28,6 +28,8 @@ skills/sdd-constitution  | docs
 skills/sdd-implement     | docs
 skills/sdd-intake        | docs
 skills/sdd-plan          | docs
+skills/sdd-release       | docs
+skills/sdd-review        | docs
 skills/sdd-specify       | docs
 skills/sdd-spike         | docs
 skills/sdd-tasks         | docs

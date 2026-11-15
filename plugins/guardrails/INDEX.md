@@ -19,16 +19,18 @@
 | `grilling` | user, model | Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases. |
 | `investigate` | user, model | Root-cause investigation with reproduction. Use when a bug, slow behavior or incident has no named cause. Not for implementing fixes (skill sdd-implement). |
 | `java-standards` | user, model | Java 25, Spring/Quarkus and JUnit standards. Use when editing *.java, pom.xml, Spring/Quarkus code or JUnit tests. Not for general test policy (skill testing). |
-| `parallelize` | user, model | Parallel planning for tool calls, long commands and [P] tasks. Use when work has independent steps. Not for product concurrency (skill testing). |
+| `parallelize` | user, model | Parallel tool calls, background commands, safe ordering. Use when a session has independent steps or long commands. Not for task waves (skill sdd-implement). |
 | `persistence` | user, model | PostgreSQL and Redis rules. Use when changing a schema, migration or index, reading EXPLAIN or locks, or designing cache keys. Not for Compose (skill docker). |
 | `protocol-contract` | user, model | Client↔server contracts. Use when adding a message or field, changing a payload or fixing a client/server mismatch. Not for transport choice (skill sdd-plan). |
 | `review` | user, model | Completion verdict, claim check and PR gates. Use when asking “is it done?”, preparing a PR or testing a claim. Not for fixing failures (skill sdd-implement). |
 | `sdd-check` | user, model | SDD tool — read-only spec check that sdd-clarify and sdd-plan call. Use when a NEED, a FEAT or the spec needs gap checks. Not for ambiguity (skill sdd-clarify). |
 | `sdd-clarify` | user | SDD step 2 — turn a specified NEED into approved REQs by asking product. Use when a NEED is specified. Not for gap checks (skill sdd-check). |
 | `sdd-constitution` | user | SDD step 0 — constitution, spec index, parameters, REVIEW.md. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
-| `sdd-implement` | user | SDD step 6 — task-by-task Red-Green-Refactor delivery. Use when a FEAT has ordered tasks. Not for completion verdicts (skill review). |
+| `sdd-implement` | user | SDD step 6 — deliver a FEAT's tasks by Red-Green-Refactor, modes task, feat, fix. Use when a FEAT has ready rows or findings. Not for verdicts (skill review). |
 | `sdd-intake` | user, model | SDD entry — record an idea, need, improvement or problem as a NEED-nnn. Use when a request arrives. Not for classifying it (skill sdd-specify). |
 | `sdd-plan` | user | SDD step 4 — one FEAT per delivery of a refined NEED: its Plan sections and decisions. Use when a NEED is refined. Not for task rows (skill sdd-tasks). |
+| `sdd-release` | user | SDD step 9 — release validated FEATs: changelog, version, test deploy, acceptance, flag on. Use when FEATs are validated. Not for PRs (skill git). |
+| `sdd-review` | user | SDD step 8 — FEAT closure on main: task proofs, stale-text and trace lint, REQ-NF. Use when a FEAT's last row merged. Not for PR verdicts (skill review). |
 | `sdd-specify` | user, model | SDD 1 — specify a NEED-nnn: decide type, route and priority, then describe. Use when a NEED is proposed or taken up. Not for writing REQs (skill sdd-clarify). |
 | `sdd-spike` | user | Prototype lane for feel or feasibility. Use when motion, UI feel or a technical risk must be tried in code before a FEAT. Not for specs (skill sdd-intake). |
 | `sdd-tasks` | user | SDD step 5 — task rows in a planned FEAT, then their cut into items. Use when a FEAT is planned or its rows change. Not for execution (skill sdd-implement). |

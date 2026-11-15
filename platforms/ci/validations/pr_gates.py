@@ -201,7 +201,7 @@ def parse_proof(body: str | None) -> list[str]:
 
 
 _FORBIDDEN = re.compile(r"\$\(|`|\b(sudo|curl|wget|ssh|scp|rsync|rm|mv|chmod|chown|eval|exec|source|kill|nc)\b")
-_SAFE_REDIRECT = re.compile(r"\d?>&\d|\d?>\s*/dev/null")
+_SAFE_REDIRECT = re.compile(r"\d?>&\d|\d?>\s*/dev/null|&>\s*/dev/null")
 
 
 def _mask_quotes(cmd: str) -> str:
@@ -236,7 +236,7 @@ def command_allowed(cmd: str, allowlist: list[str]) -> tuple[bool, str]:
     if ">" in rest or "<" in rest:
         return False, "redirection other than to /dev/null"
     segments, start = [], 0
-    for op in re.finditer(r"\|\||&&|;|\|", rest):
+    for op in re.finditer(r"\|\||&&|;|\||&", rest):  # a single & starts a background job: another command
         segments.append(cmd[start:op.start()])
         start = op.end()
     segments.append(cmd[start:])

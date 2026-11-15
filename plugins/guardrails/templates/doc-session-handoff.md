@@ -24,7 +24,7 @@ Touched repos: [`repo` @ `short-commit`, ...]  ·  Agent/tool: [Devin | Codex | 
 - [BLOCKER] [what blocks, who resolves it, how]
 - [HYPOTHESIS] [what is assumed and how to confirm]
 - Working tree: clean | dirty: [`files`]
-- Progress: [`docs/spec/progress/FEAT-nnn.json`: n of m tasks pass | n/a]
+- Progress: [FEAT-nnn: n of m rows done, from the task issues or `TASK-nnn` files | n/a]
 
 ## Unverified
 

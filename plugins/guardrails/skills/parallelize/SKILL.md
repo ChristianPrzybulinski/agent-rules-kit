@@ -1,7 +1,7 @@
 ---
 name: parallelize
-description: Parallel planning for tool calls, long commands and [P] tasks. Use when work has independent steps. Not for product concurrency (skill testing).
-argument-hint: "[task or step list | empty]"
+description: Parallel tool calls, background commands, safe ordering. Use when a session has independent steps or long commands. Not for task waves (skill sdd-implement).
+argument-hint: "[step list | empty]"
 triggers:
   - user
   - model
@@ -14,7 +14,7 @@ allowed-tools:
 
 # Parallelize
 
-Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/review, or built-in `subagent_explore`/`subagent_general`); Devin Cloud uses managed Devins within ACU limits because profiles and hooks do not load there; Codex `spawn_agent` forks the whole thread, model included, unless `fork_turns="none"`: pass it with a self-contained brief.
+Runs one session's independent steps together and keeps unsafe ones in order. A FEAT's rows in waves, with worktrees, workers and read-ahead, are skill `sdd-implement` (reference `parallel-waves.md`). Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/review, or built-in `subagent_explore`/`subagent_general`); Devin Cloud uses managed Devins within ACU limits because profiles and hooks do not load there; Codex `spawn_agent` forks the whole thread, model included, unless `fork_turns="none"`: pass it with a self-contained brief.
 
 ## 1. Map dependencies
 
@@ -36,18 +36,12 @@ Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/r
 - Before waiting on `pgrep -f <pattern>`, list its matches once (`pgrep -fl`): the pattern also matches leftovers of earlier runs and any other shell or wrapper holding it. Narrow it to the processes meant, bracket one character (`'[l]oop.py gates'`) so the waiting shell stays out of other counts, and give the wait a deadline.
 - A recurring or unattended job (loop, cron, scheduled task) names the skill it runs instead of copying its steps, states its stop condition and who acts on its output, and stops with a report at an ask-first action.
 
-## 4. Fan out disjoint tasks
-
-- Fan out `[P]` tasks from skill `sdd-tasks` when they have no real conflict. Without evidence, disjoint file ownership is the test; a shared file is no conflict until a `git merge-tree` replay says so (`references/measure-conflicts.md`). Keep real dependencies and semantic hotspots (migration number, protocol version, error-code allocation) sequential.
-- While a task waits for a slot or a dependency, read ahead: read-only prepare workers, one per area (code, tests, spec), write a context note that the implementer reads first and re-checks (`references/read-ahead.md`).
-- Brief each worker in a fresh context, artifacts by path: goal, owned files and units, interface, done criterion, the default for a missing detail, verification command and a bounded report (paths changed, units covered, checks run, open items; no whole-task claim). Name the model tier, since an omitted one inherits the lead's.
-- The lead reviews every diff, compares covered units with assigned ones and does the gaps itself, then integrates; a worker report is not evidence by itself.
-
-## 5. Keep unsafe work sequential
+## 4. Keep unsafe work sequential
 
 - Serialize Git operations on one worktree; use another worktree when branches must progress independently (`references/worktrees.md`).
+- A subagent gets a self-contained brief (goal, paths, done criterion, a bounded report) and a named model tier; its report is a claim the caller checks. Whether two branches' shared files really conflict: `references/measure-conflicts.md`.
 
-## 6. Close
+## 5. Close
 
 - Collect every background result, on later turns too (a job with no result is checked, not assumed done), and name anything intentionally left running.
 - Report what ran together, what stayed sequential and why.
