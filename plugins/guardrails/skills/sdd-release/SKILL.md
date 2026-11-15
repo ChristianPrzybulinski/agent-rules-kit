@@ -41,7 +41,7 @@ Under `release: merge` (the default `sdd:` value) `sdd-review` already moved eac
 
 ## 5. Turn the flag on, with a rollback plan
 
-- Before the switch, write the rollback plan in the release PR: the flag off, plus any data step and its backup (skill `persistence` § 5).
+- Before the switch, write the rollback plan in the release PR: the flag off, plus any data step and its backup (`references/backup.md`).
 - Turn each flag on in the test environment, smoke again, then in production. A flag on for more than 30 days creates a `DEBT-nnn` removal item (skill `sdd-implement` § 3).
 
 ## 6. Deliver

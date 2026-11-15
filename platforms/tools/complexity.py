@@ -29,8 +29,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-CRAP_LIMIT = 10.0  # Java target CRAP < 10 (code-standards § 3)
-CC_LIMIT = 10  # GDScript target CC <= 10 (code-standards § 3)
+CRAP_LIMIT = 10.0  # Java target CRAP < 10 (rule code.md)
+CC_LIMIT = 10  # GDScript target CC <= 10 (rule code.md)
 REPORT_GLOBS = ("target/site/*/jacoco.xml", "*/target/site/*/jacoco.xml", "*/*/target/site/*/jacoco.xml")
 GD_FUNC = re.compile(r"^(\s*)(?:static\s+)?func\s+([A-Za-z_]\w*)\s*\(")
 GDRADON_LINE = re.compile(r"^\s+F \d+:\d+ (\S+) - [A-F] \((\d+)\)")

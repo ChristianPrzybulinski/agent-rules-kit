@@ -112,3 +112,5 @@ What would prove A wrong:
 - 2026-11-13: evaluated in a session started by the owner's CodeQL question and confirmed by the owner in chat ("Sim,
   pode"). Secret scanning and push protection enabled the same day; workflow implemented.
 - 2026-11-13: #222 merged as `af25f78` on the owner's chat OK ("Sim, mergeie"); first dispatch measured (see Proof).
+- 2026-11-15: KIT-076 (#264) runs `codeql.yml` on every pull request and push to `main` as the required checks
+  `codeql (python)` and `codeql (actions)`; the dispatch-only trigger above is history.

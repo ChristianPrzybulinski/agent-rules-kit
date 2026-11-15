@@ -15,7 +15,7 @@ allowed-tools:
 
 # SDD 6 — Implement
 
-Process: `../sdd-constitution/references/sdd-process.md`. Parameters (`pr_unit`, `commits_by`, `tracker`, `visual_approval`): `check_spec.py --params docs/spec <schemas>`. It delivers rows; the verdict is always another context's (skill `review`).
+Process: `../sdd-constitution/references/sdd-process.md`. Parameters (`pr_unit`, `commits_by`, `tracker`, `visual_approval`): `check_spec.py --params docs/spec <schemas>`. It delivers rows; the verdict is always another context's (skill `review`). The path rules (`code.md`, `tests.md` and the stack's own) load with the files; each step below names the reference it reads.
 
 ## 1. Take the FEAT and the mode
 
@@ -27,15 +27,15 @@ Process: `../sdd-constitution/references/sdd-process.md`. Parameters (`pr_unit`,
 
 - Read the FEAT once: Scope, acceptance criteria (CA), Plan, Tasks, Decisions, and the Verification of the REQs it lists.
 - Orient by item state, never a progress file or a Markdown cell over it: the task issue (`tracker: github`) or the TASK file's `status` (`tracker: none`, `docs/spec/tasks/`). A row is ready when its item is open and every `Depends on` row is done.
-- `pr_unit: task` opens one PR per row; `feat` one PR per FEAT, one commit series per row. Each PR unit gets its own worktree from `main`: `git worktree add ../<repo>-<slug> -b feature/FEAT-nnn-Tn-<slug> main` (skill `parallelize`, reference `worktrees.md`).
+- `pr_unit: task` opens one PR per row; `feat` one PR per FEAT, one commit series per row. Each PR unit gets its own worktree from `main`: `git worktree add ../<repo>-<slug> -b feature/FEAT-nnn-Tn-<slug> main` (`references/worktrees.md`).
 
 ## 2. Run the task cycle
 
 1. Orient: the row's Files and Proof, the Plan § it points to, `<repo>/AGENTS.md`, `git log --oneline -20`. Mark the item doing.
-2. Red: write the test from the REQ's example or counterexample, or the row's CA, before the code. Run it and keep the failing line: it fails for the right reason (the missing behavior), not an import, typo or fixture error. Exceptions, named in the PR's `## Red`: a characterization test of existing behavior (skill `testing`), or a manual proof with why no honest test exists.
-3. Green: the smallest change on the YAGNI ladder (skill `code-standards` § 5), in the layer the Plan names, under the language rules.
+2. Red (`references/tdd.md`): write the test from the REQ's example or counterexample, or the row's CA, before the code. Run it and keep the failing line: it fails for the right reason (the missing behavior), not an import, typo or fixture error. Exceptions, named in the PR's `## Red`: a characterization test of existing behavior (`references/characterization.md`), or a manual proof with why no honest test exists.
+3. Green: the smallest change on the YAGNI ladder (`references/coding.md` § 2), in the layer the Plan names; stack detail in `references/godot/README.md`, `references/java/README.md` or `references/assets.md`.
 4. Refactor with the tests green; no behavior change.
-5. Prove: run the row's Proof literally and the gates its impact needs (skill `testing` § 6). A failure with no named cause goes to skill `investigate` before any fix.
+5. Prove: run the row's Proof literally and the gates its impact needs (`references/test-gates.md` § 3). A failure with no named cause goes to skill `investigate` before any fix.
 6. Self-check: `references/task-pr.md` § Self-check.
 7. Deliver: commit (`commits_by`), open the PR with `## Red`, the `proof` block and the executor line (`references/task-pr.md`), and mark the item in review.
 
@@ -53,12 +53,12 @@ Process: `../sdd-constitution/references/sdd-process.md`. Parameters (`pr_unit`,
 
 ## 4. Run a wave in parallel
 
-Feat mode runs the FEAT wave by wave: `references/parallel-waves.md` (wave 0 alone, one worktree per ready row, read-ahead workers while a row waits (`references/read-ahead.md`), the lead integrates and keeps `main` green per wave).
+Feat mode runs the FEAT wave by wave: `references/parallel-waves.md` (wave 0 alone, one worktree per ready row, read-ahead workers while a row waits (`references/read-ahead.md`), the lead integrates and keeps `main` green per wave); whether two rows' shared files really conflict: `references/measure-conflicts.md`.
 
 ## 5. Close
 
 - Each choice the spec did not fix gets one line in the FEAT's `## Decisions`: `YYYY-MM-DD T<n> (<PR>): chose X over Y because Z`; the action log stays in the PR body.
-- Update CHANGELOG, README and API docs in the same PR (the `living-docs` reference in skill `code-standards`).
+- Update CHANGELOG, README and API docs in the same PR (`references/living-docs.md`; a new dependency: `references/dependency-search.md`).
 - Never push to `main`, force-push, rebase or merge your own PR. After the FEAT's last row merges, `sdd-review` closes the FEAT.
 
 Done when: each row's test failed first (or `## Red` names the exception), each Proof and DoD command passes with literal output in its PR, every diff stays inside Files plus declared widenings, each item is in review or blocked with its reason, and incomplete merged behavior is flagged with expiry handling.

@@ -1,13 +1,31 @@
 name: codeql
 
-on: workflow_dispatch  # KIT-014: no automatic runs; dispatch before a release or after a Python or workflow change (KIT-063)
+# KIT-076: every pull request to main, every push to main, weekly and on demand; both matrix jobs are required checks. CodeQL
+# advanced setup (KIT-063): python and actions with build-mode none; default setup stays off, since GitHub rejects the
+# advanced-setup SARIF upload while it is on.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # weekly, so new CodeQL queries reach a quiet main; GitHub disables a public repository's schedules after
+    # 60 days without activity
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
+    name: codeql (${{ matrix.language }})  # the required check contexts (KIT-076): "codeql (python)", "codeql (actions)"
     runs-on: ubuntu-latest
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run (55 s), rounded up to 5 min
     permissions:
       contents: read
       security-events: write  # upload the SARIF to code scanning
@@ -17,7 +35,7 @@ jobs:
         # java-kotlin is detected only from platforms/kits/docker/Dockerfile.java, a Dockerfile; CodeQL has no shell support
         language: [python, actions]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066  # v4.39.3

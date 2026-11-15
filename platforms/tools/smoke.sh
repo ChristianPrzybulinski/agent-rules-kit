@@ -49,7 +49,7 @@ python3 - "$SOURCE" <<'PY'
 from pathlib import Path
 import sys
 
-replacement = "description: Smoke lifecycle fixture. Use when testing bootstrap and doctor. Not for production guidance (skill testing)."
+replacement = "description: Smoke lifecycle fixture. Use when testing bootstrap and doctor. Not for production guidance (skill review)."
 for skill in Path(sys.argv[1], "plugins").glob("*/skills/*/SKILL.md"):
     lines = skill.read_text(encoding="utf-8").splitlines()
     for index, line in enumerate(lines):
@@ -214,10 +214,10 @@ grep -q '^FAIL:' "$ROOT/doctor-foreign.out" || fail "foreign-file failure was no
 cmp -s "$ROOT/foreign-before" "$FOREIGN_HOME/.codex/AGENTS.md" || fail "foreign Codex AGENTS.md changed"
 
 APP_HOME="$ROOT/app-home"
-mkdir -p "$APP_HOME/.codex/skills/asset-import"
+mkdir -p "$APP_HOME/.codex/skills/investigate"
 git clone "$SOURCE" "$APP_HOME/.ai-kit" >/dev/null 2>&1
 touch "$APP_HOME/.codex/config.toml"
-touch "$APP_HOME/.codex/skills/asset-import/.agent-rules-kit"
+touch "$APP_HOME/.codex/skills/investigate/.agent-rules-kit"
 if ! env HOME="$APP_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$APP_HOME/.ai-kit" \
     "$APP_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-app.out" 2>&1; then
   cat "$ROOT/doctor-app.out" >&2
@@ -699,8 +699,8 @@ cp "$SOURCE/plugins/guardrails/hooks/hooks.json" "$SOURCE/plugins/guardrails/hoo
 expect_validator_failure "root hooks.json" "hooks.json is forbidden"
 rm "$SOURCE/plugins/guardrails/hooks.json"
 
-skill="$SOURCE/plugins/guardrails/skills/asset-import/SKILL.md"
-cp "$skill" "$ROOT/asset-import.before"
+skill="$SOURCE/plugins/guardrails/skills/sdd-spike/SKILL.md"
+cp "$skill" "$ROOT/sdd-spike.before"
 python3 - "$skill" <<'PY'
 from pathlib import Path
 import sys
@@ -708,7 +708,7 @@ path = Path(sys.argv[1])
 path.write_text(path.read_text(encoding="utf-8").replace("disable-model-invocation: true\n", "", 1), encoding="utf-8")
 PY
 expect_validator_failure "user-only Claude parity" "user-only parity requires"
-cp "$ROOT/asset-import.before" "$skill"
+cp "$ROOT/sdd-spike.before" "$skill"
 
 profile="$SOURCE/plugins/guardrails/agents/researcher.md"
 cp "$profile" "$ROOT/researcher.before"
@@ -881,7 +881,7 @@ fi
 godot_skills="$(awk -F'|' '/^skills\// { name = $1; gsub(/ /, "", name); if ((" " $2 " ") ~ / godot /) { sub(/^skills\//, "", name); print name } }' \
   "$SOURCE/platforms/tools/sync-profiles.txt")"
 [[ -n "$godot_skills" ]] || fail "sync-profiles.txt sends no skill to profile godot"
-expected_skills="$(printf '%s\n' $godot_skills | wc -l | tr -d ' ')"
+expected_skills="$(printf '%s\n' "$godot_skills" | wc -l | tr -d ' ')"
 expected_files=$(( $(for n in $godot_skills; do find "$SOURCE/plugins/guardrails/skills/$n" -type f; done | wc -l) + expected_skills ))
 mkdir -p "$ROOT/vendor-proj/.claude/skills/review-loop"
 printf '# proj\n' > "$ROOT/vendor-proj/AGENTS.md"
@@ -928,7 +928,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-vendor-check.out" >&2
   fail "sync-project --check failed on a vendored repo"
 fi
-printf x >> "$ROOT/vendor-proj/.claude/skills/godot-standards/SKILL.md"
+printf x >> "$ROOT/vendor-proj/.claude/skills/investigate/SKILL.md"
 set +e
 sync_vendor_drift_out="$(env PATH="$RESTRICTED_PATH" \
   "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" 2>&1)"
@@ -944,7 +944,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-vendor-resync.out" >&2
   fail "vendored resync after the edit failed"
 fi
-printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/testing/extra.txt"
+printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/docker/extra.txt"
 set +e
 sync_vendor_extra_out="$(env PATH="$RESTRICTED_PATH" \
   "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" 2>&1)"
@@ -960,15 +960,15 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-vendor-docs.out" >&2
   fail "vendored sync-project --profile docs failed"
 fi
-[[ ! -e "$ROOT/vendor-proj/.claude/skills/godot-standards" ]] \
-  || fail "godot-standards survived the profile switch"
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/investigate" ]] \
+  || fail "investigate survived the profile switch"
 [[ -f "$ROOT/vendor-proj/.claude/skills/sdd-tasks/SKILL.md" ]] \
   || fail "sdd-tasks missing after the profile switch"
 [[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
   || fail "hand-written review-loop skill was touched by the profile switch"
-[[ ! -e "$ROOT/vendor-proj/.claude/skills/testing" ]] \
-  || fail "testing survived the switch to a profile without dev"
-mkdir -p "$ROOT/vendor-proj2/.claude/skills/godot-standards"
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/docker" ]] \
+  || fail "docker survived the switch to a profile without code"
+mkdir -p "$ROOT/vendor-proj2/.claude/skills/investigate"
 printf '# mine\n' > "$ROOT/vendor-proj2/AGENTS.md"
 touch "$ROOT/vendor-proj2/project.godot"
 set +e
@@ -977,7 +977,7 @@ sync_vendor_refuse_out="$(env PATH="$RESTRICTED_PATH" \
 sync_vendor_refuse_status=$?
 set -e
 [[ "$sync_vendor_refuse_status" -eq 1 ]] \
-  || fail "sync-project did not refuse an unmarked .claude/skills/godot-standards"
+  || fail "sync-project did not refuse an unmarked .claude/skills/investigate"
 [[ "$sync_vendor_refuse_out" == *"is not generated"* ]] \
   || fail "sync-project refusal did not report 'is not generated'"
 [[ ! -e "$ROOT/vendor-proj2/.claude/skills/KIT_MANIFEST.json" ]] \
@@ -1007,7 +1007,7 @@ grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/guardrails-ja
   || fail "java:server did not scope the java rule to server/"
 grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/guardrails-spec.md" \
   || fail "the unscoped docs profile changed the spec rule globs"
-for s in sdd-tasks godot-standards java-standards persistence; do
+for s in sdd-tasks sdd-implement investigate docker; do
   [[ -f "$ROOT/mono-proj/.claude/skills/$s/.agent-rules-kit" ]] || fail "multi-profile sync did not vendor $s"
 done
 [[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["profile"])' \

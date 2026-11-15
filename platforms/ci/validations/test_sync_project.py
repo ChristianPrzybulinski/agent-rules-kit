@@ -27,10 +27,10 @@ class SyncProjectCheckTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_sync(self, *args, repo=None, home=None):
-        env = dict(os.environ, HOME=str(home)) if home else None
+    def run_sync(self, *args, repo=None, home=None, env=None):
+        full = dict(os.environ, **({"HOME": str(home)} if home else {}), **(env or {})) if home or env else None
         return subprocess.run(["bash", str(SCRIPT), *args, str(repo or self.repo)],
-                              capture_output=True, text=True, check=False, env=env)
+                              capture_output=True, text=True, errors="replace", check=False, env=full)
 
     def write_md(self, rel, text):
         path = self.repo / rel
@@ -253,7 +253,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         result = self.run_sync("--profile", "godot")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse((root / "sdd-tasks").exists())
-        self.assertTrue((root / "godot-standards" / "SKILL.md").is_file())
+        self.assertTrue((root / "investigate" / "SKILL.md").is_file())
         self.assertFalse((root / kept / "extra.txt").exists())
         self.assertEqual((root / "review-loop" / "SKILL.md").read_text(), "mine\n")
         check = self.run_sync("--check", "--profile", "godot")
@@ -264,8 +264,9 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rules = self.repo / ".claude" / "rules"
         self.assertEqual(sorted(p.name for p in rules.glob("*.md")),
-                         ["guardrails-docker.md", "guardrails-godot.md", "guardrails-java.md", "guardrails-json.md",
-                          "guardrails-python.md", "guardrails-spec.md"])
+                         ["guardrails-assets.md", "guardrails-code.md", "guardrails-docker.md", "guardrails-godot.md",
+                          "guardrails-java.md", "guardrails-json.md", "guardrails-migrations.md", "guardrails-protocol.md",
+                          "guardrails-python.md", "guardrails-spec.md", "guardrails-tests.md"])
         self.assertIn('  - "client/**/*.gd"', (rules / "guardrails-godot.md").read_text().splitlines())
         # docker goes to the code profiles only, so it takes their folders and never the docs root (KIT-071)
         docker_globs = (rules / "guardrails-docker.md").read_text().splitlines()
@@ -378,7 +379,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertIn("profile='docs,godot:client,java:server' expected 'docs'", check.stdout)
         write = self.run_sync("--profile", "docs")
         self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
-        self.assertIn("sync: removed .claude/skills/godot-standards (not in profile)", write.stdout)
+        self.assertIn("sync: removed .claude/skills/investigate (not in profile)", write.stdout)
         self.assertFalse((self.repo / ".claude" / "rules" / "guardrails-godot.md").exists())
         manifest = json.loads((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").read_text())
         self.assertEqual(manifest["profile"], "docs")
@@ -407,7 +408,7 @@ class SyncProjectCheckTest(unittest.TestCase):
             repo = Path(other)
             (repo / "AGENTS.md").write_text("# x\n")
             (repo / "project.godot").write_text("")
-            (repo / ".claude" / "skills" / "godot-standards").mkdir(parents=True)
+            (repo / ".claude" / "skills" / "investigate").mkdir(parents=True)
             result = self.run_sync("--vendor-skills", repo=repo)
             self.assertEqual(result.returncode, 1)
             self.assertIn("is not generated", result.stdout + result.stderr)
@@ -523,10 +524,12 @@ class SyncProjectCheckTest(unittest.TestCase):
     def test_agents_md_block_follows_rule_paths(self):
         self.assertIn(BLOCK_BEGIN, self.text("AGENTS.md"), "setUp's docs install puts the json block at the root")
         (self.repo / "game" / "protocol").mkdir(parents=True)
-        self.spec_md("sdd:\n  rule_paths: {json: [game/protocol]}\n")
+        # the docs profile also sends the protocol rule to the root (KIT-070); move it too so no rule stays there
+        self.spec_md("sdd:\n  rule_paths: {json: [game/protocol], protocol: [game]}\n")
         result = self.run_sync()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.text("AGENTS.md"), "# x\n", "the block leaves a hand-written file as it was")
+        self.assertIn("`game/**/protocol/**`", self.text("game/AGENTS.md"))
         self.assertIn(rule_bullet("json"), self.text("game/protocol/AGENTS.md"))
         self.assertIn("`game/protocol/**/*.json`", self.text("game/protocol/AGENTS.md"))
 
@@ -631,7 +634,7 @@ class SyncProjectCheckTest(unittest.TestCase):
     def test_agents_md_block_removal_keeps_the_blank_line(self):
         (self.repo / "AGENTS.md").write_text("# x\n\n" + self.root_block() + "\n\n## After\n\ntext\n")
         (self.repo / "game" / "protocol").mkdir(parents=True)
-        self.spec_md("sdd:\n  rule_paths: {json: [game/protocol]}\n")
+        self.spec_md("sdd:\n  rule_paths: {json: [game/protocol], protocol: [game]}\n")
         result = self.run_sync()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.text("AGENTS.md"), "# x\n\n## After\n\ntext\n")
@@ -650,6 +653,106 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("sync: warning: build/gen is inside a folder the AGENTS.md scan skips", result.stderr)
         self.assertIn(rule_bullet("json"), self.text("build/gen/AGENTS.md"))
+
+    def test_agents_md_block_says_where_kit_skills_live(self):  # KIT-070: rules point at skill references
+        (self.repo / "client").mkdir()
+        result = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        client = self.text("client/AGENTS.md")
+        self.assertIn("`.claude/skills/<skill>/`", client)
+        self.assertIn("`~/.ai-kit/plugins/guardrails/skills/<skill>/`", client)
+
+    def test_rule_copy_says_where_kit_skills_live(self):  # review of PR #261 (N4): Claude can open the references
+        (self.repo / "client").mkdir()
+        result = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        lines = self.text(".claude/rules/guardrails-code.md").splitlines()
+        marker = next(i for i, line in enumerate(lines) if line.startswith("<!-- agent-rules-kit: generated from"))
+        self.assertIn("`.claude/skills/<skill>/references/<file>`", lines[marker + 1])
+        self.assertIn("`~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`", lines[marker + 1])
+        self.assertNotIn("`.claude/skills/<skill>/references/<file>`", self.text("client/AGENTS.md"))
+        check = self.run_sync("--check", "--profile", "docs,godot:client")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    def test_removed_kit_skill_citation_fails(self):  # KIT-070: a resync leaves no dangling skill citation
+        for line in ("Detail: skill `godot-standards` § 3.",
+                     "see `.claude/skills/protocol-contract/SKILL.md:41`",
+                     "the `testing` § 6 table",
+                     "preload guardrails:code-standards here",
+                     "`plugins/guardrails/skills/persistence/references/redis-7.md`",
+                     # review of PR #261: forms without backticks or the word "skill"
+                     "run skill testing § 6 before done",
+                     "a response/error (`protocol-contract`); a client FEAT contains no outcome rule",
+                     "see `godot-standards/references/network-codec.md`",
+                     "stress-test it with /grilling first",
+                     "CHANGELOG entry (code-standards § 9)",
+                     "the kit-generated skills `protocol-contract:41` and `session:40`",
+                     "Skill `architecture` § 2 places it"):
+            with self.subTest(line=line):
+                self.write_md("docs/spec/decisions/DEC-002-x.md", "# DEC-002\n\n" + line + "\n")
+                result = self.run_sync("--check")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("removed kit skill: docs/spec/decisions/DEC-002-x.md:3", result.stdout)
+                self.assertIn("KIT-070", result.stdout)
+
+    def test_each_removed_skill_form_alone_fails(self):  # review round 2: each input matches exactly one form
+        for line in ("Detail: skill testing, then review.",                     # skill x
+                     "the testing skill decides",                               # x skill
+                     "the `testing` § 6 table",                                 # x § n
+                     "preload guardrails:testing here",                         # guardrails:x
+                     "`plugins/guardrails/skills/testing/` holds it",           # skills/x/
+                     "see `testing/references/gates.md`",                       # x/references/
+                     "stress-test it with /grilling first",                     # /x
+                     "a response/error (`protocol-contract`); a client FEAT"):  # a hyphenated name
+            with self.subTest(line=line):
+                self.write_md("docs/forms.md", line + "\n")
+                result = self.run_sync("--check")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("removed kit skill: docs/forms.md:1:", result.stdout)
+
+    def test_removed_skill_scan_crash_fails_the_check(self):  # review round 2: a crashed scan is never a clean one
+        outside = tempfile.TemporaryDirectory()  # self.tmp is the fixture repo itself
+        self.addCleanup(outside.cleanup)
+        fake = Path(outside.name)
+        real = shutil.which("python3")
+        (fake / "python3").write_text("#!/bin/bash\n"
+                                      'if [[ "$1" == - && "$3" == *code-standards* ]]; then exit 3; fi\n'
+                                      f'exec "{real}" "$@"\n')
+        (fake / "python3").chmod(0o755)
+        result = self.run_sync("--check", env={"PATH": f"{fake}{os.pathsep}{os.environ['PATH']}"})
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("sync: removed-skill scan failed", result.stdout + result.stderr)
+
+    def test_removed_skill_scan_reports_non_ascii_lines(self):  # review round 2: no UnicodeEncodeError, no lost files
+        self.write_md("docs/arrow.md", "skill testing § 6 → test-gates.md\n")
+        self.write_md("docs/zzz.md", "Detail: skill testing, then review.\n")
+        for env in ({"PYTHONIOENCODING": "ascii"}, {"LC_ALL": "en_US.ISO8859-1"}):
+            with self.subTest(env=env):
+                result = self.run_sync("--check", env=env)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("removed kit skill: docs/arrow.md:1:", result.stdout)
+                self.assertIn("removed kit skill: docs/zzz.md:1:", result.stdout)
+
+    def test_removed_skill_scan_reports_a_non_utf8_file_name(self):  # review round 2
+        try:
+            (self.repo / "docs").mkdir(exist_ok=True)
+            with open(os.path.join(os.fsencode(self.repo / "docs"), b"x\xff.md"), "w", encoding="utf-8") as handle:
+                handle.write("Detail: skill testing, then review.\n")
+        except OSError:
+            self.skipTest("this file system refuses a file name that is not UTF-8")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("removed kit skill: docs/x", result.stdout)
+
+    def test_removed_kit_skill_scan_has_no_false_positives(self):  # KIT-070
+        self.write_md("docs/notes.md", "Our testing strategy follows the architecture of the persistence layer.\n"
+                      "skill `sdd-implement`, reference `testing-notes.md`; grilling session; `java-standards-v2`\n"
+                      "pentesting and load-testing notes; the asset-importer tool; `src/testing/fixtures`\n"
+                      "unit testing skills; its own grilling and DEC session; `docs/architecture/overview.md`\n")
+        self.write_md("docs/spec/decisions/DEC-003-x.md",
+                      "# DEC-003\n\nskill `godot-standards` (history) <!-- kit-path-ok -->\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 SPEC_MD = """---
