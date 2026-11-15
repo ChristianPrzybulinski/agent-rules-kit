@@ -13,7 +13,8 @@ owner: "[product]"
 created: "YYYY-MM-DD"
 updated: "YYYY-MM-DD"
 ---
-<!-- Created by sdd-plan from a refined NEED: a FEAT is one delivery, the technical package that implements approved REQs.
+<!-- Created by sdd-plan from a refined NEED: a FEAT is one delivery, the technical package that implements approved REQs,
+     never a bucket for later work; a NEED whose work exceeds sdd.max_feat_tasks rows is split into several FEATs.
      status: proposed while sdd-plan drafts it, planned after a clean full-scope sdd-check; in-progress, validated and
      delivered are derived from GitHub by tooling; clarified remains only on FEATs written before the NEED flow. Never
      edit status by hand. -->
@@ -58,13 +59,33 @@ updated: "YYYY-MM-DD"
 - [NEEDS CLARIFICATION: ...]
 
 ## Plan
-<!-- filled by sdd-plan -->
+<!-- filled by sdd-plan: one ### section per name in spec.md sdd.plan_sections, in this order (Risks and Tests always);
+     each holds its content or one line "— <why it does not apply>". Task cells point to "Plan § <section>". -->
+
+### Design
+
+### Contract
+
+### Data
+
+### UI
+
+### Flag
+
+### Tests
+
+### Observability
+
+### Risks
+
+### Dependencies
 
 ## Tasks
-<!-- filled by sdd-tasks; State is derived from the task issue (merged PR = done) and never edited by hand -->
+<!-- filled by sdd-tasks in a spec PR, cut once approved or merged. Status (todo, doing, blocked, done, cancelled) is derived
+     from the item (GitHub issue, or TASK-nnn file with tracker: none) and never edited by hand; Item is — until the cut. -->
 
-| ID | Task | Files | Proof of completion | Covers | Depends on | State | Complexity | Model | Wave |
-|---|---|---|---|---|---|---|---|---|---|
+| ID | Task | Files | Proof of completion | Covers | Depends on | Status | Complexity | Model | Wave | Item |
+|---|---|---|---|---|---|---|---|---|---|---|
 
 ## Decisions
 <!-- one line per choice the spec did not fix, written when its task closes: YYYY-MM-DD T<n> (<PR>): chose X over Y because Z. New [DECISION] lines of this spec go here; Open questions keeps only open questions. The action log stays in the PR body. -->

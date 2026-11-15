@@ -48,8 +48,8 @@ updated: "YYYY-MM-DD"
 
   - Step ids: S<n> main path (in order), A<n> alternative (its `At` names the main step it diverts
     from), P<n> prerequisite. A first header cell `Step` marks a step table.
-  - `Rules` cites REQ ids only — never rule values or free text. A rule a journey exercises is
-    promoted to a REQ-F in the same PR; a rule no journey uses stays FEAT-local.
+  - `Rules` cites REQ ids only — never rule values or free text. Every rule is a REQ that
+    sdd-clarify writes before any FEAT exists, so a step cites the REQ it exercises.
   - `Implemented by` cites `FEAT-nnn Tn` task rows only, as they exist on main.
   - A main or alternative step may hold a literal `—` in `Implemented by` and `Proven by` while an
     open NEED lists this journey in `journeys`; rule: `skills/sdd-clarify/references/journeys.md`.
