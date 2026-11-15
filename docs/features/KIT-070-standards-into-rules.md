@@ -47,11 +47,22 @@ checks in parallel without the skill, and Codex loaded `parallelize` by descript
   rotated past 5 MiB, silent and fail-open; `skill_usage.py --rules` counts loads per rule from it and Codex reads of
   the rule files and the `sdd-*` references.
 - `sync-profiles.txt` sends the new rules by profile and `sdd-plan`/`sdd-implement` to the code profiles;
-  `sync_agents_md.py` says in the block where a vendored or installed kit skill lives; `sync-project.sh --check` fails
-  on a consumer citation of a removed kit skill (`skill x`, `` `x` § ``, `guardrails:x`, `skills/x/`), with the same
-  exclusions and `<!-- kit-path-ok -->` opt-out as its stale-path check.
-- `check_kit.py` accepts a nested reference folder only with a `README.md` index that `SKILL.md` names, checks the
-  nested references' frontmatter and 60-line limit, and runs the `InstructionsLoaded` hook on a sample load.
+  `sync_agents_md.py` says in the block where a vendored or installed kit skill lives, and each `.claude/rules/` copy
+  carries the same under its marker (`.claude/skills/<skill>/references/<file>` when vendored, else
+  `~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`), since Claude cannot load the user-only `sdd-*`
+  skills to find them. `sync-project.sh --check` fails on a consumer citation of a removed kit skill, backticks
+  optional: `skill x`, `x skill`, `x § n`, `guardrails:x`, a `skills/x/` or `x/references/` path, `/x`, and a
+  hyphenated name anywhere as a whole word; a plain word (`testing`, `architecture`) counts only in those forms. Same
+  exclusions and `<!-- kit-path-ok -->` opt-out as its stale-path check; on the Stratics checkout (`d23561cba`) it
+  flags 15 lines, `DGME-001-servidor-autoritativo.md:34` included.
+- `check_kit.py` requires, at any depth, a `README.md` index for each nested reference folder that lists each of its
+  files and is named in `SKILL.md` (one level deeper: in the parent index), checks every nested reference's
+  frontmatter and 60-line limit, and runs the `InstructionsLoaded` hook on a sample load.
+- Lines kept in their new homes (review of PR #261): "Fewer files win when cohesion remains high" in
+  `sdd-implement/references/coding.md` § 4; "rejected simpler option understood, no speculative architecture" in the
+  `architecture.md` Done line; read-only init mounts, the Java 25 JRE runtime and `.godot` in `.dockerignore` in rule
+  `docker`; `REVIEW.md` points at the `security` § 3 checklist. Renumbered: `security` § 3-5 → `security-design.md`
+  § 1-3 and § 6 → § 3; `docker` § 1-2 → rule `docker`, § 3-4 → § 1-2, § 5-9 → `twelve-factor.md` § 1-5.
 - The `reviewer` agent preloads only `guardrails:review`; `AGENTS.md` (60 lines), `REVIEW.md`, the kit READMEs,
   `CONTRIBUTING.md`, `docs/design.md`, `smoke.sh` and the eval cases follow. Eval cases removed:
   `code-standards-one-decision-one-place`, `java-standards-no-field-injection`,
@@ -100,3 +111,4 @@ hook).
 ## History
 
 - 2026-11-14: confirmed (owner, chat of the SDD review session).
+- 2026-11-15: review of PR #261 at `00d8123` BLOCKED (coordinator); fix round on the same branch.

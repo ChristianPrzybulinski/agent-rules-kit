@@ -1,6 +1,7 @@
 """check_kit.py on a throwaway copy (KIT-070): a reference folder nested under a skill's references/ (the stack
 indexes such as sdd-implement/references/godot/) gets the same frontmatter, schema and 60-line checks as a flat
-reference, carries a README.md index, and its index is named in the owning SKILL.md."""
+reference, at any depth, carries a README.md index that lists each of its files, and its index is named in the
+owning SKILL.md (or, one level deeper, in the parent folder's index)."""
 import shutil
 import subprocess
 import sys
@@ -65,6 +66,35 @@ class CheckKitNestedReferencesTest(unittest.TestCase):
         (folder / "a.md").write_text(VALID, encoding="utf-8")
         self.assertIn("FAIL: plugins/guardrails/skills/sdd-plan/references/newstack: a nested reference folder needs "
                       "a README.md index", self.check())
+
+    def test_nested_reference_is_listed_in_its_index(self):  # review of PR #261
+        (self.kit / NESTED / "unlisted.md").write_text(VALID, encoding="utf-8")
+        self.assertIn(f"FAIL: {NESTED}/unlisted.md: not listed in {NESTED}/README.md", self.check())
+
+    def test_deeper_folders_get_every_check(self):  # review of PR #261 (N7): any depth, not one level
+        deep = self.kit / NESTED / "deep"
+        deep.mkdir()
+        (deep / "README.md").write_text("# Deep\n\n- `bare.md`\n- `long.md`\n", encoding="utf-8")
+        (deep / "bare.md").write_text("# no frontmatter\n", encoding="utf-8")
+        (deep / "long.md").write_text(VALID + "line\n" * 60, encoding="utf-8")
+        (deep / "loose.md").write_text(VALID, encoding="utf-8")
+        self.add_to_index("deep/README.md")
+        bare = deep / "nofolder"
+        bare.mkdir()
+        (bare / "a.md").write_text(VALID, encoding="utf-8")
+        output = self.check()
+        self.assertIn(f"FAIL: {NESTED}/deep/bare.md: missing/invalid frontmatter", output)
+        self.assertIn(f"FAIL: {NESTED}/deep/long.md: 66 lines (>60)", output)
+        self.assertIn(f"FAIL: {NESTED}/deep/loose.md: not listed in {NESTED}/deep/README.md", output)
+        self.assertIn(f"FAIL: {NESTED}/deep/nofolder: a nested reference folder needs a README.md index", output)
+
+    def test_deeper_index_is_named_in_its_parent_index(self):  # review of PR #261 (N7)
+        deep = self.kit / NESTED / "deep"
+        deep.mkdir()
+        (deep / "README.md").write_text("# Deep\n\n- `a.md`\n", encoding="utf-8")
+        (deep / "a.md").write_text(VALID, encoding="utf-8")
+        self.assertIn(f"FAIL: {NESTED}/deep/README.md: 'deep/README.md' not referenced in {NESTED}/README.md",
+                      self.check())
 
     def test_nested_index_is_named_in_the_skill(self):
         skill = self.kit / SKILL

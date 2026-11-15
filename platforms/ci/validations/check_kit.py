@@ -1038,28 +1038,37 @@ for name, plugin_dir in plugins.items():
             if "Not for" not in description:
                 fail(rel(skill_file), "description lacks literal 'Not for'")
 
-    # KIT-070: a references/<folder>/ (a stack index such as sdd-implement/references/godot/) holds references
-    # like the flat ones plus a README.md index; the index lists every file (the README rule) and SKILL.md names it.
-    for folder in sorted(path for path in skills_root.glob("*/references/*") if path.is_dir()):
-        if (folder.parent.parent / "VENDOR.md").exists():
+    # KIT-070: a references/<folder>/ (a stack index such as sdd-implement/references/godot/), at any depth, holds
+    # references like the flat ones plus a README.md index that lists each of its files; SKILL.md names a first-level
+    # index and the parent folder's index names a deeper one.
+    def listed(name, index):
+        return bool(re.search(rf"(?<![\w-]){re.escape(name)}(?!\w)", index.read_text(encoding="utf-8")))
+
+    for references in sorted(skills_root.glob("*/references")):
+        if not references.is_dir() or (references.parent / "VENDOR.md").exists():
             continue
-        if not (folder / "README.md").exists():
-            fail(rel(folder), "a nested reference folder needs a README.md index")
-    for index in sorted(skills_root.glob("*/references/*/README.md")):
-        skill_file = index.parent.parent.parent / "SKILL.md"
-        named = f"{index.parent.name}/README.md"
-        if not skill_file.exists() or named not in skill_file.read_text(encoding="utf-8"):
-            fail(rel(index), f"'{named}' not referenced in {rel(skill_file)}")
-    for reference in sorted(skills_root.glob("*/references/*/*.md")):
-        if reference.name == "README.md" or (reference.parents[2] / "VENDOR.md").exists():
-            continue
-        reference_data, reference_lines = frontmatter(reference)
-        if reference_data is None:
-            fail(rel(reference), "missing/invalid frontmatter")
-        else:
-            validate_schema(reference, reference_data, "reference.schema.json")
-        if reference_lines > REFERENCE_MAX_LINES:
-            fail(rel(reference), f"{reference_lines} lines (>{REFERENCE_MAX_LINES})")
+        for folder in sorted(path for path in references.rglob("*") if path.is_dir()):
+            index = folder / "README.md"
+            if not index.exists():
+                fail(rel(folder), "a nested reference folder needs a README.md index")
+                continue
+            owner = references.parent / "SKILL.md" if folder.parent == references else folder.parent / "README.md"
+            named = f"{folder.name}/README.md"
+            if not owner.exists() or named not in owner.read_text(encoding="utf-8"):
+                fail(rel(index), f"'{named}' not referenced in {rel(owner)}")
+        for reference in sorted(references.rglob("*.md")):
+            if reference.parent == references or reference.name == "README.md":
+                continue
+            reference_data, reference_lines = frontmatter(reference)
+            if reference_data is None:
+                fail(rel(reference), "missing/invalid frontmatter")
+            else:
+                validate_schema(reference, reference_data, "reference.schema.json")
+            if reference_lines > REFERENCE_MAX_LINES:
+                fail(rel(reference), f"{reference_lines} lines (>{REFERENCE_MAX_LINES})")
+            index = reference.parent / "README.md"
+            if index.exists() and not listed(reference.name, index):
+                fail(rel(reference), f"not listed in {rel(index)}")
 
     for reference in sorted(skills_root.glob("*/references/*.md")):
         skill_dir = reference.parent.parent

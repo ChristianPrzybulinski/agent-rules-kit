@@ -33,7 +33,7 @@ Choose the higher rung when two work; never trade correctness at an edge case fo
 
 ## 4. Review your own diff
 
-- Remove what the change makes unnecessary before adding another abstraction; a simplification removes more than it adds.
+- Fewer files win when cohesion remains high. Remove what the change makes unnecessary (dead code, flag, special case, layer) before adding another abstraction; a simplification removes more than it adds, and moving logic into a wrapper is not one.
 - Report a ceiling you skipped as `[code] → skipped: X; add when Y.`; delete explanation that exceeds the simple change unless the user asked for a report.
 
 ## 5. Close the docs in the same PR

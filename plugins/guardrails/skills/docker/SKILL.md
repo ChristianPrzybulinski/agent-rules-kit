@@ -27,13 +27,12 @@ Run `docker compose up -d --wait`, then `docker compose ps`. On failure, read `d
 - Container-to-container connection → the service name, not localhost.
 - macOS data slowness → a named volume instead of bind-mounted database files.
 - Disk pressure → `docker system df`; ask before any prune.
-- `docker compose down -v` destroys data; the user runs it (the guard hook blocks it for agents).
 
 ## 3. Work on a remote host
 
 - Run the same commands against the host the repo `AGENTS.md` or its runbook names (`ssh <host> docker compose ...`, or `DOCKER_HOST=ssh://<user>@<host>`), from the deployment folder it names; read the running state before changing it.
 - Before a deploy or an image upgrade on a host that holds data, take and prove a backup (skill `sdd-release`, reference `backup.md`).
 - Deploy the pinned, already-built artifact: pull it, `docker compose up -d --wait`, then the runbook's smoke; roll back by redeploying the previous tag. The same artifact moves between environments (`twelve-factor.md` § 3).
-- A data-destroying command (`down -v`, `volume rm`, `system prune`) stays the user's on a remote host too.
+- On a remote host, rule `docker`'s data-destroying commands stay the user's too.
 
 Done when: every service is healthy or a failing container has literal diagnostic output, a remote change had its backup first, and no data-destroying command ran as an agent.

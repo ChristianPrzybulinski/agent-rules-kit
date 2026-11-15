@@ -49,4 +49,4 @@ Domain tests run without database, network, UI or framework context; fakes at po
 - Every command, script, migration and loop step is idempotent and crash-safe: run twice, or again after a crash half-way, it leaves the same state.
 - State that two actors would write gets one writer, enforced by the structure (an owner object or a queue), or each actor gets its own copy.
 
-Done when: every dependency points inward, validation and error translation happen at the edge, each port names its I/O, swap or domain-boundary reason, the chosen block solves a named current problem, illegal states cannot be built, and every state change is idempotent with one writer.
+Done when: every dependency points inward, validation and error translation happen at the edge, each port names its I/O, swap or domain-boundary reason, the chosen block solves a named current problem with its rejected simpler option understood, no speculative architecture is added, illegal states cannot be built, and every state change is idempotent with one writer.

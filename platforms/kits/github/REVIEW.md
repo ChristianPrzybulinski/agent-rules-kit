@@ -28,6 +28,7 @@ A line ending in `<!-- grep: REGEX -->` (or `grep tests:` for test files only) i
 - No secret or personal data in code, logs or error messages; input validated at the boundary (`security` § 2; `sdd-plan` reference `security-design.md` § 3).
 - Authorization checked per action and per entity on every touched endpoint or handler (`sdd-plan` reference `security-design.md` § 2).
 - SQL is parameterized; no string-built queries (`sdd-plan` reference `security-design.md` § 3).
+- Each sensitive change (endpoint, dependency, network message, CI or container file, hidden text) passes the checklist (`security` § 3).
 
 ## Docs
 - CHANGELOG `Unreleased` entry; README when a command changed; doc comment on new public API (`sdd-implement` reference `living-docs.md`).

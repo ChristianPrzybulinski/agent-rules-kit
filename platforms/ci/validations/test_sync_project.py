@@ -662,12 +662,32 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertIn("`.claude/skills/<skill>/`", client)
         self.assertIn("`~/.ai-kit/plugins/guardrails/skills/<skill>/`", client)
 
+    def test_rule_copy_says_where_kit_skills_live(self):  # review of PR #261 (N4): Claude can open the references
+        (self.repo / "client").mkdir()
+        result = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        lines = self.text(".claude/rules/guardrails-code.md").splitlines()
+        marker = next(i for i, line in enumerate(lines) if line.startswith("<!-- agent-rules-kit: generated from"))
+        self.assertIn("`.claude/skills/<skill>/references/<file>`", lines[marker + 1])
+        self.assertIn("`~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`", lines[marker + 1])
+        self.assertNotIn("`.claude/skills/<skill>/references/<file>`", self.text("client/AGENTS.md"))
+        check = self.run_sync("--check", "--profile", "docs,godot:client")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
     def test_removed_kit_skill_citation_fails(self):  # KIT-070: a resync leaves no dangling skill citation
         for line in ("Detail: skill `godot-standards` § 3.",
                      "see `.claude/skills/protocol-contract/SKILL.md:41`",
                      "the `testing` § 6 table",
                      "preload guardrails:code-standards here",
-                     "`plugins/guardrails/skills/persistence/references/redis-7.md`"):
+                     "`plugins/guardrails/skills/persistence/references/redis-7.md`",
+                     # review of PR #261: forms without backticks or the word "skill"
+                     "run skill testing § 6 before done",
+                     "a response/error (`protocol-contract`); a client FEAT contains no outcome rule",
+                     "see `godot-standards/references/network-codec.md`",
+                     "stress-test it with /grilling first",
+                     "CHANGELOG entry (code-standards § 9)",
+                     "the kit-generated skills `protocol-contract:41` and `session:40`",
+                     "Skill `architecture` § 2 places it"):
             with self.subTest(line=line):
                 self.write_md("docs/spec/decisions/DEC-002-x.md", "# DEC-002\n\n" + line + "\n")
                 result = self.run_sync("--check")
@@ -677,7 +697,9 @@ class SyncProjectCheckTest(unittest.TestCase):
 
     def test_removed_kit_skill_scan_has_no_false_positives(self):  # KIT-070
         self.write_md("docs/notes.md", "Our testing strategy follows the architecture of the persistence layer.\n"
-                      "skill `sdd-implement`, reference `testing-notes.md`; grilling session; `java-standards-v2`\n")
+                      "skill `sdd-implement`, reference `testing-notes.md`; grilling session; `java-standards-v2`\n"
+                      "pentesting and load-testing notes; the asset-importer tool; `src/testing/fixtures`\n"
+                      "unit testing skills; its own grilling and DEC session; `docs/architecture/overview.md`\n")
         self.write_md("docs/spec/decisions/DEC-003-x.md",
                       "# DEC-003\n\nskill `godot-standards` (history) <!-- kit-path-ok -->\n")
         result = self.run_sync("--check")

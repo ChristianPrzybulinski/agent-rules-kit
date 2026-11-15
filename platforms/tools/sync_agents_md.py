@@ -25,6 +25,7 @@ from pathlib import Path
 BEGIN = "<!-- agent-rules-kit: path rules begin"
 END = "<!-- agent-rules-kit: path rules end -->"
 RULE_MARKER = re.compile(r"^<!-- agent-rules-kit: generated from (\S+) ")
+RULE_LOCATION = "Kit files this rule names:"  # sync-project.sh's line under the marker; the block intro says it once
 WILDCARD = re.compile(r"[*?\[{]")
 SKIP_DIRS = {".git", ".claude", ".godot", "node_modules", "target", "build", "dist", ".venv", "venv", "__pycache__"}
 
@@ -46,7 +47,8 @@ def parse_rule(path):
     marker = RULE_MARKER.match(lines[end + 1]) if end + 1 < len(lines) else None
     if not marker:
         sys.exit(f"sync: {path.name} carries no generated marker after its frontmatter")
-    body = "\n".join(lines[end + 2:]).strip()
+    start = end + 3 if end + 2 < len(lines) and lines[end + 2].startswith(RULE_LOCATION) else end + 2
+    body = "\n".join(lines[start:]).strip()
     return Path(marker.group(1)).stem, lists["paths"] or lists["globs"], body
 
 
