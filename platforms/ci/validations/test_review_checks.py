@@ -734,6 +734,20 @@ class ProofOutputTest(StubCase):
         self.assertEqual(code, 1, out)
         self.assertIn("DEPRECATED", out)
 
+    def test_a_head_edit_to_an_in_repo_patterns_file_is_ignored(self):
+        """The patterns file is a rules file: the head turning off the python stack must not hide a Traceback."""
+        base = self.repo.commit("patterns", **{"patterns.json": '{"python": {"fail_output": ["NEVER-PRINTED"]}}'})
+        head = self.repo.commit("loosen", **{"patterns.json": '{"python": {"command": "$^"}}'})
+        argv = ["proof", "--body", self.body("python3 -c \"print('Traceback (most recent call last):')\""), "--run",
+                "--allow", "python3", "--patterns", str(self.repo.root / "patterns.json"), "--cwd", str(self.repo.root)]
+        code, out = self.run_tool(*argv, "--base", base)
+        self.assertEqual(code, 1, out)
+        self.assertIn("Traceback", out)
+        code, out = self.run_tool(*argv)  # no base to read it from: refused, never read from the head
+        self.assertEqual(code, 2, out)
+        self.assertIn("--patterns inside the repository needs --base", out)
+        self.assertEqual(head, git(self.repo.root, "rev-parse", "HEAD"))
+
     def test_maven_dtest_with_verify_is_linted_without_running(self):
         code, out = self.run_tool("proof", "--body", self.body("./mvnw -B -ntp -Dtest=HaircutBuyIT verify"))
         self.assertEqual(code, 1, out)
@@ -897,6 +911,64 @@ class RulesFromBaseTest(ToolCase):
                     code, out = self.run_tool(argv[0], "--base", base, "--head", head, *argv[1:])
                     self.assertNotIn("Traceback", out)
                     self.assertEqual(code, 2, out)
+
+
+class DiffVisibilityTest(ToolCase):
+    """The head cannot decide what the checks see in the diff: an unusual file name, a diff attribute or a deletion."""
+
+    def review(self):
+        path = Path(self.tmp.name) / "REVIEW.md"
+        path.write_text(REVIEW, encoding="utf-8")
+        return str(path)
+
+    def test_a_todo_in_a_file_with_an_unusual_name_fails_dod(self):
+        names = ('a"b.py', "tab\tname.py", "ünï.py", "my file.py")
+        for name in names:
+            (self.repo.root / name).write_text("# TODO: decide the default\n", encoding="utf-8")
+        head = self.repo.commit("odd names")
+        code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review())
+        self.assertEqual(code, 1, out)
+        for name in names:
+            with self.subTest(name=name):
+                self.assertIn(f"Docs: {name}:1:", out)
+
+    def test_a_diff_attribute_cannot_hide_lines_from_dod(self):
+        for where in ("head", "base"):
+            for attribute in ("*.py -diff", "*.py binary"):
+                with self.subTest(where=where, attribute=attribute):
+                    self.repo = Repo(Path(self.tmp.name) / f"{where}-{attribute.split()[1]}")
+                    base_files = {"calc.py": CALC, "tests__test_add.py": TEST_ADD}
+                    head_files = {"calc.py": CALC_SUB + "\n# TODO: handle overflow\n"}
+                    (base_files if where == "base" else head_files)[".gitattributes"] = attribute + "\n"
+                    base = self.repo.commit("base", **base_files)
+                    head = self.repo.commit("todo", **head_files)
+                    code, out = self.run_tool("dod", "--base", base, "--head", head, "--review", self.review())
+                    self.assertEqual(code, 1, out)
+                    self.assertIn("No TODO left behind", out)
+
+    def test_a_diff_attribute_cannot_hide_a_changed_assertion_from_scope(self):
+        base = self.repo.commit("attributes", **{".gitattributes": "*.py -diff\n"})
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB,
+                                          "tests__test_add.py": TEST_ADD.replace("(0, 0), 0", "(0, 0), 1")})
+        body = Path(self.tmp.name) / "body.md"
+        body.write_text("## Files widened\n\n- `tests/test_add.py`: imports calc\n", encoding="utf-8")
+        code, out = self.run_tool("scope", "--base", base, "--head", head, "--files", "calc.py", "--body", str(body))
+        self.assertEqual(code, 1, out)
+        self.assertIn("assertion", out)
+        self.assertIn("tests/test_add.py", out)
+
+    def test_deleting_a_test_file_drops_its_assertions(self):
+        head = symlink_commit(self.repo, "tests/test_add.py", None, "drop the test")
+        code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review())
+        self.assertEqual(code, 1, out)
+        self.assertIn("tests/test_add.py: 2 assertion lines removed, 0 added", out)
+
+    def test_renaming_a_test_file_keeps_its_assertions(self):
+        (self.repo.root / "tests/test_add.py").rename(self.repo.root / "tests/test_plus.py")
+        head = self.repo.commit("rename the test")
+        code, out = self.run_tool("dod", "--base", self.base, "--head", head, "--review", self.review())
+        self.assertEqual(code, 0, out)
+        self.assertIn("dod: OK", out)
 
 
 class DiffDecodingTest(ToolCase):
