@@ -67,19 +67,19 @@ class RequiredWorkflows(unittest.TestCase):
         for name in CHECKS:
             workflow = load(name)
             with self.subTest(workflow=name):
-                self.assertEqual(workflow["permissions"], {"contents": "read"})
+                self.assertEqual(workflow.get("permissions"), {"contents": "read"})
                 for job in workflow["jobs"].values():
                     for scope, level in job.get("permissions", {}).items():
                         self.assertEqual(JOB_GRANTS.get(scope), level, f"{scope}: {level}")
                 checkouts = [s for s in steps(workflow) if s.get("uses", "").startswith("actions/checkout@")]
                 self.assertTrue(checkouts)
                 for step in checkouts:
-                    self.assertIs(step["with"]["persist-credentials"], False)
+                    self.assertIs(step.get("with", {}).get("persist-credentials"), False)
 
     def test_a_newer_commit_cancels_the_older_run_on_the_same_ref(self):
         for name in CHECKS:
             with self.subTest(workflow=name):
-                self.assertEqual(load(name)["concurrency"],
+                self.assertEqual(load(name).get("concurrency"),
                                  {"group": "${{ github.workflow }}-${{ github.ref }}", "cancel-in-progress": True})
 
     def test_every_action_is_pinned_by_commit_sha_with_its_version(self):
@@ -113,15 +113,17 @@ class RequiredWorkflows(unittest.TestCase):
         self.assertNotIn("secrets.", text)  # the CLI needs no token
         checkout = [s for s in steps(workflow) if s.get("uses", "").startswith("actions/checkout@")]
         self.assertEqual([s["with"]["fetch-depth"] for s in checkout], [0])
-        install = next(s for s in steps(workflow) if s.get("name", "").startswith("install gitleaks"))
+        install = next((s for s in steps(workflow) if s.get("name", "").startswith("install gitleaks")), None)
+        self.assertIsNotNone(install, "no `install gitleaks` step")
         self.assertRegex(install["env"]["GITLEAKS_VERSION"], r"^\d+\.\d+\.\d+$")
         self.assertRegex(install["env"]["GITLEAKS_SHA256"], r"^[0-9a-f]{64}$")
         self.assertIn("sha256sum -c -", install["run"])
+        self.assertIsNotNone(scan_step(), "no `scan` step")
         self.assertIn("--redact", scan_step()["run"])
 
 
 def scan_step():
-    return next(s for s in steps(load("gitleaks.yml")) if s.get("name", "").startswith("scan"))
+    return next((s for s in steps(load("gitleaks.yml")) if s.get("name", "").startswith("scan")), None)
 
 
 @unittest.skipIf(yaml is None or GITLEAKS is None, "pyyaml or gitleaks is not available")
@@ -155,6 +157,7 @@ class GitleaksRange(unittest.TestCase):
         return self.git("rev-parse", "HEAD").stdout.strip()
 
     def scan(self, event):
+        self.assertIsNotNone(scan_step(), "gitleaks.yml has no `scan` step")
         env = dict(os.environ, GITHUB_EVENT_NAME=event, BASE_SHA=self.base, HEAD_SHA=self.head(),
                    PATH=f"{Path(GITLEAKS).parent}{os.pathsep}{os.environ['PATH']}")
         return subprocess.run(["bash", "-c", scan_step()["run"]], cwd=self.repo, env=env, capture_output=True,
