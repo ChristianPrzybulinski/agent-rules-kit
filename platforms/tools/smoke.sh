@@ -523,6 +523,40 @@ stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d '
 grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-remove.out" \
   || fail "stub re-exposure count was not reported"
 
+# KIT-072: a project that vendors kit copies pins the kit only while its settings turn guardrails@ai-kit off.
+for proj in pinned leak plain; do
+  mkdir -p "$ROOT/pin-$proj/.claude/skills"
+done
+printf '{}\n' > "$ROOT/pin-pinned/.claude/skills/KIT_MANIFEST.json"
+mkdir -p "$ROOT/pin-pinned/.claude/skills/guardrails-pinned"
+printf '{"enabledPlugins": {"guardrails@ai-kit": false, "guardrails-pinned@skills-dir": true}}\n' \
+  > "$ROOT/pin-pinned/.claude/settings.json"
+printf '{}\n' > "$ROOT/pin-leak/.claude/skills/KIT_MANIFEST.json"
+printf '{"enabledPlugins": {"guardrails@ai-kit": true}}\n' > "$ROOT/pin-leak/.claude/settings.json"
+printf '{"enabledPlugins": {"guardrails@ai-kit": true}}\n' > "$ROOT/pin-plain/.claude/settings.json"
+mkdir -p "$STUB_HOME/.claude/plugins"
+cat > "$STUB_HOME/.claude/plugins/installed_plugins.json" <<EOF
+{"version": 2, "plugins": {"guardrails@ai-kit": [
+  {"scope": "project", "projectPath": "$ROOT/pin-pinned"},
+  {"scope": "project", "projectPath": "$ROOT/pin-leak"},
+  {"scope": "local", "projectPath": "$ROOT/pin-leak"},
+  {"scope": "project", "projectPath": "$ROOT/pin-plain"},
+  {"scope": "project", "projectPath": "$ROOT/pin-gone"},
+  {"scope": "user"}]}}
+EOF
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-pin.out" 2>&1; then
+  cat "$ROOT/doctor-stub-pin.out" >&2
+  fail "doctor failed with pinned and unpinned projects"
+fi
+grep -Fq "warn: claude: 1 project vendors kit copies but loads guardrails@ai-kit, the kit head, beside them: $ROOT/pin-leak — run platforms/tools/sync-project.sh there (KIT-072)" \
+  "$ROOT/doctor-stub-pin.out" || fail "doctor did not report the project that loads the kit head beside its copies"
+grep -Fq 'ok: claude: 1 vendored project pins its kit version (guardrails@ai-kit off)' "$ROOT/doctor-stub-pin.out" \
+  || fail "doctor did not report the pinned project"
+! grep -Fq 'pin-plain' "$ROOT/doctor-stub-pin.out" || fail "doctor reported a plugins-mode project"
+rm -f "$STUB_HOME/.claude/plugins/installed_plugins.json"
+
 # KIT-013: a cache that differs from the kit without a version bump is reported, then reinstalled.
 printf 'stale\n' >> "$STUB_STATE/claude-cache/guardrails/INDEX.md"
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
@@ -895,8 +929,15 @@ if ! env PATH="$RESTRICTED_PATH" \
 fi
 grep -Fq 'sync: skills=vendored' "$ROOT/sync-vendor.out" \
   || fail "sync-project did not report the vendored mode"
-[[ "$(find "$ROOT/vendor-proj/.claude/skills" -name .agent-rules-kit | wc -l | tr -d ' ')" == "$expected_skills" ]] \
+[[ "$(find "$ROOT/vendor-proj/.claude/skills" -name .agent-rules-kit -not -path '*/guardrails-pinned/*' | wc -l | tr -d ' ')" == "$expected_skills" ]] \
   || fail "vendored marker count differs from $expected_skills"
+# KIT-072: the rest of the plugin is the pinned copy, a skills-directory plugin with its own manifest name
+[[ -f "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/.agent-rules-kit" ]] \
+  || fail "vendored sync wrote no pinned plugin copy"
+grep -Fq '"name": "guardrails-pinned"' "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/.claude-plugin/plugin.json" \
+  || fail "the pinned plugin copy does not carry the name guardrails-pinned"
+cmp -s "$SOURCE/plugins/guardrails/hooks/hooks.json" "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/hooks/hooks.json" \
+  || fail "the pinned plugin copy does not carry the kit hooks"
 manifest_files="$(python3 -c 'import json,sys; print(sum(len(s["files"]) for s in json.load(open(sys.argv[1]))["skills"].values()))' \
   "$ROOT/vendor-proj/.claude/skills/KIT_MANIFEST.json")"
 [[ "$manifest_files" == "$expected_files" ]] \
@@ -910,6 +951,8 @@ done
   || fail "hand-written review-loop skill was touched"
 [[ "$(grep -c '@ai-kit' "$ROOT/vendor-proj/.claude/settings.json")" == "1" ]] \
   || fail "vendored settings.json does not keep exactly guardrails@ai-kit"
+grep -Fq '"guardrails@ai-kit": false' "$ROOT/vendor-proj/.claude/settings.json" \
+  || fail "vendored settings.json does not turn the head plugin off (KIT-072)"
 first_vendor_hashes="$(find "$ROOT/vendor-proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
 if ! env PATH="$RESTRICTED_PATH" \
     "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/vendor-proj" \
