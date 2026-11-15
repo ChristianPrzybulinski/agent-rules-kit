@@ -1,6 +1,6 @@
 name: codeql
 
-# KIT-076: every pull request to main, every push to main and on demand; both matrix jobs are required checks. CodeQL
+# KIT-076: every pull request to main, every push to main, weekly and on demand; both matrix jobs are required checks. CodeQL
 # advanced setup (KIT-063): python and actions with build-mode none; default setup stays off, since GitHub rejects the
 # advanced-setup SARIF upload while it is on.
 on:
@@ -8,6 +8,10 @@ on:
     branches: [main]
   push:
     branches: [main]
+  schedule:
+    # weekly, so new CodeQL queries reach a quiet main; GitHub disables a public repository's schedules after
+    # 60 days without activity
+    - cron: '23 5 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -21,7 +25,7 @@ jobs:
   analyze:
     name: codeql (${{ matrix.language }})  # the required check contexts (KIT-076): "codeql (python)", "codeql (actions)"
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run (55 s), rounded up to 5 min
     permissions:
       contents: read
       security-events: write  # upload the SARIF to code scanning

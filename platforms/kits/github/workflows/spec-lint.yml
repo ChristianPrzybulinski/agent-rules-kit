@@ -10,14 +10,19 @@ on:
   pull_request:
     paths: ['docs/spec/**', '.github/spec-lint/**']
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run (60 s), rounded up to 5 min
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0  # the baseline step reads the pull request's base branch
-      - uses: actions/setup-python@v7
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: '3.12'
       - run: pip install pyyaml jsonschema

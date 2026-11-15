@@ -4,14 +4,18 @@ on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run (13 s), rounded up to 5 min
+    permissions:
+      contents: write  # gh release create
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Tag == VERSION
         run: |
           tag="${GITHUB_REF_NAME#v}"

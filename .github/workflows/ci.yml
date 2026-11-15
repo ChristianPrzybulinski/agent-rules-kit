@@ -24,7 +24,7 @@ jobs:
   check:
     name: ci  # the required check context (KIT-076): a rename leaves the ruleset waiting for "ci" forever
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20  # KIT-076: 3 × the longest measured green run (396 s), rounded up to 5 min
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -49,3 +49,40 @@ jobs:
         run: platforms/tools/smoke.sh
       - name: links
         run: python3 platforms/ci/validations/check_kit.py --links
+
+  workflow-lint:
+    # actionlint and zizmor (default persona) over the kit's workflows and the templates projects copy (KIT-076);
+    # a finding fails the job. Locally: zizmor .github/workflows/*.yml platforms/kits/github/workflows/*.yml
+    name: workflow-lint  # the required check context (KIT-076)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run, rounded up to 5 min (the record lists the runs)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: install actionlint and zizmor (pinned, sha-256 checked)
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+          ZIZMOR_VERSION: 1.32.0
+          ZIZMOR_SHA256: bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin" "$RUNNER_TEMP/actionlint" "$RUNNER_TEMP/zizmor"
+          wget -q -O "$RUNNER_TEMP/actionlint.tar.gz" \
+            "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          wget -q -O "$RUNNER_TEMP/zizmor.tar.gz" \
+            "https://github.com/zizmorcore/zizmor/releases/download/v$ZIZMOR_VERSION/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          printf '%s  %s\n' "$ACTIONLINT_SHA256" "$RUNNER_TEMP/actionlint.tar.gz" "$ZIZMOR_SHA256" "$RUNNER_TEMP/zizmor.tar.gz" \
+            | sha256sum -c -
+          for tool in actionlint zizmor; do
+            tar -xzf "$RUNNER_TEMP/$tool.tar.gz" -C "$RUNNER_TEMP/$tool"
+            install -m 0755 "$(find "$RUNNER_TEMP/$tool" -type f -name "$tool" -print -quit)" "$RUNNER_TEMP/bin/$tool"
+          done
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: actionlint (shellcheck on run scripts included)
+        run: actionlint -color .github/workflows/*.yml platforms/kits/github/workflows/*.yml
+      - name: zizmor (online audits read public action metadata with the read-only token)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: zizmor --format plain .github/workflows/*.yml platforms/kits/github/workflows/*.yml

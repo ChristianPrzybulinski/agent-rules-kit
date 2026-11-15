@@ -1,6 +1,8 @@
 """The kit's own required workflows (KIT-076): ci.yml, gitleaks.yml and codeql.yml run on every pull request to main, on
-pushes to main and on demand, never on pull_request_target, with a read-only default token, per-ref concurrency,
-actions pinned by commit SHA and the check names the ruleset requires. The gitleaks scan step runs against a
+pushes to main and on demand (CodeQL also weekly), never on pull_request_target, with a read-only default token, per-ref
+concurrency and the check names the ruleset requires. Every kit workflow and every template projects copy pins its
+actions by commit SHA, sets a timeout and its checkout's persist-credentials, keeps `${{ }}` out of `run:` and is
+linted by the pinned actionlint and zizmor; Dependabot watches both folders. The gitleaks scan step runs against a
 throwaway repository: a pull request scans its own commits, a push to main the whole history."""
 import os
 import re
@@ -20,16 +22,27 @@ except ImportError:  # as check.sh: without pyyaml a local run skips, a CI=1 run
 
 KIT = Path(__file__).resolve().parents[3]
 WORKFLOWS = KIT / ".github" / "workflows"
+TEMPLATES = KIT / "platforms" / "kits" / "github" / "workflows"
 # The ruleset requires these contexts: a renamed job would leave it waiting for the old name on every pull request.
-CHECKS = {"ci.yml": ["ci"], "gitleaks.yml": ["gitleaks"], "codeql.yml": ["codeql (python)", "codeql (actions)"]}
+CHECKS = {"ci.yml": ["ci", "workflow-lint"], "gitleaks.yml": ["gitleaks"],
+          "codeql.yml": ["codeql (python)", "codeql (actions)"]}
 TRIGGERS = {"pull_request": {"branches": ["main"]}, "push": {"branches": ["main"]}, "workflow_dispatch": None}
+WEEKLY = re.compile(r"^\d{1,2} \d{1,2} \* \* [0-6]$")
+# The one checkout that keeps its credential: `git lfs pull` in the same job authenticates with it.
+KEEPS_CREDENTIAL = {("ci-godot.yml", "import-and-test")}
 JOB_GRANTS = {"contents": "read", "security-events": "write"}  # security-events: CodeQL's SARIF upload only
 PINNED = re.compile(r"^\s*-?\s*uses:\s*[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s*v\d+(\.\d+)*\s*$")
 GITLEAKS = shutil.which("gitleaks")
 
 
-def load(name):
-    return yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
+def load(name, folder=WORKFLOWS):
+    return yaml.safe_load((folder / name).read_text(encoding="utf-8"))
+
+
+def every_workflow():
+    """(path, parsed) for the kit's own workflows and the templates projects copy."""
+    paths = sorted(WORKFLOWS.glob("*.yml")) + sorted(TEMPLATES.glob("*.yml"))
+    return [(path, yaml.safe_load(path.read_text(encoding="utf-8"))) for path in paths]
 
 
 def triggers(workflow):
@@ -53,8 +66,15 @@ def steps(workflow):
 class RequiredWorkflows(unittest.TestCase):
     def test_each_runs_on_pull_requests_and_pushes_to_main_and_on_demand(self):
         for name in CHECKS:
+            on = dict(triggers(load(name)))
+            schedule = on.pop("schedule", None)
             with self.subTest(workflow=name):
-                self.assertEqual(triggers(load(name)), TRIGGERS)
+                self.assertEqual(on, TRIGGERS)
+                if name == "codeql.yml":  # weekly too; GitHub disables a public repository's schedule after 60 idle days
+                    self.assertEqual(len(schedule), 1)
+                    self.assertRegex(schedule[0]["cron"], WEEKLY)
+                else:
+                    self.assertIsNone(schedule)
 
     def test_no_kit_workflow_runs_fork_code_with_the_base_token(self):
         for path in sorted(WORKFLOWS.glob("*.yml")):
@@ -82,13 +102,68 @@ class RequiredWorkflows(unittest.TestCase):
                 self.assertEqual(load(name).get("concurrency"),
                                  {"group": "${{ github.workflow }}-${{ github.ref }}", "cancel-in-progress": True})
 
+    def test_workflow_lint_runs_pinned_actionlint_and_zizmor_on_both_folders(self):
+        job = load("ci.yml")["jobs"]["workflow-lint"]
+        install = next((s for s in job["steps"] if s.get("name", "").startswith("install actionlint")), None)
+        self.assertIsNotNone(install, "no `install actionlint and zizmor` step")
+        for tool in ("ACTIONLINT", "ZIZMOR"):
+            self.assertRegex(install["env"][f"{tool}_VERSION"], r"^\d+\.\d+\.\d+$")
+            self.assertRegex(install["env"][f"{tool}_SHA256"], r"^[0-9a-f]{64}$")
+        self.assertIn("sha256sum -c -", install["run"])
+        runs = {s["run"].split()[0]: s["run"] for s in job["steps"] if "run" in s and s is not install}
+        for tool in ("actionlint", "zizmor"):
+            self.assertIn(".github/workflows/*.yml platforms/kits/github/workflows/*.yml", runs.get(tool, ""), tool)
+        self.assertNotIn("--persona", runs["zizmor"])  # the default persona is the gate the docs state
+
+
+@unittest.skipIf(yaml is None, "pyyaml is not installed (CI=1 makes it required)")
+class EveryWorkflow(unittest.TestCase):
+    """The kit's own workflows and the templates projects copy (KIT-076)."""
+
     def test_every_action_is_pinned_by_commit_sha_with_its_version(self):
-        for name in CHECKS:
-            lines = [line for line in (WORKFLOWS / name).read_text(encoding="utf-8").splitlines() if "uses:" in line]
-            with self.subTest(workflow=name):
+        for path, _ in every_workflow():
+            lines = [line for line in path.read_text(encoding="utf-8").splitlines()
+                     if re.match(r"^\s*-?\s*uses:", line)]
+            with self.subTest(workflow=path.name):
                 self.assertTrue(lines)
                 for line in lines:
                     self.assertRegex(line, PINNED)
+
+    def test_every_job_has_a_timeout_within_the_hosted_limit(self):
+        for path, workflow in every_workflow():
+            for name, job in workflow["jobs"].items():
+                with self.subTest(workflow=path.name, job=name):
+                    self.assertIsInstance(job.get("timeout-minutes"), int)
+                    self.assertTrue(1 <= job["timeout-minutes"] <= 360)
+
+    def test_every_checkout_states_persist_credentials(self):
+        for path, workflow in every_workflow():
+            for name, job in workflow["jobs"].items():
+                for step in job["steps"]:
+                    if not step.get("uses", "").startswith("actions/checkout@"):
+                        continue
+                    with self.subTest(workflow=path.name, job=name):
+                        keep = (path.name, name) in KEEPS_CREDENTIAL
+                        self.assertIs(step.get("with", {}).get("persist-credentials"), keep)
+
+    def test_no_expression_is_spliced_into_a_run_script(self):
+        for path, workflow in every_workflow():
+            for name, job in workflow["jobs"].items():
+                for step in job["steps"]:
+                    with self.subTest(workflow=path.name, job=name, step=step.get("name", step.get("run", ""))[:40]):
+                        self.assertNotIn("${{", step.get("run", ""))  # pass it through env: instead
+
+    def test_the_workflow_token_never_writes_by_default(self):
+        for path, workflow in every_workflow():
+            with self.subTest(workflow=path.name):
+                self.assertIn("permissions", workflow)
+                grants = workflow["permissions"] or {}
+                self.assertNotIn("write", grants.values() if isinstance(grants, dict) else [grants])
+
+    def test_dependabot_updates_the_actions_of_both_folders(self):
+        config = yaml.safe_load((KIT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
+        directories = {u.get("directory") for u in config["updates"] if u["package-ecosystem"] == "github-actions"}
+        self.assertEqual(directories, {"/", "/platforms/kits/github/workflows"})
 
     def test_the_check_names_are_stable_and_never_skipped(self):
         for name, expected in CHECKS.items():

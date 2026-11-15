@@ -46,44 +46,53 @@ on:
         description: "the PR's allowlisted proof commands, one per line (empty on no-task or no proof block)"
         value: ${{ jobs.contract.outputs.proof-commands }}
 
+permissions: {}
+
 jobs:
   contract:
     # GITHUB_TOKEN gets nothing: checkout and every API read go through GATES_TOKEN.
     permissions: {}
     if: github.event.pull_request.number != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run (42 s), rounded up to 5 min
     outputs:
       proof-commands: ${{ steps.commands.outputs.value }}
     steps:
       - name: Check out the gates repository (pr_gates.py + config)
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: ${{ inputs.gates-repo }}
           ref: ${{ inputs.gates-ref }}
           path: .gates
           token: ${{ secrets.GATES_TOKEN }}
-      - uses: actions/setup-python@v7
+          persist-credentials: false  # the API reads below pass GATES_TOKEN as GH_TOKEN
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: "3.12"
       - name: Gate report (step summary + job result)
         env:
           GH_TOKEN: ${{ secrets.GATES_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          GATES_SCRIPT: ${{ inputs.script }}
+          GATES_CONFIG: ${{ inputs.config }}
+          GATES_REPO_KEY: ${{ inputs.repo }}
         shell: bash
         run: |
           set -o pipefail
-          python3 ".gates/${{ inputs.script }}" --config ".gates/${{ inputs.config }}" \
-            --repo "${{ inputs.repo }}" --pr "$PR_NUMBER" | tee "$GITHUB_STEP_SUMMARY"
+          python3 ".gates/$GATES_SCRIPT" --config ".gates/$GATES_CONFIG" \
+            --repo "$GATES_REPO_KEY" --pr "$PR_NUMBER" | tee "$GITHUB_STEP_SUMMARY"
       - name: Extract the proof commands for the caller's `proof` job
         id: commands
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GATES_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          GATES_SCRIPT: ${{ inputs.script }}
+          GATES_CONFIG: ${{ inputs.config }}
+          GATES_REPO_KEY: ${{ inputs.repo }}
         shell: bash
         run: |
           eof="proof-commands-$RANDOM$RANDOM"
-          python3 ".gates/${{ inputs.script }}" --config ".gates/${{ inputs.config }}" \
-            proof-commands --repo "${{ inputs.repo }}" --pr "$PR_NUMBER" > .proof-commands
+          python3 ".gates/$GATES_SCRIPT" --config ".gates/$GATES_CONFIG" \
+            proof-commands --repo "$GATES_REPO_KEY" --pr "$PR_NUMBER" > .proof-commands
           { echo "value<<$eof"; cat .proof-commands; echo "$eof"; } >> "$GITHUB_OUTPUT"
