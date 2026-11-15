@@ -23,6 +23,10 @@ sdd:
   protected_paths: {}
   bundle: {rows: 1, points: 3, high_rows: 1}
   rule_paths: {}
+  components: {}
+  spec_index: false
+  github: {repo: null, pr_repos: [], aliases: [], blocked_labels: [blocked], progress_labels: ["status:in-progress"]}
+  row_checks: {gates: null, tests: [], assets: null, protocol: null, artifacts: null, visual: null}
   visual_approval: none
   owner_approvals: [decision]
 ---

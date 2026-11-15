@@ -47,7 +47,7 @@ sdd:
 """
 
 GATES = {"owner": "org", "backlog_repo": "docs",
-         "proof_allowlist": ["./mvnw", "godot", "python3", "grep", "git", "test", "!", "jq"],
+         "proof_allowlist": ["./mvnw", "godot", "python3", "grep", "git", "test", "!", "jq", "docker"],
          "proof_script_runners": {"godot": ["-s", "--script"]},
          "proof_var_depths": {"PROTOCOL_DIR": 1, "HOME": 1, "TMPDIR": 1},
          "generated_neighbours": [".uid", ".import", ".translation"]}
@@ -216,10 +216,8 @@ class FixtureRules(Base):
         line = row_line("T1", "x", "`README.md`", "`test -f README.md`", "—", "todo", complexity="Medium",
                         model="opus", wave="one", item="42")
         rows = rc.parse_rows("FEAT-901", f"## Tasks\n\n{HEADER}\n{line}\n", self.cfg)
-        got = [f.message for f in rc.lint(rows, self.cfg)[0] if f.rule == "a"]
-        self.assertEqual(len(got), 4, got)
-        for cell in ("Complexity", "Model", "Wave", "Item"):
-            self.assertTrue(any(m.startswith(cell) for m in got), cell)
+        got = [f for f in rc.lint(rows, self.cfg)[0] if f.rule == "a"]
+        self.assertEqual([f.cell for f in got], ["Complexity", "Model", "Wave", "Item"], [f.render() for f in got])
 
     def test_a_table_without_the_kit_columns_fails_once_and_the_rows_still_run(self):
         legacy = ("| ID | Task | Files | Proof of completion | Covers | Depends on | Status | Complexity | Devin model "
@@ -449,7 +447,7 @@ class Cli(Base):
         (self.spec / "features" / "FEAT-901.md").write_text(feat_text("FEAT-901", ROWS[:1]), encoding="utf-8")
         code, out, _ = run("check", "--spec", str(self.spec), "--all")
         self.assertEqual(code, 1)
-        self.assertIn("row-checks: 23 rows", out)
+        self.assertIn("row-checks: 22 rows", out)
 
 
 class Changed(unittest.TestCase):

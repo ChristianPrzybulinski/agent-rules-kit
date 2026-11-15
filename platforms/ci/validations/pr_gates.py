@@ -37,6 +37,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shlex
 import sys
@@ -226,10 +227,52 @@ def _mask_quotes(cmd: str) -> str:
     return "".join(out)
 
 
-def command_allowed(cmd: str, allowlist: list[str]) -> tuple[bool, str]:
+_DOTDOT = re.compile(r"(?:^|[/=~])\.\.(?:/|$)")
+_PROOF_VAR = re.compile(r"^\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))")
+
+
+def _outside_sandbox(token: str, cwd: str, var_depths: dict) -> bool:
+    """`token` reads outside what a proof sandbox run in the repository folder `cwd` grants: a `..` that climbs out
+    of `cwd` (or any `..` in an absolute path), or one anchored on `$VAR`/`~` that climbs above the depth
+    `var_depths` grants that variable (`~` is `HOME`); a variable `var_depths` does not name may not climb at all."""
+    if not _DOTDOT.search(token):
+        return False
+    var = _PROOF_VAR.match(token)
+    if var or token.startswith("~"):
+        if var:
+            depth, rest = var_depths.get(var.group(1) or var.group(2)), token[var.end():]
+        else:
+            depth, rest = (var_depths.get("HOME"), token[1:]) if token.startswith("~/") else (None, "")
+        if depth is None:
+            return True
+        for part in rest.split("/"):
+            if part == "..":
+                depth -= 1
+                if depth < 0:
+                    return True
+            elif part and part != ".":
+                depth += 1
+        return False
+    if token.startswith("/"):
+        return True
+    if "=" in token.split("/", 1)[0]:
+        # `--file=../x` glues the `..` behind `=`: judge the option's value, not the glued word
+        token = token.split("=", 1)[1]
+        if token.startswith("/"):
+            return True
+    resolved = posixpath.normpath(posixpath.join(cwd, token))
+    return resolved == ".." or resolved.startswith("../") or (
+        cwd != "." and not (resolved == cwd or resolved.startswith(cwd + "/")))
+
+
+def command_allowed(cmd: str, allowlist, cwd: str | None = None,
+                    var_depths: dict | None = None) -> tuple[bool, str]:
     """A proof/close_when command may only chain allowlisted programs; no subshells, files or network tools.
 
-    `$(` and backticks are refused even inside quotes: bash expands them inside double quotes."""
+    `$(` and backticks are refused even inside quotes: bash expands them inside double quotes. `! git diff` without
+    `--quiet` or `--exit-code` is refused: `git diff` exits 0 whether or not it prints, so the negation never passes.
+    With `cwd` (KIT-073), the repository folder the command runs in (`.` for the root, `server` for a component),
+    an operand that reads outside it is refused; `var_depths` grants `$VAR/..` reads (see `_outside_sandbox`)."""
     if _FORBIDDEN.search(cmd):
         return False, "forbidden construct"
     rest = _SAFE_REDIRECT.sub(lambda m: " " * len(m.group()), _mask_quotes(cmd))
@@ -245,12 +288,20 @@ def command_allowed(cmd: str, allowlist: list[str]) -> tuple[bool, str]:
             tokens = shlex.split(segment)
         except ValueError:
             return False, "unbalanced quotes"
+        negated = False
         while tokens and tokens[0] == "!":
-            tokens = tokens[1:]
+            negated, tokens = not negated, tokens[1:]
         if not tokens:
             continue
         if tokens[0] not in allowlist:
             return False, f"'{tokens[0]}' not in allowlist"
+        if negated and tokens[:2] == ["git", "diff"] and not {"--quiet", "--exit-code"} & set(tokens):
+            return False, "`! git diff` without --quiet or --exit-code never passes; use `git diff --quiet …`"
+        if cwd is not None:
+            for token in tokens:
+                if _outside_sandbox(token, cwd, var_depths or {}):
+                    return False, (f"{token} escapes the proof sandbox's granted paths — run the read from the "
+                                   "folder that owns it, or through a granted variable")
     return True, ""
 
 

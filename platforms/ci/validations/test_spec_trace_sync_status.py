@@ -192,6 +192,16 @@ class SyncStatusTest(unittest.TestCase):
         self.assertIn("FEAT-001 T2: todo -> cancelled (closed as not planned)", output)
         self.assertEqual(self.status("FEAT-001", "T2"), "cancelled")
 
+    def test_not_planned_close_keeps_a_done_row_and_warns(self):
+        """A row already done (its PR recorded by mark-done) is never cancelled by a stray not-planned issue."""
+        self.path1.write_text(self.text(self.path1).replace("| T3 | third | `a/**` | ci green | CA-1 | — | todo |",
+                                                            "| T3 | third | `a/**` | ci green | CA-1 | — | done |"),
+                              encoding="utf-8")
+        _, out = self.run_sync(self.routes([issue(13, "[FEAT-001 T3] third", "closed", reason="not_planned")]))
+        self.assertIn("WARN FEAT-001 T3: product#13 closed as not planned, but the row is done", out)
+        self.assertNotIn("T3: done -> cancelled", out)
+        self.assertEqual(self.status("FEAT-001", "T3"), "done")
+
     def test_a_kit_bundle_title_names_every_row(self):
         gh = self.routes([issue(10, "[FEAT-001 T1+T2] First and second", "closed")],
                          {(REPO, 20): pull(body=f"Closes {REPO}#10")})
@@ -366,8 +376,8 @@ class SyncStatusTest(unittest.TestCase):
                              {(REPO, 92): pull(body="Closes #13")})
         self.run_sync(lambda q: queries.append(q) or listed(q), write=False)
         self.assertEqual(sorted({q.split("?")[0] for q in queries}),
-                         [f"repos/{r}/{kind}" for r, kind in ((REPO, "issues"), (REPO, "pulls"), (CLIENT, "pulls"),
-                                                              (SERVER, "pulls"))])
+                         sorted(f"repos/{r}/{kind}" for r, kind in ((REPO, "issues"), (REPO, "pulls"),
+                                                                    (CLIENT, "pulls"), (SERVER, "pulls"))))
         self.assertEqual(len(queries), 6, queries)  # a non-empty listing reads one more, empty, page
 
     def test_short_closes_counts_only_inside_the_backlog_repo(self):

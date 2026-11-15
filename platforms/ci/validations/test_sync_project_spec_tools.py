@@ -63,10 +63,12 @@ class VendoredSpecTools(unittest.TestCase):
     def test_check_reports_a_missing_or_edited_copy(self):
         self.assertEqual(self.sync("--check").returncode, 0)
         copy = self.repo / ".github" / "spec-lint" / "row_checks.py"
-        copy.write_text(copy.read_text() + "\n# edited\n")
+        original = copy.read_text()
+        copy.write_text(original + "\n# edited\n")
         done = self.sync("--check")
         self.assertEqual(done.returncode, 1)
         self.assertIn("row_checks.py diverges from the kit", done.stdout)
+        copy.write_text(original)  # --check stops at the first divergence
         (self.repo / ".github" / "spec-lint" / "pr_gates.py").unlink()
         self.assertIn("pr_gates.py missing", self.sync("--check").stdout)
 

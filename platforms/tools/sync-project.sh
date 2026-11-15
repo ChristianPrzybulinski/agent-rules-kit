@@ -92,6 +92,9 @@ hash_file() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
 kit_files() { # prints "src rel-dest"
   echo "$KIT_DIR/platforms/ci/validations/check_spec.py check_spec.py"
+  # The task-row checks (KIT-073) and the proof predicates they share with the PR gates.
+  echo "$KIT_DIR/platforms/ci/validations/row_checks.py row_checks.py"
+  echo "$KIT_DIR/platforms/ci/validations/pr_gates.py pr_gates.py"
   for s in $SCHEMAS; do
     echo "$KIT_DIR/platforms/ci/schemas/$s.schema.json schemas/$s.schema.json"
   done

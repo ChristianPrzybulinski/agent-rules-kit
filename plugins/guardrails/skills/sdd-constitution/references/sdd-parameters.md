@@ -12,9 +12,7 @@ range, with or without pyyaml; `spec.schema.json` holds the keys, values and def
 `python3 .github/spec-lint/check_spec.py --params docs/spec .github/spec-lint/schemas`: it prints the resolved block,
 every absent key at its default.
 
-A default is the kit's behavior before the key existed, except `max_chain` and `max_feat_tasks`, which the kit did not
-limit. A step marked KIT-069 reads its key once that change lands; until then its own text decides, matching the
-default. `points` sums the bundled rows' `Complexity`: Low 1, Med 2, High 3.
+A default is the kit's behavior before the key existed, except `max_chain` and `max_feat_tasks`, which the kit did not limit. A step marked KIT-069 reads its key once that change lands; until then its own text decides, matching the default. `points` sums the bundled rows' `Complexity`: Low 1, Med 2, High 3.
 
 | Key | Values | Default | Read by |
 |---|---|---|---|
@@ -24,7 +22,11 @@ default. `points` sums the bundled rows' `Complexity`: Low 1, Med 2, High 3.
 | `plan_sections` | list of `Design`, `Contract`, `Data`, `UI`, `Flag`, `Tests`, `Observability`, `Risks`, `Dependencies`; `Risks` and `Tests` always | all nine | `sdd-plan`: the FEAT's `## Plan` subsections |
 | `pr_unit` | `task`, `feat` | `task` | `sdd-implement` (KIT-069): one PR per task row or per FEAT |
 | `task_minutes` | integer ≥ 1 | `30` | `sdd-tasks`: a row's upper size |
-| `row_check` | command or `null` | `null` | `sdd-tasks`: runs on the rows before their spec PR; exit 0 required |
+| `row_check` | command or `null` | `null` (the kit's `row_checks.py check FEAT-nnn`, KIT-073) | `sdd-tasks`: runs on the rows before their spec PR; exit 0 required |
+| `row_checks` | map: `gates` (the PR-gates JSON), `tests`, `assets`, `protocol`, `artifacts`, `visual` | each `null` or `[]`: its rule off | `row_checks.py`: the inputs of rules c, d, e, h, i, j and k (`sdd-tasks/references/row-checks.md`) |
+| `components` | map: component name → its folder, `.` for the root | `{}` (one component) | `row_checks.py` (a row stays in one component; a Files entry may start with a name), `spec_trace.py` (journey test paths) |
+| `spec_index` | `true`, `false` | `false` | `spec_trace.py check`: every REQ and journey file has a `spec.md` row, and every row's link resolves |
+| `github` | map: `repo` (`null` = the origin remote), `pr_repos`, `aliases` (earlier names PR bodies cite), `blocked_labels`, `progress_labels` | `{repo: null, pr_repos: [], aliases: [], blocked_labels: [blocked], progress_labels: [status:in-progress]}` | `spec_trace.py sync-status` (`tracker: github`): where task issues and closing PRs live, which labels mean `blocked` or `doing` |
 | `cut_command` | command or `null` | `null` (the kit cut, `sdd-tasks` § 4) | `sdd-tasks`: cuts and resyncs the approved rows |
 | `max_chain` | integer ≥ 1 | `4` | `sdd-tasks`, `check_spec.py` (fails above it): longest chain of a FEAT's own `Depends on` rows |
 | `max_feat_tasks` | integer ≥ 1 | `30` | `sdd-plan` (splits a NEED above it), `check_spec.py` (warns only): task rows in one FEAT |
@@ -55,5 +57,4 @@ The sync writes `game/protocol/**/*.json` into `.claude/rules/guardrails-json.md
 generated block in `game/protocol/AGENTS.md`, for runtimes that load no rule by path. `sync-project.sh --check` flags
 both when the parameter changes. A folder that does not exist gets no block.
 
-A setting with no key here (a model map, a host limit, a formatter) stays in the project's tooling config or
-`AGENTS.md`; the block takes no project-private keys.
+A setting with no key here (a model map, a host limit, a formatter) stays in the project's tooling config or `AGENTS.md`; the block takes no project-private keys.

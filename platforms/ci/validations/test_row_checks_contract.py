@@ -52,6 +52,7 @@ class Base(unittest.TestCase):
         self.git("add", ".")
         self.git("commit", "-qm", "main")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.cfg = rc.load_config(self.spec)
 
     def row(self, proof, files=(), task="T1", depends="—", status="todo"):
         line = row_line(task, "Task", " ".join(f"`{f}`" for f in files), proof, depends, status)
