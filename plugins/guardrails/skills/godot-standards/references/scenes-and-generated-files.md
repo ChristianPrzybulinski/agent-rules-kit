@@ -27,4 +27,4 @@ sources:
 
 ## Rule
 
-- Generated files (`*.uid`, `*.import`, regenerated `.tscn`) belong in the task's `Files` cell and in the PR diff review, never silently added; `sdd-tasks` pre-cut already requires test paths in `Files`.
+- Generated neighbours (`*.uid`, `*.import`) travel with their source and are reviewed in the PR diff, never silently added; they are implicit in the task's `Files` cell and never listed there, while a regenerated `.tscn` is a source and is listed (`sdd-tasks`, its reference `row-checks.md`).

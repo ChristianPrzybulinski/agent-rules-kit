@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/task.schema.json",
+  "title": "Frontmatter of TASK-nnn, one cut item under docs/spec/tasks/ when sdd.tracker is none",
+  "type": "object",
+  "required": ["id", "feat", "rows", "title", "status", "created"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^TASK-[0-9]{3,}$" },
+    "feat": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
+    "rows": {
+      "description": "The FEAT task rows this item carries; more than one when sdd.bundle bundles rows",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^T[0-9]+$" }
+    },
+    "title": { "type": "string", "minLength": 5, "maxLength": 100 },
+    "status": {
+      "description": "todo when cut; doing and blocked set by the executor; done once its PR merges; cancelled when a resync removes its rows",
+      "enum": ["todo", "doing", "blocked", "done", "cancelled"]
+    },
+    "labels": {
+      "description": "Labels a change needs, such as the sdd.protected_paths label of a path in Files",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "pr": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+$" },
+    "created": { "type": "string", "format": "date" },
+    "updated": { "type": "string", "format": "date" }
+  }
+}
