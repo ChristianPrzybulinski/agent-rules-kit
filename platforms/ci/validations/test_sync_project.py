@@ -27,10 +27,10 @@ class SyncProjectCheckTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_sync(self, *args, repo=None, home=None):
-        env = dict(os.environ, HOME=str(home)) if home else None
+    def run_sync(self, *args, repo=None, home=None, env=None):
+        full = dict(os.environ, **({"HOME": str(home)} if home else {}), **(env or {})) if home or env else None
         return subprocess.run(["bash", str(SCRIPT), *args, str(repo or self.repo)],
-                              capture_output=True, text=True, check=False, env=env)
+                              capture_output=True, text=True, errors="replace", check=False, env=full)
 
     def write_md(self, rel, text):
         path = self.repo / rel
@@ -694,6 +694,55 @@ class SyncProjectCheckTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
                 self.assertIn("removed kit skill: docs/spec/decisions/DEC-002-x.md:3", result.stdout)
                 self.assertIn("KIT-070", result.stdout)
+
+    def test_each_removed_skill_form_alone_fails(self):  # review round 2: each input matches exactly one form
+        for line in ("Detail: skill testing, then review.",                     # skill x
+                     "the testing skill decides",                               # x skill
+                     "the `testing` § 6 table",                                 # x § n
+                     "preload guardrails:testing here",                         # guardrails:x
+                     "`plugins/guardrails/skills/testing/` holds it",           # skills/x/
+                     "see `testing/references/gates.md`",                       # x/references/
+                     "stress-test it with /grilling first",                     # /x
+                     "a response/error (`protocol-contract`); a client FEAT"):  # a hyphenated name
+            with self.subTest(line=line):
+                self.write_md("docs/forms.md", line + "\n")
+                result = self.run_sync("--check")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("removed kit skill: docs/forms.md:1:", result.stdout)
+
+    def test_removed_skill_scan_crash_fails_the_check(self):  # review round 2: a crashed scan is never a clean one
+        outside = tempfile.TemporaryDirectory()  # self.tmp is the fixture repo itself
+        self.addCleanup(outside.cleanup)
+        fake = Path(outside.name)
+        real = shutil.which("python3")
+        (fake / "python3").write_text("#!/bin/bash\n"
+                                      'if [[ "$1" == - && "$3" == *code-standards* ]]; then exit 3; fi\n'
+                                      f'exec "{real}" "$@"\n')
+        (fake / "python3").chmod(0o755)
+        result = self.run_sync("--check", env={"PATH": f"{fake}{os.pathsep}{os.environ['PATH']}"})
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("sync: removed-skill scan failed", result.stdout + result.stderr)
+
+    def test_removed_skill_scan_reports_non_ascii_lines(self):  # review round 2: no UnicodeEncodeError, no lost files
+        self.write_md("docs/arrow.md", "skill testing § 6 → test-gates.md\n")
+        self.write_md("docs/zzz.md", "Detail: skill testing, then review.\n")
+        for env in ({"PYTHONIOENCODING": "ascii"}, {"LC_ALL": "en_US.ISO8859-1"}):
+            with self.subTest(env=env):
+                result = self.run_sync("--check", env=env)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("removed kit skill: docs/arrow.md:1:", result.stdout)
+                self.assertIn("removed kit skill: docs/zzz.md:1:", result.stdout)
+
+    def test_removed_skill_scan_reports_a_non_utf8_file_name(self):  # review round 2
+        try:
+            (self.repo / "docs").mkdir(exist_ok=True)
+            with open(os.path.join(os.fsencode(self.repo / "docs"), b"x\xff.md"), "w", encoding="utf-8") as handle:
+                handle.write("Detail: skill testing, then review.\n")
+        except OSError:
+            self.skipTest("this file system refuses a file name that is not UTF-8")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("removed kit skill: docs/x", result.stdout)
 
     def test_removed_kit_skill_scan_has_no_false_positives(self):  # KIT-070
         self.write_md("docs/notes.md", "Our testing strategy follows the architecture of the persistence layer.\n"

@@ -96,6 +96,21 @@ class CheckKitNestedReferencesTest(unittest.TestCase):
         self.assertIn(f"FAIL: {NESTED}/deep/README.md: 'deep/README.md' not referenced in {NESTED}/README.md",
                       self.check())
 
+    def test_index_name_matches_whole_path_components(self):  # review round 2: "godot/README.md" names no "ot/"
+        index = self.kit / NESTED / "README.md"
+        self.assertIn("godot/README.md", index.read_text(encoding="utf-8"))
+        deep = self.kit / NESTED / "ot"
+        deep.mkdir()
+        (deep / "README.md").write_text("# Ot\n\n- `a.md`\n", encoding="utf-8")
+        (deep / "a.md").write_text(VALID, encoding="utf-8")
+        self.assertIn(f"FAIL: {NESTED}/ot/README.md: 'ot/README.md' not referenced in {NESTED}/README.md",
+                      self.check())
+
+    def test_a_deeper_path_is_no_listing_of_a_sibling(self):  # review round 2: "deep/tests.md" lists no "tests.md"
+        (self.kit / NESTED / "tests.md").write_text(VALID, encoding="utf-8")
+        self.add_to_index("deep/tests.md")
+        self.assertIn(f"FAIL: {NESTED}/tests.md: not listed in {NESTED}/README.md", self.check())
+
     def test_nested_index_is_named_in_the_skill(self):
         skill = self.kit / SKILL
         text = skill.read_text(encoding="utf-8")

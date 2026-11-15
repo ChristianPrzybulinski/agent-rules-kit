@@ -85,6 +85,7 @@ RULE_MARKER_PREFIX='<!-- agent-rules-kit: generated from '
 # The line under the marker of each .claude/rules copy: Claude Code has no other path to a kit reference a rule names
 # (sdd-implement and sdd-plan are user-only skills). sync_agents_md.py drops it from the AGENTS.md block, whose intro
 # says the same once per folder.
+# shellcheck disable=SC2016  # literal Markdown backticks
 RULE_LOCATION='Kit files this rule names: skill `<skill>`, reference `<file>` is `.claude/skills/<skill>/references/<file>` when this repository vendors the skill, else `~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`.'
 version="$(cat "$KIT_DIR/VERSION")"
 
@@ -327,7 +328,7 @@ import re
 import sys
 
 root, names, opt_out = sys.argv[1], sys.argv[2].split("|"), sys.argv[3]
-plain = [name for name in names if "-" not in name]
+sys.stdout.reconfigure(errors="backslashreplace")  # a non-UTF-8 locale or file name never stops the scan
 hyphenated = [name for name in names if "-" in name]
 any_name = "|".join(map(re.escape, names))
 tick = "`?"
@@ -365,7 +366,7 @@ PY
 
 scan_removed_kit_skills() { # $1 = repo dir; prints one line per citation of a removed kit skill; returns 1 if any
   local hits
-  hits="$(removed_kit_skill_hits "$1")"
+  hits="$(removed_kit_skill_hits "$1")" || { echo "sync: removed-skill scan failed"; return 1; }
   [[ -n "$hits" ]] || return 0
   printf '%s\n' "$hits" | sed 's|^|sync: removed kit skill: |'
   echo "sync: KIT-070 moved these skills into path rules and the sdd-plan and sdd-implement references (kit CHANGELOG, migration note); fix the citation or append $STALE_OPT_OUT"

@@ -1041,8 +1041,8 @@ for name, plugin_dir in plugins.items():
     # KIT-070: a references/<folder>/ (a stack index such as sdd-implement/references/godot/), at any depth, holds
     # references like the flat ones plus a README.md index that lists each of its files; SKILL.md names a first-level
     # index and the parent folder's index names a deeper one.
-    def listed(name, index):
-        return bool(re.search(rf"(?<![\w-]){re.escape(name)}(?!\w)", index.read_text(encoding="utf-8")))
+    def names_path(path, text):  # whole path components: "deep/tests.md" lists no "tests.md", "godot/" names no "ot/"
+        return bool(re.search(rf"(?<![\w./-]){re.escape(path)}(?![\w/-])", text))
 
     for references in sorted(skills_root.glob("*/references")):
         if not references.is_dir() or (references.parent / "VENDOR.md").exists():
@@ -1054,7 +1054,8 @@ for name, plugin_dir in plugins.items():
                 continue
             owner = references.parent / "SKILL.md" if folder.parent == references else folder.parent / "README.md"
             named = f"{folder.name}/README.md"
-            if not owner.exists() or named not in owner.read_text(encoding="utf-8"):
+            owner_text = owner.read_text(encoding="utf-8") if owner.exists() else ""
+            if not (names_path(named, owner_text) or names_path(f"references/{named}", owner_text)):
                 fail(rel(index), f"'{named}' not referenced in {rel(owner)}")
         for reference in sorted(references.rglob("*.md")):
             if reference.parent == references or reference.name == "README.md":
@@ -1067,7 +1068,7 @@ for name, plugin_dir in plugins.items():
             if reference_lines > REFERENCE_MAX_LINES:
                 fail(rel(reference), f"{reference_lines} lines (>{REFERENCE_MAX_LINES})")
             index = reference.parent / "README.md"
-            if index.exists() and not listed(reference.name, index):
+            if index.exists() and not names_path(reference.name, index.read_text(encoding="utf-8")):
                 fail(rel(reference), f"not listed in {rel(index)}")
 
     for reference in sorted(skills_root.glob("*/references/*.md")):

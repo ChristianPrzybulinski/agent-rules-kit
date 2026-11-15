@@ -54,7 +54,8 @@ checks in parallel without the skill, and Codex loaded `parallelize` by descript
   optional: `skill x`, `x skill`, `x § n`, `guardrails:x`, a `skills/x/` or `x/references/` path, `/x`, and a
   hyphenated name anywhere as a whole word; a plain word (`testing`, `architecture`) counts only in those forms. Same
   exclusions and `<!-- kit-path-ok -->` opt-out as its stale-path check; on the Stratics checkout (`d23561cba`) it
-  flags 15 lines, `DGME-001-servidor-autoritativo.md:34` included.
+  flags 15 lines, `DGME-001-servidor-autoritativo.md:34` included. A scan that fails exits `--check` non-zero, and a
+  line or file name the locale cannot encode prints escaped (review round 2).
 - `check_kit.py` requires, at any depth, a `README.md` index for each nested reference folder that lists each of its
   files and is named in `SKILL.md` (one level deeper: in the parent index), checks every nested reference's
   frontmatter and 60-line limit, and runs the `InstructionsLoaded` hook on a sample load.
