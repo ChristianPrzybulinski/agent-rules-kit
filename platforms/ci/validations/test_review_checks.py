@@ -7,6 +7,7 @@ builds a throwaway Git repository."""
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -205,6 +206,15 @@ class Repo:
         return git(self.root, "rev-parse", "HEAD")
 
 
+def symlink_commit(repo, rel, target, message, **files):
+    """Commit `rel` replaced by a symlink to `target` (None deletes it), plus `files`."""
+    path = repo.root / rel
+    path.unlink()
+    if target is not None:
+        os.symlink(target, path)
+    return repo.commit(message, **files)
+
+
 class ToolCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -307,6 +317,17 @@ class RedTest(StubCase):
         self.assertIn("cwd: server", out)
         self.assertEqual(code, 0, out)
         self.assertIn("new-symbol (Widget)", out)
+
+    def test_class_names_are_shell_quoted(self):
+        bin_dir = self.stub("fakemvn", MVN_STUB)
+        gates = self.gates({"red": [{"glob": "server/src/test/**/*Test.java", "cwd": "server",
+                                     "command": "fakemvn -q test -Dtest={classes}"}]})
+        head = self.repo.commit("widget", **{
+            "server__src__main__Widget.java": "public class Widget { int sum() { return 3; } }\n",
+            "server__src__test__Widget$CaseTest.java": WIDGET_TEST.replace("WidgetTest", "Widget$CaseTest")})
+        code, out = self.red_gates(head, gates, path_prefix=bin_dir)
+        self.assertIn("args: -q test -Dtest=Widget$CaseTest", out)
+        self.assertEqual(code, 0, out)
 
     def test_prefixed_res_placeholder_gives_gdunit_one_flag_per_file(self):
         bin_dir = self.stub("fakegodot", GODOT_STUB)
@@ -470,6 +491,28 @@ class ScopeTest(ToolCase):
         self.assertIn("scope: FAIL", out)
         self.assertIn("README.md", out)
 
+    def loosened_scope(self, target):
+        """The base config names `.uid` as a generated suffix; the head replaces it and adds `calc.py.bak`."""
+        base = self.repo.commit("gates", **{"gates.json": json.dumps({"generated_neighbours": [".uid"]})})
+        head = symlink_commit(self.repo, "gates.json", target, "gates", **{"calc.py": CALC_SUB, "calc.py.bak": CALC})
+        return self.run_tool("scope", "--base", base, "--head", head, "--files", "calc.py", "gates.json",
+                             "--gates", str(self.repo.root / "gates.json"))
+
+    def assert_base_gates_apply(self, code, out):
+        self.assertEqual(code, 1, out)
+        self.assertIn("calc.py.bak is outside Files", out)
+
+    def test_a_deleted_gates_file_still_applies_its_base_rules(self):
+        self.assert_base_gates_apply(*self.loosened_scope(None))
+
+    def test_a_gates_file_linked_to_dev_null_still_applies_its_base_rules(self):
+        self.assert_base_gates_apply(*self.loosened_scope("/dev/null"))
+
+    def test_a_gates_file_linked_outside_the_repo_cannot_loosen_scope(self):
+        loose = Path(self.tmp.name) / "loose.json"
+        loose.write_text(json.dumps({"generated_neighbours": [".bak"]}), encoding="utf-8")
+        self.assert_base_gates_apply(*self.loosened_scope(str(loose)))
+
     def test_widened_existing_test_path_passes(self):
         head = self.repo.commit("sub", **{"calc.py": CALC_SUB,
                                           "tests__test_add.py": TEST_ADD + "\n# reads calc.sub too\n"})
@@ -577,6 +620,36 @@ class ProofTest(StubCase):
         if alive:
             os.kill(pid, 9)
         self.assertFalse(alive, "the shell's child outlived the timeout")
+
+    def test_an_interrupt_kills_the_shell_and_its_children(self):
+        proof = "sh -c 'sleep 30 & echo $! > child.pid; wait'"
+        env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+        tool = subprocess.Popen([sys.executable, str(TOOL), "--repo", str(self.repo.root), "proof", "--body",
+                                 self.body(proof), "--run", "--allow", "sh", "--timeout", "60",
+                                 "--cwd", str(self.repo.root)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                env=env)
+        pid_file, deadline = self.repo.root / "child.pid", time.time() + 20
+        while not (pid_file.exists() and pid_file.read_text().strip()) and time.time() < deadline:
+            time.sleep(0.1)
+        pid = int(pid_file.read_text())
+        tool.send_signal(signal.SIGINT)
+        tool.communicate(timeout=20)
+        alive, deadline = True, time.time() + 5
+        while alive and time.time() < deadline:
+            try:
+                os.kill(pid, 0)
+                time.sleep(0.1)
+            except ProcessLookupError:
+                alive = False
+        if alive:
+            os.kill(pid, 9)
+        self.assertFalse(alive, "the shell's child outlived the interrupt")
+
+    def test_a_quiet_redirect_of_both_streams_is_allowed(self):
+        code, out = self.run_tool("proof", "--body", self.body("python3 -c \"print('quiet')\" &>/dev/null"), "--run",
+                                  "--allow", "python3", "--cwd", str(self.repo.root))
+        self.assertEqual(code, 0, out)
+        self.assertIn("→ exit 0", out)
 
     def test_run_without_an_allowlist_is_a_usage_error(self):
         code, out = self.run_tool("proof", "--body", self.body(), "--run")
@@ -736,6 +809,27 @@ class DodTest(ToolCase):
         self.assertEqual(code, 1, out)
         self.assertIn("calc.py:", out)
         self.assertIn("No TODO left behind", out)
+
+    def rules_base(self):
+        return self.repo.commit("rules", **{"REVIEW.md": REVIEW})
+
+    def test_a_deleted_review_file_still_applies_its_base_rules(self):
+        base = self.rules_base()
+        head = symlink_commit(self.repo, "REVIEW.md", None, "drop rules",
+                              **{"calc.py": CALC_SUB + "\n# TODO: handle overflow\n"})
+        code, out = self.run_tool("dod", "--base", base, "--head", head)
+        self.assertEqual(code, 1, out)
+        self.assertIn("No TODO left behind", out)
+
+    def test_a_review_file_linked_to_dev_null_still_applies_its_base_rules(self):
+        base = self.rules_base()
+        head = symlink_commit(self.repo, "REVIEW.md", "/dev/null", "null rules",
+                              **{"calc.py": CALC_SUB + "\n# TODO: handle overflow\n"})
+        for extra in ((), ("--review", str(self.repo.root / "REVIEW.md"))):
+            with self.subTest(review=extra):
+                code, out = self.run_tool("dod", "--base", base, "--head", head, *extra)
+                self.assertEqual(code, 1, out)
+                self.assertIn("No TODO left behind", out)
 
     def test_the_kit_review_template_has_no_rule_in_its_explanatory_sentence(self):
         template = Path(__file__).resolve().parents[2] / "kits" / "github" / "REVIEW.md"

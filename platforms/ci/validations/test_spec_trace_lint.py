@@ -97,6 +97,15 @@ CLEAN = dict(status="validated", scope="REQ-F-001, the trade window", question="
              proving="`trade_flow_test.gd`", rules="REQ-F-001")
 
 
+# A History bullet wrapped at the consumer's width (about 120 characters), as the calibration's split ones were.
+SPLIT_FIRST = ("- 2026-11-04 refine (architect, on the owner's pre-approval of 2026-11-03): T1 no longer follows the "
+               "trade event with an")
+SPLIT_REST = ("  `inventory` push of its own; the contract and the J-01 step that cites it are unchanged, and T2 keeps "
+              "its Files.")
+UNWRAPPED = ("- 2026-10-13 T1 fourth owner evidence review (game-client#152 at a0f5dfb, chat): the focused Accept showed "
+             "the engine's default grey focus box; its `focus` takes the kit's ring (navy 2 px), as the other buttons")
+
+
 class LintTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -152,24 +161,41 @@ class LintTest(unittest.TestCase):
     def test_history_bullet_split_by_an_inserted_line_is_flagged(self):
         """The calibration's FEAT-097: a sync line landed inside an earlier bullet, splitting it."""
         self.assert_finding("is split by", history=(
-            "- 2026-11-04 refine: T1 no longer follows the event with an\n"
+            f"{SPLIT_FIRST}\n"
             "- 2026-11-08 sync: status derived (T1 todo -> done).\n"
-            "  `inventory` push; the contract is unchanged."))
+            f"{SPLIT_REST}"))
 
     def test_history_bullet_ending_in_a_colon_split_by_an_inserted_line_is_flagged(self):
         """The calibration's FEAT-084: the split bullet stops at a colon that introduces its continuation."""
         self.assert_finding("is split by", history=(
             "- 2026-10-21 specify + refine (architect; DTEC-065):\n"
             "- 2026-11-08 sync: status derived (T1 todo -> done).\n"
-            "  created as `planned` with REQ-F-001 and T1-T2."))
+            f"{SPLIT_REST}"))
 
     def test_multi_line_history_bullet_is_not_split(self):
-        self.fixture(history=("- 2026-11-04 refine: T1 no longer follows the event with an\n"
-                              "  `inventory` push; the contract is unchanged.\n"
+        self.fixture(history=(f"{SPLIT_FIRST}\n{SPLIT_REST}\n"
                               "- 2026-11-08 sync: status derived (T1 todo -> done)."))
         code, out = self.lint()
         self.assertEqual(code, 0, out)
         self.assertNotIn("split", out)
+
+    def assert_not_split(self, first):
+        """`first`, a complete one-line bullet, followed by a wrapped two-line bullet."""
+        self.fixture(history=f"{first}\n{SPLIT_FIRST}\n{SPLIT_REST}")
+        code, out = self.lint()
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("split", out)
+
+    def test_a_tool_written_line_before_a_wrapped_bullet_is_not_split(self):
+        """Lines spec_trace.py writes are complete one-liners, though some end on a sha, a version or a row id."""
+        for first in ("- 2026-11-12 sdd-review: validated at 1a2b3c4", "- 2026-11-12 sdd-release: delivered in v1.4.0",
+                      "- 2026-11-12 done: T2", "- 2026-11-12 delivered before sdd-review"):
+            with self.subTest(first=first):
+                self.assert_not_split(first)
+
+    def test_an_unwrapped_line_wider_than_the_file_wraps_is_not_split(self):
+        """The consumer's FEAT-030:611 at d23561cba: a 226-character bullet written on one line, complete as written."""
+        self.assert_not_split(UNWRAPPED)
 
     def test_hypothesis_in_a_done_row_is_stale(self):
         self.assert_finding("[HYPOTHESIS] in done row T1", t1_note="[HYPOTHESIS] one IT is enough")

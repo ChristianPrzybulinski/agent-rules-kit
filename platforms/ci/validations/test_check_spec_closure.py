@@ -149,5 +149,49 @@ class ClosureRecordTest(unittest.TestCase):
         self.assert_fails("status validated needs the History line sdd-review writes")
 
 
+
+class ClosureParityTest(unittest.TestCase):
+    """check_spec.py requires the closure line and spec_trace.py reads it to decide what to write: each keeps its own
+    copy of the regexes and the History parsing, so both are pinned to the same verdicts on the same fixtures."""
+    CASES = (  # (name, status, History lines, body line, the line counts)
+        ("validated by sdd-review", "validated", [REVIEWED], "", True),
+        ("validated with no line", "validated", [], "", False),
+        ("validated with only a delivered line", "validated", [REVIEW_DELIVERED], "", False),
+        ("delivered by sdd-release", "delivered", [RELEASED], "", True),
+        ("delivered by sdd-review under release: merge", "delivered", [REVIEW_DELIVERED], "", True),
+        ("delivered with the legacy line", "delivered", [LEGACY], "", True),
+        ("delivered with only the validated line", "delivered", [REVIEWED], "", False),
+        ("delivered with no line", "delivered", [], "", False),
+        ("an indented line is a continuation, not a record", "validated", ["  " + REVIEWED], "", False),
+        ("a longer word is not the status", "validated", [REVIEWED.replace("validated", "validatedly")], "", False),
+        ("a record outside History does not count", "validated", [], REVIEWED, False),
+        ("a record past a later section does not count", "validated", ["", "## Notes", "", REVIEWED], "", False),
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(VALIDATIONS))
+        import check_spec
+        import spec_trace
+        cls.check_spec, cls.spec_trace = check_spec, spec_trace
+
+    def test_the_two_copies_share_their_patterns(self):
+        for name in ("CLOSURE_LINE", "LEGACY_DELIVERED"):
+            with self.subTest(pattern=name):
+                self.assertEqual(getattr(self.check_spec, name).pattern, getattr(self.spec_trace, name).pattern)
+                self.assertEqual(getattr(self.check_spec, name).flags, getattr(self.spec_trace, name).flags)
+
+    def test_both_tools_give_the_same_verdict_on_each_fixture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "FEAT-001.md"
+            for name, status, history, body_line, counts in self.CASES:
+                with self.subTest(case=name):
+                    path.write_text(FEAT.format(status=status, history="\n".join(history), body_line=body_line))
+                    self.check_spec.failures.clear()
+                    self.check_spec.check_feature_closure(path, status)
+                    self.assertEqual(not self.check_spec.failures, counts, "check_spec.py")
+                    self.assertEqual(self.spec_trace.has_history_line(path, status), counts, "spec_trace.py")
+            self.check_spec.failures.clear()
+
 if __name__ == "__main__":
     unittest.main()
