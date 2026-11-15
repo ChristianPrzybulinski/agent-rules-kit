@@ -74,6 +74,7 @@ UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
 STATUS_CLOSED = ("validated", "delivered")
 STATUS_FROZEN = STATUS_CLOSED + ("cancelled",)
 VALIDATE_FROM = ("clarified", "planned", "in-progress")
+ROW_CLOSED = ("done", "superseded")  # a superseded row was replaced by another and closes like a done one
 NEED_SETTLED = ("delivered", "rejected", "merged", "routed", "parked")
 PENDING = "—"
 JOURNEY_STATUS = ("proposed", "approved", "retired")
@@ -474,7 +475,7 @@ def status_errors(spec):
     errors += [f"{fid}: status={feat['status']!r} but {tid} is {state!r}: sdd-review closes a FEAT only when "
                "every row is done"
                for fid, feat in spec.feats.items() if feat["status"] in STATUS_CLOSED
-               for tid, state in feat["task_status"].items() if state != "done"]
+               for tid, state in feat["task_status"].items() if state not in ROW_CLOSED]
     return errors
 
 
@@ -545,7 +546,7 @@ def closure_gaps(spec, fid, needs):
     feat = spec.feats[fid]
     gaps = [] if feat["task_status"] else [f"{fid} has no task row with a Status cell"]
     gaps += [f"{fid} {tid} is {state}: every row is done before sdd-review"
-             for tid, state in feat["task_status"].items() if state != "done"]
+             for tid, state in feat["task_status"].items() if state not in ROW_CLOSED]
     if not has_closure(feat["path"]):
         gaps.append(f"{fid} has no `## Closure` record: sdd-review writes it before validate")
     for nid, (_, need) in needs.items():

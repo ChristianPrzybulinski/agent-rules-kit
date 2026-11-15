@@ -535,6 +535,13 @@ class StatusTest(unittest.TestCase):
                 self.run_main("status", str(self.spec), "--write")
                 self.assertIn(f"status: {status}\n", self.text())
 
+    def test_superseded_row_counts_as_closed(self):
+        """A consumer replaces a row by another and marks it superseded; its FEAT can still be closed."""
+        for status in ("validated", "delivered"):
+            with self.subTest(status=status):
+                self.feat(status=status, t1="done", t2="superseded")
+                self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
+
     def test_validated_or_delivered_feat_with_an_open_row_fails(self):
         for status in ("validated", "delivered"):
             with self.subTest(status=status):
