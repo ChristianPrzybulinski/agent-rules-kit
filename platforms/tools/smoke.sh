@@ -946,8 +946,12 @@ grep -Fq '"name": "guardrails-pinned"' "$ROOT/vendor-proj/.claude/skills/guardra
 # B1: the kit hooks run from .claude/settings.json, which needs no folder trust, and not from the copy
 [[ ! -e "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/hooks" ]] \
   || fail "the pinned plugin copy carries hooks beside the settings hooks"
-grep -Fq '"command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/ai-kit/hooks/PreToolUse-0-0.sh\""' \
-  "$ROOT/vendor-proj/.claude/settings.json" || fail "vendored settings.json does not run the pinned guard hook"
+python3 - "$ROOT/vendor-proj/.claude/settings.json" <<'PY' || fail "vendored settings.json does not run the pinned guard hook"
+import json, sys
+groups = json.load(open(sys.argv[1], encoding="utf-8"))["hooks"]["PreToolUse"]
+want = 'bash "${CLAUDE_PROJECT_DIR}/.claude/ai-kit/hooks/PreToolUse-0-0.sh"'
+sys.exit(0 if any(hook.get("command") == want for group in groups for hook in group["hooks"]) else 1)
+PY
 [[ -f "$ROOT/vendor-proj/.claude/ai-kit/hooks/PreToolUse-0-0.sh" ]] || fail "vendored sync wrote no pinned hook script"
 manifest_files="$(python3 -c 'import json,sys; print(sum(len(s["files"]) for s in json.load(open(sys.argv[1]))["skills"].values()))' \
   "$ROOT/vendor-proj/.claude/skills/KIT_MANIFEST.json")"
