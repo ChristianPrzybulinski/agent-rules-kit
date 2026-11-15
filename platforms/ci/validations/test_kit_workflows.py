@@ -66,7 +66,8 @@ def steps(workflow):
 class RequiredWorkflows(unittest.TestCase):
     def test_each_runs_on_pull_requests_and_pushes_to_main_and_on_demand(self):
         for name in CHECKS:
-            on = dict(triggers(load(name)))
+            on = triggers(load(name))
+            on = dict(on) if isinstance(on, dict) else {on: None}  # a bare `on: workflow_dispatch` is a string
             schedule = on.pop("schedule", None)
             with self.subTest(workflow=name):
                 self.assertEqual(on, TRIGGERS)
@@ -103,7 +104,8 @@ class RequiredWorkflows(unittest.TestCase):
                                  {"group": "${{ github.workflow }}-${{ github.ref }}", "cancel-in-progress": True})
 
     def test_workflow_lint_runs_pinned_actionlint_and_zizmor_on_both_folders(self):
-        job = load("ci.yml")["jobs"]["workflow-lint"]
+        job = load("ci.yml")["jobs"].get("workflow-lint")
+        self.assertIsNotNone(job, "ci.yml has no workflow-lint job")
         install = next((s for s in job["steps"] if s.get("name", "").startswith("install actionlint")), None)
         self.assertIsNotNone(install, "no `install actionlint and zizmor` step")
         for tool in ("ACTIONLINT", "ZIZMOR"):
