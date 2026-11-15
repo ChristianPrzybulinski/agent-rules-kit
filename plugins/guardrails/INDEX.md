@@ -30,7 +30,7 @@
 | `sdd-intake` | user, model | SDD entry — record an idea, need, improvement or problem as a NEED-nnn. Use when a request arrives. Not for classifying it (skill sdd-specify). |
 | `sdd-plan` | user | SDD step 4 — create the FEAT for a refined NEED: technical plan and decisions. Use when a NEED is refined. Not for task breakdown (skill sdd-tasks). |
 | `sdd-specify` | user, model | SDD 1 — specify a NEED-nnn: decide type, route and priority, then describe. Use when a NEED is proposed or taken up. Not for writing REQs (skill sdd-clarify). |
-| `sdd-spike` | user | Prototype lane for feel. Use when motion, camera, feedback or UI must be felt on screen before a FEAT exists. Not for specs (skill sdd-specify). |
+| `sdd-spike` | user | Prototype lane for feel or feasibility. Use when motion, UI feel or a technical risk must be tried in code before a FEAT. Not for specs (skill sdd-intake). |
 | `sdd-tasks` | user | SDD step 5 — dependency-ordered implementation tasks. Use when a FEAT has an approved technical plan. Not for execution (skill sdd-implement). |
 | `sdd-to-card` | user | SDD step 8 — one GitHub issue per task row plus the FEAT card. Use when cutting issues or closing a FEAT. Not for PR operations (skill git). |
 | `security` | user, model | Security design and CVE, secret and endpoint scans. Use when changing a trust boundary or preparing a sensitive PR or release. Not for verdicts (skill review). |

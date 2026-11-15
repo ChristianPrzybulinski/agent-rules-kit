@@ -19,7 +19,7 @@ The functional refinement: makes each Situation of a `specified` NEED precise as
 
 ## 1. Map each Situation
 
-Read the NEED, `docs/spec/spec.md` and the REQs and journeys its Triage names. For every Situation choose one, following `references/req-scope.md`:
+Read the NEED, `docs/spec/spec.md` and the REQs and journeys its Triage names. Work each Situation as an example map: the rules it implies become REQs, its examples and counterexamples become their Verification, and what is still unknown becomes a question for §2. A size L NEED or a new area may start with a short event-storming pass (domain events, the commands that cause them, the rules between). For every Situation choose one, following `references/req-scope.md`:
 
 - reuse: an existing REQ already states it; nothing changes;
 - amend: an existing REQ states it differently; edit that REQ and add a History line;
@@ -28,11 +28,11 @@ Read the NEED, `docs/spec/spec.md` and the REQs and journeys its Triage names. F
 - decision: product must choose between two or more reasonable options → a product decision record with `status: proposed`, cited in each REQ's `source`;
 - cut: out of scope, with where it goes.
 
-Each REQ: one rule sentence and a Values table for the numbers the actor experiences; Verification with the proving test type, examples and counterexamples (from the Situations that go wrong).
+Each REQ: one rule sentence and a Values table for the numbers the actor experiences; Verification with the proving test type, examples and counterexamples (from the Situations that go wrong); a REQ about a screen also cites the mock product approved. A rule that must always hold (an invariant, such as a maximum count) is a REQ of its own, which `sdd-plan` maps to what protects it. Every domain term a REQ uses is in the `spec.md` glossary; add a missing one in the same change.
 
 ## 2. Ask, one question at a time
 
-Collect clarification markers, undefined glossary terms and vague quantities ("fast", "many", "safe"). Ask one question per call of the runtime's ask tool (`AskUserQuestion`, `ask_user_question`), else in text: one line of context with a concrete example, two to four options with consequences, and a marked recommendation. Never answer a product, cost or risk choice yourself; a technical question waits for `sdd-plan`.
+Collect clarification markers, undefined glossary terms and vague quantities ("fast", "many", "safe"). Ask first the question other answers depend on, never one whose answer hinges on a question still open. Ask one question per call of the runtime's ask tool (`AskUserQuestion`, `ask_user_question`), else in text: one line of context with a concrete example, two to four options with consequences, and a marked recommendation. Never answer a product, cost or risk choice yourself; a technical question waits for `sdd-plan`.
 
 Put each answer where it belongs (REQ, NEED, glossary), never in an answers section, and record `YYYY-MM-DD clarify: <question> → <answer>` in the NEED's History. A vague quantity becomes a number or a `[HYPOTHESIS]` with its measurement method. An answer that reveals a new Situation returns the NEED to `sdd-specify` part 2.
 

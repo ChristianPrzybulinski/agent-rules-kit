@@ -35,6 +35,7 @@ and mark `[FACT]` or `[HYPOTHESIS]`.]
 - Proving test: [type: unit / integration / contract / e2e + description in 1 line]
 - Examples: input `[...]` → output `[...]`
 - Counterexamples: [what would violate this requirement — taken from the Situations that go wrong]
+- Mock (a screen only): [path of the mock product approved, the visual reference the review compares against]
 
 ## Features that implement it
 

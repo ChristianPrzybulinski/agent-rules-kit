@@ -33,6 +33,11 @@ file over an issue for the entry.
 
 [FACT] `sdd-journey` was a separate step; the consumer feature above says "Journey: none yet".
 
+[FACT] The two side doors had no way back in: `sdd-plan` sends a load-bearing risk whose test needs code to `sdd-spike`,
+whose §1 accepted only feel questions and whose deliverables went to an issue; `investigate` ended in a report with no
+destination. The consumer's glossary holds 21 terms on 2026-11-14, about half of them process terms, while its client
+has 25 feature folders whose domain names (trade, guild, daycare, duel, battle) have no glossary row.
+
 ## Change
 
 The chain becomes `sdd-intake` → `sdd-specify` → `sdd-clarify` → `sdd-plan` → `sdd-tasks` → `sdd-to-card` →
@@ -54,6 +59,15 @@ the FEAT (technical). `sdd-check` leaves the chain and becomes the read-only too
   filled; after a clean functional `sdd-check` and product approval the REQs become `approved` and the NEED `refined`.
   New references: `references/req-scope.md` (what a REQ holds and what goes elsewhere, REQ-F versus REQ-NF, when to
   split or keep one, what a NEED touches) and `references/journeys.md` (the journey rules, written inside clarify).
+  Each Situation is worked as an example map (rules become REQs, examples and counterexamples their Verification,
+  unknowns the questions); a size L NEED or a new area may start with an event-storming pass; an invariant is a REQ of
+  its own; every domain term a REQ uses is in the `spec.md` glossary; a screen REQ cites the mock product approved
+  (`spec-requirement-functional.md` gains a `Mock` line); the next question is one no open question decides.
+- `sdd-spike` also takes technical feasibility questions (a risk `sdd-plan` names whose cheapest test needs code), and
+  without a tracker its report goes to the project's collaboration folder, cited in the NEED's Evidence; the kept idea
+  re-enters through that NEED. `investigate` hands its report to `sdd-intake` as a NEED (`fix` when an artifact states
+  the right behavior, otherwise `improvement`) with the failing test in Evidence. `sdd-intake` cites such a report in
+  Evidence.
 - `sdd-journey` is removed as a skill; its rules live in `sdd-clarify/references/journeys.md`. `sdd-triage`, added
   earlier on this branch, is folded into `sdd-specify`. A consumer that vendors skills keeps its old `sdd-journey` copy
   until its resync.
@@ -105,3 +119,7 @@ Results are in the PR body.
   move inside clarify and check, `sdd-plan` creates the FEAT, REQ status and REQ-before-FEAT.
 - 2026-11-14: `sdd-check` becomes a tool that `sdd-clarify` (functional scope) and `sdd-plan` (full scope) call, and
   gains C11 for a REQ that states how instead of what (owner, chat: "ok, aprovo").
+- 2026-11-14: example mapping, event storming for large NEEDs, invariants, domain glossary and screen mocks in
+  `sdd-clarify`; `investigate` and `sdd-spike` re-enter through `sdd-intake`; the spike takes feasibility questions
+  (owner, chat: "concordo com sua proposta" for the development and clarify proposal, "concordo" for the side doors,
+  "aprovo" for the split that puts them in this record).
