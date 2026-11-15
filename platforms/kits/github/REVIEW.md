@@ -4,14 +4,18 @@ Review criteria for this repository, its quality definition of done. Read by Ant
 
 ## Important means
 
-A finding that breaks a criterion below, breaks behavior, leaks data or blocks a rollback. Style, naming and refactoring suggestions are nits at most.
+A finding that breaks a criterion below, breaks behavior, leaks data or blocks a rollback. A Scope, Correctness, Architecture or Security finding (a weak test included) is a blocker in the PR; style, naming and refactoring suggestions are nits at most and may wait for the batch review (`review`, coordination reference).
+
+A line ending in `<!-- grep: REGEX -->` (or `grep tests:` for test files only) is checked by `review_checks.py dod` on the diff's added lines; keep the regex narrow enough that a hit is worth reading.
 
 ## Scope
 - The PR does one thing; Conventional Commit title; the body links the issue, FEAT, REQ or DEC it implements (`git` § 3, § 7).
-- Changed paths stay inside the task's Files cell (or the issue's stated scope); anything else is a separate issue or DEBT (`review` § 2).
+- Changed paths stay inside the task's Files cell (or the issue's stated scope); anything else is a separate issue or DEBT; `## Files widened` adds only existing tests (`review` § 1, step 4).
 
 ## Correctness
 - Each acceptance criterion has a named test; the sad path (invalid input, failure, timeout) is covered (`testing` § 2).
+- The new test failed before the change, as the PR's `## Red` shows, or the PR names its exception (`review` § 1, step 3).
+- No focused, skipped or disabled test, and no assertion loosened without a reason in the PR (`review` § 2). <!-- grep tests: \.only\(|\bfit\(|\bxit\(|@Disabled|@Ignore|pytest\.mark\.skip|unittest\.skip|skip_test\( -->
 - A proof must be able to fail: a gate that passes on zero tests or empty input is not proof (`review` § 2).
 - A changed contract (schema, message, API) bumps its version and updates fixtures on every side (`protocol-contract` § 2).
 

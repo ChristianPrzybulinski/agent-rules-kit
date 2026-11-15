@@ -1,7 +1,7 @@
 ---
 name: review
 description: Completion verdict, claim check and PR gates. Use when asking “is it done?”, preparing a PR or testing a claim. Not for fixing failures (skill sdd-implement).
-argument-hint: "[FEAT-xxx | spec path | request | claim or proposed fix | --pr <n>]"
+argument-hint: "[FEAT-nnn Tn | PR <n> | spec path | request | claim | --pr <n> | --batch <PRs>]"
 triggers:
   - user
   - model
@@ -17,64 +17,55 @@ allowed-tools:
 
 # Review
 
-Verifies work someone else claims or proposes and reports a verdict with sources; it never fixes. Bugs with no named cause go to skill `investigate`.
+Verifies a delivery someone else made and reports a verdict with sources. It never fixes, commits or pushes: an `apply` finding carries its exact patch and the fix round (skill `sdd-implement`, mode fix) applies it, on docs PRs too. Bugs with no named cause go to skill `investigate`; a FEAT's closure on `main` is skill `sdd-review`.
 
 | Argument | Mode | Procedure |
 |---|---|---|
-| `FEAT-xxx`, spec path or request (default) | completion verdict | §1–§4 below |
-| one claim or proposed solution (default: the last relevant one) | claim check | `references/claim-check.md` |
+| a task row, PR, FEAT, spec path or request (default) | delivery verdict | §1–§4 |
+| one claim or proposed solution | claim check | `references/claim-check.md` |
 | `--pr <n>` with a gates config | no-model PR gates | `references/pr-gates.md` |
+| `--batch <PRs>`, a wave, a merge conflict, a red `main` or a blocker | coordination and batch review | `references/coordination.md` |
 
-## 1. Pin down the target
+## 1. Run the steps in order
 
-- For `FEAT-xxx`, read its acceptance criteria and linked `REQ-*` files.
-- For a path or request, extract verifiable criteria; stop and ask for one to three criteria if none exist.
-- Write the final criterion rows before inspecting the implementation.
-- A reviewer gets the base, the head commit and the claims to check; the author's own verdict and reasoning stay out of its brief, so they cannot anchor the review.
+A `script` step runs `python3 ~/.ai-kit/platforms/tools/review_checks.py <check>` (or a project gate) and the reviewer reads its output; a `judgment` step is the reviewer's reading. Commands and detail: `references/delivery-steps.md`.
 
-## 2. Inspect what exists
+| # | Step | Kind | What it settles |
+|---|---|---|---|
+| 1 | Pin the criteria | judgment | criterion rows from the row's CA, its REQs' Verification, the Plan § it cites and the project `REVIEW.md`, written before reading the code; the author's verdict stays out |
+| 2 | Gates | script | the depth tier's gates on a clean checkout of the pushed head; a record whose inputs are unchanged is reused on a `Reused:` line |
+| 3 | Red check | script, then judgment | `red`: the PR's tests fail on base and pass on head; judge that base fails for the right reason, or the `## Red` exception |
+| 4 | Scope | script | `scope`: paths inside Files, `## Files widened` only existing tests with no assertion changed, `protected_paths` labels |
+| 5 | Acceptance | script, then judgment | `proof --run` re-runs the proof block; each CA the row covers has code, test and doc at `path:line` |
+| 6 | Design | judgment | the diff follows the Plan § (layers, contract, data, flag); a deviation the Plan lacks is a `spec` finding |
+| 7 | DoD | script, then judgment | `dod`: grep-able `REVIEW.md` lines and dropped assertions; then the lines no script checks |
+| 8 | Verdict | judgment | § 4 |
+| 9 | Re-check | script, then judgment | after a fix round, only the delta and the assumptions it touches; recorded results whose inputs are unchanged carry over |
 
-- Run `git diff <base>...HEAD --stat` and inspect the changed files in risk order (security, input validation, control flow, public interfaces); report cited files absent from the diff, changed behavior no criterion asked for and changed code no test exercises.
-- For each criterion, locate implementation, executable proof and required documentation.
-- A criterion without an executable test or reproducible command is not met.
-- Validate the pushed head on a clean checkout (`git worktree add --detach <tmp> <sha>`); local uncommitted state never counts. A result the author's report or PR lists is a claim until a record backs it: a CI or gate run, or a log a command wrote, naming the commit it ran on. Re-run there every proof without such a record and every proof whose inputs changed since it ran (files it covers, dependencies, config, environment, or an assumption it tested). Reuse a recorded result whose inputs are unchanged and write it on a `Reused:` line; a new commit hash alone invalidates nothing. A claimed result that neither a command nor a record reproduces is unverified; one that fails there makes the verdict `NOT READY`.
-- After a correction, re-run and re-review the delta plus the assumptions it touches, not the whole change. Test evidence carries over; review authority does not: an approval binds to the head it reviewed, never to a later one, and an acceptance no reviewer gave is never recorded.
-- Create `<tmp>` with `mktemp -d` and always finish with `git worktree remove --force <tmp> && git worktree prune`, even when a proof fails or the validation aborts; before you start, `git worktree list`; remove only a leftover whose path is a `mktemp` directory from an earlier validation, never a worktree you did not create, and report any other extra worktree under Unverified. A validation that leaves a worktree behind is not finished.
-- A proof must be able to fail. A gate that passes on empty input (zero tests, zero schemas) is not proof; show it failing on a broken case. Compare the collected test count at the head with the base (the runner's summary line) and read the diff of every test file; a dropped count, a deleted or skipped test or a loosened assertion the PR does not name is a weakened check (agent `reviewer` step 4).
+## 2. Hold the evidence rules
 
-## 3. Run canonical gates
+- Validate the pushed head on a clean checkout; local uncommitted state never counts. An author's or worker's report is a claim until a command or a record naming the commit backs it; a claimed result that fails there makes the verdict `NOT READY`.
+- A proof must be able to fail: a gate that passes on empty input proves nothing. A dropped test count against the base, a deleted or skipped test or a loosened assertion the PR does not name is a weakened check (agent `reviewer` step 4).
+- An approval binds to the head it reviewed, never to a later one; an acceptance no reviewer gave is never recorded.
+- `visual_approval` (`owner` or `reviewer`) names who compares a screen or motion change's captures with its REQ's mock; with `owner`, the verdict waits for that approval.
+- A change of a kind listed in `owner_approvals` is never READY on the reviewer's word: the verdict names the kind and waits for the owner.
 
-Read the repository's `AGENTS.md` and README for commands. Pick the gates by the impact row in skill `testing` § 6: a docs-only change runs the doc, schema, link or generator checks, not the code suites. Kit fallbacks:
+## 3. Pick the depth
 
-| Stack | Gate |
-|---|---|
-| Java/Maven | `./mvnw -q spotless:check verify` |
-| Godot | `godot --headless --path . --import`, then the boot-proof grep of the `--quit` log from skill `godot-standards` section 5 (`--quit` exits 0 after a `SCRIPT ERROR`), plus the project test runner |
-| Docs/spec | `platforms/tools/check.sh` or project spec lint |
+Unknown impact takes the higher tier (skill `testing` § 6).
 
-- Capture the literal failing excerpt; never replace it with “some tests failed.”
-- Run the gates in a complete checkout of the repository. A sparse or partial worktree is for editing: a gate that stops there on a missing path (`can't open file`, `No such file`) is a failed run, never a pass, and under `set -e` it skips every later gate — rerun from a full checkout before the verdict.
-- In Claude Code (Claude-specific) the calling session also runs `/code-review <base>...HEAD` on the pushed head before the verdict of any change above docs-only (when this skill runs forked without the Skill tool, run it from the parent session and hand its findings to the verdict); it runs as a background subagent and reports correctness bugs, so continue with the closure records while it runs and wait for its findings before §4. Confirm each finding at `path:line` on the clean checkout; a confirmed finding becomes a `missing` or `partial` row of the criterion table (or a `Gates:` line `code-review → FAILED (<finding>)` when it belongs to no criterion); an unconfirmed one goes under `Unverified`. In Devin or any other executor, apply the repository `REVIEW.md` (kit copy: `platforms/kits/github/REVIEW.md`) by hand instead. `/code-review` reads `CLAUDE.md`, not `REVIEW.md` (checked against code.claude.com/docs/en/code-review on 2026-10-06).
-- Closure records: read the `living-docs` reference in skill `code-standards`. Check CHANGELOG, command-facing README changes, public API docs, FEAT status, DEC/DEBT (the diff contradicts no accepted DEC), and an incomplete feature's flag.
+| Tier | Impact row | Runs |
+|---|---|---|
+| light | docs only | steps 1, 2 (doc, schema, link and generator checks), 4, 6, 7, 8 |
+| standard | bounded code | every step; proofs without a record re-run |
+| full | shared integration, authorization, persistence or migration | every step, the broad suite, every proof re-run, the `Security` DoD lines read in full; owner and security approvals stay |
 
 ## 4. Issue the verdict
 
-```text
-Target: <FEAT, path or request>
-Verdict: READY | PARTIAL | NOT READY
-Gates: <command> → OK | FAILED (<literal excerpt>)
-Reused: <result> — <record> — <why its inputs are unchanged>
-Advisory: <complexity.py lines, or its missing-input notice>
-| Criterion | Code | Test | Doc | Status |
-|---|---|---|---|---|
-| ... | path:line | path/command | path | met / missing / partial |
-Unverified: <what and why>
-Next step: <smallest action that changes the verdict>
-```
+Format, severities and finding owners: `references/delivery-steps.md` § Verdict. `READY`: every criterion met, every gate passes. `PARTIAL`: a criterion missing or partial while gates run. `NOT READY`: a gate fails or the target cannot be validated.
 
-- `READY`: every criterion is met and every gate passes. `PARTIAL`: at least one criterion is missing or partial while gates otherwise run. `NOT READY`: a gate fails or the target cannot be validated.
-- When the change touches `.java` or `.gd`, run `python3 ~/.ai-kit/platforms/tools/complexity.py --base <base>` on the clean checkout after the gates (so a JaCoCo report is the one the gate just wrote) and copy its lines to `Advisory:`; they never change the verdict.
+- Each finding has a severity (blocker, should-fix, nit), an owner (`spec`, `apply`, `judgment`) and a `close_when` the next round checks. Architecture, security and weak-test findings are blockers in the PR; a style nit may go to the batch review.
 - An ambiguous criterion is a spec gap; route it to `sdd-clarify` rather than guessing.
-- After three review-and-fix rounds that end `NOT READY` on the same criterion, stop: hand the owner the criterion, each attempt and the failing excerpt instead of starting a fourth round.
+- After `review_rounds` (`sdd:` parameter, default 3) rounds that end `NOT READY` on the same criterion, stop: hand the owner the criterion, each attempt and the failing excerpt.
 
-Done when: every criterion has observed code, proof and documentation status, all gates have literal results, and the verdict follows the rules above (other modes: the reference's own Done line).
+Done when: every criterion has observed code, proof and documentation status, every step of the tier has its script output or judgment, all gates have literal results, and the verdict follows the rules above (other modes: the reference's own Done line).

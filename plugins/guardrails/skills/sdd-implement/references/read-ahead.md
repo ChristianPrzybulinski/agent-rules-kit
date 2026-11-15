@@ -1,5 +1,5 @@
 ---
-description: "Read-only prepare agents read a task's code, tests and spec before its implementer starts and hand it a context note. Load when planning a multi-agent pipeline."
+description: "Read-only prepare agents read a task's code, tests and spec before its implementer starts and hand it a context note. Load when a wave runs in parallel."
 kind: detail
 ---
 
@@ -34,7 +34,7 @@ Each reader writes one file for its area; the pipeline joins them under three he
 - A reader that fails or times out never blocks the task: the implementer reads the code itself.
 - Run readers on a cheap model: reading needs breadth, not the implementer's tier.
 - A note is a claim about the code when it was read, never evidence; the implementer verifies it.
-- The implementer asks for every independent read in one turn (`../SKILL.md` § 2).
+- The implementer asks for every independent read in one turn (skill `parallelize` § 2).
 
 ## Measure
 

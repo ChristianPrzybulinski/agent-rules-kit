@@ -14,8 +14,9 @@ created: "YYYY-MM-DD"
 updated: "YYYY-MM-DD"
 ---
 <!-- Created by sdd-plan from a refined NEED: a FEAT is one delivery, the technical package that implements approved REQs.
-     status: proposed while sdd-plan drafts it, planned after a clean full-scope sdd-check; in-progress, validated and
-     delivered are derived from GitHub by tooling; clarified remains only on FEATs written before the NEED flow. Never
+     status: proposed while sdd-plan drafts it, planned after a clean full-scope sdd-check; in-progress is derived from
+     the task rows; validated is written by sdd-review and delivered by sdd-release (or sdd-review under release: merge),
+     through spec_trace.py with their History line; clarified remains only on FEATs written before the NEED flow. Never
      edit status by hand. -->
 
 # FEAT-000 — [Title]
@@ -71,6 +72,10 @@ updated: "YYYY-MM-DD"
 
 ## Audit
 <!-- filled by the calling session from the sdd-check report (or a FEAT-000.checklist.md file) -->
+
+## Closure
+<!-- written by sdd-review on main after the last row merges, before spec_trace.py validate: Main commit, one row per
+     CA, REQ example and counterexample, REQ-NF measurement and journey, folded decisions, outcome and retro numbers -->
 
 ## History
 

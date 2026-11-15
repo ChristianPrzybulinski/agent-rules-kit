@@ -15,7 +15,7 @@ updated: "YYYY-MM-DD"
 ---
 <!-- type: new | improvement | fix | content | platform | decision. Provisional at intake, confirmed by sdd-specify.
      status: proposed (sdd-intake) → triaged (sdd-specify, decide) → specified (sdd-specify, describe) → refined
-     (sdd-clarify, after a clean functional sdd-check) → delivered (set by the step that delivers its last FEAT; a decision
+     (sdd-clarify, after a clean functional sdd-check) → delivered (with its last FEAT, by sdd-release or sdd-review; a decision
      NEED with no FEAT, by sdd-clarify when it approves the decision; check_spec.py refuses it before), or closed
      rejected | merged | routed | parked; a parked NEED returns to triaged when taken up.
      requirements, journeys and decisions are filled by sdd-clarify; features by sdd-plan. Links are written here only:
