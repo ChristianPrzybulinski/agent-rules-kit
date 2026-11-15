@@ -450,6 +450,58 @@ class Cli(Base):
         self.assertIn("row-checks: 22 rows", out)
 
 
+class ConfigShapes(Base):
+    """A row-checks config the tool cannot use exits 2, a usage error, never 1 or 0: a consumer's cut reads only the
+    FAIL lines, so a crash or an empty config would read as clean rows (review finding 2)."""
+
+    def write_json(self, rel, data):
+        (self.root / rel).write_text(json.dumps(data), encoding="utf-8")
+
+    def assert_usage_error(self, fragment):
+        code, out, err = run("check", "--spec", str(self.spec), "FEAT-900")
+        self.assertEqual(code, 2, out + err)
+        self.assertIn(fragment, err)
+        self.assertNotIn("Traceback", err)
+
+    def test_an_artifact_entry_without_dec_is_a_usage_error(self):
+        self.write_json("tools/artifact-policies.json", [{"pattern": "*.translation"}])
+        self.assert_usage_error("dec")
+
+    def test_an_artifacts_object_instead_of_a_list_is_a_usage_error(self):
+        self.write_json("tools/artifact-policies.json", ARTIFACTS[0])
+        self.assert_usage_error("a list")
+
+    def test_a_proof_var_depth_that_is_not_an_integer_is_a_usage_error(self):
+        self.write_json("tools/gates.json", dict(GATES, proof_var_depths={"HOME": "1"}))
+        self.assert_usage_error("proof_var_depths")
+
+    def test_a_gates_file_that_is_not_an_object_is_a_usage_error(self):
+        self.write_json("tools/gates.json", [])
+        self.assert_usage_error("an object")
+
+    def test_other_gate_keys_of_the_wrong_shape_are_usage_errors(self):
+        for key, value in (("proof_allowlist", "python3"), ("proof_allowlist", [3]), ("generated_neighbours", ".uid"),
+                           ("proof_script_runners", ["godot"]), ("proof_script_runners", {"godot": "-s"}),
+                           ("proof_var_depths", {"HOME": True}), ("proof_var_depths", {"HOME": -1})):
+            with self.subTest(key=key, value=value):
+                self.write_json("tools/gates.json", dict(GATES, **{key: value}))
+                self.assert_usage_error(key)
+
+    def test_an_unexpected_error_exits_2_not_1(self):
+        original = rc.lint
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        rc.lint = boom
+        try:
+            code, out, err = run("check", "--spec", str(self.spec), "FEAT-900")
+        finally:
+            rc.lint = original
+        self.assertEqual(code, 2, out + err)
+        self.assertIn("row-checks: internal error: RuntimeError: boom", err)
+
+
 class Changed(unittest.TestCase):
     def test_changed_picks_only_changed_feat_files(self):
         with tempfile.TemporaryDirectory() as tmp:

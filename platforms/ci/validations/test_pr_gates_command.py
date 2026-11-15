@@ -60,6 +60,26 @@ class Sandbox(unittest.TestCase):
         self.assertTrue(command_allowed("test -f ~/../me/x", ALLOW, cwd=".", var_depths=DEPTHS)[0])
         self.assertFalse(command_allowed("test -f ~/../../x", ALLOW, cwd=".", var_depths=DEPTHS)[0])
 
+    def test_a_short_option_glued_to_its_value_is_judged_by_the_value(self):
+        """Review finding 3: `-C..` hid its `..` from the sandbox."""
+        for cmd in ("git -C.. log", "git -C../client log", "grep -f../secret x"):
+            with self.subTest(cmd=cmd):
+                ok, why = command_allowed(cmd, ALLOW, cwd="server")
+                self.assertFalse(ok)
+                self.assertIn("escapes the proof sandbox", why)
+        self.assertFalse(command_allowed("git -C.. log", ALLOW, cwd=".")[0])
+        self.assertFalse(command_allowed("grep -f$HOME/../x y", ALLOW, cwd=".")[0])
+        self.assertTrue(command_allowed("git -Csrc log", ALLOW, cwd="server")[0])
+        self.assertTrue(command_allowed("grep -rn x src", ALLOW, cwd="server")[0])
+
+    def test_a_value_after_equals_is_judged_by_the_variable_rule(self):
+        """Review finding 3: `--file=$HOME/../x` was resolved as a relative path and passed."""
+        self.assertFalse(command_allowed("grep -q x --file=$HOME/../x", ALLOW, cwd=".")[0])
+        self.assertFalse(command_allowed('grep -q x --file="$OTHER/../x"', ALLOW, cwd=".", var_depths=DEPTHS)[0])
+        self.assertFalse(command_allowed("grep -q x --file=$HOME/../../x", ALLOW, cwd=".", var_depths=DEPTHS)[0])
+        self.assertTrue(command_allowed("grep -q x --file=$HOME/../me/x", ALLOW, cwd=".", var_depths=DEPTHS)[0])
+        self.assertTrue(command_allowed("grep -q x --file=$HOME/x", ALLOW, cwd=".")[0])
+
     def test_an_ungranted_variable_may_not_climb(self):
         self.assertFalse(command_allowed('test -f "$OTHER/../x"', ALLOW, cwd=".", var_depths=DEPTHS)[0])
         self.assertFalse(command_allowed("test -f ~/../x", ALLOW, cwd=".")[0])

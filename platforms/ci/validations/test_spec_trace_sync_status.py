@@ -90,6 +90,11 @@ The in-progress FEATs, derived by sync-status:
 - none
 <!-- sync-status:end -->
 
+The FEAT counts, derived by sync-status:
+<!-- sync-counts:begin -->
+0 FEATs.
+<!-- sync-counts:end -->
+
 ### Features
 
 | ID | Title | Status | Card | Flag |
@@ -201,6 +206,51 @@ class SyncStatusTest(unittest.TestCase):
         self.assertIn("WARN FEAT-001 T3: product#13 closed as not planned, but the row is done", out)
         self.assertNotIn("T3: done -> cancelled", out)
         self.assertEqual(self.status("FEAT-001", "T3"), "done")
+
+    def set_row(self, tid, status, path=None):
+        path = path or self.path1
+        text = self.text(path)
+        old = next(line for line in text.splitlines() if line.startswith(f"| {tid} |"))
+        cells = old.split(" | ")
+        cells[6] = status
+        path.write_text(text.replace(old, " | ".join(cells)), encoding="utf-8")
+
+    def test_a_cancelled_row_never_reopens(self):
+        """Review finding 1: a cancelled row whose issue, closed as not planned, keeps a stale blocked label (or any
+        later activity) stays cancelled."""
+        self.set_row("T3", "cancelled")
+        for state, labels, reason, prs in (("closed", ["blocked"], "not_planned", {}),
+                                          ("open", ["status:in-progress"], None, {}),
+                                          ("closed", [], None, {(CLIENT, 90): pull(body=f"Closes {REPO}#13")})):
+            with self.subTest(state=state, labels=labels):
+                _, out = self.run_sync(self.routes([issue(13, "[FEAT-001 T3] third", state, labels, reason)], prs))
+                self.assertNotIn("T3: cancelled ->", out)
+                self.assertEqual(self.status("FEAT-001", "T3"), "cancelled")
+
+    def test_a_not_planned_close_beats_a_blocked_label(self):
+        gh = self.routes([issue(12, "[FEAT-001 T2] second", "closed", ["blocked"], reason="not_planned")])
+        _, out = self.run_sync(gh)
+        self.assertIn("FEAT-001 T2: todo -> cancelled (closed as not planned)", out)
+        self.assertEqual(self.status("FEAT-001", "T2"), "cancelled")
+
+    def test_a_closed_issue_with_a_stale_blocked_label_keeps_the_row_and_warns(self):
+        gh = self.routes([issue(12, "[FEAT-001 T2] second", "closed", ["blocked"], reason="completed")])
+        _, out = self.run_sync(gh)
+        self.assertIn("WARN FEAT-001 T2: product#12 closed without a merged PR", out)
+        self.assertEqual(self.status("FEAT-001", "T2"), "todo")
+
+    def test_a_delivered_feat_with_cancelled_rows_passes_the_status_gate(self):
+        """The repro of finding 1: after the migration's superseded -> cancelled, a delivered FEAT stays clean."""
+        path = write(self.root, "docs/spec/features/FEAT-003.md", FEAT11.format(
+            fid="FEAT-003", title="Delivered fixture", status="delivered",
+            rows=feat_rows(("T1", "a", "done"), ("T2", "b", "cancelled"))))
+        gh = self.routes([issue(31, "[FEAT-003 T1] a", "closed"),
+                          issue(32, "[FEAT-003 T2] b", "closed", ["blocked"], reason="not_planned")],
+                         {(CLIENT, 90): pull(body=f"Closes {REPO}#31")})
+        code, out = self.run_sync(gh)
+        self.assertEqual(code, 0)
+        self.assertIn("| b | `a/**` | ci green | CA-1 | — | cancelled |", self.text(path))
+        self.assertEqual([e for e in trace.status_errors(trace.load(self.spec)) if "FEAT-003" in e], [])
 
     def test_a_kit_bundle_title_names_every_row(self):
         gh = self.routes([issue(10, "[FEAT-001 T1+T2] First and second", "closed")],
@@ -347,6 +397,32 @@ class SyncStatusTest(unittest.TestCase):
         self.assertIn("| [FEAT-002](features/FEAT-002.md) | Second fixture | planned | — | — |", text)
         self.assertIn("<!-- sync-status:begin -->\n- FEAT-001 First fixture (1/3 done)\n<!-- sync-status:end -->", text)
         self.assertIn('updated: "2026-10-06"', text)
+        self.assertIn("<!-- sync-counts:begin -->\n2 FEATs: 1 `planned`, 1 `in-progress`.\n<!-- sync-counts:end -->",
+                      text)
+
+    def test_counts_line_matches_its_own_canonical_form(self):
+        """Ported from the consumer (review finding 4a): the counts line follows the FEAT files, names proposed and
+        cancelled FEATs, and a second run leaves it as it is."""
+        self.run_sync(self.routes([issue(11, "[FEAT-001 T1] a", "closed")],
+                                  {(CLIENT, 90): pull(body=f"Closes {REPO}#11")}))
+        for fid, status in (("FEAT-005", "proposed"), ("FEAT-006", "proposed"), ("FEAT-007", "proposed"),
+                            ("FEAT-009", "cancelled")):
+            write(self.root, f"docs/spec/features/{fid}.md", FEAT11.format(
+                fid=fid, title="Counted fixture", status=status, rows=feat_rows(("T1", "x", "todo"))))
+        code, _ = self.run_sync(self.routes([]))
+        self.assertEqual(code, 0)
+        text = self.text(self.spec_md)
+        self.assertIn("<!-- sync-counts:begin -->\n6 FEATs: 3 `proposed` (FEAT-005–FEAT-007), 1 `planned`, "
+                      "1 `in-progress`, 1 `cancelled` (FEAT-009).\n<!-- sync-counts:end -->", text)
+        self.run_sync(self.routes([]))
+        self.assertEqual(self.text(self.spec_md), text)
+
+    def test_counts_line_needs_its_markers(self):
+        self.spec_md.write_text(self.text(self.spec_md).replace(
+            "<!-- sync-counts:begin -->\n0 FEATs.\n<!-- sync-counts:end -->\n", ""), encoding="utf-8")
+        self.run_sync(self.routes([issue(11, "[FEAT-001 T1] a", "closed")],
+                                  {(CLIENT, 90): pull(body=f"Closes {REPO}#11")}))
+        self.assertNotIn("FEATs:", self.text(self.spec_md))
 
     def test_cells_outside_status_stay_byte_identical(self):
         gh = self.routes([issue(11, "[FEAT-001 T1] a", "closed")], {(CLIENT, 90): pull(body=f"Closes {REPO}#11")})
