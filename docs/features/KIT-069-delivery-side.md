@@ -115,7 +115,8 @@ After KIT-068 (#244) merged: `session/references/handoff-record.md` and `templat
 rows' items (issues, or TASK files) instead of the progress file, which stays only for FEATs cut before KIT-068.
 
 Not changed, follow-ups: `pr_gates.py` keeps `protected_paths` as label → globs while `sdd:` holds path →
-label; the `parallelize` trigger case of KIT-071 is re-run once #235 merges here.
+label; the `parallelize` trigger case of KIT-071 (#235, merged here in `fbf2953`) is not re-run yet: it needs a
+model run.
 
 ## Calibration
 
