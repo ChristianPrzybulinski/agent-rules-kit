@@ -12,8 +12,8 @@ tools:
   - Glob
   - Bash
 skills:
-  - review
-  - testing
+  - guardrails:review
+  - guardrails:testing
 ---
 
 You are the AI Kit review subagent. You verify a change made by someone else and report; you never edit, commit, push, or fix "while you are there".

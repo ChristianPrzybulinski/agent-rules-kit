@@ -262,8 +262,11 @@ class SyncProjectCheckTest(unittest.TestCase):
                          ["guardrails-docker.md", "guardrails-godot.md", "guardrails-java.md", "guardrails-json.md",
                           "guardrails-python.md", "guardrails-spec.md"])
         self.assertIn('  - "client/**/*.gd"', (rules / "guardrails-godot.md").read_text().splitlines())
-        # docker, like json, is sent to docs too, so a monorepo's root compose file matches (KIT-071)
-        self.assertIn('  - "**/compose*.yml"', (rules / "guardrails-docker.md").read_text().splitlines())
+        # docker goes to the code profiles only, so it takes their folders and never the docs root (KIT-071)
+        docker_globs = (rules / "guardrails-docker.md").read_text().splitlines()
+        self.assertIn('  - "server/**/compose*.yml"', docker_globs)
+        self.assertIn('  - "client/**/Dockerfile*"', docker_globs)
+        self.assertNotIn('  - "**/compose*.yml"', docker_globs)
         # json is named after no profile and docs covers the root, so it keeps the whole repository (KIT-059)
         self.assertIn('  - "**/*.json"', (rules / "guardrails-json.md").read_text().splitlines())
         self.assertIn('  - "server/**/*.java"', (rules / "guardrails-java.md").read_text().splitlines())

@@ -400,6 +400,7 @@ agents_bullets = {line[2:] for line in agents_md.read_text(encoding="utf-8").spl
 # --- 5. Subagents and hooks ---
 agent_owners = {}  # profile name -> plugin name
 agent_skills = {}  # profile path -> the skills it preloads (KIT-071), checked once the skills are known
+user_only_skills = set()  # skills with triggers: [user]; a subagent cannot preload them
 for name, plugin_dir in plugins.items():
     agents_root = plugin_dir / "agents"
     if not agents_root.exists():
@@ -436,7 +437,7 @@ for name, plugin_dir in plugins.items():
         if isinstance(data.get("skills"), list):
             agent_skills[profile] = data["skills"]
 
-hooks_path =plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN) / "hooks/hooks.json"
+hooks_path = plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN) / "hooks/hooks.json"
 guard_commands = []
 post_edit_commands = []
 session_start_commands = []
@@ -860,6 +861,8 @@ for name, plugin_dir in plugins.items():
             fail(rel(skill_file), "context: fork requires subagent: true or agent")
 
         user_only = data.get("triggers") == ["user"]
+        if user_only:
+            user_only_skills.add(skill_name)
         codex_policy = skill_dir / "agents/openai.yaml"
         policy_disabled = False
         if codex_policy.exists():
@@ -907,8 +910,14 @@ if description_total > DESCRIPTIONS_BUDGET:
 
 for profile, preloaded in agent_skills.items():
     for skill in preloaded:
-        if skill not in skill_names:
+        plugin, _, short = str(skill).rpartition(":")
+        if not plugin:
+            # Claude Code resolves a bare name to its bundled skill first: `review` loaded the built-in review (KIT-071).
+            fail(rel(profile), f"skills: '{skill}' needs its plugin prefix; a bare name can resolve to a bundled skill")
+        elif skill_names.get(short) != plugin:
             fail(rel(profile), f"skills: '{skill}' is not a kit skill")
+        elif short in user_only_skills:
+            fail(rel(profile), f"skills: '{skill}' is user-only; cannot be preloaded")
 
 
 # --- 7. Rules ---
@@ -1048,7 +1057,10 @@ for name, plugin_dir in plugins.items():
             # KIT-071: a run loads no CLAUDE.md, so a trigger case appends its always-on line; it must not drift.
             case_data = frontmatter(entry / "prompt.md")[0] if (entry / "prompt.md").exists() else None
             appended = (case_data or {}).get("append_system_prompt")
-            if FULL and appended is not None and appended not in agents_bullets:
+            case_tags = (case_data or {}).get("tags")
+            if FULL and appended is None and isinstance(case_tags, list) and "trigger" in case_tags:
+                fail(rel(entry / "prompt.md"), "a trigger case needs append_system_prompt with its AGENTS.md bullet")
+            elif FULL and appended is not None and appended not in agents_bullets:
                 fail(rel(entry / "prompt.md"), f"append_system_prompt must repeat one bullet of {rel(agents_md)} "
                      "without its '- '")
 

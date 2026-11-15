@@ -31,10 +31,10 @@
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "description": "Claude Code subagent preload: the full text of each kit skill is injected at the subagent's start (KIT-071).",
+      "description": "Claude Code subagent preload: the full text of each kit skill is injected at the subagent's start; plugin:skill, since a bare name can resolve to a bundled skill (KIT-071).",
       "items": {
         "type": "string",
-        "pattern": "^[a-z][a-z0-9-]*$"
+        "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
       }
     },
     "allowed-tools": {
