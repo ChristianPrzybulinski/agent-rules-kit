@@ -37,7 +37,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 
 - Files: rooted paths or directory globs, tests included; generated neighbours (`*.uid`, `*.import`, `*.translation`) are implicit and never listed. `Status` (`todo`, `doing`, `blocked`, `done`, `cancelled`) is derived from the item, never edited by hand. `Complexity`, `Model` and `Wave`: `references/waves-and-models.md`. `Item` is `—` until the cut.
 - Coverage: every acceptance criterion appears in a row's `Covers` (each CA already cites the REQs it proves); every row covers a criterion or says it is infrastructure; run `sdd-check` row C8.
-- Row checks: every row passes `references/row-checks.md`; when `row_check` is set, run it and fix the rows until it exits 0.
+- Row checks: every row passes `references/row-checks.md`; run `row_check` (`null`: the kit's `python3 .github/spec-lint/row_checks.py check FEAT-nnn`) and fix the rows until it exits 0.
 - Commit the table with a FEAT History line in a spec PR. The architect reviews that PR; the cut waits for its approval or merge.
 
 ## 4. Cut

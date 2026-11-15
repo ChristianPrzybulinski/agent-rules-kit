@@ -56,7 +56,7 @@
           "default": 30
         },
         "row_check": {
-          "description": "Project command that checks the task rows before the cut; null = none; read by sdd-tasks",
+          "description": "Project command that checks the task rows before the cut; null = the kit row checks (row_checks.py, KIT-073); read by sdd-tasks",
           "type": ["string", "null"],
           "minLength": 1,
           "default": null
@@ -128,6 +128,87 @@
           "description": "Who approves a screen or motion change's captures against its REQ's mock before the merge: the owner, the reviewer, or none (no visual approval step); read by review (KIT-069)",
           "enum": ["owner", "reviewer", "none"],
           "default": "none"
+        },
+        "components": {
+          "description": "Component name -> its folder in this repository, '.' for the root: a Files entry or test path may start with either; one task row stays in one component. Read by row_checks.py (rules b, c, e, g, i, j, k) and spec_trace.py (journey test paths)",
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+          "additionalProperties": { "type": "string", "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$" },
+          "default": {}
+        },
+        "spec_index": {
+          "description": "spec_trace.py check fails when docs/spec/spec.md lacks a linked table row for a functional or non-functional REQ file or a journey file, or links a missing one",
+          "type": "boolean",
+          "default": false
+        },
+        "github": {
+          "description": "Where spec_trace.py sync-status reads task issues and their PRs (tracker: github only)",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repo": { "description": "owner/name of the backlog repository that holds the task issues; null = the origin remote", "type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", "default": null },
+            "pr_repos": { "description": "Other owner/name repositories whose PRs close backlog issues", "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" }, "default": [] },
+            "aliases": { "description": "Earlier owner/name names of the backlog repository that a Closes line may still use", "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" }, "default": [] },
+            "blocked_labels": { "description": "Issue labels that make a row blocked", "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 }, "default": ["blocked"] },
+            "progress_labels": { "description": "Issue labels that make a row doing without an open PR", "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 }, "default": ["status:in-progress"] }
+          }
+        },
+        "row_checks": {
+          "description": "Inputs of the kit row checks (row_checks.py, KIT-073); a rule whose input is null or empty is off; sdd-tasks/references/row-checks.md names each rule",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "gates": { "description": "Repository path of the PR gates JSON (pr_gates.py): proof_allowlist, proof_script_runners, proof_var_depths, generated_neighbours (rules d, e, g)", "type": ["string", "null"], "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$", "default": null },
+            "tests": {
+              "description": "Rule c, per stack: a Files entry matching a code glob (minus exclude) needs an entry matching or covering the tests glob ($1.. are the code glob's wildcards); level fail or warn",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "code": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$" } },
+                  "exclude": { "type": "array", "items": { "type": "string", "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$" } },
+                  "tests": { "type": "string", "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$" },
+                  "sample": { "type": "string", "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$" },
+                  "level": { "enum": ["fail", "warn"] }
+                }
+              },
+              "default": []
+            },
+            "assets": {
+              "description": "Rule d: an exact Files path under paths ending in one of suffixes needs a covering directory glob",
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "paths": { "type": "array", "items": { "type": "string", "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$" } },
+                "suffixes": { "type": "array", "items": { "type": "string", "pattern": "^\\.[A-Za-z0-9]+$" } }
+              },
+              "default": null
+            },
+            "protocol": {
+              "description": "Rules h and k: the contract folder, the message schema folder (<type>.json) and each consumer's generated tables",
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "folder": { "type": "string", "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$" },
+                "schemas": { "type": "string", "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$" },
+                "consumers": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string", "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$" } } }
+              },
+              "default": null
+            },
+            "artifacts": { "description": "Rule i: repository path of the artifact policy registry, a JSON list of {pattern, dec, policy}", "type": ["string", "null"], "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$", "default": null },
+            "visual": {
+              "description": "Rule j (with visual_approval owner or reviewer): Files paths that change a screen or motion, paths to ignore, and the evidence catalog file per kind ($id)",
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "paths": { "type": "array", "items": { "type": "string", "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$" } },
+                "ignore": { "type": "array", "items": { "type": "string", "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$" } },
+                "catalog": { "type": "object", "additionalProperties": false, "properties": { "screen": { "type": "string" }, "motion": { "type": "string" } } }
+              },
+              "default": null
+            }
+          }
         },
         "owner_approvals": {
           "description": "Change kinds only the owner may approve, for example decision, approved-dec-change, protocol-version, in-game-evidence; read by review (KIT-069) and an orchestrator session under owner-review autonomy",
