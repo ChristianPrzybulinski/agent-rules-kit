@@ -113,6 +113,19 @@ class ClosureRecordTest(unittest.TestCase):
         self.feat("delivered", LEGACY)
         self.assert_passes()
 
+    def test_a_closure_failure_names_its_rule(self):
+        self.feat("validated")
+        self.assert_fails("[feature-closure]")
+
+    def test_the_baseline_can_hold_a_closure_finding(self):
+        """feature-closure is a registered rule (KIT-068 RULES), so baseline.json may hold an old finding."""
+        self.feat("delivered")
+        (self.spec / "baseline.json").write_text('{"rules": {"feature-closure": {"FEAT-001": 1}}}\n')
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("BASELINE:", result.stdout)
+            self.assertIn("[feature-closure]", result.stdout)
+
     def test_a_record_outside_the_history_section_does_not_count(self):
         self.feat("validated", body_line=REVIEWED)
         self.assert_fails("status validated needs the History line sdd-review writes")

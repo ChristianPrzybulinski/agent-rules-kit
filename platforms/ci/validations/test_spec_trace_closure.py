@@ -188,6 +188,12 @@ class ClosureCommandTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("status: validated\n", self.feat_text())
 
+    def test_validate_accepts_a_cancelled_row(self):
+        self.fixture(release="manual", t2="cancelled")
+        code, out = self.validate()
+        self.assertEqual(code, 0, out)
+        self.assertIn("status: validated\n", self.feat_text())
+
     def test_validate_refuses_without_a_closure_record(self):
         self.fixture(closure="<!-- sdd-review writes the closure record here -->")
         code, out = self.validate()

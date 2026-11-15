@@ -215,6 +215,9 @@ class TaskTableTest(SpecFixture):
 
     def test_delivered_feat_is_history(self):
         self.chain(6, status="delivered")
+        path = self.spec / "features" / "FEAT-001-fixture.md"
+        # KIT-069: a delivered FEAT carries its closure line; this one predates sdd-review.
+        path.write_text(path.read_text() + "- 2026-11-14 delivered before sdd-review\n")
         self.assert_passes()
 
     def test_rows_above_max_feat_tasks_warn_only(self):
