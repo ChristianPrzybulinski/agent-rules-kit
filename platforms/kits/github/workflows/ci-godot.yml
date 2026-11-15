@@ -1,7 +1,9 @@
 name: ci-godot
 
 # Reusable Godot CI: the project copies this file to .github/workflows/ and calls it from its own
-# workflow (`uses: ./.github/workflows/ci-godot.yml` — see README.md). The `changes` job decides what
+# workflow (`uses: ./.github/workflows/ci-godot.yml` — see README.md). Each step runs a recipe of the project's
+# kit.just (agent-rules-kit sync-project.sh, godot profile at the repository root), so CI and a developer run the
+# same command (KIT-074). The `changes` job decides what
 # the diff needs: a docs-only diff skips import and tests; a diff it cannot compute (schedule,
 # workflow_dispatch, new branch) runs everything (fail-open).
 
@@ -93,57 +95,32 @@ jobs:
           key: lfs-${{ hashFiles('.lfs-assets-id') }}
       - name: Pull LFS objects
         run: git lfs pull
-      - name: Project import (generates .godot/ and the script-class cache, validates resources)
-        # `--quit` skips the import scan, so class_name scripts such as gdUnit4's GdUnitTestCIRunner
-        # stay unregistered on a fresh checkout and the runner fails to load
-        run: godot --headless --path . --import
-      - name: Boot proof (the exit code of --quit is 0 after a script error, so the log is the gate)
+      - name: Install just (pinned, sha-256 checked; the recipes come from the project's kit.just)
         shell: bash
+        env:
+          JUST_VERSION: 1.58.0
+          JUST_SHA256: 4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d
         run: |
-          godot --headless --path . --quit 2>&1 | tee boot.log
-          ! grep -Eq 'SCRIPT ERROR|Parser Error' boot.log
-      - name: Unit tests (missing runner or zero suites fails the build)
+          set -euo pipefail
+          wget -q -O "$RUNNER_TEMP/just.tar.gz" \
+            "https://github.com/casey/just/releases/download/$JUST_VERSION/just-$JUST_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          echo "$JUST_SHA256  $RUNNER_TEMP/just.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/just-bin"
+          tar -xzf "$RUNNER_TEMP/just.tar.gz" -C "$RUNNER_TEMP/just-bin" just
+          echo "$RUNNER_TEMP/just-bin" >> "$GITHUB_PATH"
+      - name: Import and boot proof (just boot; the exit code of --quit is 0 after a script error, so the log decides)
+        # `--quit` skips the import scan, so the recipe imports first: class_name scripts such as gdUnit4's
+        # GdUnitTestCIRunner stay unregistered on a fresh checkout otherwise and the runner fails to load
+        shell: bash
+        run: just boot
+      - name: Unit tests (just test; a missing runner, no suite or zero executed test cases fails)
         # container jobs default to `sh -e`; dash rejects `set -o pipefail` (exit 2)
         shell: bash
         env:
-          TEST_RUNNER: ${{ inputs.test-runner }}
+          GODOT_TEST_RUNNER: ${{ inputs.test-runner }}
         run: |
           set -euo pipefail
-          case "$TEST_RUNNER" in
-            gdunit4)
-              if [ ! -d addons/gdUnit4 ]; then
-                echo "::error::addons/gdUnit4 missing — tests must not be skipped" >&2
-                exit 1
-              fi
-              if ! find tests -name '*_test.gd' -print -quit 2>/dev/null | grep -q .; then
-                echo "::error::no gdUnit4 test suites (*_test.gd) under tests/ — a green run with zero tests is a failure" >&2
-                exit 1
-              fi
-              godot --headless --path . -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode \
-                | tee test-run.log
-              # a runner that fails to load can still exit 0 with zero suites run: require >= 1 executed test case
-              if ! sed 's/\x1b\[[0-9;]*m//g' test-run.log | grep -Eq 'Overall Summary: [1-9][0-9]* test cases'; then
-                echo "::error::gdUnit4 executed no test case — check the runner and the import step" >&2
-                exit 1
-              fi
-              ;;
-            gut)
-              # GUT defaults to res://test; both common directories are scanned — adjust to the project layout
-              if [ ! -d addons/gut ]; then
-                echo "::error::addons/gut missing — tests must not be skipped" >&2
-                exit 1
-              fi
-              if ! find test tests -name 'test_*.gd' -print -quit 2>/dev/null | grep -q .; then
-                echo "::error::no GUT test suites (test_*.gd) under test/ or tests/ — a green run with zero tests is a failure" >&2
-                exit 1
-              fi
-              godot --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://test,res://tests -gexit
-              ;;
-            *)
-              echo "::error::unknown test-runner '$TEST_RUNNER' — expected 'gdunit4' or 'gut'" >&2
-              exit 1
-              ;;
-          esac
+          just test 2>&1 | tee test-run.log
       - name: Upload test reports (JUnit XML and runner log)
         # gdUnit4 tees the run to test-run.log and writes reports/report_<n>/results.xml; the GUT branch leaves neither
         if: always()
@@ -157,7 +134,7 @@ jobs:
 
   lint:
     # outside the Godot container: the image has no pinned Python. gdformat has no exclusion flag
-    # (only `excluded_directories` in gdformatrc, which this kit does not ship), so find skips addons/ and .godot/
+    # (only `excluded_directories` in gdformatrc, which this kit does not ship), so the recipe's find skips them
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -168,11 +145,18 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements-gdtoolkit.txt
-      - name: gdformat --check and gdlint (project scripts; addons/ and .godot/ excluded)
+      - name: Install just (pinned, sha-256 checked; the recipes come from the project's kit.just)
         shell: bash
+        env:
+          JUST_VERSION: 1.58.0
+          JUST_SHA256: 4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d
         run: |
           set -euo pipefail
-          find . -name '*.gd' -not -path './addons/*' -not -path './.godot/*' -print0 > scripts.lst
-          test -s scripts.lst
-          xargs -0 gdformat --check < scripts.lst
-          xargs -0 gdlint < scripts.lst
+          wget -q -O "$RUNNER_TEMP/just.tar.gz" \
+            "https://github.com/casey/just/releases/download/$JUST_VERSION/just-$JUST_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          echo "$JUST_SHA256  $RUNNER_TEMP/just.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/just-bin"
+          tar -xzf "$RUNNER_TEMP/just.tar.gz" -C "$RUNNER_TEMP/just-bin" just
+          echo "$RUNNER_TEMP/just-bin" >> "$GITHUB_PATH"
+      - name: gdformat --check and gdlint (just lint; project scripts, addons/ and .godot/ left out)
+        run: just lint

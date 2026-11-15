@@ -135,6 +135,36 @@
           "uniqueItems": true,
           "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
           "default": ["decision"]
+        },
+        "doc_structure": {
+          "description": "The README and done/INDEX.md check (check_docs_structure.py, KIT-074), opt-in; read by sync-project.sh (vendors the check when enabled), the check itself and the docs just module",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "description": "Run the check: sync-project.sh vendors it into .github/spec-lint/ and just lint runs it",
+              "type": "boolean",
+              "default": false
+            },
+            "exempt": {
+              "description": "File of fnmatch globs (one per line, from the repository root) for folders a parent README covers",
+              "type": "string",
+              "pattern": "^(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
+              "default": ".github/doc-structure-exempt.txt"
+            },
+            "headings": {
+              "description": "Headings every folder README carries after its # title",
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "pattern": "^#{2,6} \\S" },
+              "default": ["## What goes here", "## What does not go here"]
+            },
+            "done_index": {
+              "description": "Every done/ folder has an INDEX.md naming each direct child",
+              "type": "boolean",
+              "default": true
+            }
+          }
         }
       }
     },
