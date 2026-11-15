@@ -25,6 +25,11 @@ sdd:
   rule_paths: {}
   visual_approval: none
   owner_approvals: [decision]
+  doc_structure:
+    enabled: false
+    exempt: .github/doc-structure-exempt.txt
+    headings: ["## What goes here", "## What does not go here"]
+    done_index: true
 ---
 
 # [Project name] — Specification

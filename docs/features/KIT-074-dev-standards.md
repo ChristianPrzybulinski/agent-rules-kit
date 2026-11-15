@@ -38,6 +38,8 @@ to the CLI for that reason).
    `## What does not go here`), `done_index` (default true). Always exempt: `.github` itself (GitHub shows a
    `.github/README.md` in place of the root README) and the folders `sync-project.sh` generates. `sync-project.sh`
    vendors it into `.github/spec-lint/` while enabled and removes it when turned off; `--check` flags a leftover.
+   The `spec.md` template that `init-spec.sh` copies (`plugins/guardrails/templates/spec-index.md`) carries the block
+   with its defaults, like every other `sdd` key.
    The kit's own `check_kit.py` rule "INDEX.md only at plugins/<name>/" now says it is the kit repository's rule
    (`check_kit.py` message, `.github/CONTRIBUTING.md`).
 2. `platforms/kits/just/{godot,java,python,docs}.just`: standard recipes `test`, `verify`, `fmt`, `lint`, `run` where
