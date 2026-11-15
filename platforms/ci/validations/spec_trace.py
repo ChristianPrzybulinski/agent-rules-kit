@@ -79,7 +79,8 @@ UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
 STATUS_CLOSED = ("validated", "delivered")
 STATUS_FROZEN = STATUS_CLOSED + ("cancelled",)
 VALIDATE_FROM = ("clarified", "planned", "in-progress")
-ROW_CLOSED = ("done", "superseded")  # a superseded row was replaced by another and closes like a done one
+ROW_CLOSED = ("done", "superseded", "cancelled")  # superseded: replaced by another row; cancelled: a resync removed
+# its work (KIT-068); both close like a done row
 NEED_SETTLED = ("delivered", "rejected", "merged", "routed", "parked")
 PENDING = "—"
 JOURNEY_STATUS = ("proposed", "approved", "retired")

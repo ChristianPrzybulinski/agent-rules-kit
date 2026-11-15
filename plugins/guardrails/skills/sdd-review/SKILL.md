@@ -21,7 +21,7 @@ Scripts do the mechanical part; the model reads only what they flag. `TRACE` is 
 
 ## 1. Gate the start (script)
 
-`python3 TRACE validate docs/spec FEAT-nnn --at <main sha> --check`. Before the closure record exists it must report only that record missing: every task row done (or superseded by another row), and every step of a journey that a NEED listing the FEAT names cites its tasks and tests. A step still `—` goes back to `sdd-tasks` for the row that fills it.
+`python3 TRACE validate docs/spec FEAT-nnn --at <main sha> --check`. Before the closure record exists it must report only that record missing: every task row done (or superseded by another row, or cancelled by a resync), and every step of a journey that a NEED listing the FEAT names cites its tasks and tests. A step still `—` goes back to `sdd-tasks` for the row that fills it.
 
 ## 2. Run the scripts on main
 

@@ -17,9 +17,11 @@ every listed id must exist with the right kind, a refined or delivered NEED name
 lists only delivered FEATs, or, for a decision NEED with no FEAT, an approved decision. A REQ that no FEAT implements
 yet must be listed by an open NEED, not a delivered, rejected, merged, routed or parked one (REQs are written before
 the FEAT that delivers them).
-A FEAT at `validated` or `delivered` carries the History line of the step that moved it (KIT-069), written by
-spec_trace.py: `sdd-review: validated`, then `sdd-release: delivered` or, under `release: merge`, `sdd-review:
-delivered`; a FEAT delivered before that step existed carries `delivered before sdd-review` instead.
+
+A FEAT at `validated` or `delivered` carries the History line of the step that moved it (KIT-069, rule
+feature-closure), written by spec_trace.py: `sdd-review: validated`, then `sdd-release: delivered` or, under
+`release: merge`, `sdd-review: delivered`; a FEAT delivered before that step existed carries `delivered before
+sdd-review` instead.
 
 Task rows (KIT-068): a FEAT's `## Tasks` table (header `| ID | Task | ...`, rows `T<n>`). With `sdd.tracker: none` each
 cut item is docs/spec/tasks/TASK-nnn-slug.md (task.schema.json); its `feat` and `rows` and the rows' `Item` cell name
@@ -56,7 +58,7 @@ SPEC_DIR = None  # set by main(); a finding's key is relative to it
 # Rule ids a baseline may hold; each fail() call names one.
 RULES = ("frontmatter", "schema", "id-file", "id-duplicate", "decision-kinds", "sdd-params", "conflict-marker",
          "need-link", "need-status", "progress", "link-missing", "link-one-sided", "req-unlisted", "task-file",
-         "task-item", "task-chain", "task-cycle", "task-depends")
+         "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure")
 MEASURED = ("task-chain",)  # the baseline holds the longest chain in rows, not a count of findings
 
 
@@ -476,12 +478,12 @@ def check_feature_closure(path, status):
     marks = {m.groups() for m in CLOSURE_LINE.finditer(history)}
     if status == "validated" and ("sdd-review", "validated") not in marks:
         fail(f"{path}: status validated needs the History line sdd-review writes "
-             "('- YYYY-MM-DD sdd-review: validated at <sha>'): run spec_trace.py validate")
+             "('- YYYY-MM-DD sdd-review: validated at <sha>'): run spec_trace.py validate", "feature-closure", path)
     if status == "delivered" and not (marks & {("sdd-release", "delivered"), ("sdd-review", "delivered")}
                                       or LEGACY_DELIVERED.search(history)):
         fail(f"{path}: status delivered needs the History line sdd-release writes "
              "('- YYYY-MM-DD sdd-release: delivered in <version>'): run spec_trace.py deliver, or validate under "
-             "release: merge")
+             "release: merge", "feature-closure", path)
 
 
 NEED_LINKS = {"requirements": "requirement", "decisions": "decision", "debts": "debt", "features": "feature"}

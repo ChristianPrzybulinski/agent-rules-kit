@@ -93,7 +93,7 @@ Claude ran independent checks at once without loading the skill. Issue #240 send
   `spec_trace.py deliver` (FEAT and complete NEEDs `delivered`), feedback to `sdd-intake` as child NEEDs; under
   `release: merge` it changes no status.
 - Statuses: `spec_trace.py status` derives `in-progress` at most and fails a validated or delivered FEAT with an open
-  row (`done` and `superseded` close a row); `validate` (rows closed, a `## Closure` record, every step of a journey that a NEED listing the FEAT names filled)
+  row (`done`, `superseded` and KIT-068's `cancelled` close a row); `validate` (rows closed, a `## Closure` record, every step of a journey that a NEED listing the FEAT names filled)
   writes `validated`, or `delivered` under `release: merge`; `deliver` writes `validated → delivered`; both append a
   History line and move each NEED whose FEATs are all delivered and cover its REQs. `check_spec.py` requires that line
   on a validated or delivered FEAT, or `delivered before sdd-review` on one delivered under the old derivation. This
