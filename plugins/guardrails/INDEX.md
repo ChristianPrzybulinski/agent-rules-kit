@@ -40,6 +40,7 @@
 
 ## `rules/`
 
+- `docker.md`
 - `godot.md`
 - `java.md`
 - `json.md`
@@ -71,11 +72,17 @@
 
 - `code-standards-one-decision-one-place`
 - `git-squash-body`
+- `git-trigger-commit-this`
 - `godot-standards-boot-exit-code`
+- `investigate-trigger-slow-job`
 - `java-standards-no-field-injection`
+- `parallelize-trigger-three-checks`
 - `protocol-contract-required-field-bumps-version`
 - `review-claimed-proof-not-rerun`
+- `review-trigger-can-i-merge`
+- `security-trigger-download-endpoint`
 - `session-closeout-no-rerun`
+- `session-trigger-handoff`
 - `testing-empty-return-passes`
 - `testing-gdscript-coverage-command`
 - `testing-gdscript-mutation-command`

@@ -393,10 +393,14 @@ if agents_md.exists():
         fail(rel(agents_md), f"{agents_lines} lines (>{AGENTS_MAX_LINES})")
 elif KIT_PLUGIN in plugins:
     fail(f"plugins/{KIT_PLUGIN}/AGENTS.md", f"{KIT_PLUGIN} plugin requires AGENTS.md")
+agents_bullets = {line[2:] for line in agents_md.read_text(encoding="utf-8").splitlines()
+                  if line.startswith("- ")} if agents_md.exists() else set()
 
 
 # --- 5. Subagents and hooks ---
 agent_owners = {}  # profile name -> plugin name
+agent_skills = {}  # profile path -> the skills it preloads (KIT-071), checked once the skills are known
+user_only_skills = set()  # skills with triggers: [user]; a subagent cannot preload them
 for name, plugin_dir in plugins.items():
     agents_root = plugin_dir / "agents"
     if not agents_root.exists():
@@ -430,11 +434,19 @@ for name, plugin_dir in plugins.items():
             if data["name"] in agent_owners:
                 fail(rel(profile), f"agent '{data['name']}' already defined in plugin '{agent_owners[data['name']]}'")
             agent_owners[data["name"]] = name
+        if isinstance(data.get("skills"), list):
+            agent_skills[profile] = data["skills"]
 
 hooks_path = plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN) / "hooks/hooks.json"
 guard_commands = []
 post_edit_commands = []
 session_start_commands = []
+git_context_commands = []
+checklist_commands = []
+attribution_commands = []
+GIT_CONTEXT_MARKER = "ai-kit git, after this "
+CHECKLIST_MARKER = "ai-kit session start:"
+ATTRIBUTION_MARKER = "ai-kit attribution:"
 if hooks_path.exists():
     hooks_data = read_json(hooks_path)
     if not isinstance(hooks_data, dict) or set(hooks_data) != {"hooks"}:
@@ -444,7 +456,7 @@ if hooks_path.exists():
         if not isinstance(hook_events, dict):
             fail(rel(hooks_path), "hooks must be an object")
             hook_events = {}
-        unknown_events = set(hook_events) - {"PreToolUse", "PostToolUse", "SessionStart"}
+        unknown_events = set(hook_events) - {"PreToolUse", "PostToolUse", "SessionStart", "SubagentStart"}
         if unknown_events:
             fail(rel(hooks_path), f"unsupported hooks: {sorted(unknown_events)}")
         pre_tool_hooks = hook_events.get("PreToolUse", [])
@@ -483,7 +495,11 @@ if hooks_path.exists():
                     if not isinstance(command, str) or not command:
                         fail(rel(hooks_path), f"{location} command missing")
                     elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
-                        guard_commands.append((command, timeout))
+                        # KIT-071: the guard denies; the git context hook only adds context after a commit or PR.
+                        if GIT_CONTEXT_MARKER in command:
+                            git_context_commands.append((command, timeout))
+                        else:
+                            guard_commands.append((command, timeout))
         post_tool_hooks = hook_events.get("PostToolUse", [])
         if not isinstance(post_tool_hooks, list):
             fail(rel(hooks_path), "hooks.PostToolUse must be an array")
@@ -554,7 +570,42 @@ if hooks_path.exists():
                     if not isinstance(command, str) or not command:
                         fail(rel(hooks_path), f"{location} command missing")
                     elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
-                        session_start_commands.append((command, timeout))
+                        if CHECKLIST_MARKER in command:
+                            checklist_commands.append((command, timeout))
+                        else:
+                            session_start_commands.append((command, timeout))
+        # KIT-071: SessionStart context never reaches a subagent, so the attribution line repeats at SubagentStart.
+        subagent_start_hooks = hook_events.get("SubagentStart", [])
+        if not isinstance(subagent_start_hooks, list):
+            fail(rel(hooks_path), "hooks.SubagentStart must be an array")
+        else:
+            for group_index, group in enumerate(subagent_start_hooks):
+                if not isinstance(group, dict):
+                    fail(rel(hooks_path), f"SubagentStart[{group_index}] must be an object")
+                    continue
+                if group.get("matcher", "") not in ("", "*"):
+                    fail(rel(hooks_path), f"SubagentStart[{group_index}] must match every agent type (no matcher)")
+                hooks = group.get("hooks")
+                if not isinstance(hooks, list):
+                    fail(rel(hooks_path), f"SubagentStart[{group_index}].hooks must be an array")
+                    continue
+                for hook_index, hook in enumerate(hooks):
+                    location = f"SubagentStart[{group_index}].hooks[{hook_index}]"
+                    if not isinstance(hook, dict):
+                        fail(rel(hooks_path), f"{location} must be an object")
+                        continue
+                    if hook.get("type") != "command":
+                        fail(rel(hooks_path), f"{location} type must be 'command'")
+                    timeout = hook.get("timeout")
+                    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout > 10:
+                        fail(rel(hooks_path), f"{location} timeout must be at most 10")
+                    command = hook.get("command")
+                    if not isinstance(command, str) or not command:
+                        fail(rel(hooks_path), f"{location} command missing")
+                    elif ATTRIBUTION_MARKER not in command:
+                        fail(rel(hooks_path), f"{location} is not the attribution hook ('{ATTRIBUTION_MARKER}')")
+                    elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
+                        attribution_commands.append((command, timeout))
 elif KIT_PLUGIN in plugins:
     fail(f"plugins/{KIT_PLUGIN}/hooks/hooks.json", f"{KIT_PLUGIN} plugin requires hooks/hooks.json")
 
@@ -729,6 +780,117 @@ else:
                 elif result.stdout != "":
                     fail(rel(session_start_cases_path), f"session-start case '{name}': expected silence, got {result.stdout!r}")
 
+# KIT-071: the session-start checklist, the subagent attribution and the git context hook add context only; they never
+# deny or warn. The attribution line speaks only where includeGitInstructions is false, then with the user's own
+# attribution text where one is set and nothing where it is empty, so the user's choice wins; each case runs with an empty
+# HOME and a throwaway project. A case is (name, settings, words the line must hold, words it must not); no words: silent.
+DEFAULT_TRAILER = "Co-Authored-By: <your model's display name"
+DEFAULT_FOOTER = "Generated with [Claude Code]"
+CUSTOM_TRAILER = "Co-Authored-By: Bot <bot@example.invalid>"
+ATTRIBUTION_CASES = (
+    ("off", {"includeGitInstructions": False}, (DEFAULT_TRAILER, DEFAULT_FOOTER), ()),
+    ("default", {}, (), ()),
+    ("hidden attribution", {"includeGitInstructions": False, "attribution": {"commit": "", "pr": ""}}, (), ()),
+    ("custom attribution", {"includeGitInstructions": False, "attribution": {"commit": CUSTOM_TRAILER}},
+     (CUSTOM_TRAILER, DEFAULT_FOOTER), (DEFAULT_TRAILER,)))
+CHECKLIST_WORDS = ("outcome", "AGENTS.md", "README", "branch", "HEAD", "skill `session`")
+
+
+def run_start_hook(command, timeout, event, settings):
+    """(exit code or None, hookEventName, additionalContext, stdout) of a start hook in a throwaway project."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp) / "project"
+        (project / ".claude").mkdir(parents=True)
+        (project / ".claude/settings.json").write_text(json.dumps(settings), encoding="utf-8")
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": tmp}
+        payload = json.dumps({"hook_event_name": event, "source": "startup", "cwd": str(project)})
+        try:
+            result = subprocess.run(["bash", "-c", command], input=payload, text=True, capture_output=True,
+                                    timeout=timeout, cwd=tmp, env=env, check=False)
+        except subprocess.TimeoutExpired:
+            return None, "", "", ""
+    try:
+        output = (json.loads(result.stdout).get("hookSpecificOutput") or {}) if result.stdout else {}
+    except (json.JSONDecodeError, AttributeError):
+        output = {}
+    return result.returncode, output.get("hookEventName", ""), output.get("additionalContext") or "", result.stdout
+
+
+if hooks_path.exists() and not checklist_commands:
+    fail(rel(hooks_path), f"SessionStart needs the checklist hook (a command with '{CHECKLIST_MARKER}')")
+if hooks_path.exists() and not attribution_commands:
+    fail(rel(hooks_path), f"SubagentStart needs the attribution hook (a command with '{ATTRIBUTION_MARKER}')")
+checklist_attribution = {}
+for command, timeout in checklist_commands:
+    for name, settings, want, absent in ATTRIBUTION_CASES:
+        code, event, context, _ = run_start_hook(command, timeout, "SessionStart", settings)
+        counts["hook_cases"] += 1
+        line = context[context.find(ATTRIBUTION_MARKER):] if ATTRIBUTION_MARKER in context else ""
+        if code != 0 or event != "SessionStart" or not all(word in context for word in CHECKLIST_WORDS):
+            fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must exit 0 with additionalContext naming "
+                 "the outcome, AGENTS.md, README, branch, HEAD and skill `session`")
+        elif want and not (all(word in line for word in want) and not any(word in line for word in absent)):
+            fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must state {' and '.join(want)}"
+                 + (f" and not {' or '.join(absent)}" if absent else ""))
+        elif not want and (line or "Co-Authored-By" in context):
+            fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must leave attribution to Claude Code")
+        elif want:
+            checklist_attribution[name] = line
+for command, timeout in attribution_commands:
+    for name, settings, want, absent in ATTRIBUTION_CASES:
+        code, event, context, stdout = run_start_hook(command, timeout, "SubagentStart", settings)
+        counts["hook_cases"] += 1
+        if code != 0:
+            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must exit 0")
+        elif want and (event != "SubagentStart" or not context.startswith(ATTRIBUTION_MARKER)
+                       or not all(word in context for word in want) or any(word in context for word in absent)):
+            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must add {' and '.join(want)}"
+                 + (f" and not {' or '.join(absent)}" if absent else "") + " as SubagentStart additionalContext")
+        elif want and name in checklist_attribution and context != checklist_attribution[name]:
+            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must repeat the SessionStart "
+                 "checklist's attribution line")
+        elif not want and stdout != "":
+            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must stay silent, got {stdout!r}")
+
+git_context_cases_path = KIT / "platforms/ci/validations/hook_git_context_cases.json"
+git_context_cases = read_json(git_context_cases_path) if git_context_cases_path.exists() else None
+if hooks_path.exists() and not git_context_commands:
+    fail(rel(hooks_path), f"PreToolUse needs the git context hook (a command with '{GIT_CONTEXT_MARKER}')")
+if git_context_cases is None:
+    if not git_context_cases_path.exists():
+        fail(rel(git_context_cases_path), "hook git context cases missing")
+elif not isinstance(git_context_cases, dict):
+    fail(rel(git_context_cases_path), "top level must be an object")
+else:
+    expectations = {"commit": GIT_CONTEXT_MARKER + "commit", "PR": GIT_CONTEXT_MARKER + "PR", "silent": ""}
+    for key in expectations:
+        if not isinstance(git_context_cases.get(key), list) or len(git_context_cases[key]) < 5:
+            fail(rel(git_context_cases_path), f"{key} must be an array of at least 5 commands")
+    for command, timeout in git_context_commands:
+        for key, want in expectations.items():
+            for case in git_context_cases.get(key) or []:
+                if not isinstance(case, str):
+                    fail(rel(git_context_cases_path), f"{key} case must be a string: {case!r}")
+                    continue
+                payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": case}})
+                try:
+                    result = subprocess.run(["bash", "-c", command], input=payload, text=True, capture_output=True,
+                                            timeout=timeout, check=False)
+                except subprocess.TimeoutExpired:
+                    fail(rel(git_context_cases_path), f"{key} case timed out: {case}")
+                    continue
+                counts["hook_cases"] += 1
+                try:
+                    output = (json.loads(result.stdout) or {}).get("hookSpecificOutput") or {} if result.stdout else {}
+                except (json.JSONDecodeError, AttributeError):
+                    output = None
+                if result.returncode != 0 or output is None or "permissionDecision" in output:
+                    fail(rel(git_context_cases_path), f"{key} case must exit 0 without a decision: {case}")
+                elif want and not str(output.get("additionalContext", "")).startswith(want):
+                    fail(rel(git_context_cases_path), f"{key} case got no '{want}' context: {case}")
+                elif not want and result.stdout != "":
+                    fail(rel(git_context_cases_path), f"silent case printed {result.stdout!r}: {case}")
+
 
 # --- 6. Skills ---
 skill_names = {}
@@ -788,6 +950,8 @@ for name, plugin_dir in plugins.items():
             fail(rel(skill_file), "context: fork requires subagent: true or agent")
 
         user_only = data.get("triggers") == ["user"]
+        if user_only:
+            user_only_skills.add(skill_name)
         codex_policy = skill_dir / "agents/openai.yaml"
         policy_disabled = False
         if codex_policy.exists():
@@ -832,6 +996,17 @@ if description_total > DESCRIPTIONS_BUDGET:
     longest = ", ".join(f"{name}={length}" for name, length in sorted(
         skill_descriptions, key=lambda item: (-item[1], item[0]))[:5])
     fail("skills", f"description budget {description_total} chars (>{DESCRIPTIONS_BUDGET}); longest: {longest}")
+
+for profile, preloaded in agent_skills.items():
+    for skill in preloaded:
+        plugin, _, short = str(skill).rpartition(":")
+        if not plugin:
+            # Claude Code resolves a bare name to its bundled skill first: `review` loaded the built-in review (KIT-071).
+            fail(rel(profile), f"skills: '{skill}' needs its plugin prefix; a bare name can resolve to a bundled skill")
+        elif skill_names.get(short) != plugin:
+            fail(rel(profile), f"skills: '{skill}' is not a kit skill")
+        elif short in user_only_skills:
+            fail(rel(profile), f"skills: '{skill}' is user-only; cannot be preloaded")
 
 
 # --- 7. Rules ---
@@ -970,6 +1145,15 @@ for name, plugin_dir in plugins.items():
                 fail(rel(entry), "eval case without prompt.md or case.yaml")
             if not any((entry / "graders").glob("*.md")):
                 fail(rel(entry), "eval case without graders/*.md")
+            # KIT-071: a run loads no CLAUDE.md, so a trigger case appends its always-on line; it must not drift.
+            case_data = frontmatter(entry / "prompt.md")[0] if (entry / "prompt.md").exists() else None
+            appended = (case_data or {}).get("append_system_prompt")
+            case_tags = (case_data or {}).get("tags")
+            if FULL and appended is None and isinstance(case_tags, list) and "trigger" in case_tags:
+                fail(rel(entry / "prompt.md"), "a trigger case needs append_system_prompt with its AGENTS.md bullet")
+            elif FULL and appended is not None and appended not in agents_bullets:
+                fail(rel(entry / "prompt.md"), f"append_system_prompt must repeat one bullet of {rel(agents_md)} "
+                     "without its '- '")
 
 
 # --- 10. Relative links ---
