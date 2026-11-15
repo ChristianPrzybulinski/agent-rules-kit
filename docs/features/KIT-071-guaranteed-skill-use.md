@@ -69,8 +69,8 @@ every session twice; `skill_usage.py` keeps one path per real file.
    - "A bug with no named cause → load skill `investigate` before any fix." (§ Work loop)
    - "A trust-boundary change, a secret or a dependency CVE → load skill `security`." (§ Security, was "Detail: skill `security`.")
    - "\"Is it done?\", or about to claim done or open a PR → load skill `review`." (§ Truth)
-   `sdd-intake` gets its line once KIT-066 (#232) merges, since the skill does not exist on `main` yet; with
-   `AGENTS.md` at 60 of 60 lines, that trigger has to join an existing line.
+   `sdd-intake` (KIT-066, #232, merged into this branch from `main` at `811ed78`) has no line yet: with `AGENTS.md`
+   at 60 of 60 lines its trigger has to join an existing line, and it needs its own eval case (#245).
 2. `platforms/tools/sync-project.sh` writes `"includeGitInstructions": false` into the generated
    `.claude/settings.json`, and `--check` reports "includeGitInstructions: want false" when it is missing or `true`
    (`test_sync_project.py` covers both). README § Claude Code tells the user to set it in `~/.claude/settings.json`
@@ -83,14 +83,40 @@ every session twice; `skill_usage.py` keeps one path per real file.
    Bash tool's commit and PR instructions: by default the session quoted `Co-Authored-By: Claude Sonnet 5.5
    <noreply@anthropic.com>` and the `🤖 Generated with [Claude Code](https://claude.com/claude-code)` PR footer; with
    `false` it had neither, and Claude Code's own `attribution` setting did not bring them back. Item 3 restores both.
-3. `plugins/guardrails/hooks/hooks.json` SessionStart, a second group (matcher `^(startup|clear)$`) that prints a fixed
-   `additionalContext`: name the one outcome; read the repository `AGENTS.md` and README; verify the working directory,
-   Git root, branch and head commit with the three `git` commands; skill `session` holds the steps; and, because
-   item 2 drops Claude Code's attribution, end each commit with `Co-Authored-By: Claude <your model name>
-   <noreply@anthropic.com>` and each PR body with the Claude Code footer unless the project's rules say otherwise.
-   With the plugin loaded (`--plugin-dir`) and the project setting `false`, the probe session's commit would end with
-   `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`, Claude Code's own format. No interpreter starts: it is
-   one `printf`.
+3. `plugins/guardrails/hooks/hooks.json` SessionStart, a second group (matcher `^(startup|clear)$`), and a
+   SubagentStart group (no matcher, so every agent type), both one inline `python3 -c` that differs only in its event
+   argument. At SessionStart it adds the checklist: name the one outcome; read the repository `AGENTS.md` and README;
+   verify the working directory, Git root, branch and head commit with the three `git` commands; skill `session` holds
+   the steps. In both events it adds the attribution line (end each commit with `Co-Authored-By: <your model's display
+   name, as in Claude Sonnet 5.5> <noreply@anthropic.com>` and each PR body with the Claude Code footer unless the
+   project's rules say otherwise), and only while item 2's setting is in force and the user chose no attribution of
+   their own: the user file (`$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`), the project's
+   `.claude/settings.json` and its `.claude/settings.local.json`, read in that order with the later file winning
+   (project root from `CLAUDE_PROJECT_DIR`, else the payload's `cwd`), leave `includeGitInstructions` at `false`, or
+   `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS` is `1`, and none sets `attribution` or the deprecated `includeCoAuthoredBy`.
+   It makes no network call, ignores a missing or broken file, and takes about 0.05 s; it does not read `--settings`
+   or managed settings.
+   - [FACT] With the plugin loaded (`--plugin-dir`) and the project setting `false`, the first round's probe session
+     said its commit would end with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`, Claude Code's own format.
+   - [FACT] SessionStart context does not reach a subagent: in the coordinator's probe at `a647618`, an Agent-tool
+     subagent in a synced repository answered `NONE`, with no trailer anywhere in its transcript. The hooks doc says a
+     SubagentStart `additionalContext` is "added to the subagent's context at the start of its conversation, before
+     its first prompt".
+   - [FACT] Second-round probe: `claude -p --setting-sources project,local --plugin-dir <plugin> --model haiku` in a
+     throwaway repository whose `.claude/settings.json` sets `includeGitInstructions: false`, with the main session told
+     to dispatch a `general-purpose` subagent that names its commit trailer without tools. With this branch's plugin,
+     the subagent transcript (`<session>/subagents/agent-*.jsonl`) holds a `hook_additional_context` attachment from
+     `SubagentStart` carrying the attribution line alone, and the subagent wrote
+     `Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>`. With the `a647618` plugin (no SubagentStart group), the
+     subagent answered `NONE` and its transcript names no trailer.
+   - [FACT] The first round's placeholder `Claude <your model name>` let haiku write its raw model id; the placeholder
+     now asks for the display name and drops the leading `Claude`, which the display name already holds.
+   - [HYPOTHESIS] Local Devin, which also loads this file, ignores the `SubagentStart` key. Devin's hook docs list
+     eight events without it, and the Claude hook event names in its binary do not include it either. Neither
+     `devin doctor` nor an ACP session started with no prompt showed how Devin treats an unknown key. Falsifier: in
+     Devin CLI with this plugin installed, the PreToolUse guard stops denying a command that `hook_guard_cases.json`
+     blocks. The owner's local Devin has only `core v11.3.0` installed (`devin plugins list`, 2026-11-15), so no
+     current install loads this file.
 4. `hooks.json` PreToolUse, a second group (matcher `^(exec|Bash)$`, timeout 5 s) that never denies: after a
    `git commit` it adds the `git` § 3-4 essentials for the next step (title, explicit staging, body with why, what and
    proof, fix the unpushed commit, `git fetch` and `git log --oneline origin/main..HEAD` before a push, no force-push
@@ -146,7 +172,8 @@ approved design are not in this PR, each tracked:
 - an `InstructionsLoaded` hook that counts path-rule loads → KIT-070, whose gate needs those counts (#238);
 - skill `docker` slimmed to running and remote hosts, now that `rules/docker.md` owns the file rules → KIT-070 (#239);
 - `parallelize` slimmed and its fan-out moved into `sdd-implement` → KIT-069 (#240);
-- kit skills preloaded into the consumer project's loop children → its adoption checklist (#241).
+- kit skills preloaded into the consumer project's loop children → its adoption checklist (#241);
+- the `sdd-intake` trigger line and its eval case, now that KIT-066 is on `main` → #245.
 
 ## Proof
 
@@ -185,8 +212,8 @@ Trigger evals, 2026-11-14, Claude Code 2.1.287, `claude plugin eval plugins --ta
 - Falsifier for the real-session effect: after 30 days with this change installed, `skill_usage.py --days 30` still
   shows Claude Code loading `git` in about 0 sessions.
 
-Gates of the first round at `7f95c0a` (2026-11-14, macOS, load average 14 to 17 from other sessions); the review fix
-round's gates are in the PR body:
+Gates of the first round at `7f95c0a` (2026-11-14, macOS, load average 14 to 17 from other sessions); the gates of
+both review fix rounds are in the PR body:
 
 | command | result |
 |---|---|
@@ -203,3 +230,6 @@ round's gates are in the PR body:
 - 2026-11-14: confirmed (owner, KIT-067 design session); implemented on branch `kit-071-skill-use`.
 - 2026-11-14: review fix round after the coordinator's NOT READY at `dea5f36` (reviewer preload names, docker
   profiles, session counting, listings report, attribution, follow-up issues #238 to #241).
+- 2026-11-15: second review fix round after the coordinator's PARTIAL at `a647618`: the attribution line also at
+  SubagentStart, only where Claude Code's own attribution is off and the user set none, with a display-name
+  placeholder; `origin/main` (KIT-066) merged in; follow-up #245.

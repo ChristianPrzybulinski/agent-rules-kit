@@ -443,8 +443,10 @@ post_edit_commands = []
 session_start_commands = []
 git_context_commands = []
 checklist_commands = []
+attribution_commands = []
 GIT_CONTEXT_MARKER = "ai-kit git, after this "
 CHECKLIST_MARKER = "ai-kit session start:"
+ATTRIBUTION_MARKER = "ai-kit attribution:"
 if hooks_path.exists():
     hooks_data = read_json(hooks_path)
     if not isinstance(hooks_data, dict) or set(hooks_data) != {"hooks"}:
@@ -454,7 +456,7 @@ if hooks_path.exists():
         if not isinstance(hook_events, dict):
             fail(rel(hooks_path), "hooks must be an object")
             hook_events = {}
-        unknown_events = set(hook_events) - {"PreToolUse", "PostToolUse", "SessionStart"}
+        unknown_events = set(hook_events) - {"PreToolUse", "PostToolUse", "SessionStart", "SubagentStart"}
         if unknown_events:
             fail(rel(hooks_path), f"unsupported hooks: {sorted(unknown_events)}")
         pre_tool_hooks = hook_events.get("PreToolUse", [])
@@ -572,6 +574,38 @@ if hooks_path.exists():
                             checklist_commands.append((command, timeout))
                         else:
                             session_start_commands.append((command, timeout))
+        # KIT-071: SessionStart context never reaches a subagent, so the attribution line repeats at SubagentStart.
+        subagent_start_hooks = hook_events.get("SubagentStart", [])
+        if not isinstance(subagent_start_hooks, list):
+            fail(rel(hooks_path), "hooks.SubagentStart must be an array")
+        else:
+            for group_index, group in enumerate(subagent_start_hooks):
+                if not isinstance(group, dict):
+                    fail(rel(hooks_path), f"SubagentStart[{group_index}] must be an object")
+                    continue
+                if group.get("matcher", "") not in ("", "*"):
+                    fail(rel(hooks_path), f"SubagentStart[{group_index}] must match every agent type (no matcher)")
+                hooks = group.get("hooks")
+                if not isinstance(hooks, list):
+                    fail(rel(hooks_path), f"SubagentStart[{group_index}].hooks must be an array")
+                    continue
+                for hook_index, hook in enumerate(hooks):
+                    location = f"SubagentStart[{group_index}].hooks[{hook_index}]"
+                    if not isinstance(hook, dict):
+                        fail(rel(hooks_path), f"{location} must be an object")
+                        continue
+                    if hook.get("type") != "command":
+                        fail(rel(hooks_path), f"{location} type must be 'command'")
+                    timeout = hook.get("timeout")
+                    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout > 10:
+                        fail(rel(hooks_path), f"{location} timeout must be at most 10")
+                    command = hook.get("command")
+                    if not isinstance(command, str) or not command:
+                        fail(rel(hooks_path), f"{location} command missing")
+                    elif ATTRIBUTION_MARKER not in command:
+                        fail(rel(hooks_path), f"{location} is not the attribution hook ('{ATTRIBUTION_MARKER}')")
+                    elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
+                        attribution_commands.append((command, timeout))
 elif KIT_PLUGIN in plugins:
     fail(f"plugins/{KIT_PLUGIN}/hooks/hooks.json", f"{KIT_PLUGIN} plugin requires hooks/hooks.json")
 
@@ -746,22 +780,68 @@ else:
                 elif result.stdout != "":
                     fail(rel(session_start_cases_path), f"session-start case '{name}': expected silence, got {result.stdout!r}")
 
-# KIT-071: the session-start checklist and the git context hook add context only; they never deny or warn.
+# KIT-071: the session-start checklist, the subagent attribution and the git context hook add context only; they never
+# deny or warn. The attribution line speaks only where includeGitInstructions is false and no attribution setting exists,
+# so a user's own attribution choice wins; each case runs with an empty HOME and a throwaway project.
+ATTRIBUTION_CASES = (("off", {"includeGitInstructions": False}, True), ("default", {}, False),
+                     ("own attribution", {"includeGitInstructions": False, "attribution": {"commit": ""}}, False))
+CHECKLIST_WORDS = ("outcome", "AGENTS.md", "README", "branch", "HEAD", "skill `session`")
+ATTRIBUTION_WORDS = ("Co-Authored-By: <your model's display name", "Generated with [Claude Code]")
+
+
+def run_start_hook(command, timeout, event, settings):
+    """(exit code or None, hookEventName, additionalContext, stdout) of a start hook in a throwaway project."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp) / "project"
+        (project / ".claude").mkdir(parents=True)
+        (project / ".claude/settings.json").write_text(json.dumps(settings), encoding="utf-8")
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": tmp}
+        payload = json.dumps({"hook_event_name": event, "source": "startup", "cwd": str(project)})
+        try:
+            result = subprocess.run(["bash", "-c", command], input=payload, text=True, capture_output=True,
+                                    timeout=timeout, cwd=tmp, env=env, check=False)
+        except subprocess.TimeoutExpired:
+            return None, "", "", ""
+    try:
+        output = (json.loads(result.stdout).get("hookSpecificOutput") or {}) if result.stdout else {}
+    except (json.JSONDecodeError, AttributeError):
+        output = {}
+    return result.returncode, output.get("hookEventName", ""), output.get("additionalContext") or "", result.stdout
+
+
 if hooks_path.exists() and not checklist_commands:
     fail(rel(hooks_path), f"SessionStart needs the checklist hook (a command with '{CHECKLIST_MARKER}')")
+if hooks_path.exists() and not attribution_commands:
+    fail(rel(hooks_path), f"SubagentStart needs the attribution hook (a command with '{ATTRIBUTION_MARKER}')")
+checklist_attribution = set()
 for command, timeout in checklist_commands:
-    payload = json.dumps({"hook_event_name": "SessionStart", "source": "startup", "cwd": str(KIT)})
-    try:
-        result = subprocess.run(["bash", "-c", command], input=payload, text=True, capture_output=True,
-                                timeout=timeout, check=False)
-        context = (json.loads(result.stdout).get("hookSpecificOutput") or {}).get("additionalContext") or ""
-    except (subprocess.TimeoutExpired, json.JSONDecodeError, AttributeError):
-        result, context = None, ""
-    counts["hook_cases"] += 1
-    if result is None or result.returncode != 0 or not all(
-            word in context for word in ("outcome", "AGENTS.md", "README", "branch", "HEAD", "skill `session`", "Co-Authored-By")):
-        fail(rel(hooks_path), "SessionStart checklist must exit 0 with additionalContext naming the outcome, "
-             "AGENTS.md, README, branch, HEAD, skill `session` and the Co-Authored-By trailer")
+    for name, settings, speaks in ATTRIBUTION_CASES:
+        code, event, context, _ = run_start_hook(command, timeout, "SessionStart", settings)
+        counts["hook_cases"] += 1
+        if code != 0 or event != "SessionStart" or not all(word in context for word in CHECKLIST_WORDS):
+            fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must exit 0 with additionalContext naming "
+                 "the outcome, AGENTS.md, README, branch, HEAD and skill `session`")
+        elif speaks and not all(word in context for word in ATTRIBUTION_WORDS):
+            fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must state the Co-Authored-By trailer and "
+                 "the PR footer")
+        elif not speaks and "Co-Authored-By" in context:
+            fail(rel(hooks_path), f"SessionStart checklist ({name} settings) must leave attribution to Claude Code")
+        elif speaks:
+            checklist_attribution.add(context[context.find(ATTRIBUTION_MARKER):])
+for command, timeout in attribution_commands:
+    for name, settings, speaks in ATTRIBUTION_CASES:
+        code, event, context, stdout = run_start_hook(command, timeout, "SubagentStart", settings)
+        counts["hook_cases"] += 1
+        if code != 0:
+            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must exit 0")
+        elif speaks and (event != "SubagentStart" or not context.startswith(ATTRIBUTION_MARKER)
+                         or not all(word in context for word in ATTRIBUTION_WORDS)):
+            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must add the trailer and the PR footer "
+                 "as SubagentStart additionalContext")
+        elif speaks and checklist_attribution and context not in checklist_attribution:
+            fail(rel(hooks_path), "SubagentStart attribution must repeat the SessionStart checklist's attribution line")
+        elif not speaks and stdout != "":
+            fail(rel(hooks_path), f"SubagentStart attribution ({name} settings) must stay silent, got {stdout!r}")
 
 git_context_cases_path = KIT / "platforms/ci/validations/hook_git_context_cases.json"
 git_context_cases = read_json(git_context_cases_path) if git_context_cases_path.exists() else None
