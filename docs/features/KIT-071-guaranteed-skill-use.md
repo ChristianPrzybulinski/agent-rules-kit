@@ -134,7 +134,17 @@ Trigger evals, 2026-11-14, Claude Code 2.1.287, `claude plugin eval plugins --ta
 - Falsifier for the real-session effect: after 30 days with this change installed, `skill_usage.py --days 30` still
   shows Claude Code loading `git` in about 0 sessions.
 
-GATES
+Gates at `7f95c0a` (2026-11-14, macOS, load average 14 to 17 from other sessions):
+
+| command | result |
+|---|---|
+| `bash platforms/tools/check.sh` | exit 0: `check: OK (1 plugins, 26 skills, 6 rules, 11 templates, 14 readmes, 111 links, 49 hook cases, 14 shell scripts)`, `gen_index: plugin indexes are current`, both `claude plugin validate` passed (`origin/main`: 5 rules, 110 links, 28 hook cases, 11 shell scripts) |
+| `CI=1 bash platforms/tools/check.sh` | exit 0, same lines |
+| `python3 platforms/ci/validations/check_kit.py --links` | exit 0, same `check: OK` line |
+| `bash platforms/tools/smoke.sh` | exit 0: `smoke: OK (26 skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy, vendored skills, multi-profile sync, no-spec repo)` |
+| `python3 -B -m unittest discover -s platforms/ci/validations -p "test_*.py"` | `Ran 253 tests in 489.814s`, `FAILED (failures=1, skipped=5)`: `test_each_hook_within_budget (hook='compact-transcript')` `0.705 s` against 0.5 s. That hook is `SessionStart[0]`, unchanged. Rerun of the test alone: this branch `0.506 s` FAILED then OK; `origin/main` `3807c85` `0.523 s` FAILED then OK, so it is pre-existing and load-bound. The new suites pass: `test_hooks_context.py` 8, `test_skill_usage.py` 6, `test_sync_project.py` 28 |
+| `gitleaks git --redact --log-opts="origin/main..HEAD"` | gitleaks 8.30.1, `no leaks found` |
+
 
 ## History
 
