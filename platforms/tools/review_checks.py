@@ -204,7 +204,7 @@ def run_group(argv: list[str], cwd: Path, timeout: int) -> tuple[int | str, str]
     """Run argv in its own process group; a timeout, Ctrl-C or any other exit kills the whole group, so no child of
     the shell outlives the tool."""
     proc = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                            start_new_session=True)
+                            errors="replace", start_new_session=True)
     try:
         stdout, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -431,28 +431,32 @@ def red(args) -> int:
 
 
 def repo_rel(args, path) -> str | None:
-    """`path` relative to the repository, or None outside it. Decided on the path as given (absolute, no symlink
-    resolved), so a rules file the head deletes or replaces by a link (to /dev/null, to a file outside) is still the
-    repository's, and its rules are read from base."""
-    full = Path(os.path.abspath(path))
-    for root in args.roots:
-        try:
-            return full.relative_to(root).as_posix()
-        except ValueError:
-            pass
-    return None
+    """`path` relative to the (resolved) repository, or None outside it. Its folder is resolved, so an alias folder or
+    a `..` cannot hide the repository; its leaf is not, so a rules file the head links elsewhere is still the
+    repository's."""
+    given = os.path.join(os.getcwd(), path)
+    full = Path(os.path.realpath(os.path.dirname(given))) / os.path.basename(given)
+    try:
+        return full.relative_to(args.repo).as_posix()
+    except ValueError:
+        return None
 
 
 def rules_text(args, base: str | None, path) -> str | None:
-    """A rules file (REVIEW.md, the gates config). Inside the repository it is read as `base` has it, so a PR cannot
-    loosen its own rules (None when base lacks it); outside, from disk."""
+    """A rules file (REVIEW.md, the gates config). Inside the repository it is always read from git as `base` has it
+    (HEAD when the command takes no base), never from the checkout, so a PR that edits, deletes or relinks it changes
+    nothing (None when that commit lacks it); outside, from disk."""
     rel = repo_rel(args, path)
-    if rel is None or base is None:
+    if rel is None:
+        if not Path(path).is_file():
+            print(f"review_checks: {path} is not a file", file=sys.stderr)
+            sys.exit(2)
         return Path(path).read_text(encoding="utf-8")
-    if not exists_at(args.repo, base, rel):
-        print(f"note: {rel} is not on base {base}; its rules do not apply to this PR")
+    rev = base or "HEAD"
+    if not exists_at(args.repo, rev, rel):
+        print(f"note: {rel} is not on base {rev}; its rules do not apply to this PR")
         return None
-    return git(args.repo, "show", f"{base}:{rel}")
+    return git(args.repo, "show", f"{rev}:{rel}")
 
 
 def gates_config(args) -> dict:
@@ -678,9 +682,10 @@ def main(argv=None) -> int:
     p.add_argument("--head", required=True)
     p.add_argument("--review", help="the project REVIEW.md (default: REVIEW.md in --repo when base has it)")
     args = parser.parse_args(argv)
-    given = Path(os.path.abspath(args.repo))
     args.repo = args.repo.resolve()
-    args.roots = (args.repo, given)
+    for name in ("SIGTERM", "SIGHUP"):  # a supervisor's kill then takes the BaseException path in run_group too
+        if hasattr(signal, name):
+            signal.signal(getattr(signal, name), lambda number, _frame: sys.exit(128 + number))
     if args.command in ("proof", "feat-proofs"):
         if args.run and not (args.allow or args.gates):
             parser.error(f"{args.command} --run needs --allow or --gates (the project's proof allowlist)")

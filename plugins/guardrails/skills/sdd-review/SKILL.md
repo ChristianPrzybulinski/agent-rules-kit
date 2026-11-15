@@ -26,13 +26,13 @@ Scripts do the mechanical part; the model reads only what they flag. `TRACE` is 
 ## 2. Run the scripts on main
 
 - Task proofs: `RC feat-proofs --feat docs/spec/features/FEAT-nnn*.md --run --gates <gates.json> --cwd <folder>` (`--rows` per folder). Each command runs literally after its paths are checked; a run whose output matches its stack's failure pattern fails even at exit 0 (a Godot `-s` run that prints `Can't load script`, `SCRIPT ERROR` or `Parse Error`); a stack lint flags a command that cannot prove what it names (Maven `-Dtest` with `verify` runs every IT). The project adds patterns with `--patterns`.
-- Stale text and trace: `python3 TRACE lint docs/spec FEAT-nnn` — "Not verified" or an Audit still "Pending", `[PROPOSAL]` in Scope, `[HYPOTHESIS]` in Open questions or a done row, "until/once Tn" whose Tn is done, a Plan row count that differs from the table, a History bullet split by a line inserted inside it, and each listed REQ's proving test missing from its trace row.
+- Stale text and trace: `python3 TRACE lint docs/spec FEAT-nnn` — "Not verified" or an Audit still "Pending", `[PROPOSAL]` in Scope, `[HYPOTHESIS]` in Open questions or a done row, "until/once Tn" whose Tn is done, a Plan row count that differs from the table, a History bullet split by lines inserted inside it, and each listed REQ's proving test missing from its trace row.
 - Broad suite: reuse the record of the last wave's broad suite on `main` ("main green per wave", skill `review`, reference `coordination.md`) when `main` has not moved under the FEAT's files since; otherwise run it once. There is no separate re-run of each REQ's tests.
 
 ## 3. Judge what the scripts flagged
 
 - A stale proof (a path that moved, a renamed id): find the current test (grep the CA or REQ id), run it, record both, and correct the Proof cell. Re-run only the proofs this changed.
-- A stale marker: rewrite it as the current fact or delete it, citing the evidence (the merged PR, the config value). A flagged `[PROPOSAL]` in Scope that is settled folds into Scope as fact, a CA or a REQ (a REQ change goes through `sdd-clarify`), keeping a marker: `→ folded into CA-3`. A split History bullet: move the inserted line below the bullet's last line.
+- A stale marker: rewrite it as the current fact or delete it, citing the evidence (the merged PR, the config value). A flagged `[PROPOSAL]` in Scope that is settled folds into Scope as fact, a CA or a REQ (a REQ change goes through `sdd-clarify`), keeping a marker: `→ folded into CA-3`. A split History bullet: move the inserted lines below the bullet's last line.
 - A trace gap: link the test in the journey step's `Proven by`, or correct the REQ's proving test.
 - Each REQ example and counterexample against an asserting test (`path:line`): the output is a list of missing-test rows, not a block on `validated`. The reading is fallible (1 of 3 spot checks was wrong in calibration), so grep each "untested" claim before filing its row.
 - Each REQ-NF: metric, target, measurement — the command, environment and measured value. A planned value never stands in for a measured one.

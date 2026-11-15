@@ -115,8 +115,9 @@ After KIT-068 (#244) merged: `session/references/handoff-record.md` and `templat
 rows' items (issues, or TASK files) instead of the progress file, which stays only for FEATs cut before KIT-068.
 
 Not changed, follow-ups: `pr_gates.py` keeps `protected_paths` as label → globs while `sdd:` holds path →
-label; the `parallelize` trigger case of KIT-071 (#235, merged here in `fbf2953`) is not re-run yet: it needs a
-model run.
+label; the coordinator re-ran the `parallelize` trigger case of KIT-071 at `76f1198`: 0.00 (0 of 5), the same as on
+`main`, so the trigger question moves to KIT-070. `derived_status` still ignores `doing` rows, a gap inherited from
+`main`: #247.
 
 ## Calibration
 
@@ -138,15 +139,16 @@ The owner's adjustment 2: `KIT-069-CALIBRATION-2026-11-14.md` (read-only measure
   every delivered FEAT it reports 1,085 findings, 758 of them trace gaps, so it runs per FEAT at closure, not in CI.
 - [FACT] `review_checks.py feat-proofs --feat FEAT-109` without `--run` (lint only, nothing executed) flags T2, T3 and T9,
   the three `-Dtest=… verify` rows the report found by hand.
-- [FACT] History-split lint (added in the review round): on every consumer FEAT at `8549f51d4` it flags 28 bullets in 26
-  FEATs, among them the report's FEAT-084, FEAT-097, FEAT-063 and FEAT-099; 4 of 4 spot-checked hits are a sync or done
-  line inside an earlier bullet. The cause was the insertion point of `append_history` (after a bullet's first line),
-  which now goes past the bullet's continuation lines. A first line the tool writes (`sdd-review: validated at <sha>`,
-  `done: T2`, ...) or one wider than the FEAT's widest wrapped line plus 8 characters is complete as written and not
-  flagged. On the closed consumer FEATs at `d23561cba` this takes the hits from 12 to 11: the one dropped, FEAT-030:611,
-  is a 226-character bullet on one line in a FEAT that wraps at 122; the 11 kept are real splits (FEAT-016:194,
-  FEAT-030:619, FEAT-046:259, FEAT-048:225, FEAT-054:316 and :323, FEAT-057:1448, FEAT-058:1908, FEAT-063:449,
-  FEAT-068:356, FEAT-069:346). At `8549f51d4` the same bullet is the only one dropped (29 to 28).
+- [FACT] History-split lint (added in the review round): it flags a bullet that stops mid-sentence, followed by one or
+  more complete bullets (each ends a sentence or is a line the tool writes) and then an indented line. The cause was
+  the insertion point of `append_history` (after a bullet's first line), which now goes past the bullet's continuation
+  lines. On the closed consumer FEATs at `8549f51d4` it flags 38 bullets in 33 FEATs, among them the report's FEAT-084,
+  FEAT-097, FEAT-063 and FEAT-099. An earlier rule (one inserted line, then a wrap-width bound) found 28 of them and
+  missed the 10 where 2 to 10 `done` lines landed inside a wrapped bullet: FEAT-004:558, FEAT-005:422 and :427,
+  FEAT-014:128 and :138, FEAT-017:211, FEAT-021:140, FEAT-024:576, FEAT-026:198 and FEAT-058:2057. A one-line bullet
+  merely left unterminated is not flagged, because the wrapped bullet after it is incomplete and owns the indented
+  line: consumer FEAT-030:611 at `d23561cba`, a 226-character bullet the first rule flagged. At `d23561cba` the closed
+  FEATs give 18 hits, FEAT-030:611 not among them.
 - Dropped, with the reason: a lint for an unfolded `[DECISION]` in Open questions flags 676 lines over 91 consumer FEATs
   (18 on the five calibration FEATs), because the consumer answers questions in place with `[DECISION]`; the report's
   one real unfold was a `[PROPOSAL]` left in Scope, which the Scope lint reports, so `sdd-review` folds what that lint
@@ -193,3 +195,9 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   false positives left at `d23561cba`, so it stays blocking); `&>/dev/null` is a safe redirect; `{classes}` stems are
   shell-quoted; a parity test pins the two closure-line readers; `--baseline-init` applies only before the first
   baseline; `spec-index.md` status wording (Files widened by the coordinator).
+- 2026-11-15: coordinator delta review of `76f1198` (PARTIAL) fixed. A rules file whose folder resolves inside the
+  repository (the leaf is not resolved) is always read from git as base has it, never from the checkout; this closes
+  the alias-path loosening and the crash on a deleted file. SIGTERM and SIGHUP kill a run's process group. The
+  History-split lint takes any number of inserted complete bullets and drops the width rule (`8549f51d4`: 28 to 38
+  hits, the 10 added all real). Run output that is not UTF-8 is decoded with replacement. The `parallelize` trigger
+  eval, re-run by the coordinator, moves to KIT-070; `doing` rows in `derived_status` are #247.
