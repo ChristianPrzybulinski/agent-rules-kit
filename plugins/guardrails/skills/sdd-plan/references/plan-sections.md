@@ -23,6 +23,8 @@ A decision record holds a choice with a rejected alternative that outlives the F
 
 ## Example
 
+For a project whose `plan_sections` is `[Design, Contract, Data, Flag, Tests, Risks]`:
+
 ```markdown
 ## Plan
 

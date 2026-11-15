@@ -28,8 +28,9 @@ either fails every old artifact at once, those 47 chains included, or stays off;
 a new one beside it.
 
 [FACT] `plugins/guardrails/rules/godot.md:22` and `sdd-tasks` § 5 ("Generated and build files") put `*.uid`,
-`*.import` and `*.translation` in a task's Files, while the kit's own scope gate admits them without an entry
-(`platforms/ci/validations/pr_gates.py`, `generated_neighbour`, config key `generated_neighbours`), the Devin playbook
+`*.import` and `*.translation` in a task's Files, while the kit's own scope gate admits them without an entry once
+its config lists them (`platforms/ci/validations/pr_gates.py`, `generated_neighbour`, config key
+`generated_neighbours`, code default none, all three in the docstring example and `review-loop/config.example.json`), the Devin playbook
 `implement-issue.devin.md:24` lets an executor change them outside Files, and `platforms/kits/godot/.gitignore`
 ignores `*.translation`. `godot-standards` `references/scenes-and-generated-files.md:30` repeats the Files rule.
 
@@ -65,18 +66,22 @@ keeps `status:clarified`, which the FEAT flow no longer reaches, and has no `sta
   default 30); `spec-index.md` carries it.
 - `platforms/ci/validations/check_spec.py`: every failure carries a rule id (`frontmatter`, `schema`, `id-file`,
   `id-duplicate`, `decision-kinds`, `sdd-params`, `conflict-marker`, `need-link`, `need-status`, `progress`,
-  `link-missing`, `link-one-sided`, `req-unlisted`, `task-file`, `task-item`, `task-chain`). It validates `tasks/`,
-  checks that TASK files and the rows' `Item` cells name each other, fails an open FEAT whose longest own chain
-  exceeds `max_chain` or holds a cycle, and warns above `max_feat_tasks` rows or a Task cell over 1000 characters.
-  `docs/spec/baseline.json` (`{"rules": {rule: {artifact: count}}}`) holds old findings: a held one prints as
-  `BASELINE` and does not block, one above its count fails, a count above what is found fails until
-  `--baseline-update` lowers it; `--baseline-init` writes it once; `--baseline-against <older.json>` fails an added or
-  raised entry. `TASK` is a reserved decision prefix. `sync-project.sh` copies `task.schema.json`; `check_kit.py`
-  maps the template.
+  `link-missing`, `link-one-sided`, `req-unlisted`, `task-file`, `task-item`, `task-chain`, `task-cycle`,
+  `task-depends`). It validates `tasks/`, checks that TASK files and the rows' `Item` cells name each other, fails an
+  open FEAT whose longest own chain exceeds `max_chain`, holds a cycle or names an own row that does not exist, and
+  warns above `max_feat_tasks` rows or a Task cell over 1000 characters. `docs/spec/baseline.json`
+  (`{"rules": {rule: {artifact: n}}}`) holds old findings, n being their number or, for `task-chain`, the held chain
+  length in rows: a held one prints as `BASELINE` and does not block, one above its n fails (a held chain that grows
+  included), an n above what is found fails until `--baseline-update` lowers it; `--baseline-init` writes it once;
+  `--baseline-against <older.json>` fails an added or raised entry and skips a missing file. `TASK` is a reserved
+  decision prefix. `sync-project.sh` copies `task.schema.json`; `check_kit.py` maps the template.
+- `platforms/kits/github/workflows/spec-lint.yml`: the checkout fetches full history and a pull request runs step
+  `Baseline only shrinks`, `--baseline-against` with the base branch's `docs/spec/baseline.json` when it has one, so
+  the file only shrinks in CI and not by convention.
 - `sdd-check`: a `BASELINE` or `WARN` line is not a finding; `all` reads `baseline.json` for its rows (`C<n>`, `Q<n>`)
   and lists entries to lower, never to add.
 - `rules/godot.md`: generated neighbours go in the source's commit and are never listed in Files (`*.translation`
-  stays ignored); `godot-standards` `scenes-and-generated-files.md` and the task issue template say the same.
+  stays ignored), so the project's gates config lists them in `generated_neighbours`; `godot-standards` `scenes-and-generated-files.md` and the task issue template say the same.
 - `templates/spec-journey.md` note, `labels.json` (proposed, planned, in-progress, validated, delivered, cancelled),
   `templates/spec-feature.md` (Plan sections, `Status` and `Item`), `sdd-process.md`, `rules/spec.md`,
   `sdd-parameters.md`, `sync-profiles.txt`, `platforms/ci/README.md`, `platforms/kits/github/README.md`,
@@ -89,7 +94,9 @@ keeps `status:clarified`, which the FEAT flow no longer reaches, and has no `sta
 - The chain, size and cell checks skip `validated`, `delivered` and `cancelled` FEATs (spec-first history); `Item`
   links are checked on every FEAT.
 - The baseline counts findings per rule and artifact id, not per message, so rewording a kit message keeps a held
-  finding held, and a second finding of the same rule on a held artifact still fails.
+  finding held, and a second finding of the same rule on a held artifact still fails. `task-chain` holds the chain
+  length instead (one finding per FEAT), so a held 5-row chain cannot grow to 40; a cycle and a missing row are rules
+  of their own.
 - A cut item starts ready (`status:planned`, or `status: todo`), since its table was approved before the cut; the
   approve-after-cut label flip goes.
 - "Rows of one folder" in the bundle rule reads as rows of one repository, as the consumer's own rule says.
@@ -98,6 +105,8 @@ keeps `status:clarified`, which the FEAT flow no longer reaches, and has no `sta
 
 A consumer resyncs (`sync-project.sh`) before writing `max_feat_tasks` or a TASK file: its old schemas refuse both. A
 consumer whose old FEATs now fail `task-chain` runs `check_spec.py --baseline-init` once and commits `baseline.json`.
+`sync-project.sh` copies `spec-lint.yml` only into a project without one, so a project that keeps its own spec
+workflow adds the `Baseline only shrinks` step itself.
 
 Follow-ups, outside this record: `sdd-implement` still orients on `docs/spec/progress/FEAT-nnn.json`, which no step
 writes any more (KIT-069 orients by FEAT and item state); `session` `references/handoff-record.md` and
@@ -113,9 +122,16 @@ were committed first (`612dabe`): on the base `540b6d5`, 25 of the 31 new tests 
 whose fixtures gained `max_feat_tasks`. The 6 that pass guard what must not change: a valid TASK file and a bundled
 one pass, a chain at the maximum passes, a delivered FEAT is history, 30 rows do not warn, and another FEAT's rows do
 not extend a chain. Results are in the PR body.
+The review fix round's tests were committed first too (`ecc1a2c`): on `a7e4d70` all 8 new tests fail (the
+`spec-lint.yml` step run against a throwaway git repository, a missing older baseline, a held chain that grows or
+shrinks, a missing `Depends on` row), and so do 8 of the 10 changed baseline and cycle tests.
 
 ## History
 
 - 2026-11-14: confirmed (owner, chat): the split into KIT-066 to KIT-072 ("e aprovo"), the six further adjustments
   ("Aprovo todos": no bucket FEAT with a WARN-only size key, the shrinking baseline) and this run ("orquestre a
   implementação de tudo que passamos").
+- 2026-11-15: review fix round after the coordinator's independent review at `ba3b743` (READY with one major): the
+  `spec-lint.yml` template enforces the shrinking baseline on pull requests, `task-chain` holds the chain length,
+  cycles and missing `Depends on` rows get rules of their own, and the godot rule names the `generated_neighbours`
+  config (orchestrator's design for the major).

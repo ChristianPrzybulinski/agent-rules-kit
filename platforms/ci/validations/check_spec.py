@@ -21,15 +21,17 @@ the FEAT that delivers them).
 Task rows (KIT-068): a FEAT's `## Tasks` table (header `| ID | Task | ...`, rows `T<n>`). With `sdd.tracker: none` each
 cut item is docs/spec/tasks/TASK-nnn-slug.md (task.schema.json); its `feat` and `rows` and the rows' `Item` cell name
 each other. On a FEAT that is not validated, delivered or cancelled, the longest chain of own-FEAT `Depends on` ids
-(`FEAT-nnn T1, T2` belongs to FEAT-nnn up to the next `;`) is at most `sdd.max_chain`, and a cycle fails; more rows than
-`sdd.max_feat_tasks` and a Task cell over 1000 characters only warn.
+(`FEAT-nnn T1, T2` belongs to FEAT-nnn up to the next `;`) is at most `sdd.max_chain`, and a cycle or an own id that
+is not a row fails; more rows than `sdd.max_feat_tasks` and a Task cell over 1000 characters only warn.
 
 Every failure carries a rule id (RULES) and its artifact (the id in the file name, else the path under the spec dir).
-docs/spec/baseline.json, `{"rules": {rule: {artifact: count}}}`, holds old findings so they neither block nor hide new
-ones: a held finding prints as BASELINE on stdout, a finding above its count fails, and a count above what is found
+docs/spec/baseline.json, `{"rules": {rule: {artifact: n}}}`, holds old findings so they neither block nor hide new
+ones; n is the number of findings, except for task-chain, where it is the held chain length in rows (a held chain that
+grows fails). A held finding prints as BASELINE on stdout, a finding above its n fails, and an n above what is found
 fails until --baseline-update lowers it. The file only shrinks: --baseline-init writes it once, --baseline-update never
 adds or raises an entry, and --baseline-against fails when the file adds or raises an entry over an older copy (for
-example `git show origin/main:docs/spec/baseline.json`). sdd-check rows (C<n>, Q<n>) may hold entries too; this script
+example `git show origin/main:docs/spec/baseline.json`; the spec-lint.yml template runs it on every pull request) and
+skips when that copy does not exist. sdd-check rows (C<n>, Q<n>) may hold entries too; this script
 keeps them and leaves their comparison to `sdd-check all`.
 """
 import json
@@ -51,7 +53,8 @@ SPEC_DIR = None  # set by main(); a finding's key is relative to it
 # Rule ids a baseline may hold; each fail() call names one.
 RULES = ("frontmatter", "schema", "id-file", "id-duplicate", "decision-kinds", "sdd-params", "conflict-marker",
          "need-link", "need-status", "progress", "link-missing", "link-one-sided", "req-unlisted", "task-file",
-         "task-item", "task-chain")
+         "task-item", "task-chain", "task-cycle", "task-depends")
+MEASURED = ("task-chain",)  # the baseline holds the longest chain in rows, not a count of findings
 
 
 def artifact_key(path):
@@ -68,8 +71,8 @@ def artifact_key(path):
     return path.as_posix()
 
 
-def fail(msg, rule, path):
-    failures.append((rule, artifact_key(path), msg))
+def fail(msg, rule, path, measure=1):
+    failures.append((rule, artifact_key(path), msg, measure))
 
 
 def warn(msg, rule):
@@ -77,9 +80,9 @@ def warn(msg, rule):
 
 
 def report(blocking, held=()):
-    for rule, _, msg in held:
+    for rule, _, msg, *_ in held:
         print(f"BASELINE: {msg} [{rule}]")
-    for rule, _, msg in blocking:
+    for rule, _, msg, *_ in blocking:
         print(f"FAIL: {msg} [{rule}]", file=sys.stderr)
 
 
@@ -640,13 +643,17 @@ def check_task_table(fid, path, status, rows, params):
     label = {int(ROW_ID.match(rid).group(1)): rid for rid in rows}
     deps = {int(ROW_ID.match(rid).group(1)): own_dependencies(cells.get("Depends on", ""), fid)
             for rid, cells in rows.items()}
+    for n, named in deps.items():
+        for missing in sorted(set(named) - set(deps)):
+            fail(f"{path}: {label[n]} Depends on T{missing}, which is not a row of the {fid} task table", "task-depends",
+                 path)
     longest, cycle = chains(deps)
     if cycle:
-        fail(f"{path}: Depends on cycle {' → '.join(label[n] for n in cycle)}", "task-chain", path)
+        fail(f"{path}: Depends on cycle {' → '.join(label[n] for n in cycle)}", "task-cycle", path)
     max_chain = positive(params.get("max_chain"), 4)
     if len(longest) > max_chain:
         fail(f"{path}: longest Depends on chain is {len(longest)} rows ({' → '.join(label[n] for n in longest)}), "
-             f"above sdd.max_chain {max_chain}", "task-chain", path)
+             f"above sdd.max_chain {max_chain}", "task-chain", path, measure=len(longest))
     max_rows = positive(params.get("max_feat_tasks"), 30)
     if len(rows) > max_rows:
         warn(f"{path}: {len(rows)} task rows, above sdd.max_feat_tasks {max_rows}: sdd-plan splits the NEED into "
@@ -713,18 +720,19 @@ def read_baseline(path):
             continue
         for key, count in keys.items():
             if not isinstance(count, int) or isinstance(count, bool) or count < 1:
-                fail(f"{path}: {rule} {key} must be a count of at least 1", "baseline", path)
+                fail(f"{path}: {rule} {key} must be an integer of at least 1", "baseline", path)
             else:
                 held.setdefault(rule, {})[key] = count
     return data, held
 
 
 def found_counts():
+    """{rule: {artifact: n}}: the number of findings, or for a MEASURED rule the largest measure found."""
     counts = {}
-    for rule, key, _ in failures:
+    for rule, key, _, measure in failures:
         if rule in RULES:
-            counts.setdefault(rule, {}).setdefault(key, 0)
-            counts[rule][key] += 1
+            keys = counts.setdefault(rule, {})
+            keys[key] = max(keys.get(key, 0), measure) if rule in MEASURED else keys.get(key, 0) + 1
     return counts
 
 
@@ -751,7 +759,7 @@ def apply_baseline(path, held, counts):
     """Splits the failures into (blocking, held); a count that differs from what is found fails rule baseline."""
     blocking, kept = [], []
     for finding in failures:
-        rule, key, _ = finding
+        rule, key = finding[0], finding[1]
         allowed = held.get(rule, {}).get(key, 0)
         (kept if allowed and counts[rule][key] <= allowed else blocking).append(finding)
     for rule, keys in held.items():
@@ -759,29 +767,35 @@ def apply_baseline(path, held, counts):
             continue
         for key, allowed in keys.items():
             n = counts.get(rule, {}).get(key, 0)
-            noun = "finding" if allowed == 1 else "findings"
+            if rule in MEASURED:
+                holds, found = f"a {allowed}-row {rule}", ("none" if n == 0 else f"{n} rows")
+            else:
+                holds, found = f"{allowed} {rule} finding{'' if allowed == 1 else 's'}", str(n)
             if n < allowed:
-                blocking.append(("baseline", BASELINE, f"{path} holds {allowed} {rule} {noun} for {key}, found {n}: "
-                                 f"lower it with check_spec.py --baseline-update"))
+                blocking.append(("baseline", BASELINE, f"{path} holds {holds} for {key}, found {found}: lower it with "
+                                 f"check_spec.py --baseline-update", 1))
             elif n > allowed:
-                blocking.append(("baseline", BASELINE, f"{path} holds {allowed} {rule} {noun} for {key}, found {n}"))
+                blocking.append(("baseline", BASELINE, f"{path} holds {holds} for {key}, found {found}", 1))
     return blocking, kept
 
 
 def check_against(path, held, older_path):
     """--baseline-against: the baseline may only shrink, so an entry added or raised over the older copy fails."""
+    if not older_path.exists():
+        print(f"baseline: no older baseline at {older_path}; nothing to compare")
+        return []
     try:
         older = json.loads(older_path.read_text(encoding="utf-8")).get("rules", {})
     except (OSError, ValueError, AttributeError) as e:
-        return [("baseline", BASELINE, f"{older_path}: cannot read the older baseline: {e}")]
+        return [("baseline", BASELINE, f"{older_path}: cannot read the older baseline: {e}", 1)]
     findings = []
     for rule, keys in held.items():
         for key, count in keys.items():
             before = older.get(rule, {}).get(key) if isinstance(older.get(rule), dict) else None
             if before is None:
-                findings.append(("baseline", BASELINE, f"{path} adds {rule} {key}"))
+                findings.append(("baseline", BASELINE, f"{path} adds {rule} {key}", 1))
             elif count > before:
-                findings.append(("baseline", BASELINE, f"{path} raises {rule} {key} from {before} to {count}"))
+                findings.append(("baseline", BASELINE, f"{path} raises {rule} {key} from {before} to {count}", 1))
     return findings
 
 
@@ -930,7 +944,7 @@ def main():
     if opts.get("--baseline-init"):
         if baseline_path.exists():
             report([("baseline", BASELINE, f"{baseline_path} exists and may only shrink: --baseline-update lowers "
-                     f"it")])
+                     f"it", 1)])
             sys.exit(1)
         write_baseline(baseline_path, None, counts)
         print(f"baseline: wrote {sum(map(len, counts.values()))} entries to {baseline_path}")

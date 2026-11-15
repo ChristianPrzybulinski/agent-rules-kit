@@ -20,7 +20,7 @@ Each row passes every check below before its table goes to the spec PR; a row th
 - **Wiring.** A port, command or entry point that must work outside the tests (a CLI command, a server route, a dependency-injection binding, a registered scene or autoload) has its wiring file in `Files`.
 - **Neighbour files.** A file the work needs outside the row (a config key, a shared CI workflow) joins `Files`, or the row names the row that owns it.
 - **Build files.** `pom.xml`, `application.yml`, `project.godot` or the project's equivalents join `Files` when the row changes them.
-- **Generated neighbours.** `*.uid`, `*.import`, `*.translation` and the project's equivalents of an owned file are implicit: they travel with their source and are never listed (the scope gate `pr_gates.py` admits them through `generated_neighbours`).
+- **Generated neighbours.** `*.uid`, `*.import`, `*.translation` and the project's equivalents of an owned file are implicit: they travel with their source and are never listed (the scope gate `pr_gates.py` admits them once the project's config lists them in `generated_neighbours`; its default is none).
 - **Protected paths.** A `Files` path that matches a `protected_paths` entry gives the row's item that entry's label.
 
 ## Contract and policy
