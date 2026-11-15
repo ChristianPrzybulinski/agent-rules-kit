@@ -1,0 +1,29 @@
+{
+  "_format": "Bash commands sent to the guardrails PreToolUse git context hook (KIT-071). commit: additionalContext starts with 'ai-kit git, after this commit'; PR: with 'ai-kit git, after this PR'; silent: empty stdout. Every case exits 0 and carries no permissionDecision.",
+  "commit": [
+    "git commit -m 'feat(shop): reject negative quantity'",
+    "cd repo && git commit -F /tmp/msg.txt",
+    "git -C repo commit --amend --no-edit",
+    "git -c user.name=bot commit -m x",
+    "GIT_AUTHOR_DATE=now git commit -m x",
+    "git add src/a.py && git commit -m \"$(cat <<'EOF'\nfix: a\nEOF\n)\"",
+    "git --no-pager commit -m x"
+  ],
+  "PR": [
+    "gh pr create --fill",
+    "gh pr create --title 'feat: x' --body-file body.md",
+    "git push -u origin feat && gh pr create --draft --fill",
+    "cd repo; gh pr create --base main --fill",
+    "env GH_PROMPT_DISABLED=1 gh pr create --fill"
+  ],
+  "silent": [
+    "git status",
+    "echo git commit",
+    "grep -rn 'git commit' docs",
+    "git commit-tree abc123 -m x",
+    "git log --grep commit",
+    "gh pr list",
+    "gh pr view 12",
+    "gh pr create-x"
+  ]
+}

@@ -120,6 +120,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         ai_kit = {k for k in data["enabledPlugins"] if k.endswith("@ai-kit")}
         self.assertEqual(ai_kit, {"guardrails@ai-kit"})
         self.assertTrue(all(data["enabledPlugins"][k] is True for k in ai_kit))
+        self.assertIs(data["includeGitInstructions"], False)  # KIT-071
         before = (claude.read_bytes(), settings.read_bytes())
         second = self.run_sync()
         self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
@@ -137,6 +138,22 @@ class SyncProjectCheckTest(unittest.TestCase):
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 1)
         self.assertIn("diverges for profile docs", result.stdout)
+
+    def test_check_detects_git_instructions_drift(self):  # KIT-071
+        settings = self.repo / ".claude" / "settings.json"
+        for value in (True, None):
+            data = json.loads(settings.read_text())
+            if value is None:
+                data.pop("includeGitInstructions")
+            else:
+                data["includeGitInstructions"] = value
+            settings.write_text(json.dumps(data, indent=2) + "\n")
+            result = self.run_sync("--check")
+            self.assertEqual(result.returncode, 1, value)
+            self.assertIn("includeGitInstructions: want false", result.stdout)
+        self.assertEqual(self.run_sync().returncode, 0)
+        self.assertIs(json.loads(settings.read_text())["includeGitInstructions"], False)
+        self.assertEqual(self.run_sync("--check").returncode, 0)
 
     def test_check_fails_without_claude_md(self):
         (self.repo / "CLAUDE.md").unlink()
@@ -247,9 +264,14 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rules = self.repo / ".claude" / "rules"
         self.assertEqual(sorted(p.name for p in rules.glob("*.md")),
-                         ["guardrails-godot.md", "guardrails-java.md", "guardrails-json.md", "guardrails-python.md",
-                          "guardrails-spec.md"])
+                         ["guardrails-docker.md", "guardrails-godot.md", "guardrails-java.md", "guardrails-json.md",
+                          "guardrails-python.md", "guardrails-spec.md"])
         self.assertIn('  - "client/**/*.gd"', (rules / "guardrails-godot.md").read_text().splitlines())
+        # docker goes to the code profiles only, so it takes their folders and never the docs root (KIT-071)
+        docker_globs = (rules / "guardrails-docker.md").read_text().splitlines()
+        self.assertIn('  - "server/**/compose*.yml"', docker_globs)
+        self.assertIn('  - "client/**/Dockerfile*"', docker_globs)
+        self.assertNotIn('  - "**/compose*.yml"', docker_globs)
         # json is named after no profile and docs covers the root, so it keeps the whole repository (KIT-059)
         self.assertIn('  - "**/*.json"', (rules / "guardrails-json.md").read_text().splitlines())
         self.assertIn('  - "server/**/*.java"', (rules / "guardrails-java.md").read_text().splitlines())

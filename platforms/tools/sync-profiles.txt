@@ -3,6 +3,7 @@
 # plugins/guardrails/skills/<name>/ and plugins/guardrails/rules/<name>.md, and only the profiles godot, java, python and docs.
 # <skills/<name> or rules/<file>> | <profiles, space-separated> or - (always-on skill: guardrails stays enabled for its
 # guard hook, so the skill loads from the plugin and a vendored copy would load it twice, KIT-002)
+rules/docker.md          | godot java python
 rules/godot.md           | godot java python
 rules/java.md            | godot java python
 rules/json.md            | godot java python docs
