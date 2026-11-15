@@ -524,13 +524,17 @@ grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-remove.out"
   || fail "stub re-exposure count was not reported"
 
 # KIT-072: a project that vendors kit copies pins the kit only while its settings turn guardrails@ai-kit off.
-for proj in pinned leak plain; do
+# A pinned project loads its pinned skills only once its main checkout root is trusted.
+for proj in pinned untrusted leak plain; do
   mkdir -p "$ROOT/pin-$proj/.claude/skills"
 done
-printf '{}\n' > "$ROOT/pin-pinned/.claude/skills/KIT_MANIFEST.json"
-mkdir -p "$ROOT/pin-pinned/.claude/skills/guardrails-pinned"
-printf '{"enabledPlugins": {"guardrails@ai-kit": false, "guardrails-pinned@skills-dir": true}}\n' \
-  > "$ROOT/pin-pinned/.claude/settings.json"
+for proj in pinned untrusted; do
+  printf '{}\n' > "$ROOT/pin-$proj/.claude/skills/KIT_MANIFEST.json"
+  mkdir -p "$ROOT/pin-$proj/.claude/skills/guardrails-pinned"
+  printf '{"enabledPlugins": {"guardrails@ai-kit": false, "guardrails-pinned@skills-dir": true}}\n' \
+    > "$ROOT/pin-$proj/.claude/settings.json"
+done
+printf '{"projects": {"%s": {"hasTrustDialogAccepted": true}}}\n' "$ROOT/pin-pinned" > "$STUB_HOME/.claude.json"
 printf '{}\n' > "$ROOT/pin-leak/.claude/skills/KIT_MANIFEST.json"
 printf '{"enabledPlugins": {"guardrails@ai-kit": true}}\n' > "$ROOT/pin-leak/.claude/settings.json"
 printf '{"enabledPlugins": {"guardrails@ai-kit": true}}\n' > "$ROOT/pin-plain/.claude/settings.json"
@@ -538,6 +542,7 @@ mkdir -p "$STUB_HOME/.claude/plugins"
 cat > "$STUB_HOME/.claude/plugins/installed_plugins.json" <<EOF
 {"version": 2, "plugins": {"guardrails@ai-kit": [
   {"scope": "project", "projectPath": "$ROOT/pin-pinned"},
+  {"scope": "project", "projectPath": "$ROOT/pin-untrusted"},
   {"scope": "project", "projectPath": "$ROOT/pin-leak"},
   {"scope": "local", "projectPath": "$ROOT/pin-leak"},
   {"scope": "project", "projectPath": "$ROOT/pin-plain"},
@@ -552,10 +557,12 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
 fi
 grep -Fq "warn: claude: 1 project vendors kit copies but loads guardrails@ai-kit, the kit head, beside them: $ROOT/pin-leak — run platforms/tools/sync-project.sh there (KIT-072)" \
   "$ROOT/doctor-stub-pin.out" || fail "doctor did not report the project that loads the kit head beside its copies"
-grep -Fq 'ok: claude: 1 vendored project pins its kit version (guardrails@ai-kit off)' "$ROOT/doctor-stub-pin.out" \
-  || fail "doctor did not report the pinned project"
+grep -Fq 'ok: claude: 2 vendored projects pin their kit version (guardrails@ai-kit off)' "$ROOT/doctor-stub-pin.out" \
+  || fail "doctor did not report the pinned projects"
+grep -Fq "warn: claude: 1 pinned checkout root not trusted: $ROOT/pin-untrusted — its kit hooks run" \
+  "$ROOT/doctor-stub-pin.out" || fail "doctor did not report the pinned project whose root is not trusted"
 ! grep -Fq 'pin-plain' "$ROOT/doctor-stub-pin.out" || fail "doctor reported a plugins-mode project"
-rm -f "$STUB_HOME/.claude/plugins/installed_plugins.json"
+rm -f "$STUB_HOME/.claude/plugins/installed_plugins.json" "$STUB_HOME/.claude.json"
 
 # KIT-013: a cache that differs from the kit without a version bump is reported, then reinstalled.
 printf 'stale\n' >> "$STUB_STATE/claude-cache/guardrails/INDEX.md"
@@ -936,8 +943,12 @@ grep -Fq 'sync: skills=vendored' "$ROOT/sync-vendor.out" \
   || fail "vendored sync wrote no pinned plugin copy"
 grep -Fq '"name": "guardrails-pinned"' "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/.claude-plugin/plugin.json" \
   || fail "the pinned plugin copy does not carry the name guardrails-pinned"
-cmp -s "$SOURCE/plugins/guardrails/hooks/hooks.json" "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/hooks/hooks.json" \
-  || fail "the pinned plugin copy does not carry the kit hooks"
+# B1: the kit hooks run from .claude/settings.json, which needs no folder trust, and not from the copy
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/hooks" ]] \
+  || fail "the pinned plugin copy carries hooks beside the settings hooks"
+grep -Fq '"command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/ai-kit/hooks/PreToolUse-0-0.sh\""' \
+  "$ROOT/vendor-proj/.claude/settings.json" || fail "vendored settings.json does not run the pinned guard hook"
+[[ -f "$ROOT/vendor-proj/.claude/ai-kit/hooks/PreToolUse-0-0.sh" ]] || fail "vendored sync wrote no pinned hook script"
 manifest_files="$(python3 -c 'import json,sys; print(sum(len(s["files"]) for s in json.load(open(sys.argv[1]))["skills"].values()))' \
   "$ROOT/vendor-proj/.claude/skills/KIT_MANIFEST.json")"
 [[ "$manifest_files" == "$expected_files" ]] \

@@ -47,6 +47,10 @@ an isolated `CLAUDE_CONFIG_DIR` that left the owner's settings untouched; Codex 
 - A project skill replaces a bundled command but not its aliases, and `/review` is an alias of the bundled
   `/code-review` (docs `skills` § Resolve skills that share a name, `commands`). So the always-on skill `review` cannot be
   vendored as a plain skill; inside the pinned plugin it stays `guardrails-pinned:review`.
+- Workspace trust (docs `permissions`, the trust table): hooks from a settings file run where only a parent folder is
+  trusted and under `claude -p`; a skills-directory plugin is not used in either case. Trust is
+  `projects["<root>"].hasTrustDialogAccepted` in `~/.claude.json`, keyed by the repository root. So the guard hooks
+  must live in `.claude/settings.json`, not in the plugin copy (review of `daae6fe`, finding B1).
 - Project settings and repository plugins are read from the session's starting folder only (probe from a subfolder:
   `guardrails@ai-kit` enabled), and the desktop app loads a worktree's repository plugin from the main checkout.
 - Codex loads the always-on file through `~/.codex/AGENTS.md` → `~/.ai-kit/plugins/guardrails/AGENTS.md` and the
@@ -57,9 +61,9 @@ an isolated `CLAUDE_CONFIG_DIR` that left the owner's settings untouched; Codex 
 
 - (a) Pin the marketplace ref per project: rejected by the first constraint (one marketplace per name, one cache per
   version, no SHA ref on 2.1.287; per-version marketplaces need a manual install in every worktree).
-- (b) Turn the plugin off at project scope and vendor the hooks: chosen, with the hooks, agents and the skills not
-  vendored plain carried by a skills-directory plugin instead of `settings.json` hooks, because plain copies cannot
-  carry `review` (bundled alias) or the agents' plugin-qualified preloads.
+- (b) Turn the plugin off at project scope and vendor the hooks: chosen. The hooks run from `.claude/settings.json`,
+  which needs no trust; the agents and the skills not vendored plain travel in a skills-directory plugin, because plain
+  copies cannot carry `review` (bundled alias) or the agents' plugin-qualified preloads.
 - (c) Record the version and warn on drift: kept as part of (b) (`KIT_COMMIT`, `--check`, `doctor.sh`); alone it would
   leave every kit merge reaching the project.
 
@@ -68,19 +72,24 @@ session at a trusted repository root where `/plugin` shows `guardrails@ai-kit` e
 
 ## Change
 
-- `platforms/tools/sync_pinned_plugin.py` (new): writes `.claude/skills/guardrails-pinned/` from `plugins/guardrails/`
-  (`.claude-plugin/plugin.json` renamed `guardrails-pinned`, `hooks/`, `templates/`, `agents/` with each
-  `guardrails:<skill>` preload renamed to `guardrails-pinned:<skill>` or to the plain copy's name, and every skill the
-  profile does not copy as a plain skill), marks it, prints `KIT_COMMIT`, its hashes and `copies` (the hash of every
-  `.github/spec-lint/` file `kit_files()` lists, through `pin_sources`) for the manifest, refuses an
-  unmarked folder, removes a marked copy in plugins mode, and checks the copy, `settings.local.json` and `claude plugin
-  list`.
+- `platforms/tools/sync_pinned_plugin.py` (new): writes `.claude/ai-kit/hooks/` (each kit hook command verbatim as a
+  script, and the settings fragment that runs it through `${CLAUDE_PROJECT_DIR}` with the kit matcher and timeout) and
+  `.claude/skills/guardrails-pinned/` from `plugins/guardrails/` (`.claude-plugin/plugin.json` renamed
+  `guardrails-pinned`, `templates/`, `agents/` with each `guardrails:<skill>` preload renamed to
+  `guardrails-pinned:<skill>` or to the plain copy's name, and every skill the profile does not copy as a plain skill),
+  marks both; `settings` merges the hooks into `.claude/settings.json` beside the project's own and turns the head off;
+  `pin` prints `KIT_COMMIT`, the hashes and `copies` (the hash of every `.github/spec-lint/` file `kit_files()` lists,
+  through `pin_sources`) for the manifest; it refuses an unmarked folder or a symbolic link, removes both marked
+  folders and the kit hooks in plugins mode, and checks the folders, the settings, `settings.local.json` and, with
+  `AI_KIT_CLAUDE_PROBE=1`, `claude plugin list` (no pinned copy listed fails: the root is not trusted).
 - `platforms/tools/sync-project.sh`: the pin lives in one block of `pin_*` functions (coordinator request, so the parallel
-  KIT-070, KIT-073 and KIT-074 merges stay mechanical); vendored mode writes the copy, records the pin in `KIT_MANIFEST.json`, sets
-  `guardrails@ai-kit` to `false` and `guardrails-pinned@skills-dir` to `true`; `--check` expects them and calls the pin
-  check; plugins mode is unchanged.
+  KIT-070, KIT-073 and KIT-074 merges stay mechanical); vendored mode writes the pin, then (`pin_settings`) sets
+  `guardrails@ai-kit` to `false`, `guardrails-pinned@skills-dir` to `true` and the kit hooks, so a failed write leaves
+  the head on; it records the pin in `KIT_MANIFEST.json`; `--check` calls the pin check, which owns `enabledPlugins` in
+  vendored mode; plugins mode is unchanged.
 - `platforms/tools/doctor.sh`: warns about each project with an `@ai-kit` install record that vendors kit copies but
-  still loads `guardrails@ai-kit`, and counts the pinned ones. `refresh.sh` is unchanged: it updates, installs and
+  still loads `guardrails@ai-kit`, counts the pinned ones and warns about each pinned checkout whose main checkout root
+  (the git common root) `~/.claude.json` does not mark `hasTrustDialogAccepted`. `refresh.sh` is unchanged: it updates, installs and
   reinstalls user-scope plugins only, and the pin is a repository file it never writes.
 - `README.md`, `docs/projects.md` (the pin, what stays unpinned, the migration), `platforms/tools/README.md`.
 
@@ -101,3 +110,6 @@ twice, and `sync-project.sh --check` with the live CLI passes.
 
 - 2026-11-14: confirmed (owner, item 6 of the adoption adjustments).
 - 2026-11-15: verified constraints, option (b) chosen, implemented (issue #257).
+- 2026-11-15: review of `daae6fe` BLOCKED (B1 hooks need trust, B2 pinned skills call head tools); the hooks moved
+  to `.claude/settings.json`, the head goes off only after the pin is written, symbolic links are refused, the probe
+  is opt-in and fails without a pinned copy, `doctor.sh` checks trust.

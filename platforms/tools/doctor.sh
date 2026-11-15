@@ -380,9 +380,10 @@ PY
 # prints one "ok <text>" line for the pinned projects and one "warn <text>" line for those that still load the head.
 claude_pinned_projects() {
   local plugins_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}"
-  python3 - "$plugins_root/installed_plugins.json" <<'PY'
+  python3 - "$plugins_root/installed_plugins.json" "${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json" <<'PY'
 import json
 import os
+import subprocess
 import sys
 
 def load(path):
@@ -402,7 +403,19 @@ for plugin_id, entries in (records.items() if isinstance(records, dict) else [])
         path = entry.get("projectPath") if isinstance(entry, dict) else None
         if isinstance(path, str) and os.path.isfile(os.path.join(path, ".claude", "skills", "KIT_MANIFEST.json")):
             projects.add(path)
-pinned, leaks = 0, []
+def trust_root(path):
+    """The key Claude Code keeps the folder's trust under: the main checkout root, or the folder outside git."""
+    try:
+        common = subprocess.run(["git", "-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return path
+    return os.path.dirname(common) if os.path.basename(common) == ".git" else path
+
+
+trusted = load(sys.argv[2]).get("projects")
+trusted = trusted if isinstance(trusted, dict) else {}
+pinned, leaks, untrusted = 0, [], set()
 for path in sorted(projects):
     state = None  # the project file wins over the user file, the local file over both
     for name in ("settings.json", "settings.local.json"):
@@ -411,6 +424,10 @@ for path in sorted(projects):
             state = enabled["guardrails@ai-kit"]
     if state is False and os.path.isdir(os.path.join(path, ".claude", "skills", "guardrails-pinned")):
         pinned += 1
+        root = trust_root(path)  # the pinned skills and agents load only in a trusted folder; the kit hooks always run
+        entry = trusted.get(root)
+        if not (isinstance(entry, dict) and entry.get("hasTrustDialogAccepted") is True):
+            untrusted.add(root)
     else:
         leaks.append(path)
 if pinned:
@@ -422,6 +439,12 @@ if leaks:
     print(f"warn claude: {len(leaks)} project{'' if one else 's'} {'vendors' if one else 'vendor'} kit copies but"
           f" {'loads' if one else 'load'} guardrails@ai-kit, the kit head, beside them: {shown}"
           " — run platforms/tools/sync-project.sh there (KIT-072)")
+if untrusted:
+    roots = sorted(untrusted)
+    shown = ", ".join(roots[:3]) + (f" (+{len(roots) - 3} more)" if len(roots) > 3 else "")
+    print(f"warn claude: {len(roots)} pinned checkout root{'' if len(roots) == 1 else 's'} not trusted: {shown}"
+          " — its kit hooks run, but the pinned skills and agents load only after you start claude there and"
+          " accept the trust dialog (KIT-072)")
 PY
 }
 
