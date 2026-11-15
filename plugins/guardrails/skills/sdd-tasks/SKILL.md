@@ -37,6 +37,7 @@ Each row contains `T-nn`, imperative title, exact rooted files (tests included),
 
 States: `todo`, `doing`, `done`, `blocked`.
 Waves: `references/waves-and-models.md` (wave 0, shared files, cross-FEAT order); wave numbers are FEAT-local and a cross-FEAT dependency points to a task cut earlier.
+Journeys, only when the project keeps them (`sdd.journeys`; absent = on when `docs/spec/journeys/` exists): fill each touched step's `Implemented by` with the `FEAT-nnn Tn` rows that deliver it and add a `P<n>` step for each prerequisite row (`../sdd-clarify/references/journeys.md`).
 
 ## 4. Check coverage
 

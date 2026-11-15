@@ -8,7 +8,7 @@ updated: "YYYY-MM-DD"
 # that reads it: skill sdd-constitution, references/sdd-parameters.md. check_spec.py --params prints the resolved block.
 sdd:
   needs: true
-  journeys: false
+  # journeys: absent = on when docs/spec/journeys/ exists
   tracker: github
   plan_sections: [Design, Contract, Data, UI, Flag, Tests, Observability, Risks, Dependencies]
   pr_unit: task

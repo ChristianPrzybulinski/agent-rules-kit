@@ -46,7 +46,7 @@ def mini_scalar(text):
     text = text.strip()
     if text[:1] in ("'", '"'):
         return text.strip("\"'")
-    if text in ("null", "~"):
+    if text in ("null", "Null", "NULL", "~"):
         return None
     if text in YAML_TRUE:
         return True
@@ -55,6 +55,17 @@ def mini_scalar(text):
     if re.fullmatch(r"-?\d+", text):
         return int(text)
     return text
+
+
+def strip_comment(val):
+    """Drops a trailing comment as YAML does: after a quoted value's closing quote, else from a '#' after a space."""
+    if val.startswith("#"):
+        return ""
+    if val[:1] in ("'", '"'):
+        end = val.find(val[0], 1)
+        rest = val[end + 1:].strip() if end > 0 else ""
+        return val[:end + 1] if end > 0 and (not rest or rest.startswith("#")) else val
+    return re.sub(r"\s+#.*$", "", val)
 
 
 def _skip_spaces(text, i):
@@ -120,7 +131,7 @@ def mini_value(val, line):
 def _mini_list(lines, pos, indent):
     items = []
     while pos < len(lines) and lines[pos][0] == indent and (lines[pos][1] == "-" or lines[pos][1].startswith("- ")):
-        item = lines[pos][1][1:].strip()
+        item = strip_comment(lines[pos][1][1:].strip())
         items.append(mini_value(item, lines[pos][1]) if item else None)
         pos += 1
     return items, pos
@@ -133,7 +144,7 @@ def _mini_map(lines, pos, indent):
         m = MINI_KEY.match(line) if ind == indent else None
         if not m:
             raise ValueError(f"line outside the format: {line!r}")
-        key, val = m.group(1), (m.group(2) or "").strip()
+        key, val = m.group(1), strip_comment((m.group(2) or "").strip())
         if key[:1] in ("'", '"'):
             key = key[1:-1]
         pos += 1
@@ -145,13 +156,14 @@ def _mini_map(lines, pos, indent):
         elif nxt and nxt[0] > indent:
             data[key], pos = _mini_map(lines, pos, nxt[0])
         else:
-            data[key] = []  # may become a list or stay empty
+            data[key] = None  # an empty value is null, as in pyyaml
     return data, pos
 
 
 def mini_yaml(text):
     """Minimal parser: 'k: v' maps nested by indentation, '- item' lists, flow [..] and {..} (nested), ints,
-    booleans, null and quoted strings; comment lines and blank lines are skipped."""
+    booleans, null (null, Null, NULL, ~ or an empty value) and quoted strings; comment lines, trailing comments and
+    blank lines are skipped."""
     lines = []
     for raw in text.splitlines():
         stripped = raw.strip()

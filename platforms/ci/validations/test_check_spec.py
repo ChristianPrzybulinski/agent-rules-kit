@@ -636,6 +636,29 @@ class SddParamsTest(unittest.TestCase):
         self.index("sdd:\n  owner_approvals: decision\n")
         self.assert_fails("sdd.owner_approvals must be a list")
 
+    def test_structural_parser_reads_comments_nulls_and_empty_values_like_pyyaml(self):
+        """Both modes resolve the same block from trailing comments, NULL/Null/~ and an empty value."""
+        self.index("protocol_version: 1  # bumped on a wire change\n"
+                   "sdd:\n"
+                   "  tracker: none  # no issue tracker\n"
+                   "  pr_unit: \"feat\"  # quoted, then a comment\n"
+                   "  row_check: NULL\n"
+                   "  cut_command: Null\n"
+                   "  plan_sections:\n"
+                   "    - Tests  # always on\n"
+                   "    - Risks\n"
+                   "  owner_approvals: [decision, protocol-version]  # flow list, then a comment\n")
+        self.assert_passes()
+        resolved = self.params()
+        self.assertEqual((resolved["tracker"], resolved["pr_unit"], resolved["row_check"], resolved["cut_command"]),
+                         ("none", "feat", None, None))
+        self.assertEqual(resolved["plan_sections"], ["Tests", "Risks"])
+        self.assertEqual(resolved["owner_approvals"], ["decision", "protocol-version"])
+
+    def test_empty_value_is_null_in_both_modes(self):
+        self.index("sdd:\n  row_check:\n")
+        self.assertIsNone(self.params()["row_check"])
+
     def test_params_prints_the_kit_defaults(self):
         self.index()
         self.assertEqual(self.params(), SDD_DEFAULTS)

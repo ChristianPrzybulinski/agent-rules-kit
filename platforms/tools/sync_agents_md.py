@@ -10,10 +10,12 @@ rule adds nothing. Runtimes that load no rule by path (Codex and others) read th
 same rules from .claude/rules/, and the root AGENTS.md also through the CLAUDE.md import. A folder that does not exist
 gets no block, and nothing here creates one.
 
-preflight refuses, before the sync's first write, a target AGENTS.md that is a symbolic link and any AGENTS.md whose
-block markers are broken. write replaces the block in place, appends it to a hand-written file, creates a missing
-AGENTS.md, removes a block no rule needs any more and deletes a file the removal leaves empty. check prints one
-"sync: ..." line per difference and exits 1.
+preflight refuses, before the sync's first write, a target AGENTS.md that is a symbolic link, a target folder that
+resolves outside the repository and any AGENTS.md whose block markers are broken; preflight and check warn about a
+target the scan for stale blocks never reaches (a nested checkout, a SKIP_DIRS folder). write replaces the block in
+place, appends it to a hand-written file, creates a missing AGENTS.md, removes a block no rule needs any more and
+deletes a file the removal leaves empty; the text around the block and the file's line ending stay as they were. check
+prints one "sync: ..." line per difference and exits 1.
 """
 import os
 import re
@@ -103,18 +105,39 @@ def block_span(lines):
     return begins[0], ends[0]
 
 
+def read_text(path):
+    """Returns (text with LF line endings, the file's line ending), so a CRLF file keeps CRLF when written back."""
+    with open(path, encoding="utf-8", newline="") as handle:
+        raw = handle.read()
+    return raw.replace("\r\n", "\n"), ("\r\n" if "\r\n" in raw else "\n")
+
+
+def write_text(path, text, eol):
+    with open(path, "w", encoding="utf-8", newline="") as handle:
+        handle.write(text.replace("\n", eol))
+
+
 def generated_files(repo):
-    """Returns {folder: AGENTS.md path} for every AGENTS.md that carries a block marker."""
+    """Returns {folder: AGENTS.md path} for every AGENTS.md that carries a block marker. The walk skips SKIP_DIRS
+    and every folder holding a .git entry (a submodule or nested worktree keeps its own blocks)."""
     found = {}
     for base, dirnames, filenames in os.walk(repo):
-        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
+        dirnames[:] = sorted(d for d in dirnames
+                             if d not in SKIP_DIRS and not os.path.lexists(os.path.join(base, d, ".git")))
         if "AGENTS.md" in filenames:
             path = Path(base) / "AGENTS.md"
             if path.is_file() and not path.is_symlink():
-                text = path.read_text(encoding="utf-8")
+                text, _ = read_text(path)
                 if BEGIN in text or END in text:
                     found[Path(os.path.relpath(base, repo)).as_posix()] = path
     return found
+
+
+def skipped_by_scan(repo, folder):
+    """True when the walk above never reaches folder, so a block left there after the rule moves is not found."""
+    parts = [] if folder == "." else folder.split("/")
+    return any(part in SKIP_DIRS or os.path.lexists(os.path.join(repo, *parts[:i + 1], ".git"))
+               for i, part in enumerate(parts))
 
 
 def without_block(text):
@@ -122,7 +145,7 @@ def without_block(text):
     begin, end = block_span(lines)
     before, after = "\n".join(lines[:begin]), "\n".join(lines[end + 1:])
     head = before.rstrip("\n") + "\n" if before.strip() else ""
-    return head + (after.lstrip("\n") if after.strip() else "")
+    return head + (("\n" if head else "") + after.lstrip("\n") if after.strip() else "")
 
 
 def with_block(text, block):
@@ -134,21 +157,46 @@ def with_block(text, block):
     return "\n".join(lines[:begin] + block.split("\n") + lines[end + 1:])
 
 
+def unsafe_targets(repo, blocks):
+    """Returns {folder: problem} for each target the sync must not write: a symbolic-link AGENTS.md, or a folder
+    that resolves outside the repository (a symbolic link on its path)."""
+    real_repo = repo.resolve()
+    unsafe = {}
+    for folder in blocks:
+        path = repo / rel(folder)
+        parent = path.parent.resolve()
+        if path.is_symlink():
+            unsafe[folder] = f"sync: {rel(folder)} is a symbolic link; the sync writes no path-rule block through it"
+        elif parent != real_repo and real_repo not in parent.parents:
+            unsafe[folder] = (f"sync: {folder} resolves outside the repository; the sync writes no path-rule block"
+                              " there")
+    return unsafe
+
+
 def main():
     if len(sys.argv) != 5 or sys.argv[1] not in ("preflight", "write", "check"):
         sys.exit("usage: sync_agents_md.py preflight|write|check <repo> <kit-version> <rules-dir>")
     mode, repo, version, rules_dir = sys.argv[1], Path(sys.argv[2]), sys.argv[3], sys.argv[4]
     blocks = expected_blocks(repo, version, rules_dir)
     present = generated_files(repo)
-    problems = []
+    unsafe = unsafe_targets(repo, blocks)
+    problems = list(unsafe.values())
     for folder, path in sorted(present.items()):
-        if block_span(path.read_text(encoding="utf-8").split("\n")) == "broken":
+        if block_span(read_text(path)[0].split("\n")) == "broken":
             problems.append(f"sync: {rel(folder)} path-rule block markers are broken (one begin line, then one end"
                             " line); fix them by hand, then rerun")
+    if mode != "write":
+        for folder in blocks:
+            if skipped_by_scan(repo, folder):
+                print(f"sync: warning: {folder} is inside a folder the AGENTS.md scan skips (a nested checkout or one"
+                      f" of {', '.join(sorted(SKIP_DIRS))}); a block left there after the rule moves is not found",
+                      file=sys.stderr)
     if mode == "check":
         for folder, block in blocks.items():
+            if folder in unsafe:
+                continue
             path = repo / rel(folder)
-            text = path.read_text(encoding="utf-8") if path.is_file() else ""
+            text = read_text(path)[0] if path.is_file() else ""
             span = block_span(text.split("\n"))
             if span is None:
                 problems.append(f"sync: {rel(folder)} path-rule block missing")
@@ -159,9 +207,6 @@ def main():
         if problems:
             print("\n".join(problems))
         return 1 if problems else 0
-    for folder in blocks:
-        if (repo / rel(folder)).is_symlink():
-            problems.append(f"sync: {rel(folder)} is a symbolic link; the sync writes no path-rule block through it")
     if problems:
         print("\n".join(problems))
         return 1
@@ -170,16 +215,17 @@ def main():
     written = removed = 0
     for folder, block in blocks.items():
         path = repo / rel(folder)
-        text = path.read_text(encoding="utf-8") if path.is_file() else ""
+        text, eol = read_text(path) if path.is_file() else ("", "\n")
         new = with_block(text, block)
         if new != text:
-            path.write_text(new, encoding="utf-8")
+            write_text(path, new, eol)
             written += 1
     for folder in sorted(set(present) - set(blocks)):
         path = present[folder]
-        new = without_block(path.read_text(encoding="utf-8"))
+        text, eol = read_text(path)
+        new = without_block(text)
         if new:
-            path.write_text(new, encoding="utf-8")
+            write_text(path, new, eol)
         else:
             path.unlink()
         removed += 1

@@ -259,7 +259,7 @@ agents_block_wanted() { # $1 = kit rule file; a rule named after a profile goes 
   # to every code profile, which a path rule loads only on a match but an AGENTS.md block would load every session
   local stack="${1##*/}"
   stack="${stack%.md}"
-  case "$stack" in godot|java|docs|python) ;; *) return 0 ;; esac
+  case "$stack" in godot|java|python) ;; *) return 0 ;; esac
   profile_entries "$PROFILE" | cut -d' ' -f1 | grep -qx "$stack" && return 0
   printf '%s\n' "$RULE_PATHS" | awk -v stack="$stack" '$1 == stack { found = 1 } END { exit !found }'
 }
@@ -365,6 +365,15 @@ for rule, dirs in sorted(params.get("rule_paths", {}).items()):
 sys.exit(1 if bad else 0)
 PY
   RULE_PATHS="$(cat "$SYNC_TMP/rule-paths")"
+  # An entry for a rule the profile does not receive changes nothing; say so instead of passing in silence.
+  received=" $(map_selected rules | tr '\n' ' ')"
+  while read -r rule _; do
+    [[ -n "$rule" ]] || continue
+    case "$received" in
+      *" $rule.md "*) ;;
+      *) echo "sync: warning: sdd.rule_paths.$rule does nothing: profile $PROFILE receives no rules/$rule.md" >&2 ;;
+    esac
+  done <<< "$RULE_PATHS"
 fi
 
 # --vendor-skills is sticky: an existing manifest keeps the repo vendored without

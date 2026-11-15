@@ -1,6 +1,7 @@
 """sync-project.sh --check: stale kit path scan on a throwaway repo."""
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -509,6 +510,100 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertFalse((self.repo / "client").exists(), "the sync creates no folder")
         check = self.run_sync("--check", "--profile", "docs,godot:client")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    # KIT-067 review fix round: the block never leaves the repository, keeps the text around it and skips nested
+    # checkouts; a rule_paths entry that does nothing says so.
+
+    def outside_dir(self):
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, outside)
+        return outside
+
+    def root_block(self):
+        text = self.text("AGENTS.md")
+        return text[text.index(BLOCK_BEGIN):text.index(BLOCK_END) + len(BLOCK_END)]
+
+    def test_agents_md_refuses_a_folder_outside_the_repo(self):
+        outside = self.outside_dir()
+        (self.repo / "game").mkdir()
+        os.symlink(outside, self.repo / "game" / "protocol")
+        self.spec_md("sdd:\n  rule_paths: {json: [game/protocol]}\n")
+        before = self.claude_state()
+        message = "sync: game/protocol resolves outside the repository; the sync writes no path-rule block there"
+        for args in ((), ("--check",)):
+            result = self.run_sync(*args)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn(message, result.stdout)
+        self.assertFalse((outside / "AGENTS.md").exists())
+        self.assertEqual(before, self.claude_state(), "the refusal runs before the first write")
+
+    def test_agents_md_refuses_a_symlinked_agents_md(self):
+        outside = self.outside_dir()
+        (outside / "AGENTS.md").write_text("# outside\n")
+        (self.repo / "client").mkdir()
+        os.symlink(outside / "AGENTS.md", self.repo / "client" / "AGENTS.md")
+        result = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("sync: client/AGENTS.md is a symbolic link; the sync writes no path-rule block through it",
+                      result.stdout)
+        self.assertEqual((outside / "AGENTS.md").read_text(), "# outside\n")
+
+    def test_agents_md_refuses_broken_markers(self):
+        broken = "# x\n\n" + self.root_block().replace(BLOCK_END, "") + "\n"
+        (self.repo / "AGENTS.md").write_text(broken)
+        message = "sync: AGENTS.md path-rule block markers are broken"
+        for args in ((), ("--check",)):
+            result = self.run_sync(*args)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn(message, result.stdout)
+        self.assertEqual(self.text("AGENTS.md"), broken)
+
+    def test_agents_md_skips_a_nested_checkout(self):
+        nested = self.repo / "vendor" / "lib"
+        nested.mkdir(parents=True)
+        (nested / ".git").write_text("gitdir: /elsewhere/.git/modules/lib\n")
+        foreign = "# lib\n\n" + self.root_block() + "\n"
+        (nested / "AGENTS.md").write_text(foreign)
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((nested / "AGENTS.md").read_text(), foreign, "a nested checkout's block is its own")
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    def test_agents_md_keeps_crlf_line_endings(self):
+        (self.repo / "AGENTS.md").write_bytes(b"# x\r\n\r\nHand-written line.\r\n")
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        data = (self.repo / "AGENTS.md").read_bytes()
+        self.assertTrue(data.startswith(b"# x\r\n\r\nHand-written line.\r\n\r\n" + BLOCK_BEGIN.encode()), data[:80])
+        self.assertNotIn(b"\n", data.replace(b"\r\n", b""), "every line ends in CRLF")
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        self.assertEqual(self.run_sync().returncode, 0)
+        self.assertEqual(data, (self.repo / "AGENTS.md").read_bytes())
+
+    def test_agents_md_block_removal_keeps_the_blank_line(self):
+        (self.repo / "AGENTS.md").write_text("# x\n\n" + self.root_block() + "\n\n## After\n\ntext\n")
+        (self.repo / "game" / "protocol").mkdir(parents=True)
+        self.spec_md("sdd:\n  rule_paths: {json: [game/protocol]}\n")
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.text("AGENTS.md"), "# x\n\n## After\n\ntext\n")
+
+    def test_rule_paths_for_a_rule_outside_the_profile_warns(self):
+        self.spec_md("sdd:\n  rule_paths: {godot: [client]}\n")
+        result = self.run_sync("--profile", "docs")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("sync: warning: sdd.rule_paths.godot does nothing: profile docs receives no rules/godot.md",
+                      result.stderr)
+
+    def test_rule_paths_into_a_skipped_folder_warns(self):
+        (self.repo / "build" / "gen").mkdir(parents=True)
+        self.spec_md("sdd:\n  rule_paths: {json: [build/gen]}\n")
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("sync: warning: build/gen is inside a folder the AGENTS.md scan skips", result.stderr)
+        self.assertIn(rule_bullet("json"), self.text("build/gen/AGENTS.md"))
 
 
 SPEC_MD = """---
