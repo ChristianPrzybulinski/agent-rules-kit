@@ -219,3 +219,11 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   of the test globs drops its assertions; diffs fix `--src-prefix=a/ --dst-prefix=b/`; a base rules file the tool
   cannot read exits 2. Not here: #248 (a rename that leaves the runner's discovery pattern), #249 (`feat-proofs` needs
   `--base` like `proof`).
+- 2026-11-15: coordinator review of `f5da22d` (BLOCKED) fixed. One line rule: patch lines split on `\n` drop one
+  trailing `\r` (a `$`-anchored rule missed every CRLF line), and files read whole split on CRLF, CR or LF (a CR-only
+  REVIEW.md had collapsed into one rule). A test moved out of the test globs is read at the merge base, not base's tip
+  (a crash when base had deleted it, a wrong count when base had edited it). The widened-assertion check follows a
+  rename back to the widened path. A config value of the wrong type, or any crash, exits 2 through a top-level
+  handler, and `--patterns` regexes and shapes are checked up front. Not here: #250 (`feat-proofs` rows split on FF,
+  NEL or U+2028), #251 (`pr_gates` splits PR bodies on CommonMark line endings only), #252 (value types in the gates
+  and patterns config).
