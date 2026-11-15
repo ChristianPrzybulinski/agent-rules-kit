@@ -479,6 +479,13 @@ class NeedTest(unittest.TestCase):
                 self.need("NEED-001", status=status, requirements="[REQ-F-002]")
                 self.assert_fails("REQ-F-002 has no FEAT implementing it and no NEED listing it")
 
+    def test_req_listed_only_by_a_delivered_need_fails(self):
+        self.req_without_feat("REQ-F-002", status="approved")
+        self.approved_decision("DEC-002")
+        self.need("NEED-001", status="delivered", type_="decision", decisions="[DEC-002]", requirements="[REQ-F-002]")
+        self.assert_fails("REQ-F-002 has no FEAT implementing it and no NEED listing it "
+                          "(NEED-001 lists it but is closed or delivered)")
+
     def test_decisions_link_must_be_a_decision(self):
         self.need("NEED-001", decisions="[REQ-F-001]")
         self.assert_fails("decisions lists REQ-F-001, which is not an existing decision")

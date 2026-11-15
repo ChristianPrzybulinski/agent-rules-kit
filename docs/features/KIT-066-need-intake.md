@@ -88,12 +88,14 @@ the FEAT (technical). `sdd-check` leaves the chain and becomes the read-only too
   `platforms/ci/validations/check_spec.py` validates `needs/` at its top level only, so a `NEED-nnn-data/` folder holds
   any evidence (kinds and existence of every link, journeys by file, `parent`, `refined`/`delivered` backed by links,
   `delivered` only with delivered FEATs, or for a `decision` NEED with no FEAT an approved decision, `NEED` reserved as a
-  decision prefix) and accepts a REQ with no FEAT when an open NEED lists it (a rejected, merged, routed or parked one
-  does not count). `spec_trace.py` lets a main or alternative journey step hold `—` in `Implemented by` and `Proven by`
-  until a FEAT that lists one of its REQs is `validated` or `delivered`, so a step written in clarify does not block
-  `refined`; from then on both are required, and a prerequisite row always cites its task. `test_check_spec.py` adds
-  `NeedTest` (19 tests) and `DecisionKindsTest.test_need_prefix_is_reserved`, each in full and structural mode;
-  `test_spec_trace.py` adds `PendingStepTest` (5 tests).
+  decision prefix) and accepts a REQ with no FEAT when an open NEED lists it (a delivered, rejected, merged, routed or
+  parked one does not count). `spec_trace.py` lets a main or alternative journey step hold a literal `—` in
+  `Implemented by` and `Proven by` while a NEED that lists the journey in `journeys` is open (not delivered, rejected,
+  merged, routed or parked), so a step written in clarify does not block `refined`; once no open NEED lists the journey
+  both are required, as on `main`, and a project without `needs/` keeps `main`'s rule. A prerequisite row, an empty
+  cell and a journey with no step still fail. `sdd-tasks` fills both cells when it cuts the rows. `test_check_spec.py`
+  adds `NeedTest` (20 tests) and `DecisionKindsTest.test_need_prefix_is_reserved`, each in full and structural mode;
+  `test_spec_trace.py` adds `PendingStepTest` (8 tests).
 - Text: `sdd-process.md` (entry, chain, flow table with `sdd-check` as a tool in place of step 3, NEED/REQ/FEAT statuses),
   `rules/spec.md` (templates, ids, link rule, NEED provenance, Request language), `sdd-constitution` and
   `spec-index.md` (`needs/`, Needs index), `init-spec.sh`, `sync-project.sh` (copies `need.schema.json`),
@@ -113,12 +115,13 @@ suites, and `gitleaks git --redact --log-opts=origin/main..HEAD`. With `origin/m
 of the 14 new tests fail. Of the 4 that pass, 3 assert that valid NEEDs pass, which the old checker allows because it
 ignores `needs/`, and 1 refuses an unknown REQ status, which the old schema refuses because it allows no `status`.
 Results are in the PR body.
-Of the review fix round's 12 new or changed tests (`PendingStepTest`, six `NeedTest` tests and the renamed
-`test_main_step_without_tests_fails_once_its_feat_is_delivered`), 5 fail against the checkers of `46c2602` (8 failures,
-the closed-NEED test failing for each of its 4 statuses): the two pending-step tests, the data folder, the delivered
-decision NEED and the closed NEEDs. The 7 that pass there guard what must not change: a delivered FEAT still requires
-refs, a prerequisite row and an empty cell still fail, a journey with no step fails, a delivered NEED without an
-approved decision fails, and the decisions and debts link kinds.
+Of the first review round's 12 new or changed tests, 5 failed against the checkers of `46c2602`. Of the second round's
+10 new or changed tests (`PendingStepTest`, `test_main_step_without_tests_fails` restored to its `main` form, and
+`NeedTest.test_req_listed_only_by_a_delivered_need_fails`), 6 fail against the checkers of `da2f9a8` (11 failures with
+subtests): a step whose open NEED is settled, the amend path, the step with no rule, the project without `needs/`,
+`main`'s test of a step without tests and the REQ listed only by a delivered NEED. The 4 that pass there guard what must
+not change: a step waits while its NEED is open, an empty cell, a prerequisite row and a journey with no step still
+fail.
 
 ## History
 
@@ -140,3 +143,10 @@ approved decision fails, and the decisions and debts link kinds.
   approved decision and no FEAT be `delivered` and ignores REQs listed only by closed NEEDs; `sdd-check` rows and
   checklist items match the stage they run in (C1, C8, Q1, Q5, Q6); nits in `sdd-clarify`, `sdd-specify` and
   `spec-need.md`; `req-scope.md` cites a decision in Rationale, not `source`, and `rules/spec.md` says open NEED.
+- 2026-11-14: second review round (delta review PARTIAL): the `—` wait follows the open NEED, not FEAT status. A step
+  waits while an open NEED lists its journey, which fixes the amend path (a new step citing a REQ an older FEAT already
+  delivered failed at once) and the step with no rule (it could keep `—` forever); without `needs/` the rule is
+  `main`'s. `sdd-tasks` fills both cells; a delivered NEED no longer counts as listing a REQ; `platforms/ci/README.md`
+  and `spec-journey.md` state the rules (orchestrator's design).
+- 2026-11-14: `sdd-tasks` also fills a journey step whose `Rules` is `—`, and writes test task rows in `Proven by` until
+  the test file exists (gaps the second round's executor reported).

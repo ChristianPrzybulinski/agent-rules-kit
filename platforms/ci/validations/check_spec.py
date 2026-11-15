@@ -12,8 +12,8 @@ Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id pr
 NEED-nnn intake records (docs/spec/needs/, top level only: NEED-nnn-data/ folders hold evidence) link forward only:
 every listed id must exist with the right kind, a refined or delivered NEED names what it became, and a delivered one
 lists only delivered FEATs, or, for a decision NEED with no FEAT, an approved decision. A REQ that no FEAT implements
-yet must be listed by an open NEED, not a rejected, merged, routed or parked one (REQs are written before the FEAT that
-delivers them).
+yet must be listed by an open NEED, not a delivered, rejected, merged, routed or parked one (REQs are written before
+the FEAT that delivers them).
 """
 import json
 import os
@@ -392,6 +392,7 @@ def check_conflict_markers(spec_dir):
 NEED_LINKS = {"requirements": "requirement", "decisions": "decision", "debts": "debt", "features": "feature"}
 NEED_PRODUCT_LINKS = ("requirements", "journeys", "decisions")
 NEED_CLOSED = ("rejected", "merged", "routed", "parked")
+NEED_SETTLED = NEED_CLOSED + ("delivered",)  # a NEED in one of these no longer holds a REQ for a future FEAT
 JOURNEY_FILE = re.compile(r"^(J-\d{2,})(?:-[a-z0-9-]+)?$")
 
 
@@ -593,13 +594,13 @@ def main():
         for r in rlist:
             if r not in reqs:
                 fail(f"{ids[fid]}: requirements lists {r} which does not exist")
-    need_reqs = {str(r) for data in needs.values() if data.get("status") not in NEED_CLOSED
+    need_reqs = {str(r) for data in needs.values() if data.get("status") not in NEED_SETTLED
                  for r in as_list(data.get("requirements"))}
-    closed_reqs = {str(r): nid for nid, data in needs.items() if data.get("status") in NEED_CLOSED
-                   for r in as_list(data.get("requirements"))}
+    settled_reqs = {str(r): nid for nid, data in needs.items() if data.get("status") in NEED_SETTLED
+                    for r in as_list(data.get("requirements"))}
     for rid, flist in reqs.items():
         if not flist and rid not in need_reqs:
-            closed = f" ({closed_reqs[rid]} lists it but is closed)" if rid in closed_reqs else ""
+            closed = f" ({settled_reqs[rid]} lists it but is closed or delivered)" if rid in settled_reqs else ""
             fail(f"{ids[rid]}: {rid} has no FEAT implementing it and no NEED listing it{closed}")
         for f in flist:
             if f not in feats:

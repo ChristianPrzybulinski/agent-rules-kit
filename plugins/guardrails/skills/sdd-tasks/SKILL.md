@@ -37,11 +37,12 @@ Each row contains `T-nn`, imperative title, exact rooted files (tests included),
 
 States: `todo`, `doing`, `done`, `blocked`.
 Waves: `references/waves-and-models.md` (wave 0, shared files, cross-FEAT order); wave numbers are FEAT-local and a cross-FEAT dependency points to a task cut earlier.
-Journeys, only when the project keeps them (`sdd.journeys`; absent = on when `docs/spec/journeys/` exists): fill each touched step's `Implemented by` with the `FEAT-nnn Tn` rows that deliver it and add a `P<n>` step for each prerequisite row (`../sdd-clarify/references/journeys.md`).
 
 ## 4. Check coverage
 
 Every acceptance criterion appears in at least one task (`Covers` cites CA ids; each CA already cites the REQs it proves); every task covers a criterion or is explicitly infrastructure. Run `sdd-check` row C8 (criterion without task or task without criterion) and remove vague “implement the rest” rows.
+
+When the project keeps journeys (`sdd.journeys`; absent = on when `docs/spec/journeys/` exists), fill every `—` step of the journeys this FEAT's NEED lists, a step with `Rules` `—` included: `Implemented by` takes the new `FEAT-nnn Tn` rows that build it, `Proven by` takes the test task rows (`FEAT-nnn Tn`), never a path to a test file that does not exist yet; add any `P<n>` row with its task, and run `spec_trace.py check`.
 
 ## 5. Pre-cut checklist (before issues are created)
 

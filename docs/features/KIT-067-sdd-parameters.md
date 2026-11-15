@@ -62,7 +62,7 @@ godot rule in 0 of 18 sessions that edited `.gd` files and the java rule in 3 of
 - `plugins/guardrails/skills/sdd-constitution/references/sdd-parameters.md` (new): each key, its values, its default
   and the step that reads it, marked KIT-068 or KIT-069 where that change wires it and "not wired yet (#237)" for
   `needs`; the `rule_paths` example for a monorepo. `journeys` is read now: one line each in `sdd-clarify` (journey
-  steps), `sdd-check` (journey links) and `sdd-tasks` (`Implemented by`, `P<n>` steps).
+  steps), `sdd-check` (journey links) and `sdd-tasks` § 4 (fills the journey cells).
 - `plugins/guardrails/skills/sdd-constitution/SKILL.md`: § 3 also writes the domain glossary (domain terms only, from
   the README and the code's folder and module names) and the architecture (base architecture with its decision, one
   row per area with rooted paths); § 4 sets the parameters, changing a key only on a fact or product choice, and reads

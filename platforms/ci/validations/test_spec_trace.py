@@ -164,11 +164,9 @@ class CheckTest(unittest.TestCase):
         errs = self.with_journey("`game-server/src/test/**` |", "`game-server/src/test/**` see T7 |")
         self.assert_error(errs, "Proven by holds text outside test refs")
 
-    def test_main_step_without_tests_fails_once_its_feat_is_delivered(self):
-        fixture(self.root, JOURNEY.replace("| `game-client/tests/a/**` |", "| — |"))
-        feat = FEAT.format(fid="FEAT-001", reqs="REQ-F-001").replace("status: clarified", "status: delivered")
-        write(self.root, "docs/spec/features/FEAT-001.md", feat)
-        self.assert_error(errors(self.root), "Proven by cites no test")
+    def test_main_step_without_tests_fails(self):
+        self.assert_error(self.with_journey("| `game-client/tests/a/**` |", "| — |"),
+                          "Proven by cites no test")
 
     def test_duplicate_step_id_fails(self):
         self.assert_error(self.with_journey("| S2 | confirms |", "| S1 | confirms |"),
@@ -212,16 +210,40 @@ created: "2026-11-14"
 # REQ-F-001
 """
 
+PENDING_NEED = """\
+---
+id: {nid}
+title: "Fixture need {nid}"
+type: improvement
+status: {status}
+origin: "owner"
+journeys: [{journeys}]
+created: "2026-11-14"
+---
+
+# {nid}
+"""
+
 PENDING_JOURNEY = JOURNEY.split("| Step |")[0] + """\
 | Step | Player action → visible result | Rules | Implemented by | Proven by |
 |---|---|---|---|---|
 | S1 | opens the trade → sees both offers | REQ-F-001 | — | — |
 """
 
+AMEND_JOURNEY = JOURNEY.split("| Step |")[0] + """\
+| Step | Player action → visible result | Rules | Implemented by | Proven by |
+|---|---|---|---|---|
+| S1 | opens the trade → sees both offers | REQ-F-001 | FEAT-001 T1 | FEAT-001 T2 |
+| S2 | counters the offer → sees the new total | REQ-F-001 | — | — |
+"""
+
+OPEN_NEED = ("proposed", "triaged", "specified", "refined")
+SETTLED_NEED = ("delivered", "rejected", "merged", "routed", "parked")
+
 
 class PendingStepTest(unittest.TestCase):
-    """sdd-clarify writes a step before its FEAT and tasks exist: `—` in Implemented by and Proven by passes until
-    a FEAT listing one of the step's REQs is validated or delivered (KIT-066)."""
+    """sdd-clarify writes a step before its FEAT and tasks exist: `—` in Implemented by and Proven by passes while an
+    open NEED (not delivered, rejected, merged, routed or parked) lists the journey, else main's rule (KIT-066)."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -239,6 +261,10 @@ class PendingStepTest(unittest.TestCase):
         feat = FEAT.format(fid="FEAT-001", reqs="REQ-F-001").replace("status: clarified", f"status: {status}")
         write(self.root, "docs/spec/features/FEAT-001.md", feat)
 
+    def need(self, status, nid="NEED-001", journeys="J-01"):
+        write(self.root, f"docs/spec/needs/{nid}-fixture.md",
+              PENDING_NEED.format(nid=nid, status=status, journeys=journeys))
+
     def journey(self, old, new):
         write(self.root, "docs/spec/journeys/J-01.md", PENDING_JOURNEY.replace(old, new))
 
@@ -251,27 +277,56 @@ class PendingStepTest(unittest.TestCase):
         for fragment in fragments:
             self.assertTrue(any(fragment in e for e in errs), f"no error containing {fragment!r} in {errs}")
 
-    def test_step_whose_proposed_req_no_feat_lists_passes(self):
+    def test_step_passes_while_an_open_need_lists_the_journey(self):
         self.req()
-        self.assertEqual(self.check(), [])
-
-    def test_step_fails_once_a_feat_listing_its_req_is_validated_or_delivered(self):
-        self.req(feats="FEAT-001")
-        self.feat("planned")
-        self.assertEqual(self.check(), [])
-        for status in ("validated", "delivered"):
+        for status in OPEN_NEED:
             with self.subTest(status=status):
-                self.feat(status)
+                self.need(status)
+                self.assertEqual(self.check(), [])
+
+    def test_step_fails_once_no_open_need_lists_the_journey(self):
+        self.req()
+        for status in SETTLED_NEED:
+            with self.subTest(status=status):
+                self.need(status)
                 self.assert_errors(self.check(), "J-01 S1: Implemented by cites no task",
-                                   "J-01 S1: Proven by cites no test", f"FEAT-001 is {status}")
+                                   "J-01 S1: Proven by cites no test", "no open NEED lists J-01")
+        with self.subTest("an open NEED that lists another journey"):
+            self.need("refined", journeys="J-02")
+            self.assert_errors(self.check(), "J-01 S1: Implemented by cites no task", "no open NEED lists J-01")
+
+    def test_amended_step_waits_for_its_need_although_an_older_feat_delivered_the_req(self):
+        self.req(feats="FEAT-001")
+        self.feat("delivered")
+        write(self.root, "docs/spec/journeys/J-01.md", AMEND_JOURNEY)
+        self.need("refined", nid="NEED-002")
+        self.assertEqual(self.check(), [])
+        self.need("delivered", nid="NEED-002")
+        self.assert_errors(self.check(), "J-01 S2: Implemented by cites no task", "J-01 S2: Proven by cites no test")
+
+    def test_step_without_rules_waits_only_while_a_need_is_open(self):
+        self.req()
+        self.journey("| REQ-F-001 | — | — |", "| — | — | — |")
+        self.need("specified")
+        self.assertEqual(self.check(), [])
+        self.need("delivered")
+        self.assert_errors(self.check(), "J-01 S1: Implemented by cites no task", "J-01 S1: Proven by cites no test")
+
+    def test_project_without_needs_keeps_the_rule_of_main(self):
+        self.req()
+        errs = self.check()
+        self.assertFalse((self.spec / "needs").exists())
+        self.assert_errors(errs, "J-01 S1: Implemented by cites no task", "J-01 S1: Proven by cites no test")
 
     def test_empty_cell_is_not_the_placeholder(self):
         self.req()
+        self.need("refined")
         self.journey("| REQ-F-001 | — | — |", "| REQ-F-001 |  |  |")
         self.assert_errors(self.check(), "J-01 S1: Implemented by cites no task", "J-01 S1: Proven by cites no test")
 
     def test_prerequisite_row_always_cites_a_task(self):
         self.req()
+        self.need("refined")
         write(self.root, "docs/spec/journeys/J-01.md", PENDING_JOURNEY + textwrap.dedent("""
             | Step | What the steps need | Implemented by |
             |---|---|---|
@@ -281,6 +336,7 @@ class PendingStepTest(unittest.TestCase):
 
     def test_journey_without_steps_still_fails(self):
         self.req()
+        self.need("refined")
         write(self.root, "docs/spec/journeys/J-01.md", PENDING_JOURNEY.split("| Step |")[0])
         self.assert_errors(self.check(), "J-01: no main step (S<n>) found")
 
