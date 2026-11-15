@@ -35,7 +35,9 @@ on newlines, one trailing CR dropped per line, with fixed a/ and b/ prefixes, ra
 --no-ext-diff`; the tests cover a `-diff` or `binary` attribute in the head or base, a quote, tab, space or non-ASCII
 character in a file name, a CR, FF or U+2028 inside an added line, a rule anchored at `$` on a CRLF line, and a
 reviewer's diff.noprefix or prefix config. Files read whole (REVIEW.md, a moved test) split on CRLF, CR or LF. A rules
-file the tool cannot read, a config value of the wrong type or any other crash exits 2, never the finding code 1.
+file or config the tool cannot read or use (a base that is not a commit, bad JSON, not an object, a regex that does not
+compile, a value whose type crashes the check) exits 2, never the finding code 1; a wrong type that still iterates is
+not caught (#252).
 
 A proof re-run first checks that every path the command names exists, `res://` against Godot's `--path` (a moved
 file is a stale proof, not a failure of the code), then fails a run whose output matches its stack's failure pattern
@@ -561,6 +563,19 @@ def repo_rel(args, path) -> str | None:
     return None
 
 
+def verified_commit(repo: Path, rev: str) -> None:
+    """Rules are read from `rev`, so `rev` must be a commit of the repository: a missing rev (a typo, a shallow CI clone
+    without the base) or a folder that is no git repository is a usage error, never "not on base", which would drop
+    the rules."""
+    def ok(*argv):
+        return subprocess.run(["git", *argv], cwd=repo, capture_output=True).returncode == 0
+
+    if not ok("rev-parse", "--git-dir"):
+        usage_error(f"--repo {repo} is not a git repository, so no rules file can be read from {rev}")
+    if not ok("rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}"):
+        usage_error(f"{rev} is not a commit in {repo} (a shallow clone without it?), so its rules files cannot be read")
+
+
 def object_type(repo: Path, rev: str, path: str) -> str | None:
     done = subprocess.run(["git", "cat-file", "-t", f"{rev}:{path}"], cwd=repo, capture_output=True, text=True)
     return done.stdout.strip() if done.returncode == 0 else None
@@ -576,6 +591,7 @@ def rules_text(args, base: str | None, path) -> str | None:
             usage_error(f"{path} is not a file")
         return Path(path).read_text(encoding="utf-8", errors="replace")
     rev = base or "HEAD"
+    verified_commit(args.repo, rev)
     kind = object_type(args.repo, rev, rel) if rel else "tree"
     if kind is None:
         print(f"note: {rel} is not on base {rev}; its rules do not apply to this PR")

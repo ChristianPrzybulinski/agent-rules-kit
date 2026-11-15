@@ -227,3 +227,9 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   handler, and `--patterns` regexes and shapes are checked up front. Not here: #250 (`feat-proofs` rows split on FF,
   NEL or U+2028), #251 (`pr_gates` splits PR bodies on CommonMark line endings only), #252 (value types in the gates
   and patterns config).
+- 2026-11-15: coordinator review of `1cfd58a` (BLOCKED, one item) fixed: `rules_text` verifies the rev it reads rules
+  from (`git rev-parse --verify --quiet <rev>^{commit}`); a rev that is not a commit (a shallow CI clone without the
+  base) or a `--repo` that is no git repository exits 2 instead of reading as "not on base", which had dropped base's
+  patterns. The exit-2 claims now cover only configs the tool cannot read or use (#252 for types); `dod` does not see
+  line-ending CRs. Not here: #253 (a PR-controlled crash as a finding), #254 (CR-only test files in the assertion
+  count), #255 (an import error and `--timeout 0`).
