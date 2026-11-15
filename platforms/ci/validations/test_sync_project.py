@@ -529,13 +529,33 @@ class SyncProjectCheckTest(unittest.TestCase):
         os.symlink(outside, self.repo / "game" / "protocol")
         self.spec_md("sdd:\n  rule_paths: {json: [game/protocol]}\n")
         before = self.claude_state()
-        message = "sync: game/protocol resolves outside the repository; the sync writes no path-rule block there"
+        message = "sync: game/protocol goes through a symbolic link; the sync writes no path-rule block there"
         for args in ((), ("--check",)):
             result = self.run_sync(*args)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn(message, result.stdout)
         self.assertFalse((outside / "AGENTS.md").exists())
         self.assertEqual(before, self.claude_state(), "the refusal runs before the first write")
+
+    def test_agents_md_refuses_a_folder_reached_through_a_symlink(self):
+        """Two targets that resolve to one real folder (docs/link -> ../client) would rewrite each other forever."""
+        (self.repo / "client").mkdir()
+        os.symlink("../client", self.repo / "docs" / "link")
+        self.spec_md("sdd:\n  rule_paths: {json: [docs/link]}\n")
+        message = "sync: docs/link goes through a symbolic link; the sync writes no path-rule block there"
+        for args in ((), ("--check",)):
+            result = self.run_sync(*args, "--profile", "docs,godot:client")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn(message, result.stdout)
+        self.assertFalse((self.repo / "client" / "AGENTS.md").exists())
+
+    def test_agents_md_keeps_the_dominant_line_ending(self):
+        (self.repo / "AGENTS.md").write_bytes(b"# x\n\nLF line.\nCRLF line.\r\n")
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        data = (self.repo / "AGENTS.md").read_bytes()
+        self.assertTrue(data.startswith(b"# x\n\nLF line.\n"), data[:40])
+        self.assertNotIn(b"\r", data[data.index(BLOCK_BEGIN.encode()):], "the block takes the dominant LF ending")
 
     def test_agents_md_refuses_a_symlinked_agents_md(self):
         outside = self.outside_dir()
