@@ -16,6 +16,7 @@ sdd:
   row_check: null
   cut_command: null
   max_chain: 4
+  max_feat_tasks: 30
   release: merge
   review_rounds: 3
   commits_by: executor

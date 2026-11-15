@@ -529,6 +529,7 @@ SDD_FULL = """sdd:
   row_check: "python3 tools/row_lint.py check"
   cut_command: python3 tools/cut.py
   max_chain: 3
+  max_feat_tasks: 20
   release: manual
   review_rounds: 2
   commits_by: orchestrator
@@ -547,7 +548,7 @@ SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
                 "plan_sections": ["Design", "Contract", "Data", "UI", "Flag", "Tests", "Observability", "Risks",
                                   "Dependencies"],
                 "pr_unit": "task", "task_minutes": 30, "row_check": None, "cut_command": None, "max_chain": 4,
-                "release": "merge", "review_rounds": 3, "commits_by": "executor", "protected_paths": {},
+                "max_feat_tasks": 30, "release": "merge", "review_rounds": 3, "commits_by": "executor", "protected_paths": {},
                 "bundle": {"rows": 1, "points": 3, "high_rows": 1}, "rule_paths": {},
                 "visual_approval": "none", "owner_approvals": ["decision"]}
 
@@ -637,6 +638,10 @@ class SddParamsTest(unittest.TestCase):
     def test_integer_below_minimum_fails(self):
         self.index("sdd:\n  max_chain: 0\n  review_rounds: -1\n")
         self.assert_fails("sdd.max_chain 0 is below the minimum 1", "sdd.review_rounds -1 is below the minimum 1")
+
+    def test_max_feat_tasks_below_minimum_fails(self):
+        self.index("sdd:\n  max_feat_tasks: 0\n")
+        self.assert_fails("sdd.max_feat_tasks 0 is below the minimum 1")
 
     def test_boolean_key_refuses_a_word(self):
         self.index("sdd:\n  needs: maybe\n")

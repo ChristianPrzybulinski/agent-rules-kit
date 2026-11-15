@@ -19,6 +19,6 @@ Always/never for `*.gd`, `*.tscn` and `project.godot`. Procedures: skill `godot-
 - Never: `get_parent()`, an ancestor lookup or a sibling path (`$"../Other"`) to apply a game rule; a child reports up by signal and its parent calls down, or use the project's `EventBus` autoload.
 - Never: an authoritative game rule on the client; the client sends intent, predicts only what the repo `AGENTS.md` allows and reconciles on the server's answer.
 - Always: new or changed logic ships with a gdUnit4 test under `tests/` (GUT only when the repo `AGENTS.md` says so).
-- Always: `.uid`, `*.import` and `.translation` files travel with their source in the same commit and in the task's `Files` cell.
+- Always: a source's generated neighbours (`*.uid`, `*.import`; `*.translation` stays ignored) go in the same commit as the source; they are implicit in a task's `Files` and never listed there, so the project's gates config lists them in `generated_neighbours` (the `pr_gates.py` default is none).
 - Never: edit `.godot/`, a `.uid` file or a generated `*.import` by hand.
 - Always: boot proof before "done": `godot --headless --path . --import` then `! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'`; paste the literal output.

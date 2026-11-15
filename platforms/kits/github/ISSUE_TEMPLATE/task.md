@@ -20,7 +20,7 @@ assignees: ""
 
 ## Files (owned areas)
 
-<!-- the task's owned areas from the task row: a directory glob or an exact rooted path per area, tests and generated files included -->
+<!-- the task's owned areas from the task row: a directory glob or an exact rooted path per area, tests included; generated neighbours (*.uid, *.import) are implicit; read-only paths marked (read-only) -->
 
 ## Proof of completion
 
@@ -36,7 +36,7 @@ assignees: ""
 
 ## Depends on
 
-<!-- FEAT-NNN Tn / issue #N / none -->
+<!-- issue #N / FEAT-NNN Tn / none -->
 
 ## Directive
 

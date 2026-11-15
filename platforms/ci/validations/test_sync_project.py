@@ -126,6 +126,10 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
         self.assertEqual(before, (claude.read_bytes(), settings.read_bytes()))
 
+    def test_spec_lint_copies_the_task_schema(self):  # KIT-068: tracker none keeps docs/spec/tasks/
+        copied = self.repo / ".github" / "spec-lint" / "schemas" / "task.schema.json"
+        self.assertEqual(copied.read_bytes(), (KIT / "platforms" / "ci" / "schemas" / "task.schema.json").read_bytes())
+
     def test_check_detects_enabled_plugins_drift(self):
         settings = self.repo / ".claude" / "settings.json"
         data = json.loads(settings.read_text())
