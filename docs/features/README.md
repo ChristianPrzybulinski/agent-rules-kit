@@ -92,6 +92,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-068-plan-and-tasks-cut.md`](KIT-068-plan-and-tasks-cut.md) | confirmed | #243 | #244 |
 | [`KIT-069-delivery-side.md`](KIT-069-delivery-side.md) | confirmed | #242 | #246 |
 | [`KIT-071-guaranteed-skill-use.md`](KIT-071-guaranteed-skill-use.md) | confirmed | #233 | #235 |
-| [`KIT-072-kit-version-pin.md`](KIT-072-kit-version-pin.md) | confirmed | #257 | |
+| [`KIT-072-kit-version-pin.md`](KIT-072-kit-version-pin.md) | confirmed | #257 | #260 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

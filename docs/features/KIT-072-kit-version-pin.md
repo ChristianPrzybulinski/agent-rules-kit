@@ -4,7 +4,7 @@ title: "Each consumer project pins the kit version it uses"
 status: confirmed
 confirmed: "2026-11-14 (owner, chat of the kit adoption session: item 6 of the six adjustments, 'Aprovo todos')"
 issue: "#257"
-pr: ""
+pr: "#260"
 ---
 
 # KIT-072 — Each consumer project pins the kit version it uses
