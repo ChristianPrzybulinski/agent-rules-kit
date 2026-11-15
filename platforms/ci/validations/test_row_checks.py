@@ -500,6 +500,7 @@ class ConfigShapes(Base):
             rc.lint = original
         self.assertEqual(code, 2, out + err)
         self.assertIn("row-checks: internal error: RuntimeError: boom", err)
+        self.assertIn("Traceback", err)  # the cause, for whoever fixes it
 
 
 class Changed(unittest.TestCase):

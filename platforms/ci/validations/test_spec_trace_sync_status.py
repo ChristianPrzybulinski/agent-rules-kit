@@ -344,6 +344,15 @@ class SyncStatusTest(unittest.TestCase):
         self.assertIn("WARN FEAT-001 T1: task issues #11, #12 — evidence merged", out)
         self.assertIn("FEAT-001 T1: todo -> done (product-client#90)", out)
 
+    def test_only_open_issues_lend_their_labels(self):
+        """Review B1 follow-up: a closed issue still labelled blocked must not block the row its open issue tracks."""
+        gh = self.routes([issue(12, "[FEAT-001 T2] second", "closed", ["blocked"], reason="completed"),
+                          issue(22, "[FEAT-001 T2] Fix round")])
+        _, out = self.run_sync(gh)
+        self.assertIn("WARN FEAT-001 T2: task issues #12, #22 — evidence merged", out)
+        self.assertNotIn("T2: todo -> blocked", out)
+        self.assertEqual(self.status("FEAT-001", "T2"), "todo")
+
     def test_all_rows_done_stops_at_in_progress(self):
         gh = self.routes([issue(11, "[FEAT-001 T1] a", "closed"), issue(12, "[FEAT-001 T2] b", "closed"),
                           issue(13, "[FEAT-001 T3] c", "closed")],
