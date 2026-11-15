@@ -182,5 +182,92 @@ class SkillUsageTest(unittest.TestCase):
             skill_usage.main(["--days", "0"])
 
 
+def load(file_path, session, cwd="/Users/x/shop", reason="path_glob_match", age_days=0.0):
+    return {"ts": int(time.time() - age_days * 86400), "session_id": session, "cwd": cwd, "file_path": file_path,
+            "memory_type": "Project", "load_reason": reason, "globs": None, "trigger_file_path": None,
+            "parent_file_path": None}
+
+
+class RuleLoadsTest(unittest.TestCase):
+    """--rules (KIT-070, #238): Claude Code rule loads from the InstructionsLoaded log (and its rotated copy) and
+    Codex sessions whose tool calls open a kit skill reference."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        self.claude, self.codex, self.log = root / "claude", root / "codex", root / "data" / "instructions-loaded.jsonl"
+        rules = "/Users/x/shop/.claude/rules/"
+        write_jsonl(self.log, [
+            load(rules + "guardrails-godot.md", "s1"),
+            load(rules + "guardrails-godot.md", "s1"),
+            load(rules + "guardrails-godot.md", "s2"),
+            load(rules + "guardrails-tests.md", "s2"),
+            load(rules + "core-java.md", "s3"),  # a pre-KIT-055 plugin prefix counts under the rule
+            load("/Users/x/shop/CLAUDE.md", "s1", reason="session_start"),
+            load(rules + "guardrails-code.md", "s4", age_days=40),
+            load("/Users/x/blog/.claude/rules/guardrails-java.md", "b1", cwd="/Users/x/blog"),
+            "{not json",
+            "[1]",
+        ])
+        write_jsonl(self.log.with_name(self.log.name + ".1"), [load(rules + "guardrails-spec.md", "s5")])
+        day = self.codex / "2026" / "11" / "15"
+        write_jsonl(day / "rollout-a.jsonl", [
+            {"type": "session_meta", "payload": {"cwd": "/Users/x/shop"}},
+            codex("custom_tool_call", name="exec", input="cat .claude/skills/sdd-implement/references/godot/README.md"),
+            codex("custom_tool_call", name="exec", input="sed -n 1,40p .claude/skills/sdd-implement/references/tdd.md"),
+            codex("custom_tool_call_output", output="see skills/sdd-plan/references/contract.md"),
+        ])
+        write_jsonl(day / "rollout-b.jsonl", [
+            {"type": "session_meta", "payload": {"cwd": "/Users/x/blog"}},
+            codex("local_shell_call", action={"command": ["cat", "/h/.ai-kit/plugins/guardrails/skills/sdd-implement"
+                                                                 "/references/tdd.md"]})])
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_rules(self, *args):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = skill_usage.main(["--rules", "--rule-log", str(self.log), "--claude-dir", str(self.claude),
+                                     "--codex-dir", str(self.codex), *args])
+        return code, out.getvalue()
+
+    def test_counts_rule_loads_and_reference_opens(self):
+        code, out = self.run_rules("--json")
+        self.assertEqual(code, 0)
+        result = json.loads(out)
+        claude, codex_data = result["claude"], result["codex"]
+        self.assertEqual(claude["sessions"], 5)  # s1, s2, s3, s5 and b1; s4 is older than the window
+        self.assertEqual(claude["rules"]["godot"], {"loads": 3, "sessions": 2, "path_glob_match": 3})
+        self.assertEqual(claude["rules"]["tests"]["sessions"], 1)
+        self.assertEqual(claude["rules"]["java"]["sessions"], 2)
+        self.assertEqual(claude["rules"]["spec"]["sessions"], 1)  # from the rotated log
+        self.assertEqual(claude["rules"]["code"], {"loads": 0, "sessions": 0, "path_glob_match": 0})
+        self.assertNotIn("CLAUDE.md", claude["rules"])  # kit rules only by default
+        self.assertEqual(codex_data["sessions"], 2)
+        self.assertEqual(codex_data["references"], {"sdd-implement/godot/README.md": {"sessions": 1},
+                                                    "sdd-implement/tdd.md": {"sessions": 2}})
+
+    def test_all_project_and_window(self):
+        result = json.loads(self.run_rules("--json", "--all", "--days", "60")[1])
+        self.assertEqual(result["claude"]["rules"]["CLAUDE.md"]["session_start"], 1)
+        self.assertEqual(result["claude"]["rules"]["code"]["sessions"], 1)
+        shop = json.loads(self.run_rules("--json", "--project", "shop")[1])
+        self.assertEqual(shop["claude"]["rules"]["java"]["sessions"], 1)
+        self.assertEqual(shop["codex"]["references"]["sdd-implement/tdd.md"]["sessions"], 1)
+
+    def test_table_and_missing_log(self):
+        code, out = self.run_rules()
+        self.assertEqual(code, 0)
+        self.assertIn("godot", out)
+        self.assertIn("sdd-implement/tdd.md", out)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            skill_usage.main(["--rules", "--rule-log", str(self.log.with_name("none.jsonl")), "--claude-dir",
+                              str(self.claude), "--codex-dir", str(self.codex / "none"), "--json"])
+        result = json.loads(out.getvalue())
+        self.assertEqual((result["claude"]["sessions"], result["codex"]["sessions"]), (0, 0))
+
+
 if __name__ == "__main__":
     unittest.main()

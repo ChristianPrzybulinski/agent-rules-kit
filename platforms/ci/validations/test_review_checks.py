@@ -173,11 +173,11 @@ REVIEW = """\
 # Review instructions
 
 ## Correctness
-- No focused or skipped test (`testing` § 2). <!-- grep tests: \\.only\\(|@Disabled|unittest\\.skip -->
+- No focused or skipped test (rule `tests`). <!-- grep tests: \\.only\\(|@Disabled|unittest\\.skip -->
 
 ## Docs
-- No TODO left behind (`code-standards` § 4). <!-- grep: \\bTODO\\b -->
-- CHANGELOG `Unreleased` entry (`code-standards` § 9).
+- No TODO left behind (rule `code`). <!-- grep: \\bTODO\\b -->
+- CHANGELOG `Unreleased` entry (`sdd-implement` reference `living-docs.md`).
 """
 
 

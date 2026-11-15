@@ -31,7 +31,7 @@ Record observed and expected behavior, environment, commit/version, platform, fr
 
 ## 3. Prove the executed path
 
-- Use logs, a debugger, trace or temporary instrumentation to show which path ran.
+- Use logs, a debugger, trace or temporary instrumentation to show which path ran. A symptom in PostgreSQL (slow query, lock, bloat): the queries in `references/database.md`.
 - List competing hypotheses, each with the observation that would refute it; test the cheapest refutation first, against a passing case that differs in one variable.
 - Bisect only when a verified good commit exists.
 - Name a cause only when the evidence shows that code executing in the reported scenario; otherwise state the next discriminating observation.

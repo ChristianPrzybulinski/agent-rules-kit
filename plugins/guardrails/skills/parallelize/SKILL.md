@@ -14,7 +14,7 @@ allowed-tools:
 
 # Parallelize
 
-Runs one session's independent steps together and keeps unsafe ones in order. A FEAT's rows in waves, with worktrees, workers and read-ahead, are skill `sdd-implement` (reference `parallel-waves.md`). Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/review, or built-in `subagent_explore`/`subagent_general`); Devin Cloud uses managed Devins within ACU limits because profiles and hooks do not load there; Codex `spawn_agent` forks the whole thread, model included, unless `fork_turns="none"`: pass it with a self-contained brief.
+Runs one session's independent steps together and keeps unsafe ones in order. A FEAT's rows in waves, with worktrees, workers, read-ahead and conflict measurement, are skill `sdd-implement` (references `parallel-waves.md`, `worktrees.md`, `measure-conflicts.md`). Surfaces: local Devin uses subagents (`researcher` read-only, `reviewer` gates/review, or built-in `subagent_explore`/`subagent_general`); Devin Cloud uses managed Devins within ACU limits because profiles and hooks do not load there; Codex `spawn_agent` forks the whole thread, model included, unless `fork_turns="none"`: pass it with a self-contained brief.
 
 ## 1. Map dependencies
 
@@ -38,8 +38,8 @@ Runs one session's independent steps together and keeps unsafe ones in order. A 
 
 ## 4. Keep unsafe work sequential
 
-- Serialize Git operations on one worktree; use another worktree when branches must progress independently (`references/worktrees.md`).
-- A subagent gets a self-contained brief (goal, paths, done criterion, a bounded report) and a named model tier; its report is a claim the caller checks. Whether two branches' shared files really conflict: `references/measure-conflicts.md`.
+- Serialize Git operations on one worktree; use another worktree when branches must progress independently (skill `sdd-implement`, reference `worktrees.md`).
+- A subagent gets a self-contained brief (goal, paths, done criterion, a bounded report) and a named model tier; its report is a claim the caller checks. Whether two branches' shared files really conflict: skill `sdd-implement`, reference `measure-conflicts.md`.
 
 ## 5. Close
 

@@ -43,7 +43,7 @@ Write the `sdd:` block in the `spec.md` frontmatter; the template carries it wit
 
 ## 5. Write the review criteria
 
-Copy the kit's `platforms/kits/github/REVIEW.md` to `REVIEW.md` at the repository root: the project's quality definition of done, read by every reviewer and by hosted Claude Code Review. Each criterion line ends with the skill section that holds its rule.
+Copy the kit's `platforms/kits/github/REVIEW.md` to `REVIEW.md` at the repository root: the project's quality definition of done, read by every reviewer and by hosted Claude Code Review. Each criterion line ends with the rule, skill section or reference that holds it.
 
 - Remove each line a project gate already enforces (CI job, hook, PR gate script, linter, spec validator), and name that gate under "Do not report", so a reviewer spends no finding on it.
 - Add a project criterion only with the skill section or the project decision that holds its rule; a line with neither waits for one.
