@@ -48,6 +48,26 @@ class MulTest(unittest.TestCase):
     def test_mul(self):
         self.assertEqual(calc.mul(2, 3), 6)
 """
+# A failure message that carries another runner's report, as a test of a CLI tool does: its separator, case header,
+# missing-symbol line and summary belong to no test of this run.
+TEST_MUL_NESTED = """\
+import unittest
+import calc
+
+INNER = (
+    "======================================================================\\n"
+    "ERROR: test_ghost (ghosts.test_ghost.GhostTest)\\n"
+    "----------------------------------------------------------------------\\n"
+    "AttributeError: module 'calc' has no attribute 'ghost'\\n"
+    "\\n"
+    "FAILED (errors=1)\\n"
+)
+
+
+class MulTest(unittest.TestCase):
+    def test_mul(self):
+        self.assertEqual(calc.mul(2, 3), 6, INNER)
+"""
 CALC_FIRST_BUG = CALC + "\n\ndef first(xs):\n    return xs[1]\n"
 CALC_FIRST = CALC + "\n\ndef first(xs):\n    return xs[0]\n"
 TEST_FIRST = """\
@@ -200,6 +220,33 @@ class RedTest(ToolCase):
         self.assertIn("red: OK", out)
         self.assertIn("test_mul", out)
         self.assertIn("assertion", out)
+
+    def test_unittest_summary_line_is_not_read_as_a_test(self):
+        base = self.repo.commit("mul bug", **{"calc.py": CALC_MUL_BUG})
+        head = self.repo.commit("mul fix", **{"calc.py": CALC_MUL, "tests__test_mul.py": TEST_MUL})
+        code, out = self.red(head, base=base)
+        self.assertEqual(code, 0, out)
+        self.assertIn("FAILED (failures=1)", out)  # the base excerpt still shows it
+        self.assertNotIn("red: test (failures=1)", out)
+        self.assertIn("red: OK — 1 of 1 failing tests", out)
+
+    def nested(self):
+        base = self.repo.commit("mul bug", **{"calc.py": CALC_MUL_BUG})
+        head = self.repo.commit("mul fix", **{"calc.py": CALC_MUL, "tests__test_mul.py": TEST_MUL_NESTED})
+        return self.red(head, base=base)
+
+    def test_failure_is_classed_by_its_assertion_not_by_text_in_its_message(self):
+        code, out = self.nested()
+        self.assertEqual(code, 0, out)
+        self.assertIn("MulTest.test_mul: assertion", out)
+        self.assertNotIn("missing-symbol (ghost)", out)
+
+    def test_another_runner_report_inside_a_message_adds_no_test(self):
+        code, out = self.nested()
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("red: test ghosts.", out)
+        self.assertNotIn("red: test (errors=1)", out)
+        self.assertIn("red: OK — 1 of 1 failing tests", out)
 
     def test_runtime_error_only_is_flagged_not_blocked(self):
         base = self.repo.commit("first bug", **{"calc.py": CALC_FIRST_BUG})
