@@ -24,7 +24,7 @@ Read the NEED, `docs/spec/spec.md` and the REQs and journeys its Triage names. W
 - reuse: an existing REQ already states it; nothing changes;
 - amend: an existing REQ states it differently; edit that REQ and add a History line;
 - new: write a REQ-F or REQ-NF with `status: proposed` and `source: NEED-nnn S<n>` (next unused id, or the session's reserved block);
-- journey: the Situations add, change, reorder or remove a step of a flow of two or more screens or interactions, and the project keeps `docs/spec/journeys/` → `references/journeys.md`; a new step holds `—` in `Implemented by` and `Proven by` until its tasks and tests exist;
+- journey: the Situations add, change, reorder or remove a step of a flow of two or more screens or interactions, and the project keeps `docs/spec/journeys/` → `references/journeys.md`; a new step holds `—` in `Implemented by` and `Proven by` until `sdd-tasks` fills them, and the NEED lists the journey in `journeys`;
 - decision: product must choose between two or more reasonable options → a product decision record with `status: proposed`, cited in each REQ's Rationale;
 - cut: out of scope, with where it goes.
 
@@ -39,7 +39,7 @@ Put each answer where it belongs (REQ, NEED, glossary), never in an answers sect
 ## 3. Record and check
 
 - Fill the NEED's Refinement table (one row per Situation: what it became and why) and its `requirements`, `journeys` and `decisions` fields.
-- Run the project spec validator (and `spec_trace.py check` when journeys exist; it accepts a step's `—` until a FEAT listing one of its REQs is validated or delivered), then `sdd-check NEED-nnn` (functional scope). A critical or high finding goes back to the step that owns it.
+- Run the project spec validator (and `spec_trace.py check` when journeys exist; it accepts a step's `—` while an open NEED lists its journey), then `sdd-check NEED-nnn` (functional scope). A critical or high finding goes back to the step that owns it.
 
 ## 4. Close
 

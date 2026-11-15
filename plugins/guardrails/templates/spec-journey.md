@@ -51,6 +51,8 @@ updated: "YYYY-MM-DD"
   - `Rules` cites REQ ids only — never rule values or free text. A rule a journey exercises is
     promoted to a REQ-F in the same PR; a rule no journey uses stays FEAT-local.
   - `Implemented by` cites `FEAT-nnn Tn` task rows only, as they exist on main.
+  - A main or alternative step may hold a literal `—` in `Implemented by` and `Proven by` while an
+    open NEED lists this journey in `journeys`; rule: `skills/sdd-clarify/references/journeys.md`.
   - `Proven by` holds `FEAT-nnn Tn` test tasks, backticked paths rooted at a clone name
     (`clone-name/path/**`), and an optional trailing `manual: <check>`. Paths rooted at the spec's
     own repository must match a file in it.

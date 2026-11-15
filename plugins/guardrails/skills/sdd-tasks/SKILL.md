@@ -42,6 +42,8 @@ Waves: `references/waves-and-models.md` (wave 0, shared files, cross-FEAT order)
 
 Every acceptance criterion appears in at least one task (`Covers` cites CA ids; each CA already cites the REQs it proves); every task covers a criterion or is explicitly infrastructure. Run `sdd-check` row C8 (criterion without task or task without criterion) and remove vague “implement the rest” rows.
 
+When the project keeps `docs/spec/journeys/`, replace the `—` in `Implemented by` of each step whose `Rules` this FEAT's criteria cite with the new `FEAT-nnn Tn` rows, write their test rows or rooted test paths into `Proven by`, add any `P<n>` row with its task, and run `spec_trace.py check`.
+
 ## 5. Pre-cut checklist (before issues are created)
 
 Check every row. A row that fails one of these items is fixed before its issue is cut:

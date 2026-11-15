@@ -18,9 +18,10 @@ step table. Row ids: `S<n>` main path, `A<n>` alternative path (column `At` name
 `P<n>` prerequisite. Cells: `Rules` holds REQ ids only, `Implemented by` holds `FEAT-nnn Tn` refs only,
 `Proven by` holds test refs — `FEAT-nnn Tn` test tasks, backticked paths rooted at a clone name, and an
 optional trailing `manual: <check>`. Journeys are written in sdd-clarify, before the FEAT and its tasks
-exist, so a main or alternative step may hold `—` in `Implemented by` and `Proven by` until a FEAT that
-lists one of its `Rules` REQs is validated or delivered; from then on both cite refs. A prerequisite row
-always cites its task.
+exist, so a main or alternative step may hold a literal `—` in `Implemented by` and `Proven by` while a
+NEED in <spec>/needs/ that lists the journey in `journeys` is open (not delivered, rejected, merged,
+routed or parked); once none is, both cite refs. Without needs/ nothing waits. A prerequisite row, an
+empty cell and a journey with no main step always fail.
 
 A test path's first segment names the clone it lives in: the spec's own repository (its directory name)
 or a directory beside it — clones sit side by side on the machine that writes journeys — plus any
@@ -60,7 +61,7 @@ SEPARATORS = re.compile(r"<br>|[\s,·;—]+")
 PR_REF = re.compile(r"^[\w.-]+#\d+$")
 UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
 STATUS_FROZEN = ("validated", "cancelled")
-STATUS_DONE = ("validated", "delivered")
+NEED_SETTLED = ("delivered", "rejected", "merged", "routed", "parked")
 PENDING = "—"
 JOURNEY_STATUS = ("proposed", "approved", "retired")
 JOURNEY_FIELDS = ("id", "title", "status", "owner", "created", "updated")
@@ -90,6 +91,7 @@ class Spec:
     feats: dict = field(default_factory=dict)     # FEAT id -> {"path", "requirements", "tasks": {Tn: row}}
     reqs: dict = field(default_factory=dict)      # REQ id -> {"path", "features", "title"}
     journeys: dict = field(default_factory=dict)  # J id -> {"path", "title", "status", "steps"}
+    open_needs: dict = field(default_factory=dict)  # J id -> ids of the open NEEDs whose `journeys` list it
     errors: list = field(default_factory=list)
 
     @property
@@ -178,9 +180,21 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
         if data and data.get("id"):
             spec.reqs[data["id"]] = {"path": path, "features": data.get("features") or [],
                                      "title": data.get("title", "")}
+    load_open_needs(spec, spec_dir / "needs")
     for path in sorted((spec_dir / "journeys").glob("J-*.md"), key=lambda p: natural_key(p.name)):
         load_journey(spec, path)
     return spec
+
+
+def load_open_needs(spec: Spec, needs_dir: Path) -> None:
+    """Map each journey to the open NEEDs that list it; check_spec.py validates the NEED files themselves."""
+    for path in sorted(needs_dir.glob("NEED-*.md")):
+        data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict) or not data.get("id") or data.get("status") in NEED_SETTLED:
+            continue
+        journeys = data.get("journeys") or []
+        for jid in journeys if isinstance(journeys, list) else [journeys]:
+            spec.open_needs.setdefault(str(jid), []).append(str(data["id"]))
 
 
 def load_journey(spec, path):
@@ -266,28 +280,23 @@ def parse_step(spec, jid, row, header):
     for rid in step.rules:
         if rid not in spec.reqs:
             spec.errors.append(f"{step.ref}: Rules cites {rid}, which does not exist")
-    done = done_feats(spec, step)
-    if not step.tasks and not awaits(row["Implemented by"], done):
-        spec.errors.append(f"{step.ref}: Implemented by cites no task (FEAT-nnn Tn){why_due(done)}")
-    parse_tests(spec, step, row["Proven by"], done)
+    cell = row["Implemented by"]
+    if not step.tasks and not awaits(spec, step, cell):
+        spec.errors.append(f"{step.ref}: Implemented by cites no task (FEAT-nnn Tn){why_due(spec, step, cell)}")
+    parse_tests(spec, step, row["Proven by"])
     return step
 
 
-def done_feats(spec: Spec, step: Step) -> list[str]:
-    """The FEATs listing one of the step's REQs whose status is validated or delivered, with that status."""
-    return [f"{fid} is {feat['status']}" for fid, feat in sorted(spec.feats.items())
-            if feat["status"] in STATUS_DONE and set(feat["requirements"]) & set(step.rules)]
+def awaits(spec: Spec, step: Step, cell: str) -> bool:
+    """A literal `—` waits for the FEAT, its tasks and tests while an open NEED lists the step's journey."""
+    return cell.strip() == PENDING and bool(spec.open_needs.get(step.journey))
 
 
-def awaits(cell: str, done: list[str]) -> bool:
-    """A `—` cell waits for the FEAT and its tasks until a FEAT listing one of the step's REQs is done."""
-    return cell.strip() == PENDING and not done
-
-
-def why_due(done: list[str]) -> str:
-    if not done:
+def why_due(spec: Spec, step: Step, cell: str) -> str:
+    """Why a `—` no longer waits; empty for any other cell, whose message stays as on main."""
+    if cell.strip() != PENDING or spec.open_needs.get(step.journey):
         return ""
-    return f"; `{PENDING}` waits only until a FEAT listing one of its REQs is validated or delivered: {', '.join(done)}"
+    return f"; `{PENDING}` waits only while a NEED listing the journey is open: no open NEED lists {step.journey}"
 
 
 def only_ids(spec, step, column, cell, pattern):
@@ -308,8 +317,8 @@ def check_tasks(spec, step, refs):
             spec.errors.append(f"{step.ref}: {ref} is not a row of the {fid} task table")
 
 
-def parse_tests(spec: Spec, step: Step, cell: str, done: list[str]) -> None:
-    pending = awaits(cell, done)
+def parse_tests(spec: Spec, step: Step, cell: str) -> None:
+    pending, due = awaits(spec, step, cell), why_due(spec, step, cell)
     manual = MANUAL.search(cell)
     if manual:
         step.manual = manual.group(1).strip()
@@ -330,7 +339,7 @@ def parse_tests(spec: Spec, step: Step, cell: str, done: list[str]) -> None:
             spec.errors.append(f"{step.ref}: test path {path!r} matches no file in this repository")
     step.tests = tasks + [f"`{p}`" for p in paths]
     if not step.tests and not step.manual and not pending:
-        spec.errors.append(f"{step.ref}: Proven by cites no test{why_due(done)}")
+        spec.errors.append(f"{step.ref}: Proven by cites no test{due}")
 
 
 def symmetry_errors(spec):
