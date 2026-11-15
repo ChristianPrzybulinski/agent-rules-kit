@@ -32,7 +32,7 @@ Each REQ: one rule sentence and a Values table for the numbers the actor experie
 
 ## 2. Ask, one question at a time
 
-Collect clarification markers, undefined glossary terms and vague quantities ("fast", "many", "safe"). Ask first the question other answers depend on, never one whose answer hinges on a question still open. Ask one question per call of the runtime's ask tool (`AskUserQuestion`, `ask_user_question`), else in text: one line of context with a concrete example, two to four options with consequences, and a marked recommendation. Never answer a product, cost or risk choice yourself; a technical question waits for `sdd-plan`.
+Collect clarification markers, undefined glossary terms and vague quantities ("fast", "many", "safe") as a tree: each question hangs off the answers it needs. The frontier is every open question whose prerequisites are settled; ask only from it, the question most others depend on first, and recompute it after each answer, never asking one whose answer hinges on a question still open. A fact you can look up (code, files, the spec) is yours to find, never a question. Ask one question per call of the runtime's ask tool (`AskUserQuestion`, `ask_user_question`), else in text: one line of context with a concrete example, two to four options with consequences, and a marked recommendation. Never answer a product, cost or risk choice yourself; a technical question waits for `sdd-plan`.
 
 Put each answer where it belongs (REQ, NEED, glossary), never in an answers section, and record `YYYY-MM-DD clarify: <question> → <answer>` in the NEED's History. A vague quantity becomes a number or a `[HYPOTHESIS]` with its measurement method. An answer that reveals a new Situation returns the NEED to `sdd-specify` part 2.
 

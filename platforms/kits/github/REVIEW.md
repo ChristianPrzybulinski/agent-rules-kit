@@ -1,6 +1,6 @@
 # Review instructions
 
-Review criteria for this repository, its quality definition of done. Read by Anthropic's hosted Claude Code Review (Team/Enterprise) and by any reviewer, human or agent. Each line ends with the agent-rules-kit skill section that holds its rule; `sdd-constitution` removes the lines a project gate enforces and lists that gate under "Do not report". Flag only gaps that affect correctness or the stated criteria; nits are optional. Report at most five nits; mention the rest as a count. Every finding cites `path:line` in the diff, not an inference from a name.
+Review criteria for this repository, its quality definition of done. Read by Anthropic's hosted Claude Code Review (Team/Enterprise) and by any reviewer, human or agent. Each line ends with the agent-rules-kit rule, or skill section or reference, that holds it; `sdd-constitution` removes the lines a project gate enforces and lists that gate under "Do not report". Flag only gaps that affect correctness or the stated criteria; nits are optional. Report at most five nits; mention the rest as a count. Every finding cites `path:line` in the diff, not an inference from a name.
 
 ## Important means
 
@@ -13,24 +13,25 @@ A line ending in `<!-- grep: REGEX -->` (or `grep tests:` for test files only) i
 - Changed paths stay inside the task's Files cell (or the issue's stated scope); anything else is a separate issue or DEBT; `## Files widened` adds only existing tests (`review` § 1, step 4).
 
 ## Correctness
-- Each acceptance criterion has a named test; the sad path (invalid input, failure, timeout) is covered (`testing` § 2).
+- Each acceptance criterion has a named test; the sad path (invalid input, failure, timeout) is covered (`sdd-implement` reference `tdd.md` § 1-2).
 - The new test failed before the change, as the PR's `## Red` shows, or the PR names its exception (`review` § 1, step 3).
 - No focused, skipped or disabled test, and no assertion loosened without a reason in the PR (`review` § 2). <!-- grep tests: \.only\(|\bfit\(|\bxit\(|@Disabled|@Ignore|pytest\.mark\.skip|unittest\.skip|skip_test\( -->
 - A proof must be able to fail: a gate that passes on zero tests or empty input is not proof (`review` § 2).
-- A changed contract (schema, message, API) bumps its version and updates fixtures on every side (`protocol-contract` § 2).
+- A changed contract (schema, message, API) bumps its version and updates fixtures on every side (rule `protocol.md`; `sdd-plan` reference `contract.md` § 0).
 
 ## Architecture
-- Dependencies point inward; domain code has no framework or engine import (`architecture` § 1).
-- The server validates everything that changes state; the client only pre-validates UX (`security` § 4).
-- No new pattern without a present problem; a trade-off is recorded as a decision (`architecture` § 5).
+- Dependencies point inward; domain code has no framework or engine import (`sdd-plan` reference `architecture.md` § 1).
+- The server validates everything that changes state; the client only pre-validates UX (`sdd-plan` reference `security-design.md` § 2).
+- No new pattern without a present problem; a trade-off is recorded as a decision (`sdd-plan` reference `architecture.md` § 5).
 
 ## Security
-- No secret or personal data in code, logs or error messages; input validated at the boundary (`security` § 2, § 5).
-- Authorization checked per action and per entity on every touched endpoint or handler (`security` § 4).
-- SQL is parameterized; no string-built queries (`security` § 5).
+- No secret or personal data in code, logs or error messages; input validated at the boundary (`security` § 2; `sdd-plan` reference `security-design.md` § 3).
+- Authorization checked per action and per entity on every touched endpoint or handler (`sdd-plan` reference `security-design.md` § 2).
+- SQL is parameterized; no string-built queries (`sdd-plan` reference `security-design.md` § 3).
+- Each sensitive change (endpoint, dependency, network message, CI or container file, hidden text) passes the checklist (`security` § 3).
 
 ## Docs
-- CHANGELOG `Unreleased` entry; README when a command changed; doc comment on new public API (`code-standards` § 9).
+- CHANGELOG `Unreleased` entry; README when a command changed; doc comment on new public API (`sdd-implement` reference `living-docs.md`).
 - Spec status follows the repository's rule (derived by tooling where the repository has it, never typed by hand); incomplete work recorded as DEBT or behind a flag (`git` § 2; skill `sdd-constitution`, process reference § Regimes).
 
 ## Do not report

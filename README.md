@@ -12,11 +12,11 @@ Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Cont
 
 | Path | Purpose |
 |---|---|
-| [`plugins/guardrails/`](plugins/guardrails/INDEX.md) | the kit's only plugin: always-on rules (`AGENTS.md`), hook guard; Java, Godot, Python, spec and JSON path rules; `reviewer` and `researcher` profiles; session, parallelize, review, git, security, code standards, testing, investigate, Java 25/Spring, Godot 2D, asset import, Krita, Docker, persistence, architecture, protocol contracts, grilling, the `sdd-*` pipeline and journeys; project and spec templates |
+| [`plugins/guardrails/`](plugins/guardrails/INDEX.md) | the kit's only plugin: always-on rules (`AGENTS.md`), hooks; path rules for code, tests, Godot, Java, Python, migrations, protocol, assets, Docker, spec and JSON; `reviewer` and `researcher` profiles; session, parallelize, review, git, security, investigate and Docker-host skills; the `sdd-*` pipeline and journeys, whose plan and implement steps carry the architecture, data, contract, coding, test and stack references (KIT-070); project and spec templates |
 | [`platforms/`](platforms/) | machine tools ([`tools/`](platforms/tools/README.md)), validators and schemas ([`ci/`](platforms/ci/README.md)), files projects copy ([`kits/`](platforms/kits/README.md)) |
 | [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |
 | `.devin-plugin/`, `.claude-plugin/`, `.agents/plugins/` | the content-free Devin meta-plugin, which requires `guardrails`, and the Claude Code and Codex marketplace catalogs |
-| `.github/` | on-demand workflows (`ci.yml`: check, shellcheck, install smoke, links; `evals.yml`: `claude plugin eval`; `gitleaks.yml`: secrets scan; `codeql.yml`: CodeQL for Python and workflows), `release.yml` (tag `v*` → release), weekly Dependabot action updates, the PR checklist template, the issue forms (`ISSUE_TEMPLATE/`: bug report, rule or skill proposal, and a link to private vulnerability reporting), `CODEOWNERS` and the community files [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), [`SECURITY.md`](.github/SECURITY.md) and [`CODE_OF_CONDUCT.md`](.github/CODE_OF_CONDUCT.md) |
+| `.github/` | the required checks on every pull request and push to `main` (KIT-076: `ci.yml`: shellcheck, check, unit tests, install smoke, links, and `workflow-lint` (actionlint and zizmor over the workflows and templates); `gitleaks.yml`: secrets scan; `codeql.yml`: CodeQL for Python and workflows, also weekly), the on-demand `evals.yml` (`claude plugin eval`), `release.yml` (tag `v*` → release), weekly Dependabot action updates (the workflows and the templates), the PR checklist template, the issue forms (`ISSUE_TEMPLATE/`: bug report, rule or skill proposal, and a link to private vulnerability reporting), `CODEOWNERS` and the community files [`CONTRIBUTING.md`](.github/CONTRIBUTING.md), [`SECURITY.md`](.github/SECURITY.md) and [`CODE_OF_CONDUCT.md`](.github/CODE_OF_CONDUCT.md) |
 
 `plugins/guardrails/INDEX.md` is generated from the plugin's files by `platforms/tools/gen_index.py`. `VERSION` is the single source of the kit version: `check_kit.py`, `bump_version.py` and `release.yml` read it.
 
@@ -44,7 +44,7 @@ User-level rule symlinks are opt-in with `AI_KIT_USER_RULES=1` (a rule present i
 | Devin Cloud | no | `globs` | managed Devins | `triggers: [user]` |
 | Devin CLI/Desktop | PreToolUse guard and git context after a commit or PR, PostToolUse format/lint, SessionStart session-start checklist, synced-folder warning and git state after compaction, best effort | `globs` | shared profiles | `triggers: [user]` |
 | Codex | no | the generated path-rule block in each folder's `AGENTS.md` (`sync-project.sh`, KIT-067), and the repo's `.claude/rules/` on the `AGENTS.md` Boundaries line | no | `agents/openai.yaml` policy |
-| Claude Code | PreToolUse guard and git context after a commit or PR, PostToolUse format/lint, SessionStart session-start checklist, synced-folder warning and git state after compaction, SubagentStart attribution line, best effort | `paths` | shared profiles | `disable-model-invocation: true` |
+| Claude Code | PreToolUse guard and git context after a commit or PR, PostToolUse format/lint, SessionStart session-start checklist, synced-folder warning and git state after compaction, SubagentStart attribution line, InstructionsLoaded rule-load log (`skill_usage.py --rules`), best effort | `paths` | shared profiles | `disable-model-invocation: true` |
 
 ## Devin plugin
 
@@ -92,4 +92,4 @@ Changes follow [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md): where each 
 
 ## License
 
-[MIT](LICENSE). The vendored third-party skills keep their own licenses, recorded in `platforms/kits/third-party/skills.lock` and shipped in the skill folder: `plugins/guardrails/skills/grilling/` (MIT, mattpocock/skills).
+[MIT](LICENSE). A vendored third-party skill keeps its own license, recorded in `platforms/kits/third-party/skills.lock` and shipped in the skill folder; none is vendored since KIT-070 removed `grilling`.

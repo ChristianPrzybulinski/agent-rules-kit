@@ -52,7 +52,7 @@ A `script` step runs `python3 ~/.ai-kit/platforms/tools/review_checks.py <check>
 
 ## 3. Pick the depth
 
-Unknown impact takes the higher tier (skill `testing` § 6).
+Unknown impact takes the higher tier (skill `sdd-implement`, reference `test-gates.md` § 3).
 
 | Tier | Impact row | Runs |
 |---|---|---|

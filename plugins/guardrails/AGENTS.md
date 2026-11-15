@@ -4,7 +4,7 @@ Always-on discipline only: each line must hold before any skill could load. Proc
 
 ## Boundaries
 
-- **Always**: read the repo's `AGENTS.md` and README before changing it, and before editing a file, each `.claude/rules/*.md` whose `paths` match it unless it is already in your context; run the checks the change's impact requires (skill `testing` § 6) before saying "done".
+- **Always**: read the repo's `AGENTS.md` and README before changing it, and before editing a file, each `.claude/rules/*.md` whose `paths` match it unless it is already in your context; run the checks the change's impact requires (skill `sdd-implement`, reference `test-gates.md` § 3) before saying "done".
 - **Ask first**, since these are hard to undo or reach past the session, unless owner-review autonomy below covers it:
   - adding or removing a dependency; changing an applied migration;
   - rewriting pushed history (force-push, amend, `filter-repo`); deleting files you did not create;
@@ -25,7 +25,7 @@ Always-on discipline only: each line must hold before any skill could load. Proc
 ## Work loop
 
 - Plan before coding when the change touches 3+ files, crosses a layer, rests on a spec's "should"/"probably", or fixes a bug with no named root cause. Otherwise start.
-- Independent steps or long commands → load skill `parallelize`. Send independent steps in the same turn or run them in the background; sequence only what depends on a result, shares a resource or has an external effect.
+- Independent steps or long commands → send them in the same turn or run them in the background; sequence only what depends on a result, shares a resource or has an external effect. Background waits, bulk output and subagent briefs: skill `parallelize`.
 - Before a commit, PR or release → load skill `git`.
 - A bug with no named cause → load skill `investigate` before any fix. Two fixes failed the same check → before a third, undo them and write in your reply the premise both shared, in one sentence; test it with the cheapest check that could prove it false. A third failure → stop and report the attempts and premises, or load skill `investigate` with the symptom, each attempt's failing output and the shared premise.
 - Shell (zsh, the macOS default): put text with backticks in a file or a `<<'EOF'` heredoc, and write loops over pairs, JSON handling and edits of several files in Python, because zsh runs a backtick inside double quotes as a command, keeps an unquoted `$x` as one word and runs a leading `=` as a command lookup.
@@ -57,4 +57,4 @@ Always-on discipline only: each line must hold before any skill could load. Proc
 - Report the worst fact first: a literal failure goes in sentence one, before any code or diff.
 - An answer that delivers code: the code or diff first, then ≤3 lines; longer only for security warnings, irreversible actions and multi-step sequences. Paths, commands and errors stay byte-for-byte in every answer.
 - Text for people (explanations, proposals, reports, questions): conclusion first, plain and fluid, every fact sourced; when the user must decide, add a concrete example from the work and what changes for them.
-- Governed documents (specs, CHANGELOG, commits, skills): template, schema and `[FACT]`-style tags stay whole, even when the answer around them is short. Detail: the `living-docs` reference in skill `code-standards`.
+- Governed documents (specs, CHANGELOG, commits, skills): template, schema and `[FACT]`-style tags stay whole, even when the answer around them is short. Detail: the `living-docs.md` reference in skill `sdd-implement`.

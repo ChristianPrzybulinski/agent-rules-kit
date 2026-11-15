@@ -13,7 +13,8 @@
 #                                                          marker, KIT_MANIFEST.json hashes)
 #        sync-project.sh --check [--profile <profile>[,<profile>...]] [--vendor-skills] [--workflow <file>] <repo-dir>
 #                                                          compares all of them with the kit and scans the
-#                                                          repo's *.md for obsolete kit paths;
+#                                                          repo's *.md for obsolete kit paths and
+#                                                          citations of skills KIT-070 removed;
 #                                                          exit 1 on any divergence or stale citation
 # --profile selects the kit rules copied into .claude/rules/ and the kit skills copied into
 # .claude/skills/: platforms/tools/sync-profiles.txt names the profiles that receive each one
@@ -90,6 +91,11 @@ RULE_PATHS=""  # "<rule> <dir>..." lines from docs/spec/spec.md sdd.rule_paths (
 SYNC_TMP="$(mktemp -d)"
 trap 'find "$SYNC_TMP" -delete' EXIT
 RULE_MARKER_PREFIX='<!-- agent-rules-kit: generated from '
+# The line under the marker of each .claude/rules copy: Claude Code has no other path to a kit reference a rule names
+# (sdd-implement and sdd-plan are user-only skills). sync_agents_md.py drops it from the AGENTS.md block, whose intro
+# says the same once per folder.
+# shellcheck disable=SC2016  # literal Markdown backticks
+RULE_LOCATION='Kit files this rule names: skill `<skill>`, reference `<file>` is `.claude/skills/<skill>/references/<file>` when this repository vendors the skill, else `~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`.'
 version="$(cat "$KIT_DIR/VERSION")"
 
 if [[ -n "$WORKFLOW" && ( "$WORKFLOW" == */* || "$WORKFLOW" == .* ) ]]; then
@@ -134,7 +140,7 @@ rule_files() { # prints "src rel-dest" for every kit rule the map gives to a pro
 }
 
 render_rule() { # $1 = kit rule file, $2 = output path: frontmatter (first --- through the
-  # closing ---) copied byte-for-byte, then the generated marker, then the body unchanged;
+  # closing ---) copied byte-for-byte, then the generated marker and the RULE_LOCATION line, then the body unchanged;
   # when rule_scopes names folders, each globs/paths item "<glob>" becomes one
   # "<dir>/<glob>" item per folder
   local src="$1" out="$2" line glob dir scopes
@@ -159,6 +165,7 @@ render_rule() { # $1 = kit rule file, $2 = output path: frontmatter (first --- t
       separators=$((separators + 1))
       if [[ "$separators" -eq 2 ]]; then
         printf '%s\n' "<!-- agent-rules-kit: generated from ${src#"$KIT_DIR"/} by platforms/tools/sync-project.sh; kit $(cat "$KIT_DIR/VERSION"); do not edit -->"
+        printf '%s\n' "$RULE_LOCATION"
       fi
     fi
   done < "$src" > "$out"
@@ -328,6 +335,67 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
   return 1
 }
 
+# Kit skills removed by KIT-070 (the standards moved into rules and the sdd-plan and sdd-implement references).
+# A consumer citation of one dangles after a resync. Every form is caught, backticks optional: skill x, x skill,
+# x § n, guardrails:x, a skills/x/ or x/references/ path, the /x command; a hyphenated name (code-standards,
+# protocol-contract, ...) anywhere as a whole word. A plain word (testing, architecture, persistence, grilling)
+# counts only in one of those forms, so "our testing strategy" stays clean. Same exclusions and opt-out marker as
+# the stale path scan.
+REMOVED_KIT_SKILLS='architecture|code-standards|godot-standards|java-standards|testing|persistence|protocol-contract|asset-import|grilling'
+
+removed_kit_skill_hits() { # $1 = repo dir; prints "path:line:text" for each citation of a removed kit skill
+  # (outside "$(...)": bash 3.2 misparses a heredoc with quotes or backticks inside a command substitution, KIT-060)
+  python3 - "$1" "$REMOVED_KIT_SKILLS" "$STALE_OPT_OUT" <<'PY'
+import os
+import re
+import sys
+
+root, names, opt_out = sys.argv[1], sys.argv[2].split("|"), sys.argv[3]
+sys.stdout.reconfigure(errors="backslashreplace")  # a non-UTF-8 locale or file name never stops the scan
+hyphenated = [name for name in names if "-" in name]
+any_name = "|".join(map(re.escape, names))
+tick = "`?"
+forms = [
+    rf"(?i:\bskills?)\s+{tick}(?:{any_name}){tick}(?![\w-])",            # skill x, skills `x`
+    rf"(?<![\w-]){tick}(?:{any_name}){tick}\s+skill\b",                    # x skill, `x` skill
+    rf"(?<![\w-]){tick}(?:{any_name}){tick}\s*§\s*\d",                     # x § 6, `x` § 6
+    rf"\bguardrails:(?:{any_name})(?![\w-])",                              # guardrails:x
+    rf"(?<![\w.-])(?:[\w.-]+/)*skills/(?:{any_name})/",                    # .../skills/x/...
+    rf"(?<![\w.-])(?:{any_name})/(?:references/|SKILL\.md)",               # x/references/..., x/SKILL.md
+    rf"(?<![\w./-])/(?:{any_name})(?![\w/-])",                             # the /x command
+    rf"(?<![\w-])(?:{'|'.join(map(re.escape, hyphenated))})(?![\w-]|\.[A-Za-z])",  # a hyphenated name anywhere
+]
+pattern = re.compile("|".join(f"(?:{form})" for form in forms))
+skip_dirs = {".git", "node_modules", ".claude"}
+excluded = re.compile(r"^([^/]*/)*(legacy|docs/sessions)/")
+for top, dirs, files in os.walk(root):
+    dirs[:] = sorted(d for d in dirs if d not in skip_dirs)
+    for name in sorted(files):
+        if not name.endswith(".md"):
+            continue
+        path = os.path.join(top, name)
+        relative = os.path.relpath(path, root)
+        if excluded.match(relative):
+            continue
+        try:
+            with open(path, encoding="utf-8", errors="replace") as handle:
+                for number, line in enumerate(handle, 1):
+                    if pattern.search(line) and opt_out not in line:
+                        print(f"{relative}:{number}:{line.rstrip()}")
+        except OSError:
+            continue
+PY
+}
+
+scan_removed_kit_skills() { # $1 = repo dir; prints one line per citation of a removed kit skill; returns 1 if any
+  local hits
+  hits="$(removed_kit_skill_hits "$1")" || { echo "sync: removed-skill scan failed"; return 1; }
+  [[ -n "$hits" ]] || return 0
+  printf '%s\n' "$hits" | sed 's|^|sync: removed kit skill: |'
+  echo "sync: KIT-070 moved these skills into path rules and the sdd-plan and sdd-implement references (kit CHANGELOG, migration note); fix the citation or append $STALE_OPT_OUT"
+  return 1
+}
+
 warn_synced_folder() { # $1 = repo dir; reruns the plugin's SessionStart hook for it and prints its warning
   python3 - "$KIT_DIR/plugins/guardrails/hooks/hooks.json" "$1" <<'PY' || true
 import json, subprocess, sys
@@ -439,6 +507,7 @@ if [[ "$MODE" == check ]]; then
     fi
   fi
   scan_stale_kit_paths "$REPO" || FAILED=1
+  scan_removed_kit_skills "$REPO" || FAILED=1
   claude_file="$REPO/CLAUDE.md"
   if [[ ! -f "$claude_file" ]] \
       || ! grep -qF "$CLAUDE_MARKER v$expected;" "$claude_file" \
