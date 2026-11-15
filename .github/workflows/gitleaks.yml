@@ -1,18 +1,55 @@
 name: gitleaks
 
-on: workflow_dispatch  # KIT-014: local `gitleaks git` is the proof; a dispatch scans the whole history
+# KIT-076: every pull request to main, every push to main and on demand; a required check. The gitleaks CLI at a
+# pinned version and sha-256 (as the KIT-074 template), not gitleaks/gitleaks-action, so the scan needs no token. A pull
+# request scans its own commits (base..head); a push to main and a dispatch scan the whole history. A finding fails the
+# job and the log redacts its value. Locally before a PR: gitleaks git --redact --log-opts="origin/main..HEAD".
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   scan:
+    name: gitleaks  # the required check context (KIT-076)
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e  # v3.0.0
+          fetch-depth: 0  # the whole history, and a pull request's base and head commits
+          persist-credentials: false
+      - name: install gitleaks (pinned CLI, sha-256 checked)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          wget -q -O "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v$GITLEAKS_VERSION/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "$GITLEAKS_SHA256  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: scan (pull request range, or the whole history; values redacted)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            range="$BASE_SHA..$HEAD_SHA"
+          else
+            range=HEAD
+          fi
+          echo "gitleaks range: $range"
+          gitleaks git --no-banner --redact -v --exit-code 1 --log-opts="$range" .
