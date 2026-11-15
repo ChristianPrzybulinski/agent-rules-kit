@@ -4,7 +4,7 @@ title: "A consumer project's generic dev standards become kit standards: doc-str
 status: confirmed
 confirmed: "2026-11-15 (owner, chat relayed by the SDD review session: the tool comparison approved with \"Tudo num release só\", KIT-070, KIT-072, KIT-073 and KIT-074 in one release, 13.0.0)"
 issue: "#258"
-pr: ""
+pr: "#263"
 ---
 
 # KIT-074 — Dev standards into the kit
