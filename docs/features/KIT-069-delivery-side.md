@@ -64,7 +64,8 @@ Claude ran independent checks at once without loading the skill. Issue #240 send
   conflict merges, batch review (coherence and dead code across a batch), planned versus measured evidence and
   owner-only approvals.
 - `platforms/tools/review_checks.py` (new): `red` copies the PR's added or changed test files onto the base, runs them
-  there and on the head, and classifies each failing test from JUnit reports or the unittest/pytest text: Red is one
+  there and on the head, and classifies each failing test from JUnit reports or the unittest/pytest text (a case
+  naming no test file of the run, such as another runner's report quoted in a message, is skipped): Red is one
   test failing on an assertion, or on a compile or import error whose missing symbols the PR's non-test diff all adds
   (the normal Red of a new class); a PR with no non-test change under the code roots is exempt without a run; a
   runtime error, every test passing on base despite a production change, or a Red made only of data entries is
@@ -128,6 +129,8 @@ The owner's adjustment 2: `KIT-069-CALIBRATION-2026-11-14.md` (read-only measure
   (FEAT-109: "Not verified", Audit "Pending", 3 `[PROPOSAL]` Scope bullets, the `[HYPOTHESIS]` row-size question, a
   `[HYPOTHESIS]` in done row T6, "until T5" with T5 done, and REQ-F-997 with no test in its trace row). As an audit over
   every delivered FEAT it reports 1,085 findings, 758 of them trace gaps, so it runs per FEAT at closure, not in CI.
+- [FACT] `review_checks.py feat-proofs --feat FEAT-109` without `--run` (lint only, nothing executed) flags T2, T3 and T9,
+  the three `-Dtest=… verify` rows the report found by hand.
 - Falsifier: a larger sample (the report proposes 20 FEATs and 30 PRs) in which the dropped REQ re-run finds a real
   `main` failure that the wave's broad suite missed, or a PR whose tests all pass on base yet hide a defect.
 
@@ -144,7 +147,9 @@ worktrees, which a missing script leaves unchanged. The calibration round's test
 proof-output and 2 `feat-proofs` cases in `test_review_checks`, 14 in the new `test_spec_trace_lint`) all 29 fail
 against `27b0ce7`'s tools and pass after. The first run on the consumer's spec treated `superseded` as open
 (50 failures over 11 FEATs); the 2 tests added for it fail against `bf29c83`'s `spec_trace.py` (3 failures with
-subtests) and pass after the fix. Results are in the PR body.
+subtests) and pass after the fix. Running `red` on this PR itself read unittest's `FAILED (failures=1)` summary as a
+test and classed an assertion failure by a missing symbol quoted in its message; the 3 tests for it (`10615f7`) fail
+against `0855809`'s tool and pass after. Results are in the PR body.
 
 ## History
 
