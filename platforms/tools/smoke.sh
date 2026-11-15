@@ -964,11 +964,17 @@ manifest_files="$(python3 -c 'import json,sys; print(sum(len(s["files"]) for s i
   "$ROOT/vendor-proj/.claude/skills/KIT_MANIFEST.json")"
 [[ "$manifest_files" == "$expected_files" ]] \
   || fail "manifest lists $manifest_files files, expected $expected_files"
+# KIT-072 B2: a vendored copy is the kit copy with each ~/.ai-kit/platforms/ call pointed at the pin
+mkdir -p "$ROOT/vendor-expected"
 for n in $godot_skills; do
-  vendor_diff="$(diff -r -q "$SOURCE/plugins/guardrails/skills/$n/" "$ROOT/vendor-proj/.claude/skills/$n" || true)"
+  cp -R "$SOURCE/plugins/guardrails/skills/$n" "$ROOT/vendor-expected/$n"
+  python3 "$SOURCE/platforms/tools/sync_pinned_plugin.py" rewrite "$ROOT/vendor-expected/$n"
+  vendor_diff="$(diff -r -q "$ROOT/vendor-expected/$n/" "$ROOT/vendor-proj/.claude/skills/$n" || true)"
   [[ "$vendor_diff" == "Only in $ROOT/vendor-proj/.claude/skills/$n: .agent-rules-kit" ]] \
     || fail "vendored $n differs from the kit copy: $vendor_diff"
 done
+! grep -rqF '/.ai-kit/platforms/' "$ROOT/vendor-proj/.claude/skills" "$ROOT/vendor-proj/.claude/rules" \
+  || fail "a vendored copy still calls a tool from the kit clone"
 [[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
   || fail "hand-written review-loop skill was touched"
 [[ "$(grep -c '@ai-kit' "$ROOT/vendor-proj/.claude/settings.json")" == "1" ]] \

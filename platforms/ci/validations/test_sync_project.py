@@ -1,6 +1,7 @@
 """sync-project.sh --check: stale kit path scan on a throwaway repo."""
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -14,6 +15,8 @@ MAP = KIT / "platforms" / "tools" / "sync-profiles.txt"  # KIT-047: one plugin, 
 PLUGIN = KIT / "plugins" / "guardrails"
 PINNED = "guardrails-pinned"  # KIT-072: the project's pinned copy of the plugin, a skills-directory plugin
 KIT_SKILLS = sorted(p.name for p in (PLUGIN / "skills").iterdir() if (p / "SKILL.md").is_file())
+HEAD_TOOL = "~/.ai-kit/platforms/"  # B2: a kit tool or template the skills and rules call from the kit clone
+PINNED_TOOL = '"$(git rev-parse --show-toplevel)"/.claude/ai-kit/platforms/'  # ... and from the pin in a vendored repo
 
 STALE = "- agent-rules-kit `kits/java-maven/pom-parent.xml` requires [25,26)"
 
@@ -856,6 +859,59 @@ class SyncProjectCheckTest(unittest.TestCase):
         result = self.run_sync()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.settings()["hooks"], ["mine"])
+
+    def vendored_texts(self):
+        """Every generated text a session reads in the repo: skill copies, rules and the AGENTS.md blocks."""
+        roots = [self.repo / ".claude" / "skills", self.repo / ".claude" / "rules"]
+        files = [f for root in roots for f in root.rglob("*.md")] + list(self.repo.rglob("AGENTS.md"))
+        return {f: f.read_text() for f in files}
+
+    def test_vendored_skills_and_rules_call_the_pinned_tools(self):  # review of daae6fe, B2
+        client = self.repo / "client"  # a subfolder a tool runs from, as test-gates.md has gd_coverage.py run
+        client.mkdir()
+        subprocess.run(["git", "init", "-q", str(self.repo)], check=True)
+        self.vendor_install("--profile", "docs,godot:client,java:server,python:platform")
+        texts = self.vendored_texts()
+        self.assertEqual([str(f) for f, text in texts.items() if HEAD_TOOL in text], [])
+        called = {m.group(1).rstrip(".") for text in texts.values()
+                  for m in re.finditer(re.escape(PINNED_TOOL) + r"([A-Za-z0-9_./-]+)", text)}
+        for rel in ("tools/review_checks.py", "tools/complexity.py", "tools/gd_duplicates.py", "tools/gd_coverage.py",
+                    "tools/gd_mutation.py", "tools/session_audit.py", "ci/validations/spec_trace.py",
+                    "kits/godot/scripts/make_spritesheet.py", "kits/docker/compose.yml"):
+            self.assertIn(rel, called)
+        pinned = self.repo / ".claude" / "ai-kit" / "platforms"
+        for rel in called | {"ci/validations/pr_gates.py"}:  # review_checks.py imports pr_gates
+            self.assertEqual((pinned / rel).read_bytes(), (KIT / "platforms" / rel).read_bytes(), rel)
+        for tool in ("tools/review_checks.py", "tools/gd_mutation.py", "tools/complexity.py"):
+            run = subprocess.run(["bash", "-c", f"python3 {PINNED_TOOL}{tool} --help"], cwd=client,
+                                 capture_output=True, text=True, check=False)  # from a subfolder, imports resolved
+            self.assertEqual(run.returncode, 0, tool + run.stdout + run.stderr)
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        with (pinned / "tools" / "review_checks.py").open("a") as fh:
+            fh.write("# drift\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .claude/ai-kit/platforms/tools/review_checks.py diverges from the manifest", result.stdout)
+
+    def test_plugins_mode_keeps_the_kit_clone_as_the_fallback(self):  # B2: an unsynced or plugins-mode repo
+        result = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rule = (self.repo / ".claude" / "rules" / "guardrails-code.md").read_text()
+        self.assertIn(HEAD_TOOL + "tools/complexity.py", rule)
+        self.assertNotIn(PINNED_TOOL, "".join(self.vendored_texts().values()))
+
+    def test_every_kit_tool_call_names_a_kit_file(self):  # B2: the pin vendors what the kit text calls
+        refs = {}
+        for root in ("skills", "rules", "agents", "templates"):
+            for path in (PLUGIN / root).rglob("*"):
+                if path.is_file() and HEAD_TOOL.encode() in path.read_bytes():
+                    self.assertEqual(path.suffix, ".md", f"{path} calls a kit tool outside markdown")
+                    for m in re.finditer(re.escape(HEAD_TOOL) + r"([A-Za-z0-9_./-]+)", path.read_text()):
+                        refs.setdefault(m.group(1).rstrip("."), path)
+        self.assertTrue(refs)
+        for rel, path in refs.items():
+            self.assertTrue((KIT / "platforms" / rel).is_file(), f"{path} calls ~/.ai-kit/platforms/{rel}")
 
     def broken_kit(self):
         """A kit copy whose hooks.json does not parse, so the pin's write fails."""

@@ -82,6 +82,12 @@ session at a trusted repository root where `/plugin` shows `guardrails@ai-kit` e
   through `pin_sources`) for the manifest; it refuses an unmarked folder or a symbolic link, removes both marked
   folders and the kit hooks in plugins mode, and checks the folders, the settings, `settings.local.json` and, with
   `AI_KIT_CLAUDE_PROBE=1`, `claude plugin list` (no pinned copy listed fails: the root is not trusted).
+- B2: the kit files the skills, rules, agents and templates call as `~/.ai-kit/platforms/<path>` and the kit modules
+  they import are copied into `.claude/ai-kit/platforms/` (`tool_files`), and `rewrite` turns each call in a vendored
+  skill copy, rendered rule and `AGENTS.md` block into `"$(git rev-parse --show-toplevel)"/.claude/ai-kit/platforms/
+  <path>`. `${CLAUDE_PROJECT_DIR}` was weighed and rejected: Claude Code substitutes it only in a `SKILL.md` body
+  (docs `skills`, available string substitutions), not in `references/*.md`, and Devin not at all. Plugins mode keeps
+  `~/.ai-kit/` as the fallback.
 - `platforms/tools/sync-project.sh`: the pin lives in one block of `pin_*` functions (coordinator request, so the parallel
   KIT-070, KIT-073 and KIT-074 merges stay mechanical); vendored mode writes the pin, then (`pin_settings`) sets
   `guardrails@ai-kit` to `false`, `guardrails-pinned@skills-dir` to `true` and the kit hooks, so a failed write leaves
@@ -116,3 +122,5 @@ twice, and `sync-project.sh --check` with the live CLI passes.
 - 2026-11-15: B1 delta review of `c394007` READY; folded in: retired `@ai-kit` keys dropped in vendored mode,
   settings the pin cannot merge into refused with exit 2 before any write, trust compared by real path with a linked
   worktree mapped to its main checkout root (smoke fixture).
+- 2026-11-15: B2 after the KIT-070 merge: the called tools are pinned in `.claude/ai-kit/platforms/` and the vendored
+  copies call them there.
