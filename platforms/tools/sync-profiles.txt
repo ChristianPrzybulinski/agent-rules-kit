@@ -1,9 +1,8 @@
-# Which repository profiles receive a copy of each kit skill and rule (KIT-047).
-# Read by platforms/tools/sync-project.sh, which copies only rules since KIT-081 stage 2b removed the vendored skill
-# copies; platforms/ci/validations/check_kit.py requires exactly one line per
-# plugins/guardrails/skills/<name>/ and plugins/guardrails/rules/<name>.md, and only the profiles godot, java, python and docs.
-# <skills/<name> or rules/<file>> | <profiles, space-separated> or - (always-on skill: guardrails stays enabled for its
-# guard hook, so the skill loads from the plugin and a vendored copy would load it twice, KIT-002)
+# Which repository profiles receive a copy of each kit rule in .claude/rules/ (KIT-047).
+# Read by platforms/tools/sync-project.sh; platforms/ci/validations/check_kit.py requires exactly one line per
+# plugins/guardrails/rules/<name>.md, and only the profiles godot, java, python and docs. A skill has no line since
+# KIT-083: KIT-081 stage 2b removed the vendored skill copies, the only reader of those lines.
+# rules/<file> | <profiles, space-separated>
 rules/assets.md         | godot
 rules/code.md           | godot java python
 rules/docker.md         | godot java python
@@ -15,21 +14,3 @@ rules/protocol.md       | godot java python docs
 rules/python.md         | godot java python
 rules/spec.md           | docs
 rules/tests.md          | godot java python
-skills/docker           | godot java python
-skills/git              | -
-skills/investigate      | godot java python
-skills/parallelize      | -
-skills/review           | -
-skills/sdd-check        | docs
-skills/sdd-clarify      | docs
-skills/sdd-constitution | docs
-skills/sdd-implement    | godot java python docs
-skills/sdd-intake       | docs
-skills/sdd-plan         | godot java python docs
-skills/sdd-release      | docs
-skills/sdd-review       | docs
-skills/sdd-specify      | docs
-skills/sdd-spike        | docs
-skills/sdd-tasks        | docs
-skills/security         | -
-skills/session          | -

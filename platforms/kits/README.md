@@ -13,4 +13,3 @@ Scope: configuration and infra templates a project copies (not read by the agent
 | `launchd/` | six-hour AI Kit refresh agent for macOS | installed by `platforms/tools/bootstrap.sh` |
 | `review-loop/` | README only: where the loop lives (`dev-game-studio/review-loop`) and how its children preload kit skills | project running the review loop (its skills live in that project) |
 | `sdd/` | `init-spec.sh` — creates `docs/spec/` from `plugins/guardrails/templates/spec-*` | spec bootstrap in the project |
-| `third-party/` | `skills.lock` — external skills pinned by commit | regenerate vendor skills under `plugins/<plugin>/skills/` |

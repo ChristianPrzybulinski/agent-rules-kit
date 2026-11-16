@@ -84,17 +84,6 @@ A subagent skill sets Devin `subagent: true` or a shared `agent: <profile>`, plu
 
 Hooks are a guard, not a guardrail: they fail open, load only in local Devin and Claude Code, and cannot replace user confirmation or the always-on safety boundaries. Each hook's event, behaviour and tests: [`plugins/guardrails/hooks/README.md`](../plugins/guardrails/hooks/README.md).
 
-## Third-party skills
-
-Pinned sources live in `platforms/kits/third-party/skills.lock`. Update the SHA, license and verification date, then run:
-
-```bash
-platforms/tools/vendor.sh
-platforms/tools/vendor.sh --check
-```
-
-The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, where the plugin comes from the lock's second column. MIT and Apache-2.0 require the license text in every copy, so a skill folder without its own `LICENSE*` gets the upstream repository root's, and `--check` fails on a skill without one (KIT-025). Remove a vendor by deleting both its lock line and skill folder.
-
 ## CI requirements
 
 - Every pull request to `main` and every push to `main` runs `ci.yml`, `gitleaks.yml` and `codeql.yml`, which keep `workflow_dispatch` (KIT-076, superseding KIT-014's dispatch-only rule). Their jobs are the required checks `ci`, `workflow-lint`, `gitleaks`, `codeql (python)` and `codeql (actions)`; the sixth, `CodeQL`, is the code scanning result GitHub posts for the uploaded analysis and fails on a new alert in the changed code. A merge needs those six green and an independent review READY on the same head: the coordinator arms auto-merge only after the READY, and green checks alone never merge. A job's `name` is its check context, so a renamed job leaves the ruleset waiting; `platforms/ci/validations/test_kit_workflows.py` pins the names (each workflow's whole list of contexts, the required ones once each), the triggers (`pull_request`, never `pull_request_target`), the read-only default `permissions`, the per-ref `concurrency` with `cancel-in-progress`, the actions pinned by commit SHA and the gitleaks scan range. No job carries an `if`, except `ci`, which gathers the pull request layers (KIT-077): it runs `if: always()` and passes only when each job it needs passed, since a skipped required job reports success.

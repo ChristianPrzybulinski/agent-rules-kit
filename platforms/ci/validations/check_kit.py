@@ -1330,52 +1330,15 @@ for markdown_file in sorted(set(path for path in backtick_files if path.exists()
             fail(rel(markdown_file), f"path escapes plugin root: {target}")
 
 
-# --- 11. Vendor skills lock ---
-lock = KIT / "platforms/kits/third-party/skills.lock"
-lock_schema = load_schema("skills-lock.schema.json")
-if lock.exists():
-    for line_number, line in enumerate(lock.read_text(encoding="utf-8").splitlines(), 1):
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        parts = [part.strip() for part in line.split("|")]
-        if len(parts) != 7:
-            fail(rel(lock), f"line {line_number}: expected 7 |-separated fields (name|plugin|repo|path|sha|license|verified)")
-            continue
-        obj = dict(zip(["name", "plugin", "repo", "path", "sha", "license", "verified"], parts))
-        if FULL:
-            try:
-                jsonschema.validate(obj, lock_schema, format_checker=jsonschema.FormatChecker())
-            except jsonschema.ValidationError as error:
-                fail(rel(lock), f"line {line_number}: {error.message}")
-        else:
-            for key in lock_schema["required"]:
-                if not obj.get(key):
-                    fail(rel(lock), f"line {line_number}: empty field '{key}'")
-            if not re.match(r"^[0-9a-f]{40}$", obj["sha"]):
-                fail(rel(lock), f"line {line_number}: invalid sha")
-        if obj["plugin"] not in plugins:
-            fail(rel(lock), f"line {line_number}: plugin '{obj['plugin']}' is not a plugin directory")
-            continue
-        owner = skill_plugin.get(obj["name"])
-        if owner != obj["plugin"]:
-            fail(rel(lock), f"line {line_number}: skill '{obj['name']}' lives in '{owner}', lock says '{obj['plugin']}'")
-        vendor_file = plugins[obj["plugin"]] / "skills" / obj["name"] / "VENDOR.md"
-        if not vendor_file.exists():
-            fail(rel(vendor_file), f"lock skill '{obj['name']}' without VENDOR.md")
-        elif f"sha: {obj['sha']}" not in vendor_file.read_text(encoding="utf-8"):
-            fail(rel(vendor_file), f"sha diverges from the lock ({obj['sha'][:7]})")
-
-
 # --- 11b. Sync profile map (KIT-047) ---
-# platforms/tools/sync-profiles.txt decides which repository profiles get a copy of each kit skill and rule.
+# platforms/tools/sync-profiles.txt decides which repository profiles get a copy of each kit rule; a skill has no line
+# since KIT-083 (KIT-081 stage 2b removed the vendored skill copies, the only reader of those lines).
 profile_map = KIT / "platforms/tools/sync-profiles.txt"
 MAP_PROFILES = {"godot", "java", "python", "docs"}
 kit_plugin_dir = plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN)
-map_want = {f"skills/{d.name}" for d in sorted((kit_plugin_dir / "skills").glob("*/")) if (d / "SKILL.md").is_file()}
-map_want |= {f"rules/{f.name}" for f in sorted((kit_plugin_dir / "rules").glob("*.md"))}
+map_want = {f"rules/{f.name}" for f in sorted((kit_plugin_dir / "rules").glob("*.md"))}
 if not profile_map.exists():
-    fail(rel(profile_map), "missing; sync-project.sh reads it to pick each profile's skills and rules")
+    fail(rel(profile_map), "missing; sync-project.sh reads it to pick each profile's rules")
 else:
     map_seen = {}
     for number, line in enumerate(profile_map.read_text(encoding="utf-8").splitlines(), 1):
@@ -1384,7 +1347,7 @@ else:
         entry, sep, receivers = line.partition("|")
         entry, receivers = entry.strip(), receivers.split()
         if not sep or not receivers:
-            fail(rel(profile_map), f"line {number}: expected '<skills/name or rules/file> | <profiles> or -'")
+            fail(rel(profile_map), f"line {number}: expected 'rules/<file> | <profiles>'")
             continue
         if entry in map_seen:
             fail(rel(profile_map), f"line {number}: '{entry}' repeats line {map_seen[entry]}")
@@ -1393,11 +1356,11 @@ else:
             if entry.startswith("rules/"):
                 fail(rel(profile_map), f"line {number}: a rule reaches a repository only as a copy; name its profiles")
         elif not set(receivers) <= MAP_PROFILES:
-            fail(rel(profile_map), f"line {number}: profiles must be '-' or among {sorted(MAP_PROFILES)}")
+            fail(rel(profile_map), f"line {number}: profiles must be among {sorted(MAP_PROFILES)}")
     for entry in sorted(map_want - set(map_seen)):
-        fail(rel(profile_map), f"no line for {entry}; every kit skill and rule needs one")
+        fail(rel(profile_map), f"no line for {entry}; every kit rule needs one")
     for entry in sorted(set(map_seen) - map_want):
-        fail(rel(profile_map), f"'{entry}' is not a skill or rule of plugins/{KIT_PLUGIN}")
+        fail(rel(profile_map), f"'{entry}' is not a rule of plugins/{KIT_PLUGIN}")
 
 
 # --- 12. Paragraph duplication ---
