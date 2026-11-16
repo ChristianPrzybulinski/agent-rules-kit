@@ -7,6 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Removed
 - `platforms/kits/godot/scripts/make_spritesheet.py`: a game-art tool no project used (Stratics never called it); the `sdd-implement` assets reference keeps the rule it served (a reproducible script with its command and hashes recorded, `hframes`/`vframes` and the pivot in the batch manifest), and a vendored project's pin drops it on its next sync.
 - Unused `platforms/kits/` templates (owner decision after a usage review): `devin/` (the Devin Cloud environments, snapshot checklist and playbooks), `docker/Dockerfile.java` and `.dockerignore`, `github/CODEOWNERS` and `github/dependabot.yml`, and `godot/editor_settings_hints.md`, whose pixel-snap and stretch settings join the `Nearest` line of the `sdd-plan` Godot `performance-budget.md` reference. The Java parent POM stays, since `java.just` runs the Spotless configuration it holds, with the dependency-check suppressions it reads and the toolchains example the `sdd-implement` Java reference cites; the Compose `.env.example` stays, as the template of the `.env` whose passwords `compose.yml` requires.
+- `platforms/tools/kpi.py`, its test and the CONTRIBUTING `## KPIs` section: per-batch metrics of the review loop's `ledger.csv`, which now lives in `dev-game-studio/review-loop`; neither that repository nor Stratics calls the script.
 - `platforms/ci/schemas/knowledge.schema.json`: the frontmatter schema of the knowledge notes, which became skill references in 8.0; no validator or tool reads it.
 
 ### Changed
