@@ -13,7 +13,7 @@ CI, PR and label governance templates for GitHub Actions.
 | `labels.json` | reference for `scripts/labels-sync.sh` |
 | `scripts/labels-sync.sh` | run from anywhere inside the repo: `bash platforms/kits/github/scripts/labels-sync.sh` |
 
-`ci-java.yml` and `ci-godot.yml` are **reusable** workflows (`on: workflow_call`). Each step runs a recipe of the project's `kit.just` (`platforms/kits/just/`, written by `sync-project.sh`; KIT-074), after installing `just` 1.58.0 from its release tarball checked against its sha-256, so CI and a developer run the same command. Copy them to the project's `.github/workflows/` and call them from a thin project workflow:
+`ci-java.yml` and `ci-godot.yml` are **reusable** workflows (`on: workflow_call`). Each step runs a recipe the project's justfile imports from the kit's module (`import '~/.ai-kit/platforms/kits/just/<profile>.just'`, written by `sync-project.sh`; KIT-074), so CI and a developer run the same command. Before its first `just` step each job calls the spec-tools action with `checks: none`, which links `$HOME/.ai-kit` to the kit at the commit it pins (KIT-081 stage 1b: no copy in the project; an import path takes no variable), then installs `just` 1.58.0 from its release tarball checked against its sha-256. The template's pin is the same release as `spec-lint.yml`'s, which predates the link step, so until a release ships it, pin the commit `sync-project.sh` writes into `spec-lint.yml`. Copy them to the project's `.github/workflows/` and call them from a thin project workflow:
 
 ```yaml
 # .github/workflows/ci.yml

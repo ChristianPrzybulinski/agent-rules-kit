@@ -385,6 +385,24 @@ class LayeredGate(unittest.TestCase):
         self.assertRegex(calls[1], r"^just --no-deps test(?=\s|$)")  # the import `just boot` ran is not run again
         self.assertRegex(calls[1], r"\|\s*tee\s+test-run\.log(?=\s|$)")  # the log the upload step keeps
 
+    def test_a_template_job_that_runs_just_links_the_kit_first(self):
+        """KIT-081 stage 1b: a project's justfile imports the kit's module from ~/.ai-kit, so each template job that
+        runs a just recipe calls the spec-tools action (checks: none), which links the pinned kit there, before its
+        first just step."""
+        action = "ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@"
+        found = 0
+        for path in sorted(TEMPLATES.glob("*.yml")):
+            for job_name, job in (load(path.name, TEMPLATES).get("jobs") or {}).items():
+                runs = [i for i, s in enumerate(job.get("steps", [])) if re.search(r"(?m)^\s*just ", s.get("run", ""))]
+                if not runs:
+                    continue
+                found += 1
+                with self.subTest(workflow=path.name, job=job_name):
+                    links = [i for i, s in enumerate(job["steps"]) if s.get("uses", "").startswith(action)]
+                    self.assertTrue(links and links[0] < runs[0], "no spec-tools step before the first just step")
+                    self.assertEqual(job["steps"][links[0]].get("with", {}).get("checks"), "none")
+        self.assertEqual(found, 4)  # ci-godot import-and-test and lint, ci-java build and dependency-check
+
     def test_spec_lint_runs_the_kit_spec_tools_through_the_pinned_action(self):
         """KIT-081 stage 1: no template runs a copy of the spec tools in the project. spec-lint.yml and pr-contract.yml
         call the spec-tools action pinned by SHA; the action runs check_docs_structure.py whenever `spec` is asked

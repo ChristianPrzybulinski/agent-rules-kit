@@ -4,11 +4,11 @@
 `merge=union` on a translation CSV keeps a branch's stale row beside the other side's edited row of the same key and
 reports no conflict; this driver merges the file key by key instead and reports a real conflict as one.
 
-Setup, once per clone (git config is not versioned; platforms/tools/sync-project.sh of agent-rules-kit vendors this
-file into .github/merge-drivers/ and prints the step while it is missing):
+Setup, once per clone (git config is not versioned; git runs this file from the installed agent-rules-kit, with no
+copy in the project, and platforms/tools/sync-project.sh prints the step while the clone lacks it):
 
     git config merge.keyed-csv.name "keyed CSV merge"
-    git config merge.keyed-csv.driver "python3 .github/merge-drivers/keyed_csv_merge.py --marker-size %L --path %P %O %A %B"
+    git config merge.keyed-csv.driver "python3 ~/.ai-kit/platforms/kits/godot/scripts/keyed_csv_merge.py --marker-size %L --path %P %O %A %B"
 
 and one `.gitattributes` line per file or glob:  `client/i18n/*.csv merge=keyed-csv`. Add `--key-column N` to the
 driver for a key outside column 1. In a clone without the driver git merges the file as text, so a conflict shows.

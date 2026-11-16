@@ -7,7 +7,7 @@ Base for Godot 4 2D projects.
 | `.gitignore` | copy to the project root |
 | `gdlintrc` | copy to the project root as `.gdlintrc` (gdlint overrides only) |
 | `requirements-gdtoolkit.txt` | copy to the project root; `pip install -r requirements-gdtoolkit.txt` gives `gdformat`/`gdlint` 4.5.0 |
-| `scripts/keyed_csv_merge.py` | git merge driver for a keyed translation CSV (KIT-074), in place of `merge=union`, which kept a branch's stale row beside the other side's edited row of the same key and reported no conflict. `sync-project.sh` vendors it into `.github/merge-drivers/` for a godot profile; § Keyed-CSV merge driver |
+| `scripts/keyed_csv_merge.py` | git merge driver for a keyed translation CSV (KIT-074), in place of `merge=union`, which kept a branch's stale row beside the other side's edited row of the same key and reported no conflict. git runs it from the installed kit (`~/.ai-kit`, KIT-081 stage 1b: no copy in the project); § Keyed-CSV merge driver |
 | `../git-lfs/.gitattributes` | combine with the `.gitignore` (binaries in LFS) |
 | `../github/workflows/ci-godot.yml` | headless CI through the `just` recipes of `../just/godot.just` (`just boot`, `just test`, `just lint`): import, boot proof, gdUnit4 by default or GUT, fails when no runner or zero tests, JUnit artifact, gdformat/gdlint, manual export |
 
@@ -23,11 +23,13 @@ Each row of a Godot translation CSV is merged by its key: a key edited on one si
    client/resources/i18n/*.csv merge=keyed-csv
    ```
 
-2. Configure the driver once per clone (git config is per clone and is not versioned; `sync-project.sh` prints these lines while the clone lacks them and never runs them; worktrees of one clone share it):
+2. Configure the driver once per clone (git config is per clone and is not versioned; `sync-project.sh` prints these lines for a godot profile while the clone lacks them, or still runs the `.github/merge-drivers/` copy older syncs vendored, and never runs them; worktrees of one clone share it). git runs the driver through `sh`, which expands `~`, so it runs the installed kit's file:
 
    ```bash
    git config merge.keyed-csv.name "keyed CSV merge"
-   git config merge.keyed-csv.driver "python3 .github/merge-drivers/keyed_csv_merge.py --marker-size %L --path %P %O %A %B"
+   git config merge.keyed-csv.driver "python3 ~/.ai-kit/platforms/kits/godot/scripts/keyed_csv_merge.py --marker-size %L --path %P %O %A %B"
    ```
+
+   Since KIT-081 stage 1b the project holds no copy of the driver: `sync-project.sh` removes the `.github/merge-drivers/keyed_csv_merge.py` it once vendored (only that kit-marked file; a project's own driver there stays), and `--check` fails while the clone's config still runs it.
 
    Add `--key-column N` before `--marker-size` when the key is not in column 1. A clone without the driver merges the file as text, so a conflict still shows. So does the driver, with a warning, when a side does not parse as CSV (a quoted field left open at the end); the csv module splits the records, so an inch mark inside an unquoted field (`5" screen`) parses. A blank line has no key, so the merged file drops it.

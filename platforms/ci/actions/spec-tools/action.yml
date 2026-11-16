@@ -53,6 +53,17 @@ runs:
       shell: bash
       run: |  # zizmor: ignore[github-env]
         echo "AI_KIT_DIR=$(cd "$GITHUB_ACTION_PATH/../../../.." && pwd)" >> "$GITHUB_ENV"
+    # A project's justfile imports the kit's just modules from ~/.ai-kit (KIT-081 stage 1b): just reads no variable in
+    # an import path, so the kit at this commit is linked there, unless the runner already holds a kit at that path.
+    - name: Link ~/.ai-kit to the kit at this action's commit (the justfile imports)
+      shell: bash
+      run: |
+        kit="$(cd "$GITHUB_ACTION_PATH/../../../.." && pwd -P)"
+        if [ ! -e "$HOME/.ai-kit" ] && [ ! -L "$HOME/.ai-kit" ]; then
+          ln -s "$kit" "$HOME/.ai-kit"
+        elif [ "$(cd "$HOME/.ai-kit" 2>/dev/null && pwd -P)" != "$kit" ]; then
+          echo "::warning::spec-tools: $HOME/.ai-kit already exists, so a justfile importing ~/.ai-kit runs that kit, not this action's commit"
+        fi
     - name: Validate frontmatter and FEAT/REQ references
       if: steps.checks.outputs.spec == 'true'
       shell: bash

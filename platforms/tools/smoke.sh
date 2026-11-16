@@ -938,6 +938,13 @@ if ! "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/proj" >"$ROOT/sync-install
 fi
 grep -Fq 'sync: profile=godot (inferred)' "$ROOT/sync-install.out" \
   || fail "sync-project did not infer the godot profile"
+# KIT-081 stage 1b: the justfile imports the installed kit's module; no just module or merge driver is copied.
+[[ "$(tail -n 1 "$ROOT/proj/justfile")" == "import '~/.ai-kit/platforms/kits/just/godot.just'" ]] \
+  || fail "sync-project did not write the kit's godot import into the starter justfile"
+[[ ! -e "$ROOT/proj/kit.just" && ! -e "$ROOT/proj/.github/merge-drivers" ]] \
+  || fail "sync-project copied a kit just module or the merge driver into the repo (KIT-081 stage 1b)"
+grep -Fq "git config merge.keyed-csv.driver 'python3 ~/.ai-kit/platforms/kits/godot/scripts/keyed_csv_merge.py " \
+  "$ROOT/sync-install.out" || fail "sync-project did not name the installed kit's merge driver"
 first_hashes="$(shasum -a 256 "$ROOT/proj/CLAUDE.md" "$ROOT/proj/.claude/settings.json")"
 if ! "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/proj" >"$ROOT/sync-reinstall.out" 2>&1; then
   cat "$ROOT/sync-reinstall.out" >&2
