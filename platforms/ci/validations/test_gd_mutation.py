@@ -1,5 +1,6 @@
 """gd_mutation.py: PIT's default operators on the GDScript tree, the runner with a stub Godot, the coverage join and
 the differential cache."""
+import functools
 import importlib.util
 import json
 import os
@@ -17,11 +18,27 @@ COVERS = ("platforms/tools/gd_mutation.py",)
 
 TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "gd_mutation.py"
 HAS_GDTOOLKIT = importlib.util.find_spec("gdtoolkit") is not None
-NEEDS_PARSER = unittest.skipUnless(HAS_GDTOOLKIT, "gdtoolkit is not installed (pip install gdtoolkit==4.5.0)")
 sys.path.insert(0, str(TOOL.parent))
 spec = importlib.util.spec_from_file_location("gd_mutation", TOOL)
 gd_mutation = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gd_mutation)
+
+
+def NEEDS_PARSER(test):  # noqa: N802 (a decorator named like the skip decorators it replaces)
+    """A test that parses GDScript skips without gdtoolkit, except under CI=1: the CI jobs that run it install the
+    pinned gdtoolkit (KIT-082), so there a missing one fails the test, as a missing just or gitleaks does."""
+    if HAS_GDTOOLKIT:
+        return test
+    if not os.environ.get("CI"):
+        return unittest.skip("gdtoolkit is not installed (pip install gdtoolkit==4.5.0; CI=1 makes it required)")(test)
+
+    def missing(self, *args, **kwargs):
+        self.fail("gdtoolkit is not installed (CI=1 makes it required: pip install gdtoolkit==4.5.0)")
+    if isinstance(test, type):  # a class: each of its tests fails in setUp
+        test.setUp = missing
+        return test
+    return functools.wraps(test)(missing)
+
 
 NO_TYPES = gd_mutation.Types(set(), set())
 

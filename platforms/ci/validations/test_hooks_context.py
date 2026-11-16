@@ -11,6 +11,7 @@ cases; these tests cover the settings layers, malformed input, the budget and th
 breaks."""
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -25,6 +26,7 @@ COVERS = ("plugins/guardrails/hooks/**", "platforms/ci/validations/check_kit.py"
 
 KIT = Path(__file__).resolve().parents[3]
 HOOKS_REL = "plugins/guardrails/hooks/hooks.json"
+GIT_CASES_REL = "platforms/ci/validations/hook_git_context_cases.json"
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
 GIT_MARKER = "ai-kit git, after this "
 CHECKLIST_MARKER = "ai-kit session start:"
@@ -82,10 +84,20 @@ class ContextHooksTest(unittest.TestCase):
         self.assertEqual((len(GIT_CONTEXT), len(CHECKLIST), len(SUBAGENT)), (1, 1, 1))
 
     def test_checklist_names_the_start_steps(self):
+        """Markers, not prose: one line under its marker, the files to read, the commands that verify the working
+        directory, Git root, branch and head as code, and a kit skill for the rest. Its wording is check_kit.py's to
+        gate (CHECKLIST_WORDS)."""
         context = self.start(CHECKLIST[0], "SessionStart")
-        for word in ("one outcome", "AGENTS.md", "README", "git rev-parse --show-toplevel", "git branch --show-current",
-                     "git rev-parse HEAD", "skill `session`"):
-            self.assertIn(word, context)
+        self.assertTrue(context.startswith(CHECKLIST_MARKER), context)
+        self.assertNotIn("\n", context)
+        for name in ("AGENTS.md", "README"):
+            self.assertIn(name, context)
+        self.assertEqual(re.findall(r"`(git [^`]+)`", context),
+                         ["git rev-parse --show-toplevel", "git branch --show-current", "git rev-parse HEAD"])
+        skills = re.findall(r"skill `([a-z0-9-]+)`", context)
+        self.assertIn("session", skills)
+        for name in skills:
+            self.assertTrue((KIT / "plugins/guardrails/skills" / name / "SKILL.md").is_file(), name)
         self.assertNotIn("Co-Authored-By", context)  # default settings: Claude Code's own attribution stays
 
     def test_checklist_runs_only_on_startup_and_clear(self):
@@ -216,51 +228,57 @@ class CheckKitCatchesBrokenHooksTest(unittest.TestCase):
         return subprocess.run([sys.executable, "-B", str(self.kit / CHECK_KIT)], capture_output=True, text=True,
                               check=False)
 
-    def test_git_context_that_always_speaks_fails(self):
+    def assert_fails(self, result, patterns):
+        """Each pattern matches a FAIL line of its own and no other FAIL line appears: the mutations merged into one
+        check_kit.py run neither mask nor add a failure."""
+        lines = [line for line in result.stderr.splitlines() if line.startswith("FAIL: ")]
+        self.assertNotEqual(result.returncode, 0)
+        for pattern in patterns:
+            with self.subTest(pattern=pattern):
+                self.assertEqual(sum(bool(re.search(pattern, line)) for line in lines), 1, result.stderr)
+        self.assertEqual([line for line in lines if not any(re.search(p, line) for p in patterns)], [], result.stderr)
+        self.assertEqual(len(lines), len(patterns), result.stderr)
+
+    def test_a_speaking_git_context_and_missing_start_hooks_fail(self):
+        """Three hooks, three events: the git context hook (PreToolUse) speaks on every silent case, and the checklist
+        (SessionStart) and the attribution (SubagentStart) are gone, so no hook case of one event hides another's."""
         hooks = json.loads(json.dumps(HOOKS))
         for group in hooks["hooks"]["PreToolUse"]:
             for hook in group["hooks"]:
                 if GIT_MARKER in hook["command"]:
                     hook["command"] = hook["command"].replace('else ""\nT=', 'else "commit"\nT=', 1)
                     self.assertNotEqual(hook["command"], GIT_CONTEXT[0])
-        result = self.check(hooks)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("silent case printed", result.stderr)
-
-    def test_missing_checklist_fails(self):
-        hooks = json.loads(json.dumps(HOOKS))
         hooks["hooks"]["SessionStart"] = [g for g in hooks["hooks"]["SessionStart"]
                                           if CHECKLIST_MARKER not in g["hooks"][0]["command"]]
-        result = self.check(hooks)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("SessionStart needs the checklist hook", result.stderr)
-
-    def test_missing_subagent_attribution_fails(self):
-        hooks = json.loads(json.dumps(HOOKS))
         del hooks["hooks"]["SubagentStart"]
-        result = self.check(hooks)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("SubagentStart needs the attribution hook", result.stderr)
+        silent = json.loads((self.kit / GIT_CASES_REL).read_text(encoding="utf-8"))["silent"]
+        self.assert_fails(self.check(hooks), [
+            "SessionStart needs the checklist hook", "SubagentStart needs the attribution hook",
+            *(rf"{re.escape(GIT_CASES_REL)}: silent case printed .*: {re.escape(case)}$" for case in silent)])
 
-    def test_ignored_custom_attribution_fails(self):
+    def test_attribution_that_ignores_the_settings_fails(self):
+        """The commit text of the settings ignored in both start hooks, and SubagentStart speaking with default
+        settings: each settings case is checked on its own, so the two mutations add their lines side by side."""
         hooks = json.loads(json.dumps(HOOKS))
         for group in hooks["hooks"]["SessionStart"] + hooks["hooks"]["SubagentStart"]:
             for hook in group["hooks"]:
                 if ATTRIBUTION_MARKER in hook["command"]:
                     hook["command"] = hook["command"].replace('if isinstance(a.get("commit"),str)', "if False", 1)
         self.assertNotEqual(hooks, HOOKS)
-        result = self.check(hooks)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("(custom attribution settings) must state Co-Authored-By: Bot <bot@example.invalid>", result.stderr)
-
-    def test_unconditional_attribution_fails(self):
-        hooks = json.loads(json.dumps(HOOKS))
         hook = hooks["hooks"]["SubagentStart"][0]["hooks"][0]
-        hook["command"] = hook["command"].replace("\nif off and ", "\nif True or off and ", 1)
-        self.assertNotEqual(hook["command"], SUBAGENT[0])
-        result = self.check(hooks)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("SubagentStart attribution (default settings) must stay silent", result.stderr)
+        unconditional = hook["command"].replace("\nif off and ", "\nif True or off and ", 1)
+        self.assertNotEqual(unconditional, hook["command"])
+        hook["command"] = unconditional
+        custom = re.escape("must state Co-Authored-By: Bot <bot@example.invalid>")
+        self.assert_fails(self.check(hooks), [
+            # the ignored custom attribution
+            rf"SessionStart checklist \(custom attribution settings\) {custom}",
+            r"SubagentStart attribution \(custom attribution settings\) must add "
+            r"Co-Authored-By: Bot <bot@example\.invalid>",
+            r"SessionStart checklist \(hidden attribution settings\) must leave attribution to Claude Code",
+            r"SubagentStart attribution \(hidden attribution settings\) must stay silent",
+            # the unconditional attribution
+            r"SubagentStart attribution \(default settings\) must stay silent"])
 
 
 if __name__ == "__main__":

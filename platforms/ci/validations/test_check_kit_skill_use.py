@@ -18,7 +18,7 @@ COVERS = ("platforms/ci/validations/check_kit.py", "plugins/guardrails/AGENTS.md
 KIT = Path(__file__).resolve().parents[3]
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
 REVIEWER = "plugins/guardrails/agents/reviewer.md"
-TRIGGER_CASE = "plugins/guardrails/evals/git-trigger-commit-this/prompt.md"
+EVALS = "plugins/guardrails/evals"
 
 try:
     import jsonschema  # noqa: F401
@@ -60,49 +60,51 @@ class CheckKitSkillUseTest(unittest.TestCase):
         self.assertNotEqual(new, text)
         path.write_text(new, encoding="utf-8")
 
-    def test_the_copy_passes(self):
-        result = self.check()
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+    def trigger_case(self, name, frontmatter):
+        """A synthetic eval case tagged trigger, so no wording of a real case or bullet is a precondition."""
+        case = self.kit / EVALS / name
+        (case / "graders").mkdir(parents=True)
+        grader = "---\ntype: tool_used\ntool: Skill\n---\n"
+        (case / "graders" / "skill-fired.md").write_text(grader, encoding="utf-8")
+        (case / "prompt.md").write_text(f"---\ndescription: A fixture trigger case.\ntags: [trigger]\n{frontmatter}---\n\n"
+                                        "Commit this change.\n", encoding="utf-8")
+        return f"{EVALS}/{name}/prompt.md"
 
-    def test_bare_preload_name_fails(self):
-        self.preload("review", "guardrails:security")
-        result = self.check()
+    def assert_fails(self, result, expected):
+        """Each expected text in a FAIL line of its own and no other FAIL line: the mutations merged into one
+        check_kit.py run neither mask nor add a failure."""
+        lines = [line for line in result.stderr.splitlines() if line.startswith("FAIL: ")]
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("skills: 'review' needs its plugin prefix", result.stderr)
+        for text in expected:
+            with self.subTest(text=text):
+                self.assertEqual(sum(text in line for line in lines), 1, result.stderr)
+        self.assertEqual([line for line in lines if not any(text in line for text in expected)], [], result.stderr)
+        self.assertEqual(len(lines), len(expected), result.stderr)
 
-    def test_unknown_plugin_or_skill_fails(self):
-        self.preload("other:review", "guardrails:no-such-skill")
-        result = self.check()
-        self.assertIn("skills: 'other:review' is not a kit skill", result.stderr)
-        self.assertIn("skills: 'guardrails:no-such-skill' is not a kit skill", result.stderr)
+    # The real kit passing is the static job's check_kit.py run (.github/workflows/ci.yml). Each preload is checked
+    # on its own, so the wrong names go into one run, beside two valid ones that must add no line.
 
-    def test_user_only_preload_fails(self):
-        self.preload("guardrails:review", "guardrails:sdd-implement")
-        result = self.check()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("skills: 'guardrails:sdd-implement' is user-only; cannot be preloaded", result.stderr)
+    def test_each_wrong_preload_fails(self):
+        self.preload("review", "other:review", "guardrails:no-such-skill", "guardrails:sdd-implement",
+                     "guardrails:security", "guardrails:review")
+        self.assert_fails(self.check(), [
+            "skills: 'review' needs its plugin prefix",
+            "skills: 'other:review' is not a kit skill",
+            "skills: 'guardrails:no-such-skill' is not a kit skill",
+            "skills: 'guardrails:sdd-implement' is user-only; cannot be preloaded",
+            # the bare name fails the profile schema's plugin:skill pattern too, where jsonschema is installed
+            *(["schema agent.schema.json: 'review' does not match"] if FULL else []),
+        ])
 
     @unittest.skipUnless(FULL, "needs pyyaml to read the eval frontmatter")
-    def test_trigger_case_without_append_fails(self):
-        path = self.kit / TRIGGER_CASE
-        text = path.read_text(encoding="utf-8")
-        new = re.sub(r"^append_system_prompt: .*\n", "", text, count=1, flags=re.M)
-        self.assertNotEqual(new, text)
-        path.write_text(new, encoding="utf-8")
-        result = self.check()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("a trigger case needs append_system_prompt", result.stderr)
-
-    @unittest.skipUnless(FULL, "needs pyyaml to read the eval frontmatter")
-    def test_drifted_append_fails(self):
-        path = self.kit / TRIGGER_CASE
-        text = path.read_text(encoding="utf-8")
-        new = text.replace("load skill `git`.", "load skill `git` now.", 1)
-        self.assertNotEqual(new, text)
-        path.write_text(new, encoding="utf-8")
-        result = self.check()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("append_system_prompt must repeat one bullet", result.stderr)
+    def test_a_trigger_case_without_its_bullet_fails(self):
+        missing = self.trigger_case("fixture-trigger-without-append", "")
+        drifted = self.trigger_case("fixture-trigger-drifted-append",
+                                    'append_system_prompt: "A line that repeats no bullet of AGENTS.md."\n')
+        self.assert_fails(self.check(), [
+            f"{missing}: a trigger case needs append_system_prompt",
+            f"{drifted}: append_system_prompt must repeat one bullet",
+        ])
 
 
 if __name__ == "__main__":
