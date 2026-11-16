@@ -11,6 +11,6 @@ Scope: configuration and infra templates a project copies (not read by the agent
 | `java-maven/` | parent pom with gates, toolchains, suppressions, `.java-version` | Java/Maven project |
 | `just/` | one `just` module per profile (`godot`, `java`, `python`, `docs`) with the standard recipes `test`, `verify`, `fmt`, `lint` and `run` where it fits; `sync-project.sh` writes the profile's module as `kit.just` in each profile folder (KIT-074) | every project; the AGENTS and CI templates call these recipes |
 | `launchd/` | six-hour AI Kit refresh agent for macOS | installed by `platforms/tools/bootstrap.sh` |
-| `review-loop/` | verdict schema, example config (proof allowlist, poll interval, 2 flagged rounds then needs-human, repo list), README with the loop-tool decision | project running the review loop (its skills live in that project) |
+| `review-loop/` | README only: where the loop lives (`dev-game-studio/review-loop`) and how its children preload kit skills | project running the review loop (its skills live in that project) |
 | `sdd/` | `init-spec.sh` — creates `docs/spec/` from `plugins/guardrails/templates/spec-*` | spec bootstrap in the project |
 | `third-party/` | `skills.lock` — external skills pinned by commit | regenerate vendor skills under `plugins/<plugin>/skills/` |
