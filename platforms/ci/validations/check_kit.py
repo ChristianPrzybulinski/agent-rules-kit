@@ -719,8 +719,8 @@ else:
                 bin_dir = root / "bin"
                 bin_dir.mkdir()
                 for tool, code in (case.get("tools") or {}).items():
-                    if tool == "check_spec.py":
-                        stub = root / ".github/spec-lint/check_spec.py"
+                    if tool == "check_spec.py":  # the installed kit's validator (KIT-081 stage 1), via AI_KIT_DIR
+                        stub = root / "kit/platforms/ci/validations/check_spec.py"
                         stub.parent.mkdir(parents=True, exist_ok=True)
                         stub.write_text(f'import sys\nprint("stub check_spec.py finding")\nsys.exit({code})\n')
                     else:
@@ -733,7 +733,7 @@ else:
                     result = subprocess.run(
                         [shutil.which("bash"), "-c", command], input=payload, text=True,
                         capture_output=True, timeout=timeout, cwd=tmp,
-                        env={"PATH": str(bin_dir)}, check=False)
+                        env={"PATH": str(bin_dir), "AI_KIT_DIR": str(root / "kit")}, check=False)
                 except subprocess.TimeoutExpired:
                     fail(rel(post_edit_cases_path), f"post-edit case '{name}' timed out")
                     continue

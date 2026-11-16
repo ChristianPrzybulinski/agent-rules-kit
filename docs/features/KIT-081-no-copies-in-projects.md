@@ -142,6 +142,34 @@ record that still holds the vendored state, naming `sync-project.sh <repo>`. The
 `~/.ai-kit/plugins/guardrails/skills/<skill>/` as the only home of a kit skill. Removing a flag of a shipped tool and
 the project destinations it wrote is a breaking change, so the release that carries it is MAJOR.
 
+**Stage 1, the spec tools.** The composite action `platforms/ci/actions/spec-tools/action.yml` runs the validators
+and schemas from its own checkout (`$GITHUB_ACTION_PATH/../../validations/`, `../../schemas`), never a fetch of another
+ref. Its input `checks` (default `spec`) takes `spec` (`check_spec.py`, `check_docs_structure.py`, which passes as
+`off` unless `sdd.doc_structure.enabled`, and on a pull request the baseline that may only shrink), `trace`
+(`spec_trace.py check`), `rows` (`row_checks.py check`, `--changed` on a pull request, `--all` otherwise) or `none`;
+`base` and `head` default to the pull request's commits. It sets up Python 3.12 with `actions/setup-python` pinned by
+SHA, installs `pyyaml` and `jsonschema`, and exports `AI_KIT_DIR`, the kit root at the pinned commit, to
+`$GITHUB_ENV` (zizmor's `github-env` finding is silenced there as a documented false positive: a fixed name and the
+action's own path). The `spec-lint.yml` template calls it with `checks: spec`, and its `paths` include the workflow
+itself, so a bot's pin bump runs the check it updates; `pr-contract.yml` calls it with `checks: none` and runs
+`"$AI_KIT_DIR/platforms/ci/validations/pr_gates.py"`, so its `script` input is gone and `config` defaults to
+`.github/pr-gates.json`. The template carries a real release pin (`v13.1.0`), which zizmor's online audits accept and
+the kit's Dependabot moves to each release (`.github/dependabot.yml` also watches the action's folder); that release
+predates the action, so a project takes the file from the sync until a release ships it. Sessions run the installed
+kit: the skills name `~/.ai-kit/platforms/ci/validations/<tool>` with `~/.ai-kit/platforms/ci/schemas`, and the
+post-edit hook and `docs.just` read `${AI_KIT_DIR:-$HOME/.ai-kit}`. `sync-project.sh` stops writing
+`.github/spec-lint/` and `KIT_VERSION` (`platforms/tools/sync_spec_tools.py`): install removes a generated copy, only
+when its `README.md` starts with the generated heading and only the kit-named files (validators, schemas,
+`KIT_VERSION`, the README, the validators' byte caches), keeps any other file with a `sync: kept` line, never follows
+a symbolic link, and warns about each workflow line that still names the copy; in a repository with `docs/spec` whose
+CI runs no spec tools it writes `spec-lint.yml` (or the `--workflow` name) when that file is missing, the action pinned
+to `git rev-parse HEAD` of the kit with `# v<VERSION>`, and warns when that commit is not the release tag. A workflow
+runs the spec tools when a line that is not a comment uses the action or runs `check_spec.py` from `$AI_KIT_DIR`.
+`--check` fails on a generated copy left, on each workflow line naming `.github/spec-lint/` (`file:line` and the fix)
+and, with `docs/spec`, on no workflow that runs the spec tools. `check_docs_structure.py` no longer exempts
+`.github/spec-lint`, since the kit stops generating it. Out of this stage: the `kit*.just` modules, the merge driver
+and `.claude/rules` (stage 3).
+
 Open before stage 2 and 3 (each `[HYPOTHESIS]` until checked against the installed version or its docs):
 
 - A Claude Code plugin cannot ship path-scoped rules (stage 3 rests on it).
@@ -186,3 +214,14 @@ stage 1.
 - 2026-11-16: the owner chose option B for the project's CI ("Sim, registre o B").
 - 2026-11-16: stage 2b (no pin) implemented on `feat/kit-081-no-pin`, on top of stage 2a, owner-approved ("Sim, comece
   pelo pin", "implemente tudo isso agora"); a dry migration of a copy of the Stratics vendored state is in the PR.
+- 2026-11-16: stage 1, the spec tools (option B), implemented on `feat/kit-081-spec-tools`, on top of stage 2b,
+  owner-approved ("implemente tudo isso agora"); a dry migration of a copy of Stratics is in the PR.
+- 2026-11-16: [FACT] probe in a throwaway home (Claude Code 2.1.287), set up with a user-scope and a project-scope
+  `guardrails@ai-kit` install on a ref-less marketplace.
+  - `claude plugin marketplace remove ai-kit --scope user`, `add ...#stable` and `install --scope user` kept both
+    install records.
+  - `claude plugin list` in the project still listed the project entry, enabled, and the project's
+    `.claude/settings.json` was untouched. So the stage 2a move leaves a project's records in place.
+  - The cache directory is named by version (`13.1.0`), so right after the move it still held the files installed from
+    `main`. `refresh.sh`'s KIT-013 reinstall (a user-scope cache that differs from the marketplace clone, now on
+    `stable`) corrects it on the next run.

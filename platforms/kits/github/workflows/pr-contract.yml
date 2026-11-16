@@ -1,12 +1,16 @@
 name: pr-contract
 
-# The no-model PR gates (platforms/ci/validations/pr_gates.py) as a reusable CI check. The report
-# reads the PR, its `Closes <owner>/<backlog_repo>#N` issue and the head's checks through the REST
-# API with GATES_TOKEN — a PR repo's GITHUB_TOKEN cannot read the backlog's issues, and the token is
-# also the checkout credential when the gates repository is private. The proof commands are only
-# extracted here — each caller's own `proof` job runs them with its toolchain. The human merge gate
-# (a commit status such as the config's `review_context`) stays in place until the owner trusts this
-# check.
+# The no-model PR gates (agent-rules-kit platforms/ci/validations/pr_gates.py) as a reusable CI check.
+# pr_gates.py comes from the kit commit the spec-tools action pins (KIT-081: no copy in a project);
+# the action exports AI_KIT_DIR, the kit at that commit. The gates config stays in the gates
+# repository, checked out at a protected ref. The report reads the PR, its
+# `Closes <owner>/<backlog_repo>#N` issue and the head's checks through the REST API with
+# GATES_TOKEN — a PR repo's GITHUB_TOKEN cannot read the backlog's issues, and the token is also the
+# checkout credential when the gates repository is private. The proof commands are only extracted
+# here — each caller's own `proof` job runs them with its toolchain. The human merge gate (a commit
+# status such as the config's `review_context`) stays in place until the owner trusts this check.
+# Dependabot or Renovate bumps the action's pin when the kit releases (agent-rules-kit
+# platforms/kits/github/README.md).
 
 on:
   workflow_call:
@@ -17,26 +21,21 @@ on:
         type: string
       gates-repo:
         description: >-
-          owner/name of the repository holding pr_gates.py and the gates config — usually the
-          spec/backlog repo. Checked out at `gates-ref`.
+          owner/name of the repository holding the gates config — usually the spec/backlog repo.
+          Checked out at `gates-ref`.
         required: true
         type: string
       gates-ref:
         description: >-
-          ref to run pr_gates.py from. Keep a protected ref: the job holds GATES_TOKEN, so it must
-          never run code from an unreviewed PR head.
+          ref to read the gates config from. Keep a protected ref: the job holds GATES_TOKEN, so it
+          must never read a config from an unreviewed PR head.
         required: false
         default: "main"
-        type: string
-      script:
-        description: "path of the pr_gates.py copy inside gates-repo"
-        required: false
-        default: ".github/spec-lint/pr_gates.py"
         type: string
       config:
         description: "path of the gates config JSON inside gates-repo (see pr_gates.py's docstring)"
         required: false
-        default: ".github/spec-lint/pr-gates.json"
+        default: ".github/pr-gates.json"
         type: string
     secrets:
       GATES_TOKEN:
@@ -58,7 +57,7 @@ jobs:
     outputs:
       proof-commands: ${{ steps.commands.outputs.value }}
     steps:
-      - name: Check out the gates repository (pr_gates.py + config)
+      - name: Check out the gates repository (the gates config)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: ${{ inputs.gates-repo }}
@@ -66,20 +65,21 @@ jobs:
           path: .gates
           token: ${{ secrets.GATES_TOKEN }}
           persist-credentials: false  # the API reads below pass GATES_TOKEN as GH_TOKEN
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+      # Python 3.12 and AI_KIT_DIR, the kit at the pinned commit, whose pr_gates.py the steps below run.
+      - name: The kit's spec tools at the pinned commit (pr_gates.py)
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@5a4924e802f6ab4675d4f9674c8626269b00b999  # v13.1.0
         with:
-          python-version: "3.12"
+          checks: none
       - name: Gate report (step summary + job result)
         env:
           GH_TOKEN: ${{ secrets.GATES_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          GATES_SCRIPT: ${{ inputs.script }}
           GATES_CONFIG: ${{ inputs.config }}
           GATES_REPO_KEY: ${{ inputs.repo }}
         shell: bash
         run: |
           set -o pipefail
-          python3 ".gates/$GATES_SCRIPT" --config ".gates/$GATES_CONFIG" \
+          python3 "$AI_KIT_DIR/platforms/ci/validations/pr_gates.py" --config ".gates/$GATES_CONFIG" \
             --repo "$GATES_REPO_KEY" --pr "$PR_NUMBER" | tee "$GITHUB_STEP_SUMMARY"
       - name: Extract the proof commands for the caller's `proof` job
         id: commands
@@ -87,12 +87,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GATES_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          GATES_SCRIPT: ${{ inputs.script }}
           GATES_CONFIG: ${{ inputs.config }}
           GATES_REPO_KEY: ${{ inputs.repo }}
         shell: bash
         run: |
           eof="proof-commands-$RANDOM$RANDOM"
-          python3 ".gates/$GATES_SCRIPT" --config ".gates/$GATES_CONFIG" \
+          python3 "$AI_KIT_DIR/platforms/ci/validations/pr_gates.py" --config ".gates/$GATES_CONFIG" \
             proof-commands --repo "$GATES_REPO_KEY" --pr "$PR_NUMBER" > .proof-commands
           { echo "value<<$eof"; cat .proof-commands; echo "$eof"; } >> "$GITHUB_OUTPUT"

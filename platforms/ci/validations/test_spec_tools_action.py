@@ -1,0 +1,188 @@
+"""The spec-tools composite action (KIT-081 stage 1): a project's CI runs the kit's spec validators and schemas from
+the kit commit it pins, with no copy in the project. The file parses as a composite action, pins its actions by
+commit SHA, keeps `${{ }}` out of `run:`, and runs every tool from its own checkout ($GITHUB_ACTION_PATH). Its steps'
+own shell runs here against a throwaway project, with GITHUB_ACTION_PATH at the kit's action folder."""
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import textwrap
+import unittest
+from pathlib import Path
+
+try:
+    import yaml
+except ImportError:  # as check.sh: without pyyaml a local run skips, a CI=1 run fails
+    if os.environ.get("CI"):
+        raise
+    yaml = None
+
+LAYER = "contract"  # KIT-077 layer (platforms/tools/run_tests.py): the kit's own files, read in-process
+
+KIT = Path(__file__).resolve().parents[3]
+ACTION_DIR = KIT / "platforms" / "ci" / "actions" / "spec-tools"
+ACTION = ACTION_DIR / "action.yml"
+PINNED = re.compile(r"^\s*-?\s*uses:\s*[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s*v\d+(\.\d+)*\s*$")
+TOOL = re.compile(r'"\$GITHUB_ACTION_PATH/([^"]+)"')
+
+SPEC_MD = '---\nproject: "x"\nversion: "0.1.0"\nupdated: "2026-11-15"\n---\n\n# x\n'
+FEAT = """\
+---
+id: FEAT-001
+title: "Fixture"
+status: planned
+requirements: []
+created: "2026-11-15"
+---
+
+# FEAT-001
+
+## Tasks
+
+| ID | Task | Files | Proof of completion | Covers | Depends on | Status | Complexity | Model | Wave | Item |
+|---|---|---|---|---|---|---|---|---|---|---|
+| T1 | Add the tool | `README.md` | `docker exec x ls` | CA-1 | — | todo | Low | small | 0 | — |
+"""
+
+
+def action():
+    return yaml.safe_load(ACTION.read_text(encoding="utf-8"))
+
+
+def step(name):
+    found = [s for s in action()["runs"]["steps"] if s.get("name") == name]
+    assert len(found) == 1, f"action.yml has {len(found)} steps named {name!r}"
+    return found[0]
+
+
+@unittest.skipIf(yaml is None, "pyyaml is not installed (CI=1 makes it required)")
+class SpecToolsActionFile(unittest.TestCase):
+    def test_a_composite_action_whose_actions_are_pinned_by_sha(self):
+        data = action()
+        self.assertEqual(data["runs"]["using"], "composite")
+        lines = [line for line in ACTION.read_text(encoding="utf-8").splitlines() if re.match(r"^\s*-?\s*uses:", line)]
+        self.assertTrue(lines)
+        for line in lines:
+            self.assertRegex(line, PINNED)
+        for item in data["runs"]["steps"]:
+            with self.subTest(step=item.get("name", item.get("uses"))):
+                self.assertNotIn("${{", item.get("run", ""))  # pass it through env: instead
+                if "run" in item:
+                    self.assertEqual(item.get("shell"), "bash")  # a composite run step must name its shell
+
+    def test_every_tool_runs_from_the_actions_own_checkout(self):
+        runs = "\n".join(item.get("run", "") for item in action()["runs"]["steps"])
+        tools = TOOL.findall(runs)
+        self.assertEqual(sorted(set(t for t in tools if t.endswith(".py"))),
+                         ["../../validations/check_docs_structure.py", "../../validations/check_spec.py",
+                          "../../validations/row_checks.py", "../../validations/spec_trace.py"])
+        for rel in tools:
+            with self.subTest(path=rel):
+                self.assertTrue((ACTION_DIR / rel).exists(), rel)
+        self.assertIn("../../schemas", tools)
+        for word in (".github/spec-lint", "git clone", "git fetch", "actions/checkout", "curl", "wget"):
+            self.assertNotIn(word, ACTION.read_text(encoding="utf-8"))  # nothing fetches another ref
+
+    def test_its_readme_documents_every_input(self):
+        readme = (ACTION_DIR / "README.md").read_text(encoding="utf-8")
+        for name in action()["inputs"]:
+            self.assertIn(f"| `{name}` |", readme)
+
+
+@unittest.skipIf(yaml is None, "pyyaml is not installed (CI=1 makes it required)")
+class SpecToolsActionRuns(unittest.TestCase):
+    LAYER = "integration"  # the steps' shell, the kit's validators and git in a throwaway project
+    COVERS = ("platforms/ci/actions/spec-tools/**", "platforms/ci/validations/check_spec.py",
+              "platforms/ci/validations/check_docs_structure.py", "platforms/ci/validations/spec_trace.py",
+              "platforms/ci/validations/row_checks.py", "platforms/ci/validations/pr_gates.py",
+              "platforms/ci/schemas/**")
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.tmp = Path(tmp.name)
+        self.repo = self.tmp / "repo"
+        spec = self.repo / "docs" / "spec"
+        (spec / "features").mkdir(parents=True)
+        (spec / "spec.md").write_text(SPEC_MD, encoding="utf-8")
+        (spec / "features" / "FEAT-001.md").write_text(textwrap.dedent(FEAT), encoding="utf-8")
+        (self.repo / "README.md").write_text("# x\n", encoding="utf-8")  # the row's Files entry exists (rule b)
+        self.git("init", "-q", "-b", "main")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+
+    def git(self, *args):
+        return subprocess.run(["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid",
+                               "-c", "commit.gpgsign=false", *args], check=True, capture_output=True,
+                              text=True).stdout.strip()
+
+    def run_step(self, name, **env):
+        files = {key: self.tmp / key.lower() for key in ("GITHUB_ENV", "GITHUB_OUTPUT")}
+        for path in files.values():
+            path.write_text("", encoding="utf-8")
+        full = {k: v for k, v in os.environ.items() if k != "CI"}
+        full.update({k: str(v) for k, v in files.items()}, GITHUB_ACTION_PATH=str(ACTION_DIR),
+                    RUNNER_TEMP=str(self.tmp), PATH=f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}",
+                    **env)
+        result = subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step(name)["run"]],
+                                cwd=self.repo, env=full, capture_output=True, text=True, check=False)
+        result.files = {key: path.read_text(encoding="utf-8") for key, path in files.items()}
+        return result
+
+    def test_the_checks_input_selects_the_steps_and_refuses_an_unknown_name(self):
+        name = "Resolve the requested checks"
+        self.assertEqual(self.run_step(name, CHECKS="spec, rows").files["GITHUB_OUTPUT"], "spec=true\nrows=true\n")
+        self.assertEqual(self.run_step(name, CHECKS="spec,trace").files["GITHUB_OUTPUT"], "spec=true\ntrace=true\n")
+        self.assertEqual(self.run_step(name, CHECKS="none").files["GITHUB_OUTPUT"], "")
+        refused = self.run_step(name, CHECKS="spec,*")
+        self.assertEqual(refused.returncode, 2, refused.stdout + refused.stderr)
+        self.assertIn("unknown check '*'", refused.stdout)
+        self.assertEqual(action()["inputs"]["checks"]["default"], "spec")
+        for check in ("spec", "trace", "rows"):
+            self.assertTrue(any(f"steps.checks.outputs.{check} == 'true'" in str(s.get("if", ""))
+                                for s in action()["runs"]["steps"]), check)
+
+    def test_it_exports_the_kit_at_its_own_commit_as_ai_kit_dir(self):
+        result = self.run_step("Export AI_KIT_DIR, the kit at this action's commit")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.files["GITHUB_ENV"], f"AI_KIT_DIR={KIT}\n")
+
+    def test_the_spec_steps_run_the_kit_validators_on_the_project(self):
+        try:
+            import jsonschema  # noqa: F401  (the step runs with CI=1, which needs both libraries)
+        except ImportError:
+            if os.environ.get("CI"):
+                raise
+            self.skipTest("jsonschema missing")
+        validate = "Validate frontmatter and FEAT/REQ references"
+        result = self.run_step(validate)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("spec: OK", result.stdout)
+        structure = self.run_step("Every authored folder says what belongs in it (sdd.doc_structure)")
+        self.assertEqual(structure.returncode, 0, structure.stdout + structure.stderr)
+        self.assertIn("doc-structure: off", structure.stdout)
+        (self.repo / "docs/spec/features/FEAT-001.md").write_text("---\nid: FEAT-001\n---\n", encoding="utf-8")
+        broken = self.run_step(validate)
+        self.assertEqual(broken.returncode, 1, broken.stdout + broken.stderr)
+        self.assertIn("FAIL", broken.stderr)
+
+    def test_trace_and_rows_run_from_the_kit(self):
+        trace = self.run_step("Journeys, FEAT and REQ symmetry and the traceability matrix (spec_trace.py check)")
+        self.assertEqual(trace.returncode, 0, trace.stdout + trace.stderr)
+        rows = "Open task rows (row_checks.py)"
+        finding = "FEAT-001 T1: Proof of completion clause 1 'docker exec x ls' (forbidden construct) [e]"
+        everything = self.run_step(rows, EVENT="push")
+        self.assertEqual(everything.returncode, 1, everything.stdout + everything.stderr)
+        self.assertIn(finding, everything.stdout)
+        base = self.git("rev-parse", "HEAD")
+        self.repo.joinpath("notes.txt").write_text("x\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "head")
+        unchanged = self.run_step(rows, EVENT="pull_request", BASE_SHA=base, HEAD_SHA=self.git("rev-parse", "HEAD"))
+        self.assertEqual(unchanged.returncode, 0, unchanged.stdout + unchanged.stderr)  # --changed: no FEAT changed
+        self.assertNotIn(finding, unchanged.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

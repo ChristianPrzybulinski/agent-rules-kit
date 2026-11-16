@@ -1,5 +1,5 @@
 {
-  "_format": "cases[]: name (str), file (path relative to a throwaway repo), tools (stub executables placed first on PATH, exiting with that code; the key 'check_spec.py' instead writes .github/spec-lint/check_spec.py with a plain-Python body), exit (expected exit code), stdout/stderr (optional substring assertions; \"\" means the stream must be empty)",
+  "_format": "cases[]: name (str), file (path relative to a throwaway repo), tools (stub executables placed first on PATH, exiting with that code; the key 'check_spec.py' instead writes the validator with a plain-Python body under $AI_KIT_DIR/platforms/ci/validations/, AI_KIT_DIR being kit/ in the throwaway repo), exit (expected exit code), stdout/stderr (optional substring assertions; \"\" means the stream must be empty)",
   "cases": [
     {
       "name": "gd lint findings",

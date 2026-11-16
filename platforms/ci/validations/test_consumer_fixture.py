@@ -1,7 +1,8 @@
 """The functional layer (KIT-077): the kit synced into the consumer project kept in platforms/ci/fixtures/consumer/,
-then that project's own checks, as its CI and its developers run them: the spec-lint workflow's validation step,
-`just verify` in each profile folder, `sync-project.sh --check`, and a second sync that changes nothing. The project
-uses the installed guardrails@ai-kit plugin; the vendored mode that pinned the kit (KIT-072) went with KIT-081 stage 2b.
+then that project's own checks, as its CI and its developers run them: the spec-tools action's spec steps, which the
+written spec-lint.yml calls pinned to the kit commit, `just verify` in each profile folder with AI_KIT_DIR naming the
+kit, `sync-project.sh --check`, and a second sync that changes nothing. The project carries no copy of the kit: it
+uses the installed guardrails@ai-kit plugin (KIT-081 stage 2b) and runs the spec tools from the kit (stage 1).
 ci-full runs this layer on push to main, nightly and before a release, with the pinned just installed; a CI run without
 just fails instead of skipping."""
 import os
@@ -15,20 +16,21 @@ LAYER = "functional"
 KIT = Path(__file__).resolve().parents[3]
 FIXTURE = KIT / "platforms" / "ci" / "fixtures" / "consumer"
 SYNC = KIT / "platforms" / "tools" / "sync-project.sh"
-SPEC_LINT = KIT / "platforms" / "kits" / "github" / "workflows" / "spec-lint.yml"
+ACTION_DIR = KIT / "platforms" / "ci" / "actions" / "spec-tools"
+ACTION = "ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools"
 PROFILE = "docs,python:tools"
 JUST = shutil.which("just")
 GIT = ("git", "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false")
 
 
-def validation_step():
-    """The run line of spec-lint.yml's validation step, the command a consumer's CI runs on docs/spec."""
-    lines = SPEC_LINT.read_text(encoding="utf-8").splitlines()
-    name = "- name: Validate frontmatter and FEAT/REQ references"
-    start = next(i for i, line in enumerate(lines) if line.strip() == name)
-    run = lines[start + 1].strip()
-    assert run.startswith("run: "), run
-    return run[len("run: "):]
+def spec_steps():
+    """The run lines of the spec-tools action's `spec` steps that a push runs, the commands a consumer's CI runs on
+    docs/spec (the baseline step runs on a pull request only)."""
+    import yaml  # the functional job installs it; the action's steps themselves need it under CI=1
+    steps = yaml.safe_load((ACTION_DIR / "action.yml").read_text(encoding="utf-8"))["runs"]["steps"]
+    runs = [step["run"] for step in steps if step.get("if") == "steps.checks.outputs.spec == 'true'"]
+    assert len(runs) == 2, runs
+    return runs
 
 
 class ConsumerFixture(unittest.TestCase):
@@ -41,7 +43,8 @@ class ConsumerFixture(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.repo = Path(tmp.name) / "consumer"
         shutil.copytree(FIXTURE, self.repo)
-        self.env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull)
+        # The spec tools come from the kit (KIT-081 stage 1): AI_KIT_DIR for just, GITHUB_ACTION_PATH for the action.
+        self.env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, AI_KIT_DIR=str(KIT), GITHUB_ACTION_PATH=str(ACTION_DIR))
         self.git("init", "-q", "-b", "main")
         self.commit("the fixture as the kit keeps it")
 
@@ -65,7 +68,8 @@ class ConsumerFixture(unittest.TestCase):
         return self.ok(["bash", str(SYNC), *args, str(self.repo)])
 
     def assert_own_checks_pass(self, *args):
-        self.ok(["bash", "-c", validation_step()])
+        for run in spec_steps():
+            self.ok(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", run])
         self.assertIn("lint", self.ok([JUST, "--summary"]).stdout.split())
         self.ok([JUST, "verify"])
         self.ok([JUST, "verify"], cwd=self.repo / "tools")
@@ -78,7 +82,11 @@ class ConsumerFixture(unittest.TestCase):
 
     def test_sync_then_the_projects_checks_pass(self):
         self.sync("--profile", PROFILE)
-        self.assertTrue((self.repo / ".github" / "spec-lint" / "check_spec.py").is_file())
+        self.assertFalse((self.repo / ".github" / "spec-lint").exists())  # KIT-081 stage 1: no copy of the spec tools
+        head = subprocess.run(["git", "-C", str(KIT), "rev-parse", "HEAD"], capture_output=True, text=True,
+                              check=True).stdout.strip()
+        workflow = (self.repo / ".github" / "workflows" / "spec-lint.yml").read_text(encoding="utf-8")
+        self.assertIn(f"uses: {ACTION}@{head}  # v{(KIT / 'VERSION').read_text(encoding='utf-8').strip()}", workflow)
         self.assertTrue((self.repo / "tools" / "kit.just").is_file())
         self.assertFalse((self.repo / ".claude" / "skills").exists())  # KIT-081 stage 2b: no copy in the project
         self.assert_own_checks_pass()  # the CLAUDE.md marker records the profile list: bare runs keep it

@@ -17,7 +17,7 @@ allowed-tools:
 
 Process: `../sdd-constitution/references/sdd-process.md`. Runs once a FEAT's last task row merged, on a clean checkout of `main`, by a context that delivered none of its rows. It checks the FEAT as one delivery and moves it to `validated` (or `delivered` under `release: merge`). It edits only the FEAT's `## Closure`, Scope, criteria, stale text and proof paths, its status through the tool, and the follow-ups it files; a code fix goes back as a row.
 
-Scripts do the mechanical part; the model reads only what they flag. `TRACE` is the project's synced `spec_trace.py` or `~/.ai-kit/platforms/ci/validations/spec_trace.py`; `RC` is `python3 ~/.ai-kit/platforms/tools/review_checks.py`. Calibration (`references/closure-record.md` § Calibration): on 5 delivered FEATs every finding was a rotted proof, stale text or an untested clause, and 0 of 3,263 tests failed.
+Scripts do the mechanical part; the model reads only what they flag. `TRACE` is `python3 ~/.ai-kit/platforms/ci/validations/spec_trace.py`; `RC` is `python3 ~/.ai-kit/platforms/tools/review_checks.py`. Calibration (`references/closure-record.md` § Calibration): on 5 delivered FEATs every finding was a rotted proof, stale text or an untested clause, and 0 of 3,263 tests failed.
 
 ## 1. Gate the start (script)
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
 COVERS = ("platforms/ci/validations/check_spec.py", "platforms/ci/schemas/**",
-          "platforms/kits/github/workflows/spec-lint.yml")
+          "platforms/kits/github/workflows/spec-lint.yml", "platforms/ci/actions/spec-tools/**")
 
 VALIDATIONS = Path(__file__).resolve().parent
 CHECK_SPEC = VALIDATIONS / "check_spec.py"
@@ -350,40 +350,42 @@ class BaselineTest(SpecFixture):
 
 
 WORKFLOW = VALIDATIONS.parents[1] / "kits" / "github" / "workflows" / "spec-lint.yml"
+ACTION_DIR = VALIDATIONS.parent / "actions" / "spec-tools"
 
 
-class SpecLintWorkflowTest(unittest.TestCase):
-    """The spec-lint.yml template projects copy runs --baseline-against on a pull request, so a hand-grown baseline
-    fails CI. The step's own shell runs here against a throwaway git repository."""
+class SpecToolsBaselineTest(unittest.TestCase):
+    """The spec-tools action (KIT-081 stage 1), which the spec-lint.yml template calls, runs --baseline-against on a
+    pull request, so a hand-grown baseline fails CI. The step's own shell runs here against a throwaway git repository,
+    with the kit's check_spec.py and schemas reached through GITHUB_ACTION_PATH, as on a runner."""
 
-    def steps(self):
+    def load(self, path):
         try:
             import yaml
         except ImportError:
             self.skipTest("pyyaml missing")
-        return yaml.safe_load(WORKFLOW.read_text())["jobs"]["validate"]["steps"]
+        return yaml.safe_load(path.read_text())
 
     def baseline_step(self):
-        found = [step for step in self.steps() if step.get("name") == "Baseline only shrinks"]
-        self.assertEqual(len(found), 1, "spec-lint.yml has no 'Baseline only shrinks' step")
+        steps = self.load(ACTION_DIR / "action.yml")["runs"]["steps"]
+        found = [step for step in steps if step.get("name") == "Baseline only shrinks"]
+        self.assertEqual(len(found), 1, "the spec-tools action has no 'Baseline only shrinks' step")
         return found[0]
 
-    def test_template_carries_the_baseline_step(self):
-        steps = self.steps()
+    def test_template_and_action_carry_the_baseline_step(self):
+        steps = self.load(WORKFLOW)["jobs"]["validate"]["steps"]
         checkout = next(step for step in steps if str(step.get("uses", "")).startswith("actions/checkout@"))
-        self.assertEqual((checkout.get("with") or {}).get("fetch-depth"), 0, "the base ref must be fetched")
+        self.assertEqual((checkout.get("with") or {}).get("fetch-depth"), 0, "the base commit must be fetched")
+        tools = [step for step in steps if "/platforms/ci/actions/spec-tools@" in str(step.get("uses", ""))]
+        self.assertEqual(len(tools), 1, "spec-lint.yml does not call the spec-tools action")
+        self.assertIn("spec", str((tools[0].get("with") or {}).get("checks", "spec")).split(","))
         step = self.baseline_step()
-        self.assertEqual(step.get("if"), "github.event_name == 'pull_request'")
+        self.assertEqual(step.get("if"), "steps.checks.outputs.spec == 'true' && github.event_name == 'pull_request'")
+        self.assertEqual(step["env"], {"BASE_SHA": "${{ inputs.base }}"})
         self.assertIn("--baseline-against", step["run"])
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.repo = Path(self.tmp.name) / "repo"
-        lint = self.repo / ".github" / "spec-lint"
-        (lint / "schemas").mkdir(parents=True)
-        (lint / "check_spec.py").write_bytes(CHECK_SPEC.read_bytes())
-        for schema in SCHEMAS.glob("*.json"):
-            (lint / "schemas" / schema.name).write_bytes(schema.read_bytes())
         (self.repo / "docs" / "spec" / "features").mkdir(parents=True)
         self.feat("FEAT-001")
         self.git("init", "-q", "-b", "main")
@@ -416,7 +418,9 @@ class SpecLintWorkflowTest(unittest.TestCase):
         runner = Path(self.tmp.name) / "runner"
         runner.mkdir()
         env = {k: v for k, v in os.environ.items() if k != "CI"}
-        env.update(BASE_REF="main", RUNNER_TEMP=str(runner),
+        base = subprocess.run(["git", "-C", str(self.repo), "rev-parse", "-q", "--verify", "origin/main"],
+                              capture_output=True, text=True, check=False).stdout.strip()
+        env.update(BASE_SHA=base, RUNNER_TEMP=str(runner), GITHUB_ACTION_PATH=str(ACTION_DIR),
                    PATH=f"{Path(sys.executable).parent}{os.pathsep}{os.environ.get('PATH', '')}")
         return subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", self.baseline_step()["run"]],
                               cwd=self.repo, env=env, capture_output=True, text=True, check=False)

@@ -46,7 +46,7 @@ Under `release: merge` (the default `sdd:` value) `sdd-review` already moved eac
 
 ## 6. Deliver
 
-- `python3 <spec_trace.py> deliver docs/spec FEAT-nnn --in X.Y.Z` per FEAT (the synced copy or `~/.ai-kit/platforms/ci/validations/spec_trace.py`): `validated` to `delivered` with its History line, and each NEED whose listed FEATs are now all delivered and cover its REQs to `delivered`.
+- `python3 <spec_trace.py> deliver docs/spec FEAT-nnn --in X.Y.Z` per FEAT (`~/.ai-kit/platforms/ci/validations/spec_trace.py`): `validated` to `delivered` with its History line, and each NEED whose listed FEATs are now all delivered and cover its REQs to `delivered`.
 - Never set `status` by hand: `check_spec.py` requires the line `deliver` writes.
 
 ## 7. Route the feedback

@@ -1,14 +1,16 @@
 name: spec-lint
 
-# Validates docs/spec locally — no agent-rules-kit checkout.
-# The files in .github/spec-lint/ are a generated copy made by
-# agent-rules-kit's platforms/tools/sync-project.sh; update by rerunning the sync.
+# Validates docs/spec with the agent-rules-kit spec tools (KIT-081): the composite action runs the kit's validators
+# and schemas from the commit pinned below, so the project carries no copy of them. agent-rules-kit's
+# platforms/tools/sync-project.sh writes this file with the kit commit it runs from; Dependabot or Renovate bumps the
+# pin when the kit releases (agent-rules-kit platforms/kits/github/README.md). A pull request that bumps it changes
+# only this file, so the paths below include it and the bump runs the check it updates.
 
 on:
   push:
-    paths: ['docs/spec/**', '.github/spec-lint/**']
+    paths: ['docs/spec/**', '.github/workflows/spec-lint.yml']
   pull_request:
-    paths: ['docs/spec/**', '.github/spec-lint/**']
+    paths: ['docs/spec/**', '.github/workflows/spec-lint.yml']
 
 permissions:
   contents: read
@@ -20,30 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          fetch-depth: 0  # the baseline step reads the pull request's base branch
+          fetch-depth: 0  # the baseline step reads the pull request's base commit
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+      # check_spec.py, check_docs_structure.py (it passes as "off" unless sdd.doc_structure.enabled) and, on a pull
+      # request, the baseline that may only shrink (KIT-068). Add trace and rows to run spec_trace.py check and
+      # row_checks.py too: checks: spec,trace,rows
+      - name: Validate docs/spec with the kit's spec tools
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@5a4924e802f6ab4675d4f9674c8626269b00b999  # v13.1.0
         with:
-          python-version: '3.12'
-      - run: pip install pyyaml jsonschema
-      - name: Validate frontmatter and FEAT/REQ references
-        run: CI=1 python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas
-      # sdd.doc_structure (KIT-074): the sync copies check_docs_structure.py while it is enabled and removes it when
-      # off, so this step needs no hand edit. The paths above limit it to spec changes; `just lint` runs it on every one.
-      - name: Every authored folder says what belongs in it (sdd.doc_structure)
-        run: |
-          if [ -f .github/spec-lint/check_docs_structure.py ]; then
-            python3 .github/spec-lint/check_docs_structure.py
-          else
-            echo "doc-structure: not vendored (sdd.doc_structure.enabled is false)"
-          fi
-      # docs/spec/baseline.json holds old findings and may only shrink (KIT-068): a pull request that adds an entry
-      # or raises a value over its base branch fails here.
-      - name: Baseline only shrinks
-        if: github.event_name == 'pull_request'
-        env: {BASE_REF: "${{ github.base_ref }}"}
-        run: |
-          if git cat-file -e "origin/$BASE_REF:docs/spec/baseline.json" 2>/dev/null; then
-            git show "origin/$BASE_REF:docs/spec/baseline.json" > "$RUNNER_TEMP/baseline-base.json"
-            CI=1 python3 .github/spec-lint/check_spec.py --baseline-against "$RUNNER_TEMP/baseline-base.json" docs/spec .github/spec-lint/schemas
-          fi
+          checks: spec

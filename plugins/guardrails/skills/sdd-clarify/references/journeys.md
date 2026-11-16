@@ -22,5 +22,5 @@ Only for a project that keeps `docs/spec/journeys/`. A journey is one user-visib
 ## Link once, generate
 
 - Journey → rule, task and test links are written only in the journey; no FEAT, REQ or task lists journeys, and the NEED's `journeys` field only records which journeys it changed (while the NEED is open, their `—` steps wait).
-- Regenerate the matrix with the project's copy of the validator (`spec_trace.py generate`, then `check` must pass), e.g. `.github/spec-lint/spec_trace.py docs/spec`, synced by `platforms/tools/sync-project.sh`; never edit `traceability.md` by hand.
+- Regenerate the matrix with the kit's validator (`generate`, then `check` must pass): `python3 ~/.ai-kit/platforms/ci/validations/spec_trace.py generate docs/spec`; never edit `traceability.md` by hand.
 - Product signs the journey: `status: approved`, when its NEED is refined; a retired flow is `retired`, never deleted.

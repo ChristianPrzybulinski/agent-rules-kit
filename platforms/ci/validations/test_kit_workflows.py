@@ -2,8 +2,8 @@
 pushes to main and on demand (CodeQL also weekly), never on pull_request_target, with a read-only default token, per-ref
 concurrency and the check names the ruleset requires. Every kit workflow and every template projects copy pins its
 actions by commit SHA, sets a timeout and its checkout's persist-credentials, keeps `${{ }}` out of `run:` and is
-linted by the pinned actionlint and zizmor; Dependabot watches both folders. The gitleaks scan step runs against a
-throwaway repository: a pull request scans its own commits, a push to main the whole history.
+linted by the pinned actionlint and zizmor; Dependabot watches both folders and the spec-tools action. The gitleaks
+scan step runs against a throwaway repository: a pull request scans its own commits, a push to main the whole history.
 
 KIT-077: ci.yml runs the pull request layers as parallel jobs, and the required `ci` job gathers them: it always runs
 and passes only when each passed. ci-full.yml runs the whole integration layer and the functional layer on main,
@@ -234,10 +234,11 @@ class EveryWorkflow(unittest.TestCase):
                             self.assertRegex(step["env"]["CLAUDE_CODE_SHA256"], r"^[0-9a-f]{64}$")
                             self.assertIn("sha256sum -c -", step["run"])
 
-    def test_dependabot_updates_the_actions_of_both_folders(self):
+    def test_dependabot_updates_the_actions_of_both_folders_and_the_spec_tools_action(self):
         config = yaml.safe_load((KIT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
         directories = {u.get("directory") for u in config["updates"] if u["package-ecosystem"] == "github-actions"}
-        self.assertEqual(directories, {"/", "/platforms/kits/github/workflows"})
+        self.assertEqual(directories, {"/", "/platforms/kits/github/workflows",
+                                       "/platforms/ci/actions/spec-tools"})  # KIT-081: projects pin the action
 
     def test_the_check_names_are_stable_and_never_skipped(self):
         for name, expected in CONTEXTS.items():
@@ -384,14 +385,30 @@ class LayeredGate(unittest.TestCase):
         self.assertRegex(calls[1], r"^just --no-deps test(?=\s|$)")  # the import `just boot` ran is not run again
         self.assertRegex(calls[1], r"\|\s*tee\s+test-run\.log(?=\s|$)")  # the log the upload step keeps
 
-    def test_spec_lint_runs_the_doc_structure_check_once_it_is_vendored(self):
-        """#283 item 6: sync-project.sh copies check_docs_structure.py while sdd.doc_structure is on and removes it
-        when off, so the template's step runs it when the copy exists and needs no hand edit."""
-        steps_ = load("spec-lint.yml", TEMPLATES)["jobs"]["validate"]["steps"]
-        step = next((s for s in steps_ if "check_docs_structure.py" in s.get("run", "")), None)
-        self.assertIsNotNone(step, "spec-lint.yml runs no check_docs_structure.py step")
-        self.assertIn("if [ -f .github/spec-lint/check_docs_structure.py ]", step["run"])
-        self.assertIn("python3 .github/spec-lint/check_docs_structure.py", step["run"])
+    def test_spec_lint_runs_the_kit_spec_tools_through_the_pinned_action(self):
+        """KIT-081 stage 1: no template runs a copy of the spec tools in the project. spec-lint.yml and pr-contract.yml
+        call the spec-tools action pinned by SHA; the action runs check_docs_structure.py whenever `spec` is asked
+        (#283 item 6: it passes as "off" unless enabled, so no step needs a hand edit), and spec-lint.yml's paths
+        include the workflow itself, so the bot's pin bump runs the check it updates."""
+        action = "ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@"
+        for name in ("spec-lint.yml", "pr-contract.yml"):
+            text = (TEMPLATES / name).read_text(encoding="utf-8")
+            with self.subTest(workflow=name):
+                self.assertNotIn(".github/spec-lint", text)
+                self.assertEqual([s["uses"].split("@")[0] + "@" for s in steps(load(name, TEMPLATES))
+                                  if action in s.get("uses", "")], [action])
+        validate = load("spec-lint.yml", TEMPLATES)
+        self.assertEqual([s.get("with", {}).get("checks") for s in steps(validate) if action in s.get("uses", "")],
+                         ["spec"])
+        for event in ("push", "pull_request"):
+            self.assertIn(".github/workflows/spec-lint.yml", triggers(validate)[event]["paths"])
+        contract = load("pr-contract.yml", TEMPLATES)
+        self.assertNotIn("script", triggers(contract)["workflow_call"]["inputs"])
+        self.assertTrue(all("$AI_KIT_DIR/platforms/ci/validations/pr_gates.py" in s["run"]
+                            for s in steps(contract) if "pr_gates.py" in s.get("run", "")))
+        spec_steps = yaml.safe_load((KIT / "platforms/ci/actions/spec-tools/action.yml").read_text(encoding="utf-8"))
+        structure = [s for s in spec_steps["runs"]["steps"] if "check_docs_structure.py" in s.get("run", "")]
+        self.assertEqual([s.get("if") for s in structure], ["steps.checks.outputs.spec == 'true'"])
 
     def test_red_runs_on_the_merge_commit_and_ci_needs_it(self):
         job = load("ci.yml")["jobs"]["red"]

@@ -51,7 +51,7 @@ Set `status: specified` and add `YYYY-MM-DD specify: described` to History. More
 
 ## 3. Validate
 
-Run the project spec validator (`python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas`; in this kit, `platforms/tools/check.sh --spec docs/spec`) and paste its literal output.
+Run the spec validator (`python3 ~/.ai-kit/platforms/ci/validations/check_spec.py docs/spec ~/.ai-kit/platforms/ci/schemas`; in this kit, `platforms/tools/check.sh --spec docs/spec`) and paste its literal output.
 
 ## Rules
 

@@ -9,14 +9,14 @@ The kit skills are the process; a project never copies a step to change it. It s
 block of the `docs/spec/spec.md` frontmatter, next to `decision_kinds`. `sdd-constitution` writes the block (the
 `spec-index.md` template carries it with every default). `check_spec.py` refuses an unknown key or a value outside its
 range, with or without pyyaml; `spec.schema.json` holds the keys, values and defaults. To see what a step will read, run
-`python3 .github/spec-lint/check_spec.py --params docs/spec .github/spec-lint/schemas`: it prints the resolved block, every absent key at its default.
+`python3 ~/.ai-kit/platforms/ci/validations/check_spec.py --params docs/spec ~/.ai-kit/platforms/ci/schemas`: it prints the resolved block, every absent key at its default.
 
 A default is the kit's behavior before the key existed, except `max_chain` and `max_feat_tasks`, which the kit did not limit. `points` sums the bundled rows' `Complexity`: Low 1, Med 2, High 3.
 
 | Key | Values | Default | Read by |
 |---|---|---|---|
 | `needs` | `true`, `false` | `true` | the front chain (KIT-075): `false` keeps no NEED file; `sdd-intake` is skipped, `sdd-plan` writes the request, triage and Situations into the FEAT's Problem section, REQs take `source: request <date>` and land with their FEAT, and `check_spec.py` fails a NEED file (`needs-off`: a Markdown file at the top of `needs/`; an empty folder or `NEED-nnn-data/` evidence passes) and a REQ with no FEAT |
-| `journeys` | `true`, `false` | on when `docs/spec/journeys/` exists | `sdd-clarify` (journey steps), `sdd-check` (journey links), `sdd-tasks` (journey cells); `sync-project.sh` copies `journey.schema.json` by folder; `spec_trace.py check` needs `traceability.md` when on or once it exists |
+| `journeys` | `true`, `false` | on when `docs/spec/journeys/` exists | `sdd-clarify` (journey steps), `sdd-check` (journey links), `sdd-tasks` (journey cells); `check_spec.py` validates `journeys/` by `journey.schema.json`; `spec_trace.py check` needs `traceability.md` when on or once it exists |
 | `tracker` | `github`, `none` | `github` | `sdd-tasks` cut (an issue, or `docs/spec/tasks/TASK-nnn-slug.md` per item), `sdd-implement`, `sdd-spike` (report destination) |
 | `plan_sections` | list of `Design`, `Contract`, `Data`, `UI`, `Flag`, `Tests`, `Observability`, `Risks`, `Dependencies`; `Risks` and `Tests` always | all nine | `sdd-plan`: the FEAT's `## Plan` subsections |
 | `pr_unit` | `task`, `feat` | `task` | `sdd-implement`: one PR per task row or per FEAT |
@@ -37,7 +37,7 @@ A default is the kit's behavior before the key existed, except `max_chain` and `
 | `rule_paths` | map: kit rule name → folders, `.` for the whole repository | `{}` (the `--profile` folders) | `sync-project.sh`: the rule's globs and its `AGENTS.md` block |
 | `visual_approval` | `owner`, `reviewer`, `none` | `none` | `review`: who approves a screen or motion change's captures against its REQ's mock before the merge; `row_checks.py` rule j, which is off unless it is `owner` or `reviewer` |
 | `owner_approvals` | list of change kinds, kebab-case | `[decision]` | `review` and an orchestrator under owner-review autonomy: kinds only the owner approves, such as `approved-dec-change`, `protocol-version`, `in-game-evidence` |
-| `doc_structure` | map: `enabled` (`true`, `false`), `exempt` (a path in the repository), `headings` (list of `##` to `######` headings), `done_index` (`true`, `false`) | `{enabled: false, exempt: .github/doc-structure-exempt.txt, headings: ["## What goes here", "## What does not go here"], done_index: true}` | `sync-project.sh` (vendors `check_docs_structure.py` into `.github/spec-lint/` while enabled, removes it when off), `check_docs_structure.py`, the `docs.just` `lint` recipe (KIT-074) |
+| `doc_structure` | map: `enabled` (`true`, `false`), `exempt` (a path in the repository), `headings` (list of `##` to `######` headings), `done_index` (`true`, `false`) | `{enabled: false, exempt: .github/doc-structure-exempt.txt, headings: ["## What goes here", "## What does not go here"], done_index: true}` | `check_docs_structure.py`, run by the `docs.just` `lint` recipe and the spec-tools action, passes as `off` unless enabled (KIT-074) |
 
 ## Rule paths
 

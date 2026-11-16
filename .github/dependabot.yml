@@ -10,3 +10,8 @@ updates:
     directory: /platforms/kits/github/workflows
     schedule:
       interval: weekly
+  # The composite action projects pin by SHA (KIT-081): as above, Dependabot reads every *.yml there, action.yml too.
+  - package-ecosystem: github-actions
+    directory: /platforms/ci/actions/spec-tools
+    schedule:
+      interval: weekly

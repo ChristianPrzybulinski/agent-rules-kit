@@ -175,10 +175,6 @@ class SyncProjectCheckTest(unittest.TestCase):
         check = self.run_sync("--check")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
 
-    def test_spec_lint_copies_the_task_schema(self):  # KIT-068: tracker none keeps docs/spec/tasks/
-        copied = self.repo / ".github" / "spec-lint" / "schemas" / "task.schema.json"
-        self.assertEqual(copied.read_bytes(), (KIT / "platforms" / "ci" / "schemas" / "task.schema.json").read_bytes())
-
     def test_check_detects_enabled_plugins_drift(self):
         settings = self.repo / ".claude" / "settings.json"
         data = json.loads(settings.read_text())
@@ -221,7 +217,7 @@ class SyncProjectCheckTest(unittest.TestCase):
             self.assertIn("is not generated", result.stdout + result.stderr)
             self.assertEqual((repo / "CLAUDE.md").read_text(), "# mine\n")
             self.assertFalse((repo / ".claude" / "settings.json").exists())
-            self.assertFalse((repo / ".github" / "spec-lint").exists())
+            self.assertFalse((repo / ".github").exists())
 
     def test_multi_profile_union_and_folder_scope(self):  # KIT-016
         result = self.run_sync("--profile", "java:server,docs,godot:client/")
@@ -721,7 +717,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertNotIn("guardrails-pinned", rule + (self.repo / "AGENTS.md").read_text())
         self.assertNotIn(PINNED_TOOL, "".join(self.vendored_texts().values()))
 
-    def test_every_kit_tool_call_names_a_kit_file(self):  # B2: the pin vendors what the kit text calls
+    def test_every_kit_tool_call_names_a_kit_file(self):  # B2; KIT-081 stage 1: the schemas folder too
         refs = {}
         for root in ("skills", "rules", "agents", "templates"):
             for path in (PLUGIN / root).rglob("*"):
@@ -730,8 +726,11 @@ class SyncProjectCheckTest(unittest.TestCase):
                     for m in re.finditer(re.escape(HEAD_TOOL) + r"([A-Za-z0-9_./-]+)", path.read_text()):
                         refs.setdefault(m.group(1).rstrip("."), path)
         self.assertTrue(refs)
+        self.assertIn("ci/schemas", refs)  # the spec validators take the kit's schemas folder
         for rel, path in refs.items():
-            self.assertTrue((KIT / "platforms" / rel).is_file(), f"{path} calls ~/.ai-kit/platforms/{rel}")
+            target = KIT / "platforms" / rel
+            self.assertTrue(target.is_file() or (rel == "ci/schemas" and target.is_dir()),
+                            f"{path} calls ~/.ai-kit/platforms/{rel}")
 
     def test_plugins_mode_keeps_the_marketplace_plugin(self):
         enabled = self.settings()["enabledPlugins"]

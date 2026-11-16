@@ -1,0 +1,94 @@
+# The agent-rules-kit spec validators as a composite action (KIT-081 stage 1). A project's CI runs the kit's
+# validators and schemas from the commit its `uses:` line pins, so the project carries no copy:
+#   uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@<40-character SHA>  # vX.Y.Z
+# Every path below starts at this action's own checkout ($GITHUB_ACTION_PATH); nothing fetches another ref.
+# README.md in this folder lists the inputs.
+name: agent-rules-kit spec tools
+description: Runs the agent-rules-kit spec validators on docs/spec from the pinned kit commit, with no copy in the project.
+inputs:
+  checks:
+    description: >-
+      Comma-separated checks to run. spec: check_spec.py and check_docs_structure.py on docs/spec, and on a pull
+      request the baseline that may only shrink. trace: spec_trace.py check. rows: row_checks.py check, --changed on a
+      pull request and --all otherwise. none: only Python and AI_KIT_DIR, for a caller that runs a kit tool itself.
+    required: false
+    default: spec
+  base:
+    description: >-
+      The pull request's base commit: the baseline step reads docs/spec/baseline.json there and the row checks diff
+      from it. The caller's checkout needs fetch-depth 0.
+    required: false
+    default: ${{ github.event.pull_request.base.sha }}
+  head:
+    description: The pull request's head commit, where the row checks diff to.
+    required: false
+    default: ${{ github.event.pull_request.head.sha }}
+runs:
+  using: composite
+  steps:
+    - id: checks
+      name: Resolve the requested checks
+      shell: bash
+      env:
+        CHECKS: ${{ inputs.checks }}
+      run: |
+        set -f
+        for check in $(printf '%s' "$CHECKS" | tr ',' ' '); do
+          case "$check" in
+            spec|trace|rows) echo "$check=true" >> "$GITHUB_OUTPUT" ;;
+            none) ;;
+            *) echo "::error::spec-tools: unknown check '$check' (spec, trace, rows or none)"; exit 2 ;;
+          esac
+        done
+    - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+      with:
+        python-version: '3.12'
+    - name: Install the validators' modules (pyyaml and jsonschema, for the full check)
+      shell: bash
+      run: python3 -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+    # AI_KIT_DIR lets a later step of the job (just lint, pr_gates.py) run the kit at the pinned commit. zizmor's
+    # github-env audit flags every write to GITHUB_ENV; a documented false positive here (CONTRIBUTING): the name is
+    # fixed and the value is this action's own path on the runner, which no event payload or input reaches.
+    - name: Export AI_KIT_DIR, the kit at this action's commit
+      shell: bash
+      run: |  # zizmor: ignore[github-env]
+        echo "AI_KIT_DIR=$(cd "$GITHUB_ACTION_PATH/../../../.." && pwd)" >> "$GITHUB_ENV"
+    - name: Validate frontmatter and FEAT/REQ references
+      if: steps.checks.outputs.spec == 'true'
+      shell: bash
+      run: CI=1 python3 "$GITHUB_ACTION_PATH/../../validations/check_spec.py" docs/spec "$GITHUB_ACTION_PATH/../../schemas"
+    # sdd.doc_structure (KIT-074): with enabled false the check prints "off" and passes, so no step needs a hand edit.
+    - name: Every authored folder says what belongs in it (sdd.doc_structure)
+      if: steps.checks.outputs.spec == 'true'
+      shell: bash
+      run: python3 "$GITHUB_ACTION_PATH/../../validations/check_docs_structure.py"
+    # docs/spec/baseline.json holds old findings and may only shrink (KIT-068): a pull request that adds an entry or
+    # raises a value over its base commit fails here.
+    - name: Baseline only shrinks
+      if: steps.checks.outputs.spec == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        BASE_SHA: ${{ inputs.base }}
+      run: |
+        if [ -n "$BASE_SHA" ] && git cat-file -e "$BASE_SHA:docs/spec/baseline.json" 2>/dev/null; then
+          git show "$BASE_SHA:docs/spec/baseline.json" > "$RUNNER_TEMP/baseline-base.json"
+          CI=1 python3 "$GITHUB_ACTION_PATH/../../validations/check_spec.py" \
+            --baseline-against "$RUNNER_TEMP/baseline-base.json" docs/spec "$GITHUB_ACTION_PATH/../../schemas"
+        fi
+    - name: Journeys, FEAT and REQ symmetry and the traceability matrix (spec_trace.py check)
+      if: steps.checks.outputs.trace == 'true'
+      shell: bash
+      run: python3 "$GITHUB_ACTION_PATH/../../validations/spec_trace.py" check docs/spec
+    - name: Open task rows (row_checks.py)
+      if: steps.checks.outputs.rows == 'true'
+      shell: bash
+      env:
+        EVENT: ${{ github.event_name }}
+        BASE_SHA: ${{ inputs.base }}
+        HEAD_SHA: ${{ inputs.head }}
+      run: |
+        if [ "$EVENT" = pull_request ]; then
+          python3 "$GITHUB_ACTION_PATH/../../validations/row_checks.py" check --changed "$BASE_SHA" "$HEAD_SHA"
+        else
+          python3 "$GITHUB_ACTION_PATH/../../validations/row_checks.py" check --all
+        fi
