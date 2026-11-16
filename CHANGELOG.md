@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [13.1.0] - 2026-11-16
+
 ### Changed
 - KIT-080 (#280): rule e's component check is three short rules (no `..` path step, no shell expansion outside a leading `$NAME`, `${NAME}` or `~/` anchor, no interpreter given inline code, read only up to the script or `-m` module for Python and the shells), documented as hygiene, not isolation; `proof_var_depths` is no longer read.
 - KIT-080 (#271): the user install follows the newest `vX.Y.Z` release tag, not `main`: the clone, the always-on `AGENTS.md` links and the Codex marketplace ref move with each release, and `doctor.sh` fails when the clone, the Codex ref or Devin's ref is off it.
