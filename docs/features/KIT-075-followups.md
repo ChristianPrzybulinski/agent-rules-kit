@@ -42,8 +42,10 @@ pr: "#285"
   `feat_rows` splits on `\n` only (#250); `widened_paths` uses `body_lines` (#251); `gates_config` refuses a wrong
   type naming the key (#252); a path the file system cannot check and a PR test that cannot be placed on base are
   findings (#253); `dod` counts assertions per CR line (#254); a missing `pr_gates` and a `--timeout` below 1 exit 2
-  (#255). `feat-proofs` keeps reading `HEAD` without `--base` (#249): `delivery-steps.md` says why.
-- Docs: the five front-chain skills, `sdd-parameters.md`, `sdd-process.md`, `spec-feature.md`, `delivery-steps.md`,
+  (#255). `feat-proofs` keeps reading `HEAD` without `--base` (#249): it runs on `main` after the merge, where HEAD
+  is the trusted ref; the `delivery-steps.md` sentence that says so, with the `dod --gates`, CR-count and exit-2
+  wording, goes in through KIT-077, which owns that file.
+- Docs: the five front-chain skills, `sdd-parameters.md`, `sdd-process.md`, `spec-feature.md`,
   `platforms/tools/README.md`, CHANGELOG.
 
 ## Proof
