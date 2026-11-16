@@ -16,7 +16,7 @@ kind: detail
 
 - `## Red` names the new test and its failing line on the code before the change, as run: `` `tests/test_x.py::test_y` failed: AssertionError: 3 != 2 ``.
 - Exceptions say which and why: `characterization: pins current behavior of <unit> before <change>`, or `manual: <check>, no honest test because <reason>`.
-- The reviewer reruns it: `review_checks.py red` copies the PR's test files onto the base and needs one test failing there on an assertion, or on a compile error naming a symbol the PR adds, then every test passing on the head. A test-only PR is exempt.
+- The red check runs in CI where the repository has the job; otherwise the implementer runs it before the PR and pastes its result lines here. `review_checks.py red` copies the PR's test files onto the base and needs one test failing there on an assertion, or on a compile error naming a symbol the PR adds, then every test passing on the head. A test-only PR is exempt.
 
 ## Proof lines
 
