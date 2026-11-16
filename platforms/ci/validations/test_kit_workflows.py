@@ -40,9 +40,9 @@ CHECKS = {"ci.yml": ["ci", "workflow-lint"], "gitleaks.yml": ["gitleaks"],
 CONTEXTS = {"ci.yml": ["static", "unit", "integration (1)", "integration (2)", "integration (3)", "red", "ci",
                        "workflow-lint"],
             "gitleaks.yml": ["gitleaks"], "codeql.yml": ["codeql (python)", "codeql (actions)"]}
-# The one job that carries an `if`: `ci` gathers the pull request layers, so it must run, and fail, when one did not
-# pass (a skipped required job reports success). red is its own check, outside `ci`.
-AGGREGATORS = {("ci.yml", "ci"): ["static", "unit", "integration"]}
+# The one job that carries an `if`: `ci` gathers the pull request layers and the red check (#281: required on every
+# pull request), so it must run, and fail, when one did not pass (a skipped required job reports success).
+AGGREGATORS = {("ci.yml", "ci"): ["static", "unit", "integration", "red"]}
 # Where each test layer runs (platforms/tools/run_tests.py --layer), as (workflow, job).
 LAYER_JOBS = {"unit": [("ci.yml", "unit")], "contract": [("ci.yml", "unit")],
               "integration": [("ci-full.yml", "integration"), ("ci.yml", "integration")],
@@ -310,11 +310,15 @@ class LayeredGate(unittest.TestCase):
                     for key in (f"{tool}_VERSION", f"{tool}_SHA256"):
                         self.assertEqual(env.get(key), pins[key])
 
-    def test_red_is_its_own_check_on_the_merge_commit(self):
+    def test_red_runs_on_the_merge_commit_and_ci_needs_it(self):
         job = load("ci.yml")["jobs"]["red"]
         self.assertEqual(job["steps"][0]["with"]["fetch-depth"], 0)
         self.assertIn("python3 -B platforms/tools/ci_red.py", runs("ci.yml", "red"))
-        self.assertNotIn("red", AGGREGATORS[("ci.yml", "ci")])
+        self.assertIn("red", load("ci.yml")["jobs"]["ci"]["needs"])
+
+    def test_ci_fails_when_red_fails(self):
+        jobs = AGGREGATORS[("ci.yml", "ci")]
+        self.assertEqual(self.gather({**{job: "success" for job in jobs}, "red": "failure"}), 1)
 
     def test_ci_full_runs_on_main_nightly_and_on_demand(self):
         on = triggers(load("ci-full.yml"))

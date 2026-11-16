@@ -3,9 +3,9 @@ name: ci
 # KIT-076: every pull request to main, every push to main and on demand. The `ci` job is a required check beside the
 # independent review READY; green CI alone never merges. pull_request, never pull_request_target: a fork's pull request
 # runs with a read-only token and no secrets.
-# KIT-077: the pull request layers run as parallel jobs. `ci` waits for static, unit and the integration shards and
-# passes only when each of them passed (it runs even when one failed, so it never reports a skip as a success). red is
-# its own check. The whole integration layer and the functional layer run in ci-full.yml (push to main, nightly, the
+# KIT-077: the pull request layers run as parallel jobs. `ci` waits for static, unit, the integration shards and red
+# and passes only when each of them passed (it runs even when one failed, so it never reports a skip as a success).
+# The whole integration layer and the functional layer run in ci-full.yml (push to main, nightly, the
 # release commit), the performance layer in performance.yml. Locally: platforms/tools/run_tests.py --help.
 on:
   pull_request:
@@ -110,7 +110,7 @@ jobs:
 
   red:
     # The PR's new tests run on the base code (review_checks.py red); the job summary records the verdict for the
-    # reviewer. Not part of `ci`: making it a required check is the coordinator's call (KIT-077).
+    # reviewer. Part of `ci` (KIT-077, #281): OK, EXEMPT, FLAG and a NONE with a ## Red exception pass, a FAIL fails.
     name: red
     runs-on: ubuntu-latest
     timeout-minutes: 30  # KIT-077: no green run measured yet; a PR that changes every test module runs them twice
@@ -146,7 +146,7 @@ jobs:
 
   ci:
     name: ci  # the required check context (KIT-076): a rename leaves the ruleset waiting for "ci" forever
-    needs: [static, unit, integration]
+    needs: [static, unit, integration, red]
     if: always()  # a skipped required job reports success, so `ci` runs and fails when a layer did not pass
     runs-on: ubuntu-latest
     timeout-minutes: 5  # KIT-077: 3 × the longest measured green run, rounded up to 5 min (the record lists the runs)

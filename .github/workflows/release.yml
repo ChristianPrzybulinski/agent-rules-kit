@@ -10,16 +10,16 @@ jobs:
   release:
     runs-on: ubuntu-latest
     # KIT-076: 3 × the longest measured green run (13 s), rounded up to 5 min; KIT-077 adds the guard's wait for a
-    # ci-full run still in progress on the tagged commit (up to 20 min)
+    # ci-full run on the tagged commit that is not created, queued or in progress yet (up to 20 min)
     timeout-minutes: 30
     permissions:
-      contents: write  # gh release create; the guard deletes a tag whose commit has no green ci-full
+      contents: write  # gh release create
       actions: read  # the guard reads the ci-full runs of the tagged commit
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: ci-full passed on the tagged commit (KIT-077), else the tag is deleted
+      - name: ci-full passed on the tagged commit (KIT-077), else no release (the tag stays; re-run once it is green)
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}

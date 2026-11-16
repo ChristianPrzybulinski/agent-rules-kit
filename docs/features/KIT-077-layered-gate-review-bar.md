@@ -161,17 +161,20 @@ the bash 3 test. [FACT] The required `ci` job took a median of 771 s over the la
    `check.sh --tests` calls it, so CI and a local run share the entry (#278).
 2. **The pull request gate.** `ci.yml` runs `static`, `unit` (unit and contract), `integration (1)` to `(3)` (the
    integration classes the change reaches, `--changed-from HEAD^1`) and `red` in parallel; the required `ci` job needs
-   the first three, runs `if: always()` and passes only when each passed. `red` (`platforms/tools/ci_red.py`) records
-   `review_checks.py red` on the merge commit in its job summary; it is not part of `ci`, so making it required stays the
-   coordinator's act. The required names `ci` and `workflow-lint` are unchanged.
+   all of them, runs `if: always()` and passes only when each passed. `red` (`platforms/tools/ci_red.py`) records
+   `review_checks.py red` on the merge commit in its job summary; OK, EXEMPT, FLAG and a NONE whose `## Red` names an
+   exception pass, so only a real FAIL fails `ci` (#281: the red check is required on every pull request). The
+   required names `ci` and `workflow-lint` are unchanged.
 3. **The full gate.** `ci-full.yml` runs the whole integration layer (three shards) and the functional layer (the
    consumer project in `platforms/ci/fixtures/consumer/` synced in plugins and vendored mode, then its spec lint,
    `just verify` in both profile folders, `sync-project.sh --check` and an idempotent resync; and the whole `smoke.sh`)
    on every push to `main`, nightly and on demand. `performance.yml` runs the latency budgets nightly and on demand,
-   one test at a time. `release.yml` runs `platforms/tools/release_guard.py` first: no green `ci-full` run on the tagged
-   commit (after waiting up to 20 min for one in progress) deletes the tag and fails, so no release is made. The jobs
-   that run the `just` and `gitleaks` tests install both, pinned by sha-256, and under `CI=1` a missing tool fails those
-   tests instead of skipping them (#283 item 1).
+   one test at a time. `release.yml` runs `platforms/tools/release_guard.py` first: it waits up to 20 min while the
+   tagged commit's `ci-full` run is not created, queued or in progress, and fails on a completed run that is not green
+   or on the timeout, so no release is published. It never deletes or moves the tag, which the ruleset
+   `protect-release-tags` forbids: the release follows by re-running `release.yml` once `ci-full` is green on that
+   commit, or with the next patch version. The jobs that run the `just` and `gitleaks` tests install both, pinned by
+   sha-256, and under `CI=1` a missing tool fails those tests instead of skipping them (#283 item 1).
 4. **Logic-only sync tests in-process, the timing tests out of the suite.** The map below. `smoke.sh --main` stops after
    its main path (bootstrap into an empty home, the Codex `AGENTS.md` link and its repoints, a clean doctor run), which
    `test_smoke.py` runs as one integration test; the whole script is a functional test.
@@ -207,8 +210,17 @@ KIT-054 backtracking guard) stays in the integration layer: it is a regression g
 
 ### Measured after
 
-Pending: the median `ci` time over this pull request's own runs (from the first job's start to the `ci` job's end)
-and the skips counted in its jobs.
+The pull request run at `985b9ce`, the worst case (it changes `run_tests.py` and every test module, so the shards ran
+the whole integration layer and `red` ran every module on base and head):
+
+- From the first job's start to the `ci` job's end: 2 min 14 s (06:20:21–06:22:35), against the 771 s median before.
+  Jobs: `static` 42 s, `unit` 10 s, `integration (1)` 2 min 07 s, `(2)` 1 min 26 s, `(3)` 1 min 50 s.
+- `red` took 5 min 49 s and was not yet in `ci`'s needs. The review of #293 put it there, so on this worst case `ci`
+  ends with `red`, at about 6 min; a pull request that changes few test modules runs a shorter `red`.
+- Skips: 59, down from 87. They are 54 gdtoolkit, 4 Godot and 1 bash 3.2. The 21 `just` and 6 `gitleaks` skips are
+  gone, and the corpus test is functional, so it no longer runs in a pull request job.
+
+Pending: the median over five pull request runs, which needs runs of smaller changes.
 
 ## Proof
 
