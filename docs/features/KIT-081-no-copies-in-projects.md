@@ -216,3 +216,12 @@ stage 1.
   pelo pin", "implemente tudo isso agora"); a dry migration of a copy of the Stratics vendored state is in the PR.
 - 2026-11-16: stage 1, the spec tools (option B), implemented on `feat/kit-081-spec-tools`, on top of stage 2b,
   owner-approved ("implemente tudo isso agora"); a dry migration of a copy of Stratics is in the PR.
+- 2026-11-16: [FACT] probe in a throwaway home (Claude Code 2.1.287), set up with a user-scope and a project-scope
+  `guardrails@ai-kit` install on a ref-less marketplace.
+  - `claude plugin marketplace remove ai-kit --scope user`, `add ...#stable` and `install --scope user` kept both
+    install records.
+  - `claude plugin list` in the project still listed the project entry, enabled, and the project's
+    `.claude/settings.json` was untouched. So the stage 2a move leaves a project's records in place.
+  - The cache directory is named by version (`13.1.0`), so right after the move it still held the files installed from
+    `main`. `refresh.sh`'s KIT-013 reinstall (a user-scope cache that differs from the marketplace clone, now on
+    `stable`) corrects it on the next run.
