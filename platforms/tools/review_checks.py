@@ -499,8 +499,10 @@ def red(args) -> int:
                         target.write_bytes(subprocess.run(["git", "show", f"{args.head}:{path}"], cwd=repo,
                                                           check=True, capture_output=True).stdout)
                     except OSError as error:  # the PR's own layout, such as a test under a path that is a file
-                        unplaced.append(f"{path} cannot be placed on base ({error.strerror}): a folder of its path "
-                                        "is a file there, so its Red cannot run")
+                        folder = isinstance(error, (FileExistsError, NotADirectoryError))
+                        unplaced.append(f"{path} cannot be placed on base ({error.strerror})"
+                                        + (": a folder of its path is a file there" if folder else "")
+                                        + ", so its Red cannot run")
                 if unplaced:
                     break
             exit_code, output, parts = run_side(tree, groups, args.timeout)
@@ -722,8 +724,8 @@ def check_line(label: str, line: str, out: Findings, args, stacks: dict, allow: 
     for p in named_paths(line):
         try:
             found = glob.glob(str(cwd / p)) if any(c in p for c in "*?[") else (cwd / p).exists()
-        except OSError as error:  # the PR's own text (a name too long for the file system): a finding, not a crash
-            unusable.append(f"{p} ({error.strerror})")
+        except (OSError, ValueError) as error:  # the PR's own text (a name too long, a NUL): a finding, not a crash
+            unusable.append(f"{p} ({getattr(error, 'strerror', None) or error})")
             continue
         if not found:
             missing.append(p)
@@ -836,7 +838,8 @@ def dod(args) -> int:
     # globs (`tests/test_add.py` -> `tests/test_add.py.off` stays inside `tests/**`), else the broad test globs.
     discovery = [entry["glob"] for entry in gates_config(args).get("red", [])] or TEST_GLOBS
     for old, new in renames(repo, args.base, args.head):
-        if (matches(old, TEST_GLOBS) or matches(old, discovery)) and not matches(new, discovery):
+        if ((matches(old, TEST_GLOBS) and not matches(new, TEST_GLOBS))
+                or (matches(old, discovery) and not matches(new, discovery))):
             kept = sum(1 for text in file_lines(git(repo, "show", f"{fork}:{old}")) if ASSERTION.search(text))
             counts.setdefault(old, [0, 0])[1] += kept
     for path, (added, removed) in sorted(counts.items()):

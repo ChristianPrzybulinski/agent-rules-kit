@@ -3,10 +3,12 @@ refused with exit 2 naming the key when a value has the wrong type (#252)."""
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 LAYER = "unit"  # KIT-077 layer (platforms/tools/run_tests.py): in-process: no subprocess, no git
 
@@ -81,6 +83,20 @@ class ConfigTypes(unittest.TestCase):
                     code = pr_gates.main(["--config", str(path), "--repo", "docs", "--pr", "1"])
                 self.assertEqual(code, 2)
                 self.assertIn(key, err.getvalue())
+
+    def test_a_config_without_proof_allowlist_exits_2_naming_it(self):
+        """#288 item 7 (KIT-079): every task PR's report and `proof-commands` read the key, so its absence is a config
+        error up front, not a KeyError mid-report. No GH_TOKEN: the refusal comes before any API call."""
+        for mode in ("report", "proof-commands"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.dict(os.environ, {"GH_TOKEN": ""}):
+                path = Path(tmp) / "gates.json"
+                path.write_text(json.dumps(GOOD), encoding="utf-8")
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err):
+                    code = pr_gates.main([mode, "--config", str(path), "--repo", "docs", "--pr", "1"])
+                self.assertEqual(code, 2)
+                self.assertIn("proof_allowlist is required", err.getvalue())
 
 
 if __name__ == "__main__":
