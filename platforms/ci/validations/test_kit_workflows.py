@@ -33,6 +33,7 @@ KIT = Path(__file__).resolve().parents[3]
 WORKFLOWS = KIT / ".github" / "workflows"
 TEMPLATES = KIT / "platforms" / "kits" / "github" / "workflows"
 # The ruleset requires these contexts: a renamed job would leave it waiting for the old name on every pull request.
+# It also requires `CodeQL`, which GitHub's code scanning posts for codeql.yml's upload and no job names.
 CHECKS = {"ci.yml": ["ci", "workflow-lint"], "gitleaks.yml": ["gitleaks"],
           "codeql.yml": ["codeql (python)", "codeql (actions)"]}
 # Every context a workflow reports (KIT-077): the required ones above and the layers' own jobs, so a new, renamed or
