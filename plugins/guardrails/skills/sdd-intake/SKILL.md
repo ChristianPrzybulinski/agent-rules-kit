@@ -17,6 +17,8 @@ allowed-tools:
 
 Every request enters here and becomes a `NEED-nnn` under `docs/spec/needs/` with `status: proposed`. This skill only records: it never judges, classifies or prioritizes, and it reads nothing beyond `docs/spec/needs/` and `docs/spec/spec.md`. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-need.md`.
 
+With `sdd.needs: false` (`check_spec.py --params`; `../sdd-constitution/references/sdd-parameters.md`) the project keeps no NEED file: skip this skill and hand the request, quoted verbatim with its date and channel, to `sdd-specify`.
+
 ## 1. Take the id
 
 - Take the next unused `NEED-nnn` in `docs/spec/needs/`, or the first unused id of the block the session prompt reserves.

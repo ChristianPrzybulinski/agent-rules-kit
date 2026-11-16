@@ -16,7 +16,8 @@ NEED-nnn intake records (docs/spec/needs/, top level only: NEED-nnn-data/ folder
 every listed id must exist with the right kind, a refined or delivered NEED names what it became, and a delivered one
 lists only delivered FEATs, or, for a decision NEED with no FEAT, an approved decision. A REQ that no FEAT implements
 yet must be listed by an open NEED, not a delivered, rejected, merged, routed or parked one (REQs are written before
-the FEAT that delivers them).
+the FEAT that delivers them). With `sdd.needs: false` the project keeps no NEED file (rule needs-off) and every REQ
+needs a FEAT, the rule before KIT-066: clarify's REQs land in the change that creates their FEAT.
 
 A FEAT at `validated` or `delivered` carries the History line of the step that moved it (KIT-069, rule
 feature-closure), written by spec_trace.py: `sdd-review: validated`, then `sdd-release: delivered` or, under
@@ -58,7 +59,7 @@ SPEC_DIR = None  # set by main(); a finding's key is relative to it
 # Rule ids a baseline may hold; each fail() call names one.
 RULES = ("frontmatter", "schema", "id-file", "id-duplicate", "decision-kinds", "sdd-params", "conflict-marker",
          "need-link", "need-status", "progress", "link-missing", "link-one-sided", "req-unlisted", "task-file",
-         "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure")
+         "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure", "needs-off")
 MEASURED = ("task-chain",)  # the baseline holds the longest chain in rows, not a count of findings
 
 
@@ -951,18 +952,27 @@ def main():
     check_conflict_markers(spec_dir)
     check_needs(spec_dir, needs, ids, kind_of, feat_status, dec_status)
     check_task_items(tasks, tables, ids)
+    needs_off = params.get("needs") is False  # KIT-075: the front chain runs without NEED files
+    if needs_off:
+        for path, kind in targets:
+            if kind == "need":
+                fail(f"{path}: sdd.needs is false, so the project keeps no NEED files under needs/ (the request goes "
+                     "into the FEAT's Problem section)", "needs-off", path)
 
     # cross-references FEAT <-> REQ
     for fid, rlist in feats.items():
         for r in rlist:
             if r not in reqs:
                 fail(f"{ids[fid]}: requirements lists {r} which does not exist", "link-missing", ids[fid])
-    need_reqs = {str(r) for data in needs.values() if data.get("status") not in NEED_SETTLED
-                 for r in as_list(data.get("requirements"))}
+    need_reqs = set() if needs_off else {str(r) for data in needs.values() if data.get("status") not in NEED_SETTLED
+                                         for r in as_list(data.get("requirements"))}
     settled_reqs = {str(r): nid for nid, data in needs.items() if data.get("status") in NEED_SETTLED
                     for r in as_list(data.get("requirements"))}
     for rid, flist in reqs.items():
-        if not flist and rid not in need_reqs:
+        if not flist and needs_off:
+            fail(f"{ids[rid]}: {rid} has no FEAT implementing it (sdd.needs: false: a REQ lands in the change that "
+                 "creates its FEAT)", "req-unlisted", ids[rid])
+        elif not flist and rid not in need_reqs:
             closed = f" ({settled_reqs[rid]} lists it but is closed or delivered)" if rid in settled_reqs else ""
             fail(f"{ids[rid]}: {rid} has no FEAT implementing it and no NEED listing it{closed}", "req-unlisted", ids[rid])
         for f in flist:
