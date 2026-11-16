@@ -28,6 +28,6 @@ jobs:
       # request, the baseline that may only shrink (KIT-068). Add trace and rows to run spec_trace.py check and
       # row_checks.py too: checks: spec,trace,rows
       - name: Validate docs/spec with the kit's spec tools
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@5a4924e802f6ab4675d4f9674c8626269b00b999  # v13.1.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@776d6ce381f89bfc12b4ca17f2b35577346ef37a  # v14.0.0
         with:
           checks: spec

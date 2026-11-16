@@ -103,7 +103,7 @@ jobs:
       - name: Pull LFS objects
         run: git lfs pull
       - name: Link the pinned kit to ~/.ai-kit, where the justfile imports its recipes (KIT-081 stage 1b)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@5a4924e802f6ab4675d4f9674c8626269b00b999  # v13.1.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@776d6ce381f89bfc12b4ca17f2b35577346ef37a  # v14.0.0
         with:
           checks: none
       - name: Install just (pinned, sha-256 checked; the justfile imports the kit's recipes)
@@ -159,7 +159,7 @@ jobs:
           python-version: '3.12'
       - run: pip install -r requirements-gdtoolkit.txt
       - name: Link the pinned kit to ~/.ai-kit, where the justfile imports its recipes (KIT-081 stage 1b)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@5a4924e802f6ab4675d4f9674c8626269b00b999  # v13.1.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@776d6ce381f89bfc12b4ca17f2b35577346ef37a  # v14.0.0
         with:
           checks: none
       - name: Install just (pinned, sha-256 checked; the justfile imports the kit's recipes)

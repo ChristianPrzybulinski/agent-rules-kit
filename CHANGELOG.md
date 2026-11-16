@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Fixed
+- The `spec-lint.yml`, `pr-contract.yml`, `ci-godot.yml` and `ci-java.yml` templates pin the spec-tools action at v14.0.0 (`776d6ce`) instead of v13.1.0 (`5a4924e`), which predates the action, so a workflow copied from them failed at its `uses:` line. A test keeps every pin in the templates on one release no older than 14.0.0.
+
 ## [14.0.0] - 2026-11-16
 
 ### Removed
