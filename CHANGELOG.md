@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Fixed
+- The workflow templates pin the kit actions at v15.0.0 (b38e84c). The KIT-084 templates pinned v14.0.0, which ships neither the `gitleaks` action nor `changelog_fragments.py`, so `gitleaks.yml` failed at its `uses:` line and `changelog-consolidate.yml` found no tool. A test keeps every kit action pin on one release no older than 15.0.0.
+
 ## [15.0.0] - 2026-11-16
 
 ### Added
