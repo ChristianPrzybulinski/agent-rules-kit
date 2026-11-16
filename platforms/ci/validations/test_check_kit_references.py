@@ -54,8 +54,14 @@ class CheckKitNestedReferencesTest(unittest.TestCase):
         self.assertEqual(sorted(line for line in output.splitlines() if line.startswith("FAIL: ")),
                          sorted(f"FAIL: {line}" for line in expected), output)
 
-    # The real kit passing is the static job's check_kit.py run (.github/workflows/ci.yml); each test below runs
+    # The static job's check_kit.py run (.github/workflows/ci.yml) fails on a FAIL line only; the first test keeps the
+    # stricter guard that the real nested references print no line at all, WARN included. Each test after it runs
     # check_kit.py once on independent mutations (a mutation of one file or folder never hides another's line).
+
+    def test_the_nested_references_pass(self):
+        output = self.check()
+        self.assertNotIn("references/godot", output)
+        self.assertNotIn("references/java", output)
 
     def test_nested_references_get_the_flat_checks_at_any_depth(self):
         (self.kit / NESTED / "extra.md").write_text("# no frontmatter\n", encoding="utf-8")

@@ -3,7 +3,7 @@ id: KIT-082
 title: "Fewer check_kit.py runs on kit copies, no mutations keyed to kit wording, and the GDScript tool tests run in CI"
 status: confirmed
 confirmed: "2026-11-16 (owner, chat of the coordinator session on the test suite review: \"Sim, comece a parte A\")"
-issue: ""
+issue: "#311"
 pr: ""
 ---
 
@@ -35,7 +35,6 @@ changes (KIT-081's sync tests, a switch that skips the hook cases, the `smoke.sh
    `platforms/tools/check.sh --links` (`.github/workflows/ci.yml:61`), which runs `check_kit.py "$@"`
    (`platforms/tools/check.sh:22`) under `set -euo pipefail` and `CI=1` (`ci.yml:28`), on the checked-out tree the
    tests copied. `--links` only adds the `~/` link check (`check_kit.py:1287`), so it checks all the plain run does.
-   - `test_check_kit_references.CheckKitNestedReferencesTest.test_the_nested_references_pass`;
    - `test_check_kit_skill_use.CheckKitSkillUseTest.test_the_copy_passes`;
    - `test_just_modules.TemplatesNameKitRecipes.test_the_kit_passes`.
 2. **Merged runs.** Each merged test asserts every expected FAIL line, each on a line of its own, and that no other
@@ -43,7 +42,7 @@ changes (KIT-081's sync tests, a switch that skips the hook cases, the `smoke.sh
 
    | Class | `check_kit.py` runs | Kept apart |
    |---|---|---|
-   | `test_check_kit_references.CheckKitNestedReferencesTest` | 10 → 2 | none interact; two runs by rule (the flat checks at any depth, the index naming) |
+   | `test_check_kit_references.CheckKitNestedReferencesTest` | 10 → 3 | none interact; two runs by rule (the flat checks at any depth, the index naming), plus `test_the_nested_references_pass`, kept because it also fails on a WARN line under `references/godot` or `references/java`, which the `static` job lets pass |
    | `test_check_kit_skill_use.CheckKitSkillUseTest` | 6 → 2 | the eval cases need pyyaml, the preloads do not |
    | `test_just_modules.TemplatesNameKitRecipes` | 6 → 1 | — |
    | `test_check_kit_readmes.CheckKitReadmesTest` | 5 → 3 (4 → 2 on Linux) | the bash 3 trap and the parse failure both edit `doctor.sh`, whose first error hides the next; the removed `CONTRIBUTING.md` breaks links elsewhere |
@@ -90,21 +89,20 @@ then on that base, side by side so both saw the same load (load average 14–37,
 
 | Class | Tests | `check_kit.py` runs | Seconds |
 |---|---|---|---|
-| `CheckKitNestedReferencesTest` | 10 → 2 | 10 → 2 | 208.2 → 50.9 |
+| `CheckKitNestedReferencesTest` | 10 → 3 | 10 → 3 | 208.2 → 50.9 + one unmeasured run |
 | `CheckKitSkillUseTest` | 6 → 2 | 6 → 2 | 120.4 → 46.9 |
 | `TemplatesNameKitRecipes` | 6 → 1 | 6 → 1 | 132.9 → 26.3 |
 | `CheckKitReadmesTest` | 5 → 3 | 5 → 3 | 269.4 → 162.4 |
 | `CheckKitCatchesBrokenHooksTest` | 5 → 2 | 5 → 2 | 146.5 → 83.8 |
-| Total | 32 → 10 | 32 → 10 | 877.4 → 370.3 |
+| Total | 32 → 11 | 32 → 11 | 877.4 → 370.3 + one unmeasured run |
 
-The 22 fewer tests are the three removed above and 19 merged into the runs that keep their assertions. In CI the
+The 21 fewer tests are the two removed above and 19 merged into the runs that keep their assertions. In CI the
 integration shards run these tests in parallel, so the wall time of a shard drops less than the sum.
 
 ## What would prove it wrong
 
 A `check_kit.py` regression that one of the removed or merged tests caught and the new ones miss: a check whose FAIL
-line a merged mutation hides, or a WARN-only change under `references/godot` or `references/java`, which
-`test_the_nested_references_pass` failed and the `static` job does not.
+line a merged mutation hides,.
 
 ## History
 
