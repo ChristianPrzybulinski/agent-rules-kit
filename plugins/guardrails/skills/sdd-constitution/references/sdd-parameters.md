@@ -9,7 +9,7 @@ The kit skills are the process; a project never copies a step to change it. It s
 block of the `docs/spec/spec.md` frontmatter, next to `decision_kinds`. `sdd-constitution` writes the block (the
 `spec-index.md` template carries it with every default). `check_spec.py` refuses an unknown key or a value outside its
 range, with or without pyyaml; `spec.schema.json` holds the keys, values and defaults. To see what a step will read, run
-`python3 ~/.ai-kit/platforms/ci/validations/check_spec.py --params docs/spec ~/.ai-kit/platforms/ci/schemas`: it prints the resolved block, every absent key at its default.
+`python3 ~/.ai-kit/platforms/ci/validations/check_spec.py --params docs/spec ~/.ai-kit/platforms/ci/schemas`: it prints the resolved block, every absent key at its default. Project profile (KIT-087): these keys, plus `task_cut` and `decision_folding`, are the `sdd` section of `.ai-kit.yaml` (`profile.schema.json`, `platforms/tools/profile.py`); during the dual read this `sdd:` block is the legacy home, read for each key the profile does not set (`profile: sdd.<key> from legacy docs/spec/spec.md`), and a key set differently in both fails; `--params` prints that view.
 
 A default is the kit's behavior before the key existed, except `max_chain` and `max_feat_tasks`, which the kit did not limit. `points` sums the bundled rows' `Complexity`: Low 1, Med 2, High 3.
 

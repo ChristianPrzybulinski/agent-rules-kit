@@ -8,6 +8,7 @@
 | `rule.schema.json` | `plugins/*/rules/*.md` | `trigger` is `glob`, `model_decision`, or `manual` |
 | `skill.schema.json` | `plugins/*/skills/<name>/SKILL.md` (non-vendor) | `name` = folder; `triggers`; allowed tools |
 | `spec.schema.json` | a project's `docs/spec/spec.md` | fixed; optional `decision_kinds` (kind → decision id prefix) and `sdd` (the project's process parameters with their defaults, KIT-067) |
+| `profile.schema.json` | a project's `.ai-kit.yaml` at its git top level (KIT-087), resolved by `platforms/tools/profile.py` | fixed name; a `kit` pin and the sections `stacks`, `sdd`, `tracker`, `models`, `tests`, `quality`, `evidence`, `review`, `gates`, `changelog`, `ci`, `secrets`; every key has a default and an `x-read-by` phase, unknown keys fail and `x-<name>` keys are ignored |
 | `feature.schema.json` | `docs/spec/features/*.md` | `FEAT-nnn-slug.md` |
 | `requirement.schema.json` | `docs/spec/requirements/{functional,non-functional}/*.md` | `REQ-F-nnn-*` / `REQ-NF-nnn-*`; optional `status` (`proposed`, `approved`, `retired`) |
 | `decision.schema.json` | `docs/spec/decisions/*.md` | `DEC-nnn-slug.md`, or `<PREFIX>-nnn-slug.md` with the `kind` whose prefix `spec.md` `decision_kinds` declares |

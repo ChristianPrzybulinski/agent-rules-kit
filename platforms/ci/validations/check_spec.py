@@ -262,17 +262,22 @@ def frontmatter(path):
         fail(f"{path}: frontmatter without closing ---", "frontmatter", path)
         return None
     text = "\n".join(lines[1:end])
+    try:
+        return load_yaml(text) or {}
+    except ValueError as e:
+        fail(f"{path}: invalid YAML: {e}" if FULL else f"{path}: invalid frontmatter ({e})", "frontmatter", path)
+        return None
+
+
+def load_yaml(text):
+    """YAML text in the subset the kit reads: pyyaml in the full mode, else mini_yaml; a parse error raises ValueError
+    in both. platforms/tools/profile.py reads .ai-kit.yaml through it (KIT-087)."""
     if FULL:
         try:
-            return yaml.safe_load(text) or {}
+            return yaml.safe_load(text)
         except yaml.YAMLError as e:
-            fail(f"{path}: invalid YAML: {e}", "frontmatter", path)
-            return None
-    try:
-        return mini_yaml(text)
-    except ValueError as e:
-        fail(f"{path}: invalid frontmatter ({e})", "frontmatter", path)
-        return None
+            raise ValueError(str(e)) from e
+    return mini_yaml(text)
 
 
 # Structural check (fallback without jsonschema): required, enums, id pattern.
@@ -379,6 +384,9 @@ def check_value(path, name, value, rule):
     if is_type(value, "integer") and "minimum" in rule and value < rule["minimum"]:
         fail(f"{path}: {name} {value} is below the minimum {rule['minimum']}", "sdd-params", path)
         ok = False
+    if is_type(value, "integer") and "maximum" in rule and value > rule["maximum"]:
+        fail(f"{path}: {name} {value} is above the maximum {rule['maximum']}", "sdd-params", path)
+        ok = False
     if isinstance(value, str):
         if len(value) < rule.get("minLength", 0):
             fail(f"{path}: {name} must not be empty", "sdd-params", path)
@@ -404,9 +412,14 @@ def check_value(path, name, value, rule):
     if isinstance(value, dict):
         props, extra = rule.get("properties", {}), rule.get("additionalProperties", True)
         key_pattern = rule.get("propertyNames", {}).get("pattern")
+        patterns = rule.get("patternProperties", {})  # the profile's x-<name> keys (KIT-087)
         for key, item in value.items():
             key = str(key)
-            if key_pattern and not re.search(key_pattern, key):
+            matched = [sub for pattern, sub in patterns.items() if re.search(pattern, key)]
+            if matched:
+                for sub in matched:
+                    ok = check_value(path, f"{name}.{key}", item, sub) and ok
+            elif key_pattern and not re.search(key_pattern, key):
                 fail(f"{path}: {name} key {key!r} does not match {key_pattern}", "sdd-params", path)
                 ok = False
             elif key in props:
@@ -456,16 +469,37 @@ def load_params(spec_dir, schemas_dir):
     return resolved, errors
 
 
+def profile_module():
+    """platforms/tools/profile.py (KIT-087), which resolves the project profile with this module's parser and checks.
+    This module registers itself as check_spec first, so both share one failure list."""
+    sys.modules.setdefault("check_spec", sys.modules[__name__])
+    module = sys.modules.get("kit_profile")
+    if module is None:
+        import importlib.util
+        path = Path(__file__).resolve().parents[2] / "tools" / "profile.py"
+        spec = importlib.util.spec_from_file_location("kit_profile", path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["kit_profile"] = module
+        spec.loader.exec_module(module)
+    return module
+
+
 def print_params(spec_dir, schemas_dir):
-    """check_spec.py --params: the resolved `sdd` block as JSON on stdout; exit 1 when the block is invalid."""
-    index = spec_dir / "spec.md"
-    data = frontmatter(index) if index.exists() else {}
-    spec_schema = json.loads((schemas_dir / "spec.schema.json").read_text())
-    resolved = sdd_params(index, data if isinstance(data, dict) else {}, spec_schema, spec_dir)
-    if failures or data is None:
-        report(failures)
+    """check_spec.py --params: the resolved `sdd` block as JSON on stdout; exit 1 when the block is invalid. It prints
+    profile.py's `sdd` section (KIT-087): `.ai-kit.yaml` first when spec_dir is <root>/docs/spec, then the legacy
+    `sdd:` block in spec.md, each key read from the legacy home named on stderr. The output keeps the keys
+    spec.schema.json defines; `profile.py resolve --section sdd` also prints the profile-only ones."""
+    spec_dir = spec_dir.resolve()
+    root = spec_dir.parents[1] if spec_dir.parts[-2:] == ("docs", "spec") else None
+    resolved, notes, errors = profile_module().resolve(root, ["sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
+    for note in notes:
+        print(note, file=sys.stderr)
+    if errors:
+        for error in errors:
+            print(f"FAIL: {error} [sdd-params]", file=sys.stderr)
         sys.exit(1)
-    print(json.dumps(resolved, indent=2, sort_keys=True))
+    keys = json.loads((schemas_dir / "spec.schema.json").read_text())["properties"]["sdd"]["properties"]
+    print(json.dumps({k: v for k, v in resolved["sdd"].items() if k in keys}, indent=2, sort_keys=True))
 
 
 # Start, base (diff3) and end markers git writes in a conflicted file. A bare "=======" line is not matched:

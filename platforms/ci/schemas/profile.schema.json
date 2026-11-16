@@ -1,0 +1,1293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/profile.schema.json",
+  "title": "The project profile, .ai-kit.yaml at the git top level (KIT-087)",
+  "description": "Project-owned parameters that only the kit reads: its skills, hooks, sync-project.sh and the spec-tools action, through platforms/tools/profile.py. Every key has a default and one reader phase (x-read-by: session, sdd, implement, review, delivery, security). Unknown keys fail; x-<name> keys, at the top level or directly in a section, are the project's and the kit ignores them.",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": {
+      "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+    }
+  },
+  "properties": {
+    "kit": {
+      "description": "Compatibility pin: the lowest kit version this profile needs, e.g. '>=15'; null = any",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^>=[0-9]+(\\.[0-9]+){0,2}$",
+      "default": null,
+      "x-read-by": "session"
+    },
+    "stacks": {
+      "description": "Folder ('.' for the root) -> its stack, or a list of stacks; replaces the profile list of the CLAUDE.md sync marker",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$"
+      },
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "additionalProperties": {
+        "type": [
+          "string",
+          "array"
+        ],
+        "pattern": "^(godot|java|python|docs)$",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+          "enum": [
+            "godot",
+            "java",
+            "python",
+            "docs"
+          ]
+        }
+      },
+      "default": {},
+      "x-read-by": "session"
+    },
+    "sdd": {
+      "description": "The SDD process parameters (KIT-067): the 23 keys of the legacy sdd: block in docs/spec/spec.md, plus task_cut and decision_folding (KIT-086); sdd-constitution/references/sdd-parameters.md names each reader",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "needs": {
+          "description": "NEED-nnn intake records under docs/spec/needs/; read by sdd-intake, sdd-specify, sdd-clarify",
+          "type": "boolean",
+          "default": true,
+          "x-read-by": "sdd"
+        },
+        "journeys": {
+          "description": "J-nn journeys under docs/spec/journeys/; read by sdd-clarify, sdd-check, sync-project.sh; absent = on when the folder exists; null (the default) = on when docs/spec/journeys/ exists",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "x-read-by": "sdd",
+          "default": null
+        },
+        "tracker": {
+          "description": "Where task rows are cut: GitHub issues, or none (task files in the repository); read by sdd-tasks, sdd-implement, sdd-spike",
+          "enum": [
+            "github",
+            "none"
+          ],
+          "default": "github",
+          "x-read-by": "sdd"
+        },
+        "plan_sections": {
+          "description": "The FEAT ## Plan subsections this project fills; Risks and Tests are always on; read by sdd-plan",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "Design",
+              "Contract",
+              "Data",
+              "UI",
+              "Flag",
+              "Tests",
+              "Observability",
+              "Risks",
+              "Dependencies"
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "const": "Risks"
+              }
+            },
+            {
+              "contains": {
+                "const": "Tests"
+              }
+            }
+          ],
+          "default": [
+            "Design",
+            "Contract",
+            "Data",
+            "UI",
+            "Flag",
+            "Tests",
+            "Observability",
+            "Risks",
+            "Dependencies"
+          ],
+          "x-read-by": "sdd"
+        },
+        "pr_unit": {
+          "description": "One PR per task row or one per FEAT; read by sdd-implement",
+          "enum": [
+            "task",
+            "feat"
+          ],
+          "default": "task",
+          "x-read-by": "implement"
+        },
+        "task_minutes": {
+          "description": "Upper size of a task row for one fresh agent context, in minutes; read by sdd-tasks",
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "x-read-by": "sdd"
+        },
+        "row_check": {
+          "description": "Project command that checks the task rows before the cut; null = the kit row checks (row_checks.py, KIT-073); read by sdd-tasks",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "default": null,
+          "x-read-by": "sdd"
+        },
+        "cut_command": {
+          "description": "Project command that cuts the approved rows; null = the kit cut; read by sdd-tasks",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "default": null,
+          "x-read-by": "sdd"
+        },
+        "max_chain": {
+          "description": "Longest dependency chain allowed among a FEAT's task rows; read by sdd-tasks",
+          "type": "integer",
+          "minimum": 1,
+          "default": 4,
+          "x-read-by": "sdd"
+        },
+        "max_feat_tasks": {
+          "description": "Task rows above which a FEAT is too large for one delivery: check_spec.py warns and sdd-plan splits the NEED into several FEATs; read by sdd-plan, sdd-tasks",
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "x-read-by": "sdd"
+        },
+        "release": {
+          "description": "merge: a FEAT is delivered once its work is on main (after its sdd-review closure, KIT-069); manual: sdd-release delivers it; read by sdd-review, sdd-release",
+          "enum": [
+            "merge",
+            "manual"
+          ],
+          "default": "merge",
+          "x-read-by": "sdd"
+        },
+        "review_rounds": {
+          "description": "NOT READY rounds on one criterion before the owner decides; read by review",
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "x-read-by": "review"
+        },
+        "commits_by": {
+          "description": "Who commits a task's work: the executor session or the orchestrator; read by sdd-implement",
+          "enum": [
+            "executor",
+            "orchestrator"
+          ],
+          "default": "executor",
+          "x-read-by": "implement"
+        },
+        "protected_paths": {
+          "description": "Path or glob -> label a change to it needs; read by sdd-tasks and review",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^(?!(.*/)?\\.\\.(/|$))[^\\s/][^\\s]*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": {},
+          "x-read-by": "sdd"
+        },
+        "bundle": {
+          "description": "Limits for one issue that bundles task rows sharing a Files path; rows 1 = one issue per row; read by sdd-tasks",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rows": {
+              "description": "Rows per bundle",
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "x-read-by": "sdd"
+            },
+            "points": {
+              "description": "Sum of the rows' Complexity, Low 1, Med 2, High 3",
+              "type": "integer",
+              "minimum": 1,
+              "default": 3,
+              "x-read-by": "sdd"
+            },
+            "high_rows": {
+              "description": "High rows per bundle",
+              "type": "integer",
+              "minimum": 0,
+              "default": 1,
+              "x-read-by": "sdd"
+            }
+          },
+          "x-read-by": "sdd"
+        },
+        "rule_paths": {
+          "description": "Kit rule name -> folders its globs are scoped to, '.' for the whole repository; wins over the --profile folders; read by sync-project.sh",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$"
+            }
+          },
+          "default": {},
+          "x-read-by": "session"
+        },
+        "visual_approval": {
+          "description": "Who approves a screen or motion change's captures against its REQ's mock before the merge: the owner, the reviewer, or none (no visual approval step); read by review (KIT-069) and by row_checks.py rule j, which is off unless it is owner or reviewer",
+          "enum": [
+            "owner",
+            "reviewer",
+            "none"
+          ],
+          "default": "none",
+          "x-read-by": "review"
+        },
+        "components": {
+          "description": "Component name -> its folder in this repository, '.' for the root: a Files entry or test path may start with either; one task row stays in one component. Read by row_checks.py (rules b, c, e, g, i, j, k) and spec_trace.py (journey test paths)",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$"
+          },
+          "default": {},
+          "x-read-by": "sdd"
+        },
+        "spec_index": {
+          "description": "spec_trace.py check fails when docs/spec/spec.md lacks a linked table row for a functional or non-functional REQ file or a journey file, or links a missing one",
+          "type": "boolean",
+          "default": false,
+          "x-read-by": "sdd"
+        },
+        "github": {
+          "description": "Where spec_trace.py sync-status reads task issues and their PRs (tracker: github only)",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repo": {
+              "description": "owner/name of the backlog repository that holds the task issues; null = the origin remote",
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+              "default": null,
+              "x-read-by": "sdd"
+            },
+            "pr_repos": {
+              "description": "Other owner/name repositories whose PRs close backlog issues",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+              },
+              "default": [],
+              "x-read-by": "sdd"
+            },
+            "aliases": {
+              "description": "Earlier owner/name names of the backlog repository that a Closes line may still use",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+              },
+              "default": [],
+              "x-read-by": "sdd"
+            },
+            "blocked_labels": {
+              "description": "Issue labels that make a row blocked",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "default": [
+                "blocked"
+              ],
+              "x-read-by": "sdd"
+            },
+            "progress_labels": {
+              "description": "Issue labels that make a row doing without an open PR",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "default": [
+                "status:in-progress"
+              ],
+              "x-read-by": "sdd"
+            }
+          },
+          "x-read-by": "sdd"
+        },
+        "row_checks": {
+          "description": "Inputs of the kit row checks (row_checks.py, KIT-073); a rule whose input is null or empty is off; sdd-tasks/references/row-checks.md names each rule",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "gates": {
+              "description": "Repository path of the PR gates JSON (pr_gates.py): proof_allowlist, proof_script_runners, generated_neighbours (rules d, e, g)",
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$",
+              "default": null,
+              "x-read-by": "sdd"
+            },
+            "tests": {
+              "description": "Rule c, per stack: a Files entry matching a code glob (minus exclude) needs an entry matching or covering the tests glob ($1.. are the code glob's wildcards); level fail or warn",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+                    }
+                  },
+                  "exclude": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+                    }
+                  },
+                  "tests": {
+                    "type": "string",
+                    "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+                  },
+                  "sample": {
+                    "type": "string",
+                    "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+                  },
+                  "level": {
+                    "enum": [
+                      "fail",
+                      "warn"
+                    ]
+                  }
+                }
+              },
+              "default": [],
+              "x-read-by": "sdd"
+            },
+            "assets": {
+              "description": "Rule d: an exact Files path under paths ending in one of suffixes needs a covering directory glob",
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+                  },
+                  "x-read-by": "sdd"
+                },
+                "suffixes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^\\.[A-Za-z0-9]+$"
+                  },
+                  "x-read-by": "sdd"
+                }
+              },
+              "default": null,
+              "x-read-by": "sdd"
+            },
+            "protocol": {
+              "description": "Rules h and k: the contract folder, the message schema folder (<type>.json) and each consumer's generated tables",
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "folder": {
+                  "type": "string",
+                  "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$",
+                  "x-read-by": "sdd"
+                },
+                "schemas": {
+                  "type": "string",
+                  "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$",
+                  "x-read-by": "sdd"
+                },
+                "consumers": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+                    }
+                  },
+                  "x-read-by": "sdd"
+                }
+              },
+              "default": null,
+              "x-read-by": "sdd"
+            },
+            "evidence_only": {
+              "description": "Rule e: true lets a row whose Proof holds only evidence: clauses pass with no runnable clause; false fails it (KIT-080)",
+              "type": "boolean",
+              "default": false,
+              "x-read-by": "sdd"
+            },
+            "artifacts": {
+              "description": "Rule i: repository path of the artifact policy registry, a JSON list of {pattern, dec, policy}",
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$",
+              "default": null,
+              "x-read-by": "sdd"
+            },
+            "visual": {
+              "description": "Rule j (with visual_approval owner or reviewer): Files paths that change a screen or motion, paths to ignore, and the evidence catalog file per kind ($id)",
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+                  },
+                  "x-read-by": "sdd"
+                },
+                "ignore": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+                  },
+                  "x-read-by": "sdd"
+                },
+                "catalog": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "screen": {
+                      "type": "string",
+                      "x-read-by": "sdd"
+                    },
+                    "motion": {
+                      "type": "string",
+                      "x-read-by": "sdd"
+                    }
+                  },
+                  "x-read-by": "sdd"
+                }
+              },
+              "default": null,
+              "x-read-by": "sdd"
+            }
+          },
+          "x-read-by": "sdd"
+        },
+        "owner_approvals": {
+          "description": "Change kinds only the owner may approve, for example decision, approved-dec-change, protocol-version, in-game-evidence; read by review (KIT-069) and an orchestrator session under owner-review autonomy",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "default": [
+            "decision"
+          ],
+          "x-read-by": "review"
+        },
+        "doc_structure": {
+          "description": "The README and done/INDEX.md check (check_docs_structure.py, KIT-074), opt-in; read by the check itself, which the docs just module and the spec-tools action run",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "description": "Run the check: just lint and the spec-tools action run the kit's check_docs_structure.py, which passes as off while false",
+              "type": "boolean",
+              "default": false,
+              "x-read-by": "delivery"
+            },
+            "exempt": {
+              "description": "File of fnmatch globs (one per line, from the repository root) for folders a parent README covers",
+              "type": "string",
+              "pattern": "^(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
+              "default": ".github/doc-structure-exempt.txt",
+              "x-read-by": "delivery"
+            },
+            "headings": {
+              "description": "Headings every folder README carries after its # title",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^#{2,6} \\S"
+              },
+              "default": [
+                "## What goes here",
+                "## What does not go here"
+              ],
+              "x-read-by": "delivery"
+            },
+            "done_index": {
+              "description": "Every done/ folder has an INDEX.md naming each direct child",
+              "type": "boolean",
+              "default": true,
+              "x-read-by": "delivery"
+            }
+          },
+          "x-read-by": "delivery"
+        },
+        "task_cut": {
+          "description": "The task cut checklist parameters KIT-086 moves into sdd-tasks; read by sdd-tasks",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "owned_area_form": {
+              "description": "How a row's Files cell names an owned area: paths (exact files and folders) or globs",
+              "enum": [
+                "paths",
+                "globs"
+              ],
+              "default": "globs",
+              "x-read-by": "sdd"
+            },
+            "required_test_folders": {
+              "description": "Code glob -> the test folders a row touching it must also list",
+              "type": "object",
+              "propertyNames": {
+                "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+              },
+              "additionalProperties": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+                }
+              },
+              "default": {},
+              "x-read-by": "sdd"
+            },
+            "bundle_exclude": {
+              "description": "Globs a bundled item never shares: each such row is its own item",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+              },
+              "default": [],
+              "x-read-by": "sdd"
+            },
+            "longest_chain_max_complexity": {
+              "description": "Highest Complexity a row on a FEAT's longest Depends on chain may carry; High = no limit",
+              "enum": [
+                "Low",
+                "Med",
+                "High"
+              ],
+              "default": "High",
+              "x-read-by": "sdd"
+            }
+          },
+          "x-read-by": "sdd"
+        },
+        "decision_folding": {
+          "description": "How a decision is folded into the specs and task status (KIT-086); read by sdd-plan and sdd-tasks",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "marker": {
+              "description": "The text that marks a decision folded into a spec",
+              "type": "string",
+              "minLength": 1,
+              "default": "→ folded into",
+              "x-read-by": "sdd"
+            }
+          },
+          "x-read-by": "sdd"
+        }
+      },
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "x-read-by": "sdd"
+    },
+    "tracker": {
+      "description": "Where task rows become work items, and what the kit's tooling reads from them",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "kind": {
+          "description": "github: issues; none: task files in the repository",
+          "enum": [
+            "github",
+            "none"
+          ],
+          "default": "github",
+          "x-read-by": "sdd"
+        },
+        "board": {
+          "description": "The GitHub project board the items go to",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "project": {
+              "description": "Project number; null = no board",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "default": null,
+              "x-read-by": "sdd"
+            },
+            "fields": {
+              "description": "Board fields the kit fills",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "default": [],
+              "x-read-by": "sdd"
+            }
+          },
+          "x-read-by": "sdd"
+        },
+        "labels": {
+          "description": "Issue labels the kit's tooling reads (spec_trace.py sync-status)",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "blocked": {
+              "description": "Labels that make a row blocked",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "default": [
+                "blocked"
+              ],
+              "x-read-by": "sdd"
+            },
+            "progress": {
+              "description": "Labels that make a row doing without an open PR",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "default": [
+                "status:in-progress"
+              ],
+              "x-read-by": "sdd"
+            }
+          },
+          "x-read-by": "sdd"
+        },
+        "issue_fields": {
+          "description": "Fields every task issue carries, in order",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": [],
+          "x-read-by": "sdd"
+        },
+        "on_issue_change": {
+          "description": "Command a skill runs after it changes an issue, such as a board sync; null = none",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "default": null,
+          "x-read-by": "sdd"
+        }
+      },
+      "x-read-by": "sdd"
+    },
+    "models": {
+      "description": "The task tier vocabulary; model ids are not profile keys",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "tiers": {
+          "description": "Kit tier -> the name this project uses for it",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "small": {
+              "type": "string",
+              "minLength": 1,
+              "default": "small",
+              "x-read-by": "sdd"
+            },
+            "mid": {
+              "type": "string",
+              "minLength": 1,
+              "default": "mid",
+              "x-read-by": "sdd"
+            },
+            "top": {
+              "type": "string",
+              "minLength": 1,
+              "default": "top",
+              "x-read-by": "sdd"
+            }
+          },
+          "x-read-by": "sdd"
+        }
+      },
+      "x-read-by": "sdd"
+    },
+    "tests": {
+      "description": "Test commands per stack, and where each code folder's tests live",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "unit": {
+            "description": "The stack's unit test command",
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "default": null,
+            "x-read-by": "implement"
+          },
+          "integration": {
+            "description": "The integration test command",
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "default": null,
+            "x-read-by": "implement"
+          },
+          "broad": {
+            "description": "The whole suite",
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "default": null,
+            "x-read-by": "implement"
+          },
+          "boot": {
+            "description": "Starts the app once to prove it boots",
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "default": null,
+            "x-read-by": "implement"
+          },
+          "lint": {
+            "description": "The linter",
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "default": null,
+            "x-read-by": "implement"
+          },
+          "fmt": {
+            "description": "The formatter, in check mode",
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "default": null,
+            "x-read-by": "implement"
+          }
+        }
+      },
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "folders": {
+          "description": "Code folder or glob -> its test folder",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+          },
+          "default": {},
+          "x-read-by": "implement"
+        }
+      },
+      "propertyNames": {
+        "pattern": "^(folders|godot|java|python|docs|x-.+)$"
+      },
+      "x-read-by": "implement"
+    },
+    "quality": {
+      "description": "Coverage and mutation policy per stack; empty = no kit-imposed policy (the project sets it)",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "coverage": {
+            "description": "Line and branch coverage floors in percent, or advisory",
+            "type": [
+              "object",
+              "string",
+              "null"
+            ],
+            "pattern": "^advisory$",
+            "additionalProperties": false,
+            "properties": {
+              "line": {
+                "description": "Floor in percent; 0 = none",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "default": 0,
+                "x-read-by": "implement"
+              },
+              "branch": {
+                "description": "Floor in percent; 0 = none",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "default": 0,
+                "x-read-by": "implement"
+              }
+            },
+            "default": null,
+            "x-read-by": "implement"
+          },
+          "mutation": {
+            "description": "Mutation score floor in percent on domain_globs, or advisory",
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "pattern": "^advisory$",
+            "minimum": 0,
+            "maximum": 100,
+            "default": null,
+            "x-read-by": "implement"
+          },
+          "domain_globs": {
+            "description": "The code the mutation floor applies to",
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+            },
+            "default": [],
+            "x-read-by": "implement"
+          }
+        }
+      },
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {},
+      "propertyNames": {
+        "pattern": "^(godot|java|python|docs|x-.+)$"
+      },
+      "default": {},
+      "x-read-by": "implement"
+    },
+    "evidence": {
+      "description": "Visual evidence for screen and motion changes",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "visual_approval": {
+          "description": "Who approves the captures: owner, reviewer or none",
+          "enum": [
+            "owner",
+            "reviewer",
+            "none"
+          ],
+          "default": "none",
+          "x-read-by": "implement"
+        },
+        "viewports": {
+          "description": "Capture sizes, WIDTHxHEIGHT",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*x[1-9][0-9]*$"
+          },
+          "default": [],
+          "x-read-by": "implement"
+        },
+        "paths": {
+          "description": "Files paths that change a screen or motion",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+          },
+          "default": [],
+          "x-read-by": "implement"
+        }
+      },
+      "x-read-by": "implement"
+    },
+    "review": {
+      "description": "The review bar and its rounds",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "rounds": {
+          "description": "NOT READY rounds on one criterion before the owner decides",
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "x-read-by": "review"
+        },
+        "bar_paths": {
+          "description": "Globs that set the review bar to full or light; any other path is standard",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "full": {
+              "description": "Paths that need the full bar",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+              },
+              "default": [],
+              "x-read-by": "review"
+            },
+            "light": {
+              "description": "Paths that need only the light bar",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+              },
+              "default": [],
+              "x-read-by": "review"
+            }
+          },
+          "x-read-by": "review"
+        },
+        "independent_reviewer": {
+          "description": "A merge needs a review by a session that did not write the change",
+          "type": "boolean",
+          "default": true,
+          "x-read-by": "review"
+        }
+      },
+      "x-read-by": "review"
+    },
+    "gates": {
+      "description": "The PR gates' inputs that kit tools read (pr_gates.py, review_checks.py, row_checks.py); replaces the gates JSON that sdd.row_checks.gates names",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "owner": {
+          "description": "GitHub owner of the repositories",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "default": null,
+          "x-read-by": "review"
+        },
+        "issue_repo": {
+          "description": "Repository name that holds the task issues (backlog_repo in the gates JSON)",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "default": null,
+          "x-read-by": "review"
+        },
+        "repos": {
+          "description": "Repository name -> its gate settings",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "require_fragment": {
+                "description": "A PR must add a changelog fragment",
+                "type": "boolean",
+                "default": false,
+                "x-read-by": "review"
+              }
+            }
+          },
+          "default": {},
+          "x-read-by": "review"
+        },
+        "protected_paths": {
+          "description": "Label -> the globs a change needs it for",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9:-]*$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$"
+            }
+          },
+          "default": {},
+          "x-read-by": "review"
+        },
+        "proof_allowlist": {
+          "description": "Executables a Proof command may start with",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": [],
+          "x-read-by": "review"
+        },
+        "generated_neighbours": {
+          "description": "Suffixes of files generated beside a changed file",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": [],
+          "x-read-by": "review"
+        },
+        "expected_red_checks": {
+          "description": "Repository -> {check name: {until_issue_closed, why}}: red checks that do not fail the gates",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          },
+          "default": {},
+          "x-read-by": "review"
+        }
+      },
+      "x-read-by": "review"
+    },
+    "changelog": {
+      "description": "How a change records its changelog line",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "mode": {
+          "description": "file: CHANGELOG.md; fragments: one file per change; none",
+          "enum": [
+            "file",
+            "fragments",
+            "none"
+          ],
+          "default": "file",
+          "x-read-by": "delivery"
+        },
+        "fragment_glob": {
+          "description": "Where fragments live (mode fragments)",
+          "type": "string",
+          "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$",
+          "default": "changelog.d/*.md",
+          "x-read-by": "delivery"
+        },
+        "consolidate_threshold": {
+          "description": "Fragments that trigger a consolidation",
+          "type": "integer",
+          "minimum": 1,
+          "default": 25,
+          "x-read-by": "delivery"
+        }
+      },
+      "x-read-by": "delivery"
+    },
+    "ci": {
+      "description": "How the project's CI runs",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "trigger": {
+          "description": "auto: on push and pull_request; dispatch: on demand only",
+          "enum": [
+            "auto",
+            "dispatch"
+          ],
+          "default": "dispatch",
+          "x-read-by": "delivery"
+        },
+        "spec_tools_checks": {
+          "description": "The spec-tools action's checks",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "spec",
+              "trace",
+              "rows"
+            ]
+          },
+          "default": [
+            "spec"
+          ],
+          "x-read-by": "delivery"
+        }
+      },
+      "x-read-by": "delivery"
+    },
+    "secrets": {
+      "description": "The secret scanner",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "scanner": {
+          "description": "gitleaks or none",
+          "enum": [
+            "gitleaks",
+            "none"
+          ],
+          "default": "gitleaks",
+          "x-read-by": "security"
+        },
+        "config": {
+          "description": "The scanner's config file",
+          "type": "string",
+          "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]+$",
+          "default": ".gitleaks.toml",
+          "x-read-by": "security"
+        }
+      },
+      "x-read-by": "security"
+    }
+  }
+}
