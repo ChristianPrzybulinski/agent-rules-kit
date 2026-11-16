@@ -818,6 +818,22 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("sync: .claude/ai-kit/platforms/tools/review_checks.py diverges from the manifest", result.stdout)
 
+    def test_the_pinned_spec_tools_carry_their_schemas(self):  # #282 item 2
+        """spec_trace.py, check_spec.py and row_checks.py read spec.schema.json beside them; without it the pinned
+        sync-status refused every sdd block."""
+        subprocess.run(["git", "init", "-q", str(self.repo)], check=True)
+        self.vendor_install("--profile", "docs")
+        schemas = self.repo / ".claude" / "ai-kit" / "platforms" / "ci" / "schemas"
+        for path in sorted((KIT / "platforms" / "ci" / "schemas").glob("*.json")):
+            self.assertEqual((schemas / path.name).read_bytes(), path.read_bytes(), path.name)
+        run = subprocess.run(["bash", "-c", f"python3 {PINNED_TOOL}ci/validations/spec_trace.py sync-status"],
+                             cwd=self.repo, capture_output=True, text=True, check=False)
+        self.assertEqual(run.returncode, 2, run.stdout + run.stderr)
+        self.assertNotIn("no spec.schema.json", run.stderr)
+        self.assertIn("no backlog repository", run.stderr)
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
     def test_plugins_mode_keeps_the_kit_clone_as_the_fallback(self):  # B2: an unsynced or plugins-mode repo
         result = self.run_sync("--profile", "docs,godot:client")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
