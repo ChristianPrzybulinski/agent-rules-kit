@@ -12,7 +12,7 @@ from pathlib import Path
 
 LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
 COVERS = ("platforms/tools/sync-project.sh", "platforms/tools/sync_agents_md.py", "platforms/tools/sync_just.py",
-          "platforms/tools/sync_unvendor.py", "platforms/tools/sync-profiles.txt", "plugins/guardrails/**",
+          "platforms/tools/sync_unvendor.py", "platforms/tools/sync_rules.py", "plugins/guardrails/**",
           "platforms/kits/just/**", "platforms/kits/github/workflows/spec-lint.yml",
           "platforms/kits/godot/scripts/**", "platforms/ci/validations/check_spec.py",
           "platforms/ci/validations/row_checks.py", "platforms/ci/validations/pr_gates.py",
@@ -22,7 +22,6 @@ COVERS = ("platforms/tools/sync-project.sh", "platforms/tools/sync_agents_md.py"
 SCRIPT = Path(__file__).resolve().parent.parent.parent / "tools" / "sync-project.sh"
 KIT = SCRIPT.parents[2]
 VERSION = (KIT / "VERSION").read_text(encoding="utf-8").strip()
-MAP = KIT / "platforms" / "tools" / "sync-profiles.txt"  # KIT-047: one plugin, the map picks the copies
 UNVENDOR = KIT / "platforms" / "tools" / "sync_unvendor.py"
 PLUGIN = KIT / "plugins" / "guardrails"
 PINNED = "guardrails-pinned"  # KIT-072's pinned copy of the plugin, which KIT-081 stage 2b removes from a project
@@ -155,6 +154,8 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(ai_kit, {"guardrails@ai-kit"})
         self.assertTrue(all(data["enabledPlugins"][k] is True for k in ai_kit))
         self.assertIs(data["includeGitInstructions"], False)  # KIT-071
+        self.assertFalse((self.repo / ".claude" / "rules").exists(), "KIT-081 stage 3: the plugin's hook gives the rules")
+        self.assertIn("path rules from the guardrails plugin's hook", self.run_sync().stdout)
         before = (claude.read_bytes(), settings.read_bytes())
         second = self.run_sync()
         self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
@@ -221,28 +222,28 @@ class SyncProjectCheckTest(unittest.TestCase):
             self.assertFalse((repo / ".claude" / "settings.json").exists())
             self.assertFalse((repo / ".github").exists())
 
-    def test_multi_profile_union_and_folder_scope(self):  # KIT-016
+    def test_multi_profile_union_and_folder_scope(self):  # KIT-016; KIT-081 stage 3: the scopes go to AGENTS.md only
+        for folder in ("client", "server"):
+            (self.repo / folder).mkdir()
         result = self.run_sync("--profile", "java:server,docs,godot:client/")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        rules = self.repo / ".claude" / "rules"
-        self.assertEqual(sorted(p.name for p in rules.glob("*.md")),
-                         ["guardrails-assets.md", "guardrails-code.md", "guardrails-docker.md", "guardrails-godot.md",
-                          "guardrails-java.md", "guardrails-json.md", "guardrails-migrations.md", "guardrails-protocol.md",
-                          "guardrails-python.md", "guardrails-spec.md", "guardrails-tests.md"])
-        self.assertIn('  - "client/**/*.gd"', (rules / "guardrails-godot.md").read_text().splitlines())
+        # the marker records the union, whose profiles select the rules the plugin's hook gives; no rule is copied
+        self.assertEqual(self.text("CLAUDE.md"), self.claude_md("docs,godot:client,java:server"))
+        self.assertFalse((self.repo / ".claude" / "rules").exists())
+        client, server, root = self.text("client/AGENTS.md"), self.text("server/AGENTS.md"), self.text("AGENTS.md")
+        self.assertIn("`client/**/*.gd`", client)
         # docker goes to the code profiles only, so it takes their folders and never the docs root (KIT-071)
-        docker_globs = (rules / "guardrails-docker.md").read_text().splitlines()
-        self.assertIn('  - "server/**/compose*.yml"', docker_globs)
-        self.assertIn('  - "client/**/Dockerfile*"', docker_globs)
-        self.assertNotIn('  - "**/compose*.yml"', docker_globs)
+        self.assertIn("`server/**/compose*.yml`", server)
+        self.assertIn("`client/**/Dockerfile*`", client)
+        self.assertNotIn("`**/compose*.yml`", root)
         # json is named after no profile and docs covers the root, so it keeps the whole repository (KIT-059)
-        self.assertIn('  - "**/*.json"', (rules / "guardrails-json.md").read_text().splitlines())
-        self.assertIn('  - "server/**/*.java"', (rules / "guardrails-java.md").read_text().splitlines())
-        self.assertIn('  - "docs/spec/**/*.md"', (rules / "guardrails-spec.md").read_text().splitlines())
+        self.assertIn("`**/*.json`", root)
+        self.assertIn("`server/**/*.java`", server)
+        self.assertIn("`docs/spec/**/*.md`", self.text("docs/spec/AGENTS.md"))
         # the map sends both rules to every godot, java or python profile; each takes only the folder
         # of the profile it is named after
-        self.assertNotIn("server/", (rules / "guardrails-godot.md").read_text())
-        self.assertNotIn("client/", (rules / "guardrails-java.md").read_text())
+        self.assertNotIn(rule_bullet("godot"), server)
+        self.assertNotIn(rule_bullet("java"), client)
         settings = json.loads((self.repo / ".claude" / "settings.json").read_text())
         self.assertEqual({k for k in settings["enabledPlugins"] if k.endswith("@ai-kit")},
                          {"guardrails@ai-kit"})
@@ -250,52 +251,84 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
         single = self.run_sync("--check", "--profile", "docs")
         self.assertEqual(single.returncode, 1)
-        self.assertIn("guardrails-java.md is generated but not in profile", single.stdout)
+        self.assertIn("sync: server/AGENTS.md path-rule block is generated but not in profile", single.stdout)
         alone = self.run_sync("--profile", "godot:client")
         self.assertEqual(alone.returncode, 0, alone.stdout + alone.stderr)
-        # no java profile: the java rule takes the folders of every profile the map sends it to
-        self.assertIn('  - "client/**/*.java"', (rules / "guardrails-java.md").read_text().splitlines())
+        # no java profile: a rule named after no profile (code) takes the folders of every profile the map sends it to,
+        # and the java rule gets no block (a path rule loads only on a match, a block every session)
+        client = self.text("client/AGENTS.md")
+        self.assertIn("`client/**/*.java`", client)
+        self.assertNotIn(rule_bullet("java"), client)
+        self.assertFalse((self.repo / "server" / "AGENTS.md").exists())
 
-    def test_python_profile_scopes_the_python_rule(self):  # KIT-045
+    def test_python_profile_scopes_the_python_rule(self):  # KIT-045; KIT-081 stage 3: through the AGENTS.md blocks
+        for folder in ("client", "server", "platform", "tools"):
+            (self.repo / folder).mkdir()
         result = self.run_sync("--profile", "docs,godot:client,java:server,python:platform,python:tools")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        rules = self.repo / ".claude" / "rules"
-        python_rule = (rules / "guardrails-python.md").read_text().splitlines()
-        for glob in ("platform/**/*.py", "tools/**/*.py", "platform/**/pyproject.toml"):
-            self.assertIn(f'  - "{glob}"', python_rule)
-        self.assertNotIn("client/", "\n".join(python_rule))
-        self.assertNotIn("platform/", (rules / "guardrails-godot.md").read_text())
-        self.assertNotIn("platform/", (rules / "guardrails-java.md").read_text())
+        self.assertFalse((self.repo / ".claude" / "rules").exists())
+        python = rule_bullet("python")
+        for folder in ("platform", "tools"):
+            agents = self.text(f"{folder}/AGENTS.md")
+            self.assertIn(python, agents)
+            for glob in (f"{folder}/**/*.py", f"{folder}/**/pyproject.toml"):  # each folder's block lists its globs
+                self.assertIn(f"`{glob}`", agents)
+        self.assertNotIn(python, self.text("client/AGENTS.md"))
+        heading = next(line for line in self.text("platform/AGENTS.md").splitlines() if line.startswith("### `python`"))
+        self.assertNotIn("client/", heading)
+        for rule in ("godot", "java"):
+            self.assertNotIn(rule_bullet(rule), self.text("platform/AGENTS.md"))
         check = self.run_sync("--check", "--profile", "python:tools,docs,python:platform,godot:client,java:server")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
 
-    def test_rule_from_the_old_plugin_name_is_replaced(self):  # KIT-047
-        result = self.run_sync("--profile", "docs,godot")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+    def old_copy_goes(self, plugin):
+        """A godot rule copy an older sync wrote under the plugin's name: --check names it and a sync removes it."""
         rules = self.repo / ".claude" / "rules"
-        old = rules / "dev-godot.md"
-        old.write_text((rules / "guardrails-godot.md").read_text())
+        rules.mkdir(parents=True)
+        old = rules / f"{plugin}-godot.md"
+        old.write_text(old_copy("godot", plugin))
         check = self.run_sync("--check", "--profile", "docs,godot")
         self.assertEqual(check.returncode, 1)
-        self.assertIn("dev-godot.md is generated but not in profile", check.stdout)
+        self.assertIn(f"sync: kit rule copy left: .claude/rules/{plugin}-godot.md", check.stdout)
         write = self.run_sync("--profile", "docs,godot")
         self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
-        self.assertFalse(old.exists())
-        self.assertTrue((rules / "guardrails-godot.md").is_file())
+        self.assertIn(f"sync: removed .claude/rules/{plugin}-godot.md: a kit rule copy", write.stdout)
+        self.assertFalse(rules.exists(), "no copy under any name, and no empty folder")
+        self.assertEqual(self.run_sync("--check", "--profile", "docs,godot").returncode, 0)
 
-    def test_rule_from_the_core_plugin_name_is_replaced(self):  # KIT-055
-        result = self.run_sync("--profile", "docs,godot")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+    def test_rule_from_the_old_plugin_name_is_replaced(self):  # KIT-047; KIT-081 stage 3: by the plugin's hook
+        self.old_copy_goes("dev")
+
+    def test_rule_from_the_core_plugin_name_is_replaced(self):  # KIT-055; KIT-081 stage 3: by the plugin's hook
+        self.old_copy_goes("core")
+
+    def test_a_synced_repo_loses_its_kit_rule_copies_and_keeps_its_own(self):  # KIT-081 stage 3
         rules = self.repo / ".claude" / "rules"
-        old = rules / "core-godot.md"
-        old.write_text((rules / "guardrails-godot.md").read_text())
-        check = self.run_sync("--check", "--profile", "docs,godot")
-        self.assertEqual(check.returncode, 1)
-        self.assertIn("core-godot.md is generated but not in profile", check.stdout)
-        write = self.run_sync("--profile", "docs,godot")
+        rules.mkdir(parents=True)
+        for rule in ("json", "spec"):
+            (rules / f"guardrails-{rule}.md").write_text(old_copy(rule))
+        (rules / "my-own.md").write_text("mine\n")
+        before = self.text("AGENTS.md")
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 1, check.stdout + check.stderr)
+        for rule in ("json", "spec"):
+            self.assertIn(f"sync: kit rule copy left: .claude/rules/guardrails-{rule}.md", check.stdout)
+        self.assertIn(f"run platforms/tools/sync-project.sh {self.repo} once", check.stdout)
+        self.assertNotIn("my-own.md", check.stdout)
+        write = self.run_sync()
         self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
-        self.assertFalse(old.exists())
-        self.assertTrue((rules / "guardrails-godot.md").is_file())
+        for rule in ("json", "spec"):
+            self.assertIn(f"sync: removed .claude/rules/guardrails-{rule}.md: a kit rule copy", write.stdout)
+            self.assertFalse((rules / f"guardrails-{rule}.md").exists())
+        self.assertIn("sync: kept .claude/rules/my-own.md: the project's own", write.stdout)
+        self.assertEqual((rules / "my-own.md").read_text(), "mine\n")
+        self.assertEqual(self.text("AGENTS.md"), before, "the Codex AGENTS.md block stays (KIT-081 stage 3)")
+        self.assertIn(rule_bullet("json"), before)
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        again = self.run_sync()
+        self.assertNotIn("sync: removed", again.stdout)
+        self.assertNotIn("sync: kept", again.stdout, "kept lines only while a migration runs")
 
     def test_check_reports_the_core_plugin_in_settings(self):  # KIT-055
         result = self.run_sync("--profile", "docs")
@@ -337,7 +370,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         write = self.run_sync()
         self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
         self.assertIn("sync: profile=docs,godot:client,java:server (CLAUDE.md)", write.stdout)
-        self.assertIn("[0 written, 0 removed]", write.stdout)
+        self.assertIn("path rules from the guardrails plugin's hook)", write.stdout)  # KIT-081 stage 3: no copy count
         self.assertNotIn("sync: removed", write.stdout)
         self.assertEqual(before, self.claude_state() | {"CLAUDE.md": self.text("CLAUDE.md")})
 
@@ -379,24 +412,28 @@ class SyncProjectCheckTest(unittest.TestCase):
     def text(self, rel):
         return (self.repo / rel).read_text()
 
-    def test_rule_paths_scope_a_rule_and_check_flags_drift(self):
+    def test_rule_paths_scope_a_rule_and_check_flags_drift(self):  # KIT-081 stage 3: through the AGENTS.md blocks
+        for folder in ("game/protocol", "game/client", "game/content", "client"):
+            (self.repo / folder).mkdir(parents=True)
         self.spec_md("sdd:\n  rule_paths:\n    json: [game/protocol]\n    godot: [game/client]\n")
         result = self.run_sync("--profile", "docs,godot:client")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        rules = self.repo / ".claude" / "rules"
-        json_rule = (rules / "guardrails-json.md").read_text().splitlines()
-        self.assertIn('  - "game/protocol/**/*.json"', json_rule)
-        self.assertNotIn('  - "**/*.json"', json_rule)
+        protocol = self.text("game/protocol/AGENTS.md")
+        self.assertIn(rule_bullet("json"), protocol)
+        self.assertIn("`game/protocol/**/*.json`", protocol)
+        self.assertNotIn("`**/*.json`", protocol + self.text("AGENTS.md"))
         # the parameter wins over the profile folder
-        self.assertIn('  - "game/client/**/*.gd"', (rules / "guardrails-godot.md").read_text().splitlines())
-        self.assertNotIn('"client/', (rules / "guardrails-godot.md").read_text())
-        self.assertIn('  - "docs/spec/**/*.md"', (rules / "guardrails-spec.md").read_text().splitlines())
+        game_client = self.text("game/client/AGENTS.md")
+        self.assertIn("`game/client/**/*.gd`", game_client)
+        self.assertNotIn("`client/", game_client)
+        self.assertNotIn(rule_bullet("godot"), self.text("client/AGENTS.md"))
+        self.assertIn("`docs/spec/**/*.md`", self.text("docs/spec/AGENTS.md"))
         check = self.run_sync("--check", "--profile", "docs,godot:client")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
         self.spec_md("sdd:\n  rule_paths:\n    json: [game/content]\n    godot: [game/client]\n")
         drift = self.run_sync("--check", "--profile", "docs,godot:client")
         self.assertEqual(drift.returncode, 1)
-        self.assertIn("sync: .claude/rules/guardrails-json.md diverges from the kit", drift.stdout)
+        self.assertIn("sync: game/content/AGENTS.md path-rule block missing", drift.stdout)
 
     def test_rule_paths_name_a_kit_rule(self):
         self.spec_md("sdd:\n  rule_paths: {nope: [x]}\n")
@@ -626,7 +663,7 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(data["enabledPlugins"], {"other@market": True, "guardrails@ai-kit": True})
         self.assertEqual(data["hooks"], {"PreToolUse": [self.OWN_HOOK], "Stop": [self.OWN_HOOK]})
         self.assertEqual(data["permissions"], {"allow": ["Bash(ls)"]})
-        self.assertTrue((self.repo / ".claude" / "rules" / "guardrails-godot.md").is_file())
+        self.assertFalse((self.repo / ".claude" / "rules").exists())  # KIT-081 stage 3: the plugin's hook gives them
         check = self.run_sync("--check")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
         self.assertIn("sync: profile=docs,godot:client (CLAUDE.md)", check.stdout)
@@ -711,11 +748,12 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(before, self.claude_state() | {"CLAUDE.md": self.text("CLAUDE.md")})
 
     def test_plugins_mode_keeps_the_kit_clone_as_the_fallback(self):  # B2: an unsynced or plugins-mode repo
+        (self.repo / "client").mkdir()
         result = self.run_sync("--profile", "docs,godot:client")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        rule = (self.repo / ".claude" / "rules" / "guardrails-code.md").read_text()
+        rule = self.text("client/AGENTS.md")  # KIT-081 stage 3: the block carries the code rule; the hook its location
         self.assertIn(HEAD_TOOL + "tools/complexity.py", rule)
-        self.assertIn("~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>", rule)
+        self.assertIn("`~/.ai-kit/plugins/guardrails/skills/<skill>/`", rule)
         self.assertNotIn("guardrails-pinned", rule + (self.repo / "AGENTS.md").read_text())
         self.assertNotIn(PINNED_TOOL, "".join(self.vendored_texts().values()))
 
@@ -751,13 +789,12 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertNotIn(".claude/skills/", client)  # KIT-081 stage 2b: no project copy
 
     def test_rule_copy_says_where_kit_skills_live(self):  # review of PR #261 (N4): Claude can open the references
+        # KIT-081 stage 3: no copy; the plugin's hook gives the rule with that line, naming its own plugin folder
+        # (test_hooks_path_rules.py), and the AGENTS.md intro says it once per block
         (self.repo / "client").mkdir()
         result = self.run_sync("--profile", "docs,godot:client")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        lines = self.text(".claude/rules/guardrails-code.md").splitlines()
-        marker = next(i for i, line in enumerate(lines) if line.startswith("<!-- agent-rules-kit: generated from"))
-        self.assertEqual(lines[marker + 1], "Kit files this rule names: skill `<skill>`, reference `<file>` is"
-                         " `~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`.")  # KIT-081 stage 2b
+        self.assertFalse((self.repo / ".claude" / "rules").exists())
         self.assertNotIn("Kit files this rule names:", self.text("client/AGENTS.md"))
         check = self.run_sync("--check", "--profile", "docs,godot:client")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
@@ -860,6 +897,16 @@ def rule_bullet(name):
     """The first always/never bullet of the kit rule, a line its AGENTS.md block must carry."""
     body = (KIT / "plugins" / "guardrails" / "rules" / f"{name}.md").read_text().split("\n---\n", 1)[1]
     return next(line for line in body.splitlines() if line.startswith("- "))
+
+
+def old_copy(name, plugin="guardrails", version="14.0.0"):
+    """A .claude/rules copy as sync-project.sh rendered it before KIT-081 stage 3: the kit rule's frontmatter, the
+    generated marker, the line naming the kit files, then the body."""
+    head, body = (KIT / "plugins" / "guardrails" / "rules" / f"{name}.md").read_text().split("\n---\n", 1)
+    return (f"{head}\n---\n<!-- agent-rules-kit: generated from plugins/{plugin}/rules/{name}.md by "
+            f"platforms/tools/sync-project.sh; kit {version}; do not edit -->\n"
+            "Kit files this rule names: skill `<skill>`, reference `<file>` is"
+            " `~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`.\n" + body)
 
 
 class UnvendorSettingsTest(unittest.TestCase):

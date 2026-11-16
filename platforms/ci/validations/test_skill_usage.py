@@ -250,6 +250,17 @@ class RuleLoadsTest(unittest.TestCase):
         self.assertEqual(codex_data["references"], {"sdd-implement/godot/README.md": {"sessions": 1},
                                                     "sdd-implement/tdd.md": {"sessions": 2}})
 
+    def test_counts_a_path_rule_hook_delivery_under_its_rule(self):  # KIT-081 stage 3
+        plugin_rules = "/Users/x/.claude/plugins/cache/ai-kit/guardrails/15.0.0/rules/"
+        with open(self.log, "a", encoding="utf-8") as handle:
+            for record in (load(plugin_rules + "godot.md", "s6", reason="kit_hook_path_match"),
+                           load(plugin_rules + "python.md", "s6", reason="kit_hook_path_match")):
+                handle.write(json.dumps(record) + "\n")
+        rules = json.loads(self.run_rules("--json")[1])["claude"]["rules"]
+        self.assertEqual(rules["godot"], {"loads": 4, "sessions": 3, "path_glob_match": 3, "kit_hook_path_match": 1})
+        self.assertEqual(rules["python"]["kit_hook_path_match"], 1)
+        self.assertNotIn("godot.md", rules)
+
     def test_all_project_and_window(self):
         result = json.loads(self.run_rules("--json", "--all", "--days", "60")[1])
         self.assertEqual(result["claude"]["rules"]["CLAUDE.md"]["session_start"], 1)

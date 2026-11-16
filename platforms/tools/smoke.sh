@@ -506,7 +506,7 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
   cat "$ROOT/doctor-stub-no-user-rules.out" >&2
   fail "doctor failed with the default AI_KIT_USER_RULES (0)"
 fi
-grep -Fq 'ok: user-level claude rules disabled (AI_KIT_USER_RULES=0); repos carry .claude/rules via sync-project.sh' \
+grep -Fq 'ok: user-level claude rules disabled (AI_KIT_USER_RULES=0); the guardrails plugin gives them in synced repos' \
   "$ROOT/doctor-stub-no-user-rules.out" || fail "AI_KIT_USER_RULES=0 switch was not reported"
 [[ "$(find "$STUB_HOME/.claude/rules" -type l | wc -l | tr -d ' ')" == "0" ]] \
   || fail "user-level rule symlinks remained under AI_KIT_USER_RULES=0"
@@ -989,7 +989,8 @@ set -e
 [[ ! -e "$ROOT/proj2/.claude/settings.json" ]] || fail "settings.json was written despite the refusal"
 [[ ! -e "$ROOT/proj2/.github" ]] || fail ".github was written despite the refusal"
 
-# sync-project.sh also renders the profile's path rules into .claude/rules/
+# KIT-081 stage 3: sync-project.sh copies no path rule; the guardrails plugin's hook gives them. A kit-marked copy an
+# older sync wrote is a leftover --check names and a sync removes, and the project's own rule stays
 # (restricted PATH like bootstrap/doctor above; still the $SOURCE fixture).
 if ! env PATH="$RESTRICTED_PATH" \
     "$SOURCE/platforms/tools/sync-project.sh" --profile godot "$ROOT/proj" \
@@ -997,10 +998,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-rules.out" >&2
   fail "sync-project rules install failed"
 fi
-[[ -f "$ROOT/proj/.claude/rules/guardrails-godot.md" ]] \
-  || fail "sync-project did not write .claude/rules/guardrails-godot.md"
-grep -Fq '<!-- agent-rules-kit: generated from plugins/guardrails/rules/godot.md' \
-  "$ROOT/proj/.claude/rules/guardrails-godot.md" || fail "generated rule marker missing"
+[[ ! -e "$ROOT/proj/.claude/rules" ]] || fail "sync-project wrote .claude/rules (KIT-081 stage 3: the hook gives them)"
 first_claude_hashes="$(find "$ROOT/proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
 if ! env PATH="$RESTRICTED_PATH" \
     "$SOURCE/platforms/tools/sync-project.sh" --profile godot "$ROOT/proj" \
@@ -1015,28 +1013,31 @@ if ! env PATH="$RESTRICTED_PATH" \
     "$SOURCE/platforms/tools/sync-project.sh" --check --profile godot "$ROOT/proj" \
     >"$ROOT/sync-rules-check.out" 2>&1; then
   cat "$ROOT/sync-rules-check.out" >&2
-  fail "sync-project --check failed on generated .claude/rules"
+  fail "sync-project --check failed on a project without .claude/rules"
 fi
-printf 'x\n' >> "$ROOT/proj/.claude/rules/guardrails-godot.md"
-set +e
-sync_rules_drift_out="$(env PATH="$RESTRICTED_PATH" \
-  "$SOURCE/platforms/tools/sync-project.sh" --check --profile godot "$ROOT/proj" 2>&1)"
-sync_rules_drift_status=$?
-set -e
-[[ "$sync_rules_drift_status" -eq 1 ]] || fail "sync-project --check accepted an edited rule copy"
-[[ "$sync_rules_drift_out" == *"diverges from the kit"* ]] \
-  || fail "sync-project --check did not report the rule drift"
+mkdir -p "$ROOT/proj/.claude/rules"
+printf '%s\n' '---' 'paths:' '  - "**/*.gd"' '---' \
+  '<!-- agent-rules-kit: generated from plugins/guardrails/rules/godot.md by platforms/tools/sync-project.sh; kit 14.0.0; do not edit -->' \
+  '- Always: a rule copy an older sync wrote.' > "$ROOT/proj/.claude/rules/guardrails-godot.md"
 printf 'mine\n' > "$ROOT/proj/.claude/rules/my-own.md"
+set +e
+sync_rules_left_out="$(env PATH="$RESTRICTED_PATH" \
+  "$SOURCE/platforms/tools/sync-project.sh" --check --profile godot "$ROOT/proj" 2>&1)"
+sync_rules_left_status=$?
+set -e
+[[ "$sync_rules_left_status" -eq 1 ]] || fail "sync-project --check accepted a kit rule copy left"
+[[ "$sync_rules_left_out" == *"kit rule copy left: .claude/rules/guardrails-godot.md"* ]] \
+  || fail "sync-project --check did not name the kit rule copy left"
+[[ "$sync_rules_left_out" != *"my-own.md"* ]] || fail "sync-project --check named the project's own rule"
 if ! env PATH="$RESTRICTED_PATH" \
-    "$SOURCE/platforms/tools/sync-project.sh" --profile docs "$ROOT/proj" \
-    >"$ROOT/sync-rules-docs.out" 2>&1; then
-  cat "$ROOT/sync-rules-docs.out" >&2
-  fail "sync-project --profile docs failed"
+    "$SOURCE/platforms/tools/sync-project.sh" --profile godot "$ROOT/proj" \
+    >"$ROOT/sync-rules-migrate.out" 2>&1; then
+  cat "$ROOT/sync-rules-migrate.out" >&2
+  fail "sync-project did not migrate the kit rule copies"
 fi
-[[ ! -e "$ROOT/proj/.claude/rules/guardrails-godot.md" ]] \
-  || fail "stale generated rule survived the profile switch"
-[[ -f "$ROOT/proj/.claude/rules/guardrails-spec.md" ]] \
-  || fail "sync-project did not write .claude/rules/guardrails-spec.md"
+[[ ! -e "$ROOT/proj/.claude/rules/guardrails-godot.md" ]] || fail "the kit rule copy survived the sync"
+grep -Fq 'sync: kept .claude/rules/my-own.md' "$ROOT/sync-rules-migrate.out" \
+  || fail "sync-project did not name the project's own rule it kept"
 [[ "$(cat "$ROOT/proj/.claude/rules/my-own.md")" == "mine" ]] \
   || fail "hand-written .claude/rules file was touched"
 
@@ -1068,14 +1069,13 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-mono.out" >&2
   fail "multi-profile sync-project install failed"
 fi
-for r in guardrails-spec guardrails-godot guardrails-java; do
-  [[ -f "$ROOT/mono-proj/.claude/rules/$r.md" ]] || fail "multi-profile sync did not write .claude/rules/$r.md"
-done
-grep -Fqx '  - "client/**/*.gd"' "$ROOT/mono-proj/.claude/rules/guardrails-godot.md" \
+[[ ! -e "$ROOT/mono-proj/.claude/rules" ]] || fail "multi-profile sync wrote .claude/rules (KIT-081 stage 3)"
+# the :<dir> scopes reach the AGENTS.md blocks Codex reads
+grep -Fq 'client/**/*.gd' "$ROOT/mono-proj/client/AGENTS.md" \
   || fail "godot:client did not scope the godot rule to client/"
-grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/guardrails-java.md" \
+grep -Fq 'server/**/pom.xml' "$ROOT/mono-proj/server/AGENTS.md" \
   || fail "java:server did not scope the java rule to server/"
-grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/guardrails-spec.md" \
+grep -Fq 'docs/spec/**/*.md' "$ROOT/mono-proj/docs/spec/AGENTS.md" \
   || fail "the unscoped docs profile changed the spec rule globs"
 [[ ! -e "$ROOT/mono-proj/.claude/skills" ]] || fail "multi-profile sync copied kit skills into the repo (KIT-081)"
 grep -Fq "; profile $mono_profile; AGENTS.md is the source -->" "$ROOT/mono-proj/CLAUDE.md" \
@@ -1101,7 +1101,7 @@ sync_mono_single_out="$(env PATH="$RESTRICTED_PATH" \
 sync_mono_single_status=$?
 set -e
 [[ "$sync_mono_single_status" -eq 1 ]] || fail "single-profile --check accepted the monorepo's extra rules"
-[[ "$sync_mono_single_out" == *"guardrails-godot.md is generated but not in profile"* ]] \
+[[ "$sync_mono_single_out" == *"client/AGENTS.md path-rule block is generated but not in profile"* ]] \
   || fail "single-profile --check did not name the rule it would remove"
 set +e
 sync_mono_escape_out="$(env PATH="$RESTRICTED_PATH" \
@@ -1158,4 +1158,4 @@ if ! "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/nospec-proj" >"$RO
   fail "sync-project --check failed on a repo without docs/spec"
 fi
 
-printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project, rules copy, no vendored mode, multi-profile sync, no-spec repo)\n' "$skill_count"
+printf 'smoke: OK (%s skills, app fallback, cleanup, symlink safety, manifests, sync-project, no rules copy, no vendored mode, multi-profile sync, no-spec repo)\n' "$skill_count"

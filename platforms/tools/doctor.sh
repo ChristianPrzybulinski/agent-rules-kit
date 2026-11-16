@@ -193,7 +193,8 @@ ensure_claude_links() {
 
   local rule_file
   local plugin
-  # Default 0 since P2-15: consumer repos carry .claude/rules; set 1 to keep user-level symlinks.
+  # Default 0 since P2-15: in a synced repository the guardrails plugin's hook gives the rules (KIT-081 stage 3; the
+  # repository's .claude/rules copies before it); set 1 to keep user-level symlinks.
   if [[ "${AI_KIT_USER_RULES:-0}" == "0" ]]; then
     for destination in "$HOME/.claude/rules/"*.md; do
       [[ -L "$destination" ]] || continue
@@ -205,7 +206,7 @@ ensure_claude_links() {
           ;;
       esac
     done
-    ok "user-level claude rules disabled (AI_KIT_USER_RULES=0); repos carry .claude/rules via sync-project.sh"
+    ok "user-level claude rules disabled (AI_KIT_USER_RULES=0); the guardrails plugin gives them in synced repos"
     return
   fi
   for rule_file in "$KIT"/plugins/*/rules/*.md; do

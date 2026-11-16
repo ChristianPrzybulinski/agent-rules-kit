@@ -29,7 +29,6 @@ paths:
 ---
 <!-- agent-rules-kit: generated from plugins/guardrails/rules/{name}.md by platforms/tools/sync-project.sh; kit \
 {version}; do not edit -->
-Kit files this rule names: skill `<skill>` is `~/.ai-kit/plugins/guardrails/skills/<skill>/`.
 
 - Always follow the {name} rule.
 """

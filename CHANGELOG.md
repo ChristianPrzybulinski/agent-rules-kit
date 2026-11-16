@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- KIT-081 (stage 3): the `guardrails` plugin gives Claude Code the kit's path rules. A PostToolUse hook, `plugins/guardrails/hooks/path_rules.py` (matcher `^(Read|Edit|Write|MultiEdit|NotebookEdit|Bash|Grep)$`), acts only in a project whose `CLAUDE.md` starts with the `sync-project.sh` marker: when a call names a file a rule's `paths` match (`file_path`, `notebook_path`, `path`, or a path-like word of a Bash command), it adds each rule the marker's profiles select, once per session, as `additionalContext`, and logs the delivery to the rule-load log with `load_reason` `kit_hook_path_match`, which `skill_usage.py --rules` counts under the rule. It never blocks a tool; median 94 ms per call on the owner's Mac (system Python 3.9.6). Measured before the change: on the five `rule` eval cases the hook scored as the `.claude/rules` copy did (the KIT-081 record has the method and numbers). The five `rule` eval fixtures now write the `CLAUDE.md` marker and copy no rule, so they measure the hook; `check_kit.py` runs the hook on six cases in a throwaway synced project.
+
 ### Fixed
 - KIT-083: `sync_unvendor.py remove` writes `.claude/settings.json` only when it takes the pinned key or a pinned hook out of it; run on its own, it reformatted a settings file it did not change.
 - KIT-083: `sync-project.sh --check` no longer reports a workflow line whose only mention of `.github/spec-lint/` is a trailing comment, and names an entry of an `on:` `paths` or `paths-ignore` filter that does as a stale trigger to remove, instead of telling it to run the spec tools through the action.
@@ -13,10 +16,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Removed
 - KIT-083: the shipped tool `platforms/tools/vendor.sh`, with `platforms/kits/third-party/` (`skills.lock` and its README), `platforms/ci/schemas/skills-lock.schema.json`, `check_kit.py`'s lock check and the CONTRIBUTING section `## Third-party skills`: the lock held no entry since KIT-070 removed `grilling`, so the tool had nothing to vendor.
 - KIT-083: the `skills/` lines of `platforms/tools/sync-profiles.txt`, which chose the vendored copies KIT-081 stage 2b removed; `check_kit.py` now requires one line per rule and fails on a skill line.
+- KIT-081 (stage 3): the `.claude/rules/<plugin>-<rule>.md` copies. `sync-project.sh` no longer writes `.claude/rules/`, no longer refuses an unmarked file under a copy's name, and its summary names the plugin's hook instead of a copy count; `platforms/tools/sync_rules.py` removes the kit-marked copies an older sync wrote (migration below) and `--check` fails on each one left, naming it. The `AGENTS.md` path-rule blocks stay, since Codex reads only `AGENTS.md`; Codex's stage 3 waits for a Codex probe. Removing a project destination makes the next release MAJOR.
 
 ### Changed
 - KIT-083: the spec-tools action fails when the runner already holds a `~/.ai-kit` at another commit than the action's (the `HEAD` of its checkout, else the SHA the caller pins, `github.action_ref`), or at an unknown one, instead of warning while a justfile imported that other kit; the same commit passes with a notice.
 - KIT-083: the `CI=1` gdtoolkit switch of the GDScript tool tests lives in one helper, `platforms/ci/validations/needs_parser.py`, with its own unit test, instead of three copies.
+- KIT-081 (stage 3): the profile map moves from `platforms/tools/sync-profiles.txt` to `plugins/guardrails/hooks/sync-profiles.txt`, beside the hook that reads it, because the plugin install holds only the plugin folder; `sync-project.sh` and `check_kit.py` read it there. The `AGENTS.md` block intro says Claude Code receives the same rules from the plugin's hook, so a synced project's `--check` reports its blocks until the next sync, and the rendered rule behind a block no longer carries the kit-files line, which only the copies needed. `doctor.sh`'s `AI_KIT_USER_RULES=0` line says the plugin gives the rules in synced repositories.
+
+### Migration
+- KIT-081 (stage 3): run `sync-project.sh <repo>` once and commit the result: it writes the `CLAUDE.md` marker the hook needs, then removes each `.claude/rules/*.md` that carries the generated `<!-- agent-rules-kit: generated from` line (one `sync: removed` line each, `guardrails-`, `core-` and `dev-` names alike), names the project's own rules it kept (`sync: kept`) and rewrites the `AGENTS.md` block intro; nothing is read or removed through a symbolic link. `sync-project.sh --check` names each copy left. A machine needs the plugin release that carries the hook (`claude plugin marketplace update ai-kit`, which `refresh.sh` runs) before the copies go, or its sessions lose the rules until it updates.
 
 ## [14.0.0] - 2026-11-16
 

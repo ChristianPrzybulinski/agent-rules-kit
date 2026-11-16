@@ -104,6 +104,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-080-issue-bundle-13-1.md`](KIT-080-issue-bundle-13-1.md) | 13.1.0 issue bundle | done | #300 | #301 |
 | [`KIT-081-no-copies-in-projects.md`](KIT-081-no-copies-in-projects.md) | the kit copies nothing into a project | confirmed | #308 | |
 | [`KIT-082-fewer-check-kit-runs.md`](KIT-082-fewer-check-kit-runs.md) | fewer check_kit runs, gdtoolkit in CI | done | #311 | #312 |
-| [`KIT-083-kit-081-review-follow-ups.md`](KIT-083-kit-081-review-follow-ups.md) | the small findings of the KIT-081 reviews | in-progress | #317 | |
+| [`KIT-083-kit-081-review-follow-ups.md`](KIT-083-kit-081-review-follow-ups.md) | the small findings of the KIT-081 reviews | done | #317 | #318 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

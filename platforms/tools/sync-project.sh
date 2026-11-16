@@ -9,15 +9,13 @@
 #                                                          .claude/settings.json (ai-kit marketplace at
 #                                                          ref stable (KIT-081) +
 #                                                          enabledPlugins guardrails@ai-kit +
-#                                                          includeGitInstructions false) and
-#                                                          .claude/rules/guardrails-<rule>.md (the profile's
-#                                                          path rules, marked as generated)
+#                                                          includeGitInstructions false)
 #        sync-project.sh --check [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>
 #                                                          compares all of them with the kit and scans the
 #                                                          repo's *.md for obsolete kit paths and
 #                                                          citations of skills KIT-070 removed;
 #                                                          exit 1 on any divergence or stale citation
-# --profile selects the kit rules copied into .claude/rules/: platforms/tools/sync-profiles.txt names the profiles that
+# --profile selects the kit rules a project receives: plugins/guardrails/hooks/sync-profiles.txt names the profiles that
 # receive each one (KIT-047). Without it the list the generated CLAUDE.md marker records is used, then (a repository
 # synced in the vendored mode before KIT-081 stage 2b) the list .claude/skills/KIT_MANIFEST.json records; a repo with
 # neither gets the profile inferred, first match wins: project.godot (godot), pom.xml (java), docs/spec/ (docs). The
@@ -28,8 +26,11 @@
 # after that profile to <dir>/ ("**/*.gd" renders as "client/**/*.gd"; java:server leaves the
 # godot rule alone), and any other rule to the folders of every profile that receives the rule.
 # The list is stored sorted and deduplicated, which is the form the CLAUDE.md marker records.
-# A .claude/rules/*.md destination that exists without the generated marker refuses
-# the sync before any write; a marked file that falls out of the profile is removed.
+# No rule is copied into the project since KIT-081 stage 3: the guardrails plugin's hook
+# (plugins/guardrails/hooks/path_rules.py) gives Claude Code each rule the CLAUDE.md marker's profiles select when a
+# tool call reads or edits a file its globs match. Install removes the kit-marked .claude/rules copies older syncs wrote
+# (platforms/tools/sync_rules.py) and keeps the project's own rules with a "sync: kept" line; --check names each copy
+# left.
 # The project uses the installed guardrails@ai-kit plugin, which follows the kit's stable branch (KIT-081): the
 # settings enable only that plugin (the kit ships one, KIT-047). The vendored mode (--vendor-skills, KIT-072) is gone:
 # the flag exits 2, and a repository that still holds its state (KIT_MANIFEST.json, the .claude/skills/ copies and
@@ -40,8 +41,9 @@
 # docs/spec/spec.md may set sdd.rule_paths, kit rule name -> folders (KIT-067): it scopes that rule's globs
 # like :<dir> does and wins over the profile folders; "." keeps the whole repository. A key that names no kit
 # rule, or an sdd block check_spec.py refuses, stops both modes before any write (exit 2).
-# Each rendered rule's body also goes into a generated block in the AGENTS.md of each folder its globs start in
-# (platforms/tools/sync_agents_md.py), for runtimes that load no rule by path. A rule named after a profile
+# Each rendered rule's body goes into a generated block in the AGENTS.md of each folder its globs start in
+# (platforms/tools/sync_agents_md.py), for runtimes that load no rule by path. The blocks stay after KIT-081 stage 3:
+# Codex reads only AGENTS.md, and a Codex equivalent of the hook waits for a Codex probe. A rule named after a profile
 # (godot, java, python) gets that block only when $PROFILE has that profile or sdd.rule_paths lists it. A folder
 # that does not exist gets no block; --check reports a missing, diverging or stale block.
 # The kit's just modules and keyed-CSV merge driver run from the installed kit (KIT-081 stage 1b; KIT-074): the
@@ -71,6 +73,8 @@ KIT_PLUGIN="guardrails"
 UNVENDOR_TOOL="$KIT_DIR/platforms/tools/sync_unvendor.py"
 # KIT-081 stage 1: the spec tools run from the kit; removes the old copy, writes or checks the CI workflow.
 SPEC_TOOLS="$KIT_DIR/platforms/tools/sync_spec_tools.py"
+# KIT-081 stage 3: the plugin's hook gives the path rules; removes or reports the .claude/rules copies older syncs wrote.
+RULES_TOOL="$KIT_DIR/platforms/tools/sync_rules.py"
 
 MODE="install"
 PROFILE=""
@@ -98,12 +102,6 @@ MERGE_DRIVER_REL=".github/merge-drivers/keyed_csv_merge.py"
 MERGE_DRIVER_HEADER='"""Keyed-CSV git merge driver (agent-rules-kit KIT-074)' # how line 2 of a vendored copy starts
 SYNC_TMP="$(mktemp -d)"
 trap 'find "$SYNC_TMP" -delete' EXIT
-RULE_MARKER_PREFIX='<!-- agent-rules-kit: generated from '
-# The line under the marker of each .claude/rules copy: Claude Code has no other path to a kit reference a rule names
-# (sdd-implement and sdd-plan are user-only skills). sync_agents_md.py drops it from the AGENTS.md block, whose intro
-# says the same once per folder.
-# shellcheck disable=SC2016  # literal Markdown backticks
-RULE_LOCATION='Kit files this rule names: skill `<skill>`, reference `<file>` is `~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`.'
 version="$(cat "$KIT_DIR/VERSION")"
 
 if [[ -n "$WORKFLOW" && ( "$WORKFLOW" == */* || "$WORKFLOW" == .* ) ]]; then
@@ -136,17 +134,16 @@ merge_driver_step() { # the one-time git config lines, printed and never run
   echo "sync:   git config merge.keyed-csv.driver 'python3 $MERGE_DRIVER_KIT --marker-size %L --path %P %O %A %B'"
 }
 
-rule_files() { # prints "src rel-dest" for every kit rule the map gives to a profile in $PROFILE
+rule_files() { # prints "src <plugin>-<file>" for every kit rule the map gives to a profile in $PROFILE
   local name
   while read -r name; do
-    echo "$KIT_DIR/plugins/$KIT_PLUGIN/rules/$name .claude/rules/$KIT_PLUGIN-$name"
+    echo "$KIT_DIR/plugins/$KIT_PLUGIN/rules/$name $KIT_PLUGIN-$name"
   done < <(map_selected rules)
 }
 
-render_rule() { # $1 = kit rule file, $2 = output path: frontmatter (first --- through the
-  # closing ---) copied byte-for-byte, then the generated marker and the RULE_LOCATION line, then the body unchanged;
-  # when rule_scopes names folders, each globs/paths item "<glob>" becomes one
-  # "<dir>/<glob>" item per folder
+render_rule() { # $1 = kit rule file, $2 = output path, the input of an AGENTS.md block (sync_agents_md.py):
+  # frontmatter (first --- through the closing ---) copied byte-for-byte, then the generated marker, then the body
+  # unchanged; when rule_scopes names folders, each globs/paths item "<glob>" becomes one "<dir>/<glob>" item per folder
   local src="$1" out="$2" line glob dir scopes
   local separators=0 in_list=0
   scopes="$(rule_scopes "$PROFILE" "$src")"
@@ -169,7 +166,6 @@ render_rule() { # $1 = kit rule file, $2 = output path: frontmatter (first --- t
       separators=$((separators + 1))
       if [[ "$separators" -eq 2 ]]; then
         printf '%s\n' "<!-- agent-rules-kit: generated from ${src#"$KIT_DIR"/} by platforms/tools/sync-project.sh; kit $(cat "$KIT_DIR/VERSION"); do not edit -->"
-        printf '%s\n' "$RULE_LOCATION"
       fi
     fi
   done < "$src" > "$out"
@@ -236,7 +232,8 @@ profile_entries() { # $1 = normalized profile list; prints "<name> <dir>" per en
   done
 }
 
-PROFILE_MAP="$KIT_DIR/platforms/tools/sync-profiles.txt"
+# Next to the rules since KIT-081 stage 3: the plugin's path-rule hook reads it from the plugin's installed copy.
+PROFILE_MAP="$KIT_DIR/plugins/$KIT_PLUGIN/hooks/sync-profiles.txt"
 
 map_entries() { # $1 = skills|rules; prints "<name> <profile>..." per map line of that kind, where the
   # single profile "-" means no profile receives it (check_kit.py keeps the map complete)
@@ -301,11 +298,11 @@ agents_block_wanted() { # $1 = kit rule file; a rule named after a profile goes 
 
 render_agents_rules() { # renders every rule an AGENTS.md block carries into a fresh folder under $SYNC_TMP
   # and prints that folder
-  local src rel dir
+  local src name dir
   dir="$(mktemp -d "$SYNC_TMP/agents.XXXXXX")"
-  while read -r src rel; do
+  while read -r src name; do
     agents_block_wanted "$src" || continue
-    render_rule "$src" "$dir/${rel##*/}"
+    render_rule "$src" "$dir/$name"
   done < <(rule_files)
   echo "$dir"
 }
@@ -475,7 +472,7 @@ if [[ "$MODE" == check ]]; then
   FAILED=0
   expected="$(cat "$KIT_DIR/VERSION")"
   # KIT-081 stage 1: no generated .github/spec-lint/ and no workflow line naming it; a repo with docs/spec also needs a
-  # workflow that runs the spec tools. Elsewhere the CLAUDE.md/settings/rules checks below decide the verdict.
+  # workflow that runs the spec tools. Elsewhere the CLAUDE.md, settings and leftover checks below decide the verdict.
   spec_args=()
   [[ -d "$REPO/docs/spec" ]] && spec_args+=(--spec)
   [[ -n "$WORKFLOW" ]] && spec_args+=(--workflow "$WORKFLOW")
@@ -540,32 +537,8 @@ if parts:
     print(f"sync: .claude/settings.json diverges for profile {profile} ({'; '.join(parts)})")
     sys.exit(1)
 PY
-  rule_tmp="$(mktemp)"
-  rule_names=""
-  while read -r src rel; do
-    rule_names="$rule_names${rel##*/} "
-    dst="$REPO/$rel"
-    render_rule "$src" "$rule_tmp"
-    if [[ ! -f "$dst" ]]; then
-      echo "sync: $rel missing"
-      FAILED=1
-    elif ! cmp -s "$rule_tmp" "$dst"; then
-      echo "sync: $rel diverges from the kit"
-      FAILED=1
-    fi
-  done < <(rule_files)
-  rm -f "$rule_tmp"
-  for dst in "$REPO/.claude/rules/"*.md; do
-    [[ -f "$dst" ]] || continue
-    grep -qF "$RULE_MARKER_PREFIX" "$dst" || continue
-    case " $rule_names" in
-      *" ${dst##*/} "*) ;;
-      *)
-        echo "sync: .claude/rules/${dst##*/} is generated but not in profile"
-        FAILED=1
-        ;;
-    esac
-  done
+  # KIT-081 stage 3: the plugin's hook gives the path rules; a kit-marked .claude/rules copy is a leftover
+  python3 "$RULES_TOOL" check "$REPO" || FAILED=1
   # KIT-081 stage 2b: the state the retired vendored mode left (copies, the pin, its settings entries) fails the check
   python3 "$UNVENDOR_TOOL" check "$REPO" || FAILED=1
   python3 "$KIT_DIR/platforms/tools/sync_agents_md.py" check "$REPO" "$expected" "$(render_agents_rules)" || FAILED=1
@@ -586,15 +559,6 @@ if [[ -f "$REPO/.claude/settings.json" ]]; then
   python3 -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8"))' "$REPO/.claude/settings.json" 2>/dev/null \
     || { echo "sync: $REPO/.claude/settings.json is not valid JSON; fix it by hand"; exit 1; }
 fi
-# A .claude/rules destination that exists without the generated marker is repo-owned;
-# refuse before the first write instead of overwriting it.
-while read -r src rel; do
-  dst="$REPO/$rel"
-  if [[ -e "$dst" ]] && ! grep -qF "$RULE_MARKER_PREFIX" "$dst"; then
-    echo "sync: $dst exists and is not generated; move it by hand"
-    exit 1
-  fi
-done < <(rule_files)
 # A target AGENTS.md that is a symbolic link, or one whose path-rule block markers are broken, refuses here too.
 AGENTS_RULES="$(render_agents_rules)"
 python3 "$KIT_DIR/platforms/tools/sync_agents_md.py" preflight "$REPO" "$version" "$AGENTS_RULES" || exit 1
@@ -637,37 +601,8 @@ if current != text:
         fh.write(text)
 PY
 
-# The profile's path rules render into .claude/rules/<plugin>-<rule>.md; only
-# marker-carrying files the profile no longer receives are removed (dev-*.md and
-# sdd-*.md from kits before KIT-047, core-*.md before KIT-055, among them).
-mkdir -p "$REPO/.claude/rules"
-rules_written=0
-rules_removed=0
-rule_names=""
-rule_tmp="$(mktemp)"
-while read -r src rel; do
-  dst="$REPO/$rel"
-  rule_names="$rule_names${rel##*/} "
-  render_rule "$src" "$rule_tmp"
-  if [[ ! -f "$dst" ]] || ! cmp -s "$rule_tmp" "$dst"; then
-    cat "$rule_tmp" > "$dst"
-    rules_written=$((rules_written + 1))
-  fi
-done < <(rule_files)
-rm -f "$rule_tmp"
-for dst in "$REPO/.claude/rules/"*.md; do
-  [[ -f "$dst" ]] || continue
-  grep -qF "$RULE_MARKER_PREFIX" "$dst" || continue
-  case " $rule_names" in
-    *" ${dst##*/} "*) ;;
-    *)
-      rm -f "$dst"
-      rules_removed=$((rules_removed + 1))
-      ;;
-  esac
-done
-
-# Each folder's AGENTS.md carries the rules of its folder for runtimes that load no rule by path (KIT-067).
+# Each folder's AGENTS.md carries the rules of its folder for runtimes that load no rule by path (KIT-067); Codex reads
+# only AGENTS.md, so the blocks stay after KIT-081 stage 3 until a Codex probe shows another way.
 python3 "$KIT_DIR/platforms/tools/sync_agents_md.py" write "$REPO" "$version" "$AGENTS_RULES"
 
 # Each profile folder's justfile imports the installed kit's module (KIT-074, KIT-081 stage 1b: no copy); the
@@ -701,6 +636,10 @@ if [[ ! -f "$REPO/CLAUDE.md" ]] || [[ "$(cat "$REPO/CLAUDE.md")" != "$claude_bod
   printf '%s\n' "$claude_body" > "$REPO/CLAUDE.md"
 fi
 
+# KIT-081 stage 3: the plugin's hook gives the path rules in a project whose CLAUDE.md carries the marker written above,
+# so the .claude/rules copies older syncs wrote go now (kit-marked files only; the project's own rules stay).
+python3 "$RULES_TOOL" remove "$REPO"
+
 # KIT-081 stage 2b: a repository synced in the vendored mode loses the kit-marked copies, the pin and the pin's
 # settings entries; guardrails@ai-kit is already on and CLAUDE.md records the profile, so a failure here loses neither.
 python3 "$UNVENDOR_TOOL" remove "$REPO"
@@ -715,4 +654,4 @@ if [[ -d "$REPO/docs/spec" ]]; then
 else
   echo "sync: no docs/spec, spec tools skipped"
 fi
-echo "sync: $REPO <- kit $version (profile $PROFILE: ${spec_note}CLAUDE.md, .claude/settings.json, .claude/rules [$rules_written written, $rules_removed removed])"
+echo "sync: $REPO <- kit $version (profile $PROFILE: ${spec_note}CLAUDE.md, .claude/settings.json; path rules from the guardrails plugin's hook)"

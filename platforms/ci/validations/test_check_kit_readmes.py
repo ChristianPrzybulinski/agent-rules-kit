@@ -15,7 +15,7 @@ COVERS = ("platforms/ci/validations/check_kit.py",)
 KIT = Path(__file__).resolve().parents[3]
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
 DOCTOR = "platforms/tools/doctor.sh"
-PROFILE_MAP = "platforms/tools/sync-profiles.txt"
+PROFILE_MAP = "plugins/guardrails/hooks/sync-profiles.txt"  # KIT-081 stage 3: next to the rules
 SESSION = "plugins/guardrails/skills/session/SKILL.md"
 # A synthetic description with its 'Use when' and without 'Not for', so the test keys on no wording of the real one.
 NO_NOT_FOR = "A fixture description for the check. Use when a test rewrites the frontmatter."
@@ -89,7 +89,7 @@ class CheckKitReadmesTest(unittest.TestCase):
         (self.kit / "docs" / "INDEX.md").write_text("# docs\n", encoding="utf-8")
         (self.kit / "platforms" / "tools" / "unlisted_tool.sh").write_text("#!/bin/sh\n", encoding="utf-8")
         (self.kit / ".github" / "CONTRIBUTING.md").unlink()
-        # KIT-083: the profile map names the rules sync-project.sh copies; a skill line has no reader since KIT-081
+        # KIT-083: the profile map names the rules each profile receives; a skill line has no reader since KIT-081
         # stage 2b, so one fails, and a rule without its line still fails.
         profile_map = self.kit / PROFILE_MAP
         lines = [line for line in profile_map.read_text(encoding="utf-8").splitlines(keepends=True)

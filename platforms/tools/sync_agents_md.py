@@ -6,9 +6,9 @@ Usage: sync_agents_md.py preflight|write|check <repo> <kit-version> <rules-dir>
 <rules-dir> holds the rules sync-project.sh rendered for the project: frontmatter with the project's globs, the
 generated marker naming the kit rule, then the body. A rule goes to the AGENTS.md of each folder its globs start in
 (the directories before the first wildcard, "." for a glob that starts with one); a folder inside another of the same
-rule adds nothing. Runtimes that load no rule by path (Codex and others) read the block there; Claude Code loads the
-same rules from .claude/rules/, and the root AGENTS.md also through the CLAUDE.md import. A folder that does not exist
-gets no block, and nothing here creates one.
+rule adds nothing. Runtimes that load no rule by path (Codex and others) read the block there; Claude Code receives
+the same rules from the guardrails plugin's path-rule hook (KIT-081 stage 3), and the root AGENTS.md also through the
+CLAUDE.md import. A folder that does not exist gets no block, and nothing here creates one.
 
 preflight refuses, before the sync's first write, a target AGENTS.md that is a symbolic link, a target folder that
 resolves outside the repository and any AGENTS.md whose block markers are broken; preflight and check warn about a
@@ -25,7 +25,6 @@ from pathlib import Path
 BEGIN = "<!-- agent-rules-kit: path rules begin"
 END = "<!-- agent-rules-kit: path rules end -->"
 RULE_MARKER = re.compile(r"^<!-- agent-rules-kit: generated from (\S+) ")
-RULE_LOCATION = "Kit files this rule names:"  # sync-project.sh's line under the marker; the block intro says it once
 HEAD_HOME = "`~/.ai-kit/plugins/guardrails/skills/<skill>/`"  # the kit clone; no project copy since KIT-081 stage 2b
 WILDCARD = re.compile(r"[*?\[{]")
 SKIP_DIRS = {".git", ".claude", ".godot", "node_modules", "target", "build", "dist", ".venv", "venv", "__pycache__"}
@@ -48,8 +47,7 @@ def parse_rule(path):
     marker = RULE_MARKER.match(lines[end + 1]) if end + 1 < len(lines) else None
     if not marker:
         sys.exit(f"sync: {path.name} carries no generated marker after its frontmatter")
-    start = end + 3 if end + 2 < len(lines) and lines[end + 2].startswith(RULE_LOCATION) else end + 2
-    body = "\n".join(lines[start:]).strip()
+    body = "\n".join(lines[end + 2:]).strip()
     return Path(marker.group(1)).stem, lists["paths"] or lists["globs"], body
 
 
@@ -85,7 +83,8 @@ def expected_blocks(repo, version, rules_dir):
                  " do not edit -->",
                  "## Path rules",
                  "",
-                 "Generated for agents that load no rule by path; Claude Code loads the same rules from `.claude/rules/`. A kit"
+                 "Generated for agents that load no rule by path; Claude Code receives the same rules from the guardrails"
+                 " plugin's hook. A kit"
                  " skill or reference a rule names is in " + HEAD_HOME + "."]
         for name, listed, body in sorted(rules):
             parts += ["", f"### `{name}`: " + ", ".join(f"`{glob}`" for glob in listed), "", body]
