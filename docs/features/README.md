@@ -102,5 +102,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-078-docs-consistency.md`](KIT-078-docs-consistency.md) | 13.0.0 docs consistency | done | #290 | #292 |
 | [`KIT-079-correctness-fixes.md`](KIT-079-correctness-fixes.md) | 13.0.x correctness fixes | done | #295 | #296 |
 | [`KIT-080-issue-bundle-13-1.md`](KIT-080-issue-bundle-13-1.md) | 13.1.0 issue bundle | done | #300 | #301 |
+| [`KIT-081-no-copies-in-projects.md`](KIT-081-no-copies-in-projects.md) | the kit copies nothing into a project | confirmed | #N | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
