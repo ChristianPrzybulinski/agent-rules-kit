@@ -3,7 +3,7 @@ id: KIT-081
 title: "The kit copies nothing into a project: skills and CI run the kit's own files"
 status: confirmed
 confirmed: "2026-11-16 (owner, chat of the agent-rules-kit 13.1.0 bundle session, after the platforms/ review: 'Sim, registre')"
-issue: "#N"
+issue: "#308"
 pr: ""
 ---
 
