@@ -22,7 +22,7 @@ $ ./mvnw verify
 
 ## Proof
 
-<!-- One allowlisted command per line; the reviewer re-runs each on a clean checkout. -->
+<!-- One allowlisted command per line; the reviewer reads each line's result recorded for the head (CI or the project's gate record) and re-runs, once on a clean checkout, only a line with none. -->
 
 ```proof
 ```

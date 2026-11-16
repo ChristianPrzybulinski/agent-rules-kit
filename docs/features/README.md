@@ -98,5 +98,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-074-dev-standards.md`](KIT-074-dev-standards.md) | confirmed | #258 | #263 |
 | [`KIT-075-followups.md`](KIT-075-followups.md) | confirmed | #284 | #285 |
 | [`KIT-076-ci-on-pull-requests.md`](KIT-076-ci-on-pull-requests.md) | confirmed | #264 | #272 |
+| [`KIT-077-layered-gate-review-bar.md`](KIT-077-layered-gate-review-bar.md) | confirmed (items 5–6 delivered; 1–4 after 13.0.0) | #281 | #286 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

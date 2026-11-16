@@ -27,14 +27,16 @@ Before a PR or a completion verdict that touches a `.gd` game rule, run from the
 
 Size the proof by what the change can affect, never by file extension: agent instructions, permissions, workflows and executable config are code when they change runtime or security behavior. Unknown impact takes the higher row.
 
+Locally the implementer runs only the TDD loop (the unit and integration tests covering the changed files) and the linters. CI runs the broad suite and every other layer on the pushed head, and its result is the proof the review reads; where the repository runs no CI on each push, the project's gate command or its loop's gate stands in.
+
 | Impact | Proof before "done" |
 |---|---|
 | Docs only: prose, specs, comments; no runtime, permission or workflow effect | Read the diff; run the repository's doc, schema, link or generator checks. No code suite. |
 | Bounded code: one module, no shared boundary | Reproduce the failure first; run the affected tests; add a regression test where it guards meaningful behavior; one independent review. |
-| Shared integration, authorization, persistence or migration | Boundary and negative tests, then the broad affected suite, then one independent review; owner and security approvals stay. |
+| Shared integration, authorization, persistence or migration | Boundary and negative tests locally, the broad affected suite in CI, then one independent review; owner and security approvals stay. |
 
-- Run the narrow checks and the consumer audit first and the broad suite last, once. The § 1 domain gates apply in every row.
-- A recorded result stays valid while the files, dependencies, config, environment and assumptions it ran on are unchanged; a new commit hash alone invalidates nothing. After a correction, re-run what the delta touches and the assumptions it changes; repeat the broad suite only when the delta reaches what it covered.
+- Run the narrow checks and the consumer audit locally; the broad suite runs once, in CI, on the pushed head. The § 1 domain gates apply in every row.
+- A recorded result stays valid while the files, dependencies, config, environment and assumptions it ran on are unchanged; a new commit hash alone invalidates nothing. After a correction, re-run locally what the delta touches and the assumptions it changes; CI repeats the rest on the new head.
 - A green run counts only when the runner's summary shows the expected tests executed, not skipped or zero (recheck after a filter such as `-k` or `-Dtest`); a generated file or export is checked by its content, not its exit code.
 
 Done when: the domain percentages and mutation pass (JVM) or every GDScript rule has a scene-free test, every non-trivial non-domain change has one proof, integrations have happy and sad coverage, and the checks match the change's impact row.

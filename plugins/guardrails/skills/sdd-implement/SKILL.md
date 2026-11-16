@@ -35,13 +35,14 @@ Process: `../sdd-constitution/references/sdd-process.md`. Parameters (`pr_unit`,
 2. Red (`references/tdd.md`): write the test from the REQ's example or counterexample, or the row's CA, before the code. Run it and keep the failing line: it fails for the right reason (the missing behavior), not an import, typo or fixture error. Exceptions, named in the PR's `## Red`: a characterization test of existing behavior (`references/characterization.md`), or a manual proof with why no honest test exists.
 3. Green: the smallest change on the YAGNI ladder (`references/coding.md` § 2), in the layer the Plan names; stack detail in `references/godot/README.md`, `references/java/README.md` or `references/assets.md`.
 4. Refactor with the tests green; no behavior change.
-5. Prove: run the row's Proof literally and the gates its impact needs (`references/test-gates.md` § 3). A failure with no named cause goes to skill `investigate` before any fix.
+5. Prove: run locally only the TDD loop (the row's Proof and the unit and integration tests covering the changed files) and the linters; CI runs the rest on the pushed head (`references/test-gates.md` § 3). A failure with no named cause goes to skill `investigate` before any fix.
 6. Self-check: `references/task-pr.md` § Self-check.
 7. Deliver: commit (`commits_by`), open the PR with `## Red`, the `proof` block and the executor line (`references/task-pr.md`), and mark the item in review.
 
 - A test outside Files that reads a changed file may be widened under `## Files widened`: existing test paths only, each with its reason. An assertion changed to make a test pass is no widening: stop with `[BLOCKER]`.
 - `commits_by: orchestrator`: the executor leaves the worktree uncommitted and the orchestrator commits. A round that cannot run the proof (no shell) says so on its `## Proof` line; the gates run it, and the PR is not READY before they do.
-- In Claude Code (Claude-specific) the user may set `/goal <proof command> exits 0` before the row starts (code.claude.com/docs/en/goal, checked 2026-10-06); in every executor the reviewer re-runs the Proof on a clean checkout.
+- In Claude Code (Claude-specific) the user may set `/goal <proof command> exits 0` before the row starts (code.claude.com/docs/en/goal, checked 2026-10-06); in every executor CI runs the Proof on the pushed head and the review reads that result.
+- A PR that changes skills or rules (agent instructions the repository ships) runs their evals by hand before it opens, and its body cites the command and the score on an `Evals:` line. Evals bill a model and need its credential, so CI runs them only on demand and holds no such secret.
 - A screen, UI, shader or motion change carries its capture in the PR (`--headless` renders nothing: capture from the editor or under `xvfb-run`) or follows the project's capture clause; `visual_approval` names who compares it with the REQ's mock before merge.
 - A secret the work creates is listed under `## Secrets to register` (name, where it lives, what it opens; never the value) for the owner's registry.
 

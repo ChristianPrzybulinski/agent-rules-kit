@@ -2,15 +2,24 @@
 
 Review criteria for this repository, its quality definition of done. Read by Anthropic's hosted Claude Code Review (Team/Enterprise) and by any reviewer, human or agent. Each line ends with the agent-rules-kit rule, or skill section or reference, that holds it; `sdd-constitution` removes the lines a project gate enforces and lists that gate under "Do not report". Flag only gaps that affect correctness or the stated criteria; nits are optional. Report at most five nits; mention the rest as a count. Every finding cites `path:line` in the diff, not an inference from a name.
 
-## Important means
+## The review bar
 
-A finding that breaks a criterion below, breaks behavior, leaks data or blocks a rollback. A Scope, Correctness, Architecture or Security finding (a weak test included) is a blocker in the PR; style, naming and refactoring suggestions are nits at most and may wait for the batch review (`review`, coordination reference).
+One review round per PR. The reviewer reads the diff against the acceptance criteria, plus the required gates' result recorded for the exact head: the CI checks, or the project's gate record where it runs no CI on pull requests. Only when no such result exists for that head does the reviewer run the gates, once, on a clean checkout; beyond that it runs nothing, except a targeted probe at a security boundary where untrusted input enters (`review` § 2).
+
+A finding blocks only for one of four reasons, which it names (`review` § 4):
+- (a) an unmet acceptance criterion;
+- (b) broken existing behavior: a failing test, a reproduced regression, or a test deleted, skipped or loosened without a reason in the PR;
+- (c) a security gap where untrusted input enters, or a secret or personal data exposed in code or logs;
+- (d) a rule lost in a migration.
+
+Everything else, a line below included when it is none of the four, goes to one follow-up issue: edge cases, nits, wording, style, missing extra tests. A small fix with no new mechanism is verified by the coordinator (red check plus a targeted probe), with no new round.
 
 A line ending in `<!-- grep: REGEX -->` (or `grep tests:` for test files only) is checked by `review_checks.py dod` on the diff's added lines; keep the regex narrow enough that a hit is worth reading.
 
 ## Scope
 - The PR does one thing; Conventional Commit title; the body links the issue, FEAT, REQ or DEC it implements (`git` § 3, § 7).
 - Changed paths stay inside the task's Files cell (or the issue's stated scope); anything else is a separate issue or DEBT; `## Files widened` adds only existing tests (`review` § 1, step 4).
+- A PR that changes skills or rules cites, in its body, the eval command run before it was opened and the score (`sdd-implement` § 2).
 
 ## Correctness
 - Each acceptance criterion has a named test; the sad path (invalid input, failure, timeout) is covered (`sdd-implement` reference `tdd.md` § 1-2).

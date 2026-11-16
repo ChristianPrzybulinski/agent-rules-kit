@@ -1,6 +1,7 @@
 ## Checklist
 
-- [ ] `platforms/tools/check.sh` and `platforms/tools/smoke.sh` passed locally (on macOS they also parse the scripts with bash 3.2, which the runner cannot), and `gitleaks git --redact --log-opts="origin/main..HEAD"` was clean before the push
+- [ ] Locally only the TDD loop (the tests covering the changed files) and the linters: `platforms/tools/check.sh` passed (on macOS it also parses the scripts with bash 3.2, which the runner cannot), `platforms/tools/smoke.sh` too when a script it runs changed, and `gitleaks git --redact --log-opts="origin/main..HEAD"` was clean before the push; CI runs the rest
+- [ ] A change to a skill or a rule: the evals ran by hand before this PR, and the body has an `Evals:` line with the command and the score (`.github/CONTRIBUTING.md` § Evals)
 - [ ] The required checks `ci`, `workflow-lint`, `gitleaks`, `codeql (python)` and `codeql (actions)` are green on this head; the merge also needs an independent review READY (KIT-076)
 - [ ] `python3 platforms/tools/gen_index.py` run if a skill, rule, template, agent, eval or hook changed (plugin `INDEX.md` files are generated)
 - [ ] `CHANGELOG.md` updated (visible change)
