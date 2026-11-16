@@ -523,6 +523,21 @@ class StatusTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("FEAT-001: status='planned' but its task rows imply 'in-progress'", err)
 
+    def test_a_doing_row_moves_a_planned_feat_to_in_progress_with_its_history_line(self):
+        """#247: since KIT-068 a row takes `doing`, so work running on a row moves the FEAT, as a done row does."""
+        self.feat(status="planned", t1="doing")
+        code, _, err = self.run_main("status", str(self.spec))
+        self.assertEqual(code, 1)
+        self.assertIn("FEAT-001: status='planned' but its task rows imply 'in-progress'", err)
+        self.run_main("status", str(self.spec), "--write")
+        self.assertIn("status: in-progress\n", self.text())
+        self.assertIn("- 2026-10-06 status: planned -> in-progress (T1 doing)", self.text())
+        self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
+
+    def test_todo_and_blocked_rows_leave_a_planned_feat_planned(self):
+        self.feat(status="planned", t1="todo", t2="blocked")
+        self.assertEqual(self.run_main("status", str(self.spec))[0], 0)
+
     def test_cancelled_feat_is_never_rewritten(self):
         self.feat(status="cancelled", t1="done")
         self.assertEqual(self.run_main("status", str(self.spec))[0], 0)

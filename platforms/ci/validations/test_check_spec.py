@@ -440,6 +440,34 @@ class NeedTest(unittest.TestCase):
         self.req_without_feat("REQ-F-002", status="approved")
         self.assert_fails("REQ-F-002 has no FEAT implementing it and no NEED listing it")
 
+    def needs_mode(self, value):
+        (self.spec / "spec.md").write_text(SPEC_INDEX.format(extra=f"sdd:\n  needs: {value}\n"))
+
+    def test_needs_on_keeps_need_files(self):
+        """#237, both modes: `sdd.needs: true` (the default) keeps NEED files and lets one hold a REQ before its FEAT."""
+        self.needs_mode("true")
+        self.req_without_feat("REQ-F-002")
+        self.need("NEED-001", status="refined", requirements="[REQ-F-002]")
+        self.assert_passes()
+
+    def test_needs_off_without_need_files_passes(self):
+        self.needs_mode("false")
+        self.assert_passes()
+
+    def test_needs_off_refuses_a_need_file(self):
+        self.needs_mode("false")
+        self.need("NEED-001")
+        self.assert_fails("NEED-001-fixture.md: sdd.needs is false, so the project keeps no NEED files under needs/")
+
+    def test_needs_off_a_req_lands_with_its_feat(self):
+        """#237: with no NEED to hold it, a REQ needs a FEAT (the rule before KIT-066); a NEED listing it does not
+        count."""
+        self.needs_mode("false")
+        self.req_without_feat("REQ-F-002")
+        self.need("NEED-001", status="refined", requirements="[REQ-F-002]")
+        self.assert_fails("REQ-F-002 has no FEAT implementing it (sdd.needs: false: a REQ lands in the change that "
+                          "creates its FEAT)")
+
     def test_unknown_req_status_fails(self):
         self.req_without_feat("REQ-F-002", status="done")
         self.need("NEED-001", requirements="[REQ-F-002]")
