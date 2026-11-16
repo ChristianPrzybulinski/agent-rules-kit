@@ -7,6 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Added
 - KIT-087 P1: the project profile, `.ai-kit.yaml` at a project's git top level, with its schema `platforms/ci/schemas/profile.schema.json` (a `kit` pin and the sections `stacks`, `sdd`, `tracker`, `models`, `tests`, `quality`, `evidence`, `review`, `gates`, `changelog`, `ci`, `secrets`; every key with a default and an `x-read-by` phase, unknown keys refused, `x-<name>` keys ignored; `ci.trigger` defaults to `dispatch`) and its resolver `platforms/tools/profile.py` (`resolve [--section S] [--json]`, `migrate`), standard library and Python 3.9, which reads the file first and falls back to the legacy homes (the `sdd:` block, the `CLAUDE.md` marker, the gates JSON) with a `profile: <key> from legacy <path>` line, and fails on a key set differently in both. `check_spec.py --params` delegates to its `sdd` section with the same output, and the spec-tools action gains a `profile` input and exports `AI_KIT_PROFILE_JSON`.
 
+### Fixed
+- The workflow templates pin the kit actions at v15.0.0 (b38e84c). The KIT-084 templates pinned v14.0.0, which ships neither the `gitleaks` action nor `changelog_fragments.py`, so `gitleaks.yml` failed at its `uses:` line and `changelog-consolidate.yml` found no tool. A test keeps every kit action pin on one release no older than 15.0.0.
+
 ## [15.0.0] - 2026-11-16
 
 ### Added

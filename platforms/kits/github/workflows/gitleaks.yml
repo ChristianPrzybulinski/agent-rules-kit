@@ -9,7 +9,7 @@ name: gitleaks
 # action needs a GITLEAKS_LICENSE secret and exits 1 before scanning without one.
 # Copy to .github/workflows/ and keep the triggers your CI policy allows, or call it from another workflow
 # (`uses: ./.github/workflows/gitleaks.yml` with `config:`), or add the action as a step of an existing job. The action
-# ships after 14.0.0: until the pin below names a release that has it, the scan step fails at its `uses:` line; the
+# ships since 15.0.0: a pin older than that fails the scan step at its `uses:` line; the
 # kit's Dependabot moves the pin, and a project's Dependabot or Renovate keeps it current (agent-rules-kit
 # platforms/kits/github/README.md). The local scan before a PR is agent-rules-kit's
 # plugins/guardrails/skills/security/references/scan.md: `gitleaks git --redact --log-opts="origin/main..HEAD"`.
@@ -43,6 +43,6 @@ jobs:
           fetch-depth: 0  # the whole history, and a pull request's base commit
           persist-credentials: false
       - name: gitleaks (the kit's action; pinned CLI, sha-256 checked; values redacted)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/gitleaks@776d6ce381f89bfc12b4ca17f2b35577346ef37a  # v14.0.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/gitleaks@b38e84c9ec113399a61461c111e320def78cd0b0  # v15.0.0
         with:
           config: ${{ inputs.config }}
