@@ -16,6 +16,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 import skill_usage  # noqa: E402  (the tool lives outside this folder)
 
+LAYER = "unit"  # KIT-077 layer (platforms/tools/run_tests.py): in-process: no subprocess, no git
+
 
 def assistant(*blocks):
     return {"type": "assistant", "message": {"role": "assistant", "content": list(blocks)}}

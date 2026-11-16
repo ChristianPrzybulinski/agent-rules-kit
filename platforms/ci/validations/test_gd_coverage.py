@@ -10,6 +10,9 @@ import time
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/tools/gd_coverage.py",)
+
 TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "gd_coverage.py"
 HAS_GDTOOLKIT = importlib.util.find_spec("gdtoolkit") is not None
 NEEDS_PARSER = unittest.skipUnless(HAS_GDTOOLKIT, "gdtoolkit is not installed (pip install gdtoolkit==4.5.0)")
@@ -203,6 +206,8 @@ ALL_COVERED = ["client/app/calc.gd:5 add lines 1/1 branches 0/0",
 
 
 class InstrumentTest(unittest.TestCase):
+    LAYER = "unit"  # in-process: no subprocess, no git
+
     @NEEDS_PARSER
     def test_probes_keep_every_line_and_the_output_parses(self):
         probes = gd_coverage.instrument(SOURCE, "app/s.gd")

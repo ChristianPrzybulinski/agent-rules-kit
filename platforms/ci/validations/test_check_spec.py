@@ -10,6 +10,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/ci/validations/check_spec.py", "platforms/ci/schemas/**")
+
 VALIDATIONS = Path(__file__).resolve().parent
 CHECK_SPEC = VALIDATIONS / "check_spec.py"
 SCHEMAS = VALIDATIONS.parent / "schemas"
@@ -530,6 +533,8 @@ class NeedTest(unittest.TestCase):
 
 class MiniYamlTest(unittest.TestCase):
     """The structural parser against pyyaml on the same text (KIT-067 review): comments, quotes holding ' #'."""
+
+    LAYER = "unit"  # in-process: no subprocess, no git
 
     TEXT = 'k: ["a #b", c]  # note\nt: it\'s here  # c\nq: "x # y"  # z\nm: {path: "p #1"}\n'
     WANT = {"k": ["a #b", "c"], "t": "it's here", "q": "x # y", "m": {"path": "p #1"}}

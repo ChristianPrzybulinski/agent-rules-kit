@@ -9,6 +9,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/ci/validations/check_spec.py", "platforms/ci/schemas/**",
+          "platforms/kits/github/workflows/spec-lint.yml")
+
 VALIDATIONS = Path(__file__).resolve().parent
 CHECK_SPEC = VALIDATIONS / "check_spec.py"
 SCHEMAS = VALIDATIONS.parent / "schemas"

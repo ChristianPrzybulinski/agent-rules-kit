@@ -6,6 +6,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/tools/kpi.py",)
+
 KPI = Path(__file__).resolve().parent.parent.parent / "tools" / "kpi.py"
 HEADER = "at,batch,role,kind,pr,issue,sha,round,model,duration_s,usd,note\n"
 

@@ -6,6 +6,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/tools/gen_index.py",)
+
 KIT = Path(__file__).resolve().parents[3]
 SCRIPT = KIT / "platforms" / "tools" / "gen_index.py"
 REGENERATE = "python3 platforms/tools/gen_index.py"

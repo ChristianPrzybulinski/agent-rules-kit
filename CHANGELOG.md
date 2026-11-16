@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- KIT-077 (items 1–4, #281; #278 folds in): the kit's CI runs its tests in layers. Every `platforms/ci/validations/test_*.py` module sets `LAYER` (`unit`, `contract`, `integration`, `functional`, `performance`; a class or one test method may set its own) and an integration class lists the files it exercises in `COVERS`; `platforms/tools/run_tests.py` (also `check.sh --tests`) selects by layer, by the changed files (`--changed-from`) and by shard, and runs the tests in parallel worker processes with unittest's report lines. `ci.yml` runs `static`, `unit`, `integration (1)` to `(3)` (only the integration classes a change reaches) and `red` (`platforms/tools/ci_red.py`: `review_checks.py red` on the merge commit, recorded in the job summary) in parallel; the required `ci` job gathers the first three with `if: always()` and passes only when each passed. The new `ci-full.yml` runs the whole integration layer and the functional layer (the consumer project kept in `platforms/ci/fixtures/consumer/`, synced and checked with its own spec lint, `just verify` and `sync-project.sh --check`; the whole `smoke.sh`) on every push to `main`, nightly and on demand, and `performance.yml` runs the hooks' latency budgets nightly. `release.yml` first runs `platforms/tools/release_guard.py`, which deletes a tag whose commit has no green `ci-full` run, so no release is made there. `smoke.sh --main` stops after bootstrap and doctor, an integration test on pull requests. The jobs that run the `just` and `gitleaks` tests install both, pinned, and under `CI=1` a missing one fails those tests instead of skipping them. Thirteen sync tests that checked only `sync_agents_md.py` or `sync_just.py` logic run in-process (`test_sync_agents_md.py`, `test_sync_just.py`); the record maps each old test to its new one.
+
 ## [13.0.0] - 2026-11-16
 
 ### Added

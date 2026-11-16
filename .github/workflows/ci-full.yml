@@ -1,0 +1,89 @@
+name: ci-full
+
+# KIT-077: the layers a pull request runs only in part or not at all. The whole integration layer, and the functional
+# layer (the kit synced into the consumer project kept in platforms/ci/fixtures/consumer/, then that project's own
+# checks; the whole smoke.sh), on every push to main (the release commit included), nightly and on demand.
+# release.yml refuses a tag whose commit has no green ci-full run. No pull request runs it, so it is no required check.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 3 * * *'  # nightly; GitHub turns a public repository's schedule off after 60 days without activity
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CI: "1"
+
+jobs:
+  integration:
+    name: integration (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # KIT-077: 3 × the longest measured green run, rounded up to 5 min (the record lists the runs)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: pip install pyyaml jsonschema
+      - name: install just and gitleaks (pinned, sha-256 checked; their tests fail instead of skipping under CI)
+        env:
+          JUST_VERSION: 1.58.0
+          JUST_SHA256: 4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          wget -q -O "$RUNNER_TEMP/just.tar.gz" \
+            "https://github.com/casey/just/releases/download/$JUST_VERSION/just-$JUST_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          wget -q -O "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v$GITLEAKS_VERSION/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          printf '%s  %s\n' "$JUST_SHA256" "$RUNNER_TEMP/just.tar.gz" "$GITLEAKS_SHA256" "$RUNNER_TEMP/gitleaks.tar.gz" \
+            | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/just.tar.gz" -C "$RUNNER_TEMP/bin" just
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: the whole integration layer
+        env:
+          SHARD: ${{ matrix.shard }}/3
+        run: python3 -B platforms/tools/run_tests.py --layer integration --shard "$SHARD" --durations 10
+
+  functional:
+    name: functional
+    runs-on: ubuntu-latest
+    timeout-minutes: 20  # KIT-077: no green run measured yet; the whole smoke.sh took 1–1.5 min inside the old ci job
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: pip install pyyaml jsonschema
+      - name: install just (pinned, sha-256 checked; the fixture project runs its recipes)
+        env:
+          JUST_VERSION: 1.58.0
+          JUST_SHA256: 4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d
+        run: |
+          set -euo pipefail
+          wget -q -O "$RUNNER_TEMP/just.tar.gz" \
+            "https://github.com/casey/just/releases/download/$JUST_VERSION/just-$JUST_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          echo "$JUST_SHA256  $RUNNER_TEMP/just.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/just.tar.gz" -C "$RUNNER_TEMP/bin" just
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: install Claude Code (smoke.sh ran with it in the old ci job)
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: the functional layer
+        run: python3 -B platforms/tools/run_tests.py --layer functional --durations 10

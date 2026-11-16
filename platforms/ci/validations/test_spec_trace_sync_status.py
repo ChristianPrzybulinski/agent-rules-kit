@@ -15,6 +15,9 @@ import textwrap
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/ci/validations/spec_trace.py",)
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import spec_trace as trace  # noqa: E402

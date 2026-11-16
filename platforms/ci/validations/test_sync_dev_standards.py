@@ -9,6 +9,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/tools/sync-project.sh", "platforms/tools/sync_agents_md.py", "platforms/tools/sync_just.py",
+          "platforms/tools/sync_pinned_plugin.py", "platforms/tools/sync-profiles.txt", "plugins/guardrails/**",
+          "platforms/kits/just/**", "platforms/kits/github/workflows/spec-lint.yml",
+          "platforms/kits/godot/scripts/**", "platforms/ci/validations/check_spec.py",
+          "platforms/ci/validations/row_checks.py", "platforms/ci/validations/pr_gates.py",
+          "platforms/ci/validations/spec_trace.py", "platforms/ci/validations/check_docs_structure.py",
+          "platforms/ci/schemas/**")
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from test_sync_project import KIT, SCRIPT, SPEC_MD, VERSION  # noqa: E402
@@ -97,6 +106,9 @@ class DocStructure(Base):
 
 
 class JustModules(Base):
+    # The module logic alone (a project's justfile and its import line, an edited module, a dropped profile, a
+    # missing folder) is tested in-process in test_sync_just.py (KIT-077).
+
     def test_a_root_profile_gets_kit_just_and_a_starter_justfile(self):
         self.ok()
         self.assertEqual(self.text("kit.just"), header("docs") + (MODULES / "docs.just").read_text())
@@ -105,17 +117,6 @@ class JustModules(Base):
         before = self.text("kit.just")
         self.ok()
         self.assertEqual(before, self.text("kit.just"))
-
-    def test_a_project_justfile_is_kept_and_must_import_kit_just(self):
-        (self.repo / "Justfile").write_text("own:\n    echo own\n")
-        result = self.ok()
-        self.assertEqual(self.text("Justfile"), "own:\n    echo own\n")
-        # no starter beside it (compare names: macOS folders are case-insensitive)
-        self.assertEqual([p.name for p in self.repo.iterdir() if p.name.lower() == "justfile"], ["Justfile"])
-        self.assertIn("sync: warning: Justfile does not import kit.just", result.stderr)
-        self.assertIn("sync: Justfile does not import kit.just", self.failing("--check").stdout)
-        (self.repo / "Justfile").write_text("import \"kit.just\"\n\nown:\n    echo own\n")
-        self.ok("--check")
 
     def test_monorepo_folders_get_their_own_module(self):
         for folder in ("client", "server"):
@@ -128,10 +129,6 @@ class JustModules(Base):
             self.assertIn("import 'kit.just'", self.text(f"{folder}/justfile").splitlines())
         self.assertFalse((self.repo / "platform").exists())  # no folder, no module: the sync creates none
         self.ok("--check", "--profile", "docs,godot:client,java:server,python:platform")
-
-    def test_a_missing_folder_is_named(self):
-        result = self.ok("--profile", "docs,python:platform")
-        self.assertIn("sync: warning: platform/ does not exist; no kit.just written there", result.stderr)
 
     def test_two_profiles_in_one_folder_get_a_module_each_and_shared_recipes(self):
         self.ok("--profile", "docs,python")
@@ -148,11 +145,6 @@ class JustModules(Base):
             summary = subprocess.run([JUST, "--summary"], cwd=self.repo, capture_output=True, text=True)
             self.assertEqual(summary.returncode, 0, summary.stderr)
             self.assertTrue({"fmt", "lint", "test", "verify"} <= set(summary.stdout.split()), summary.stdout)
-
-    def test_check_flags_an_edited_module(self):
-        self.ok()
-        (self.repo / "kit.just").write_text(self.text("kit.just") + "extra:\n    echo x\n")
-        self.assertIn("sync: kit.just diverges from the kit", self.failing("--check").stdout)
 
     def test_an_unmarked_kit_just_refuses_the_sync_before_any_write(self):
         (self.repo / "kit.just").write_text("own:\n    echo own\n")
@@ -199,15 +191,6 @@ class JustModules(Base):
                 self.assertIn(message, result.stdout)
                 self.assertNotIn("Traceback", result.stderr)
         self.assertFalse((self.repo / "kit.just").exists())
-
-    def test_a_dropped_profile_takes_its_module_and_keeps_the_justfile(self):
-        (self.repo / "client").mkdir()
-        self.ok("--profile", "docs,godot:client")
-        self.assertIn("sync: client/kit.just is generated but not in profile",
-                      self.failing("--check", "--profile", "docs").stdout)
-        self.ok("--profile", "docs")
-        self.assertFalse((self.repo / "client" / "kit.just").exists())
-        self.assertTrue((self.repo / "client" / "justfile").exists())
 
 
 class MergeDriver(Base):

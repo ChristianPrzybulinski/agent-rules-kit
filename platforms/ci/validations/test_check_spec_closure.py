@@ -8,6 +8,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/ci/validations/check_spec.py", "platforms/ci/schemas/**", "platforms/ci/validations/spec_trace.py")
+
 VALIDATIONS = Path(__file__).resolve().parent
 CHECK_SPEC = VALIDATIONS / "check_spec.py"
 SCHEMAS = VALIDATIONS.parent / "schemas"
@@ -153,6 +156,8 @@ class ClosureRecordTest(unittest.TestCase):
 class ClosureParityTest(unittest.TestCase):
     """check_spec.py requires the closure line and spec_trace.py reads it to decide what to write: each keeps its own
     copy of the regexes and the History parsing, so both are pinned to the same verdicts on the same fixtures."""
+
+    LAYER = "unit"  # in-process: no subprocess, no git
     CASES = (  # (name, status, History lines, body line, the line counts)
         ("validated by sdd-review", "validated", [REVIEWED], "", True),
         ("validated with no line", "validated", [], "", False),

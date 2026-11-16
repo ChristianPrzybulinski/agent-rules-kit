@@ -3,7 +3,14 @@ pushes to main and on demand (CodeQL also weekly), never on pull_request_target,
 concurrency and the check names the ruleset requires. Every kit workflow and every template projects copy pins its
 actions by commit SHA, sets a timeout and its checkout's persist-credentials, keeps `${{ }}` out of `run:` and is
 linted by the pinned actionlint and zizmor; Dependabot watches both folders. The gitleaks scan step runs against a
-throwaway repository: a pull request scans its own commits, a push to main the whole history."""
+throwaway repository: a pull request scans its own commits, a push to main the whole history.
+
+KIT-077: ci.yml runs the pull request layers as parallel jobs, and the required `ci` job gathers them: it always runs
+and passes only when each passed. ci-full.yml runs the whole integration layer and the functional layer on main,
+nightly and on demand; performance.yml the latency budgets; release.yml refuses a commit without a green ci-full."""
+import contextlib
+import io
+import json
 import os
 import re
 import secrets
@@ -12,6 +19,8 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+LAYER = "contract"  # KIT-077 layer (platforms/tools/run_tests.py): the kit's own files, read in-process
 
 try:
     import yaml
@@ -26,8 +35,21 @@ TEMPLATES = KIT / "platforms" / "kits" / "github" / "workflows"
 # The ruleset requires these contexts: a renamed job would leave it waiting for the old name on every pull request.
 CHECKS = {"ci.yml": ["ci", "workflow-lint"], "gitleaks.yml": ["gitleaks"],
           "codeql.yml": ["codeql (python)", "codeql (actions)"]}
+# Every context a workflow reports (KIT-077): the required ones above and the layers' own jobs, so a new, renamed or
+# removed job is a deliberate change here.
+CONTEXTS = {"ci.yml": ["static", "unit", "integration (1)", "integration (2)", "integration (3)", "red", "ci",
+                       "workflow-lint"],
+            "gitleaks.yml": ["gitleaks"], "codeql.yml": ["codeql (python)", "codeql (actions)"]}
+# The one job that carries an `if`: `ci` gathers the pull request layers, so it must run, and fail, when one did not
+# pass (a skipped required job reports success). red is its own check, outside `ci`.
+AGGREGATORS = {("ci.yml", "ci"): ["static", "unit", "integration"]}
+# Where each test layer runs (platforms/tools/run_tests.py --layer), as (workflow, job).
+LAYER_JOBS = {"unit": [("ci.yml", "unit")], "contract": [("ci.yml", "unit")],
+              "integration": [("ci-full.yml", "integration"), ("ci.yml", "integration")],
+              "functional": [("ci-full.yml", "functional")], "performance": [("performance.yml", "performance")]}
 TRIGGERS = {"pull_request": {"branches": ["main"]}, "push": {"branches": ["main"]}, "workflow_dispatch": None}
 WEEKLY = re.compile(r"^\d{1,2} \d{1,2} \* \* [0-6]$")
+DAILY = re.compile(r"^\d{1,2} \d{1,2} \* \* \*$")
 # The one checkout that keeps its credential: `git lfs pull` in the same job authenticates with it.
 KEEPS_CREDENTIAL = {("ci-godot.yml", "import-and-test")}
 JOB_GRANTS = {"contents": "read", "security-events": "write"}  # security-events: CodeQL's SARIF upload only
@@ -168,13 +190,20 @@ class EveryWorkflow(unittest.TestCase):
         self.assertEqual(directories, {"/", "/platforms/kits/github/workflows"})
 
     def test_the_check_names_are_stable_and_never_skipped(self):
-        for name, expected in CHECKS.items():
-            jobs = load(name)["jobs"].values()
+        for name, expected in CONTEXTS.items():
+            jobs = load(name)["jobs"]
             with self.subTest(workflow=name):
-                self.assertEqual([c for job in jobs for c in contexts(job)], expected)
-                for job in jobs:
-                    self.assertNotIn("if", job)  # a skipped required job reports success
+                found = [c for job in jobs.values() for c in contexts(job)]
+                self.assertEqual(found, expected)
+                for required in CHECKS[name]:
+                    self.assertEqual(found.count(required), 1, required)
+                for key, job in jobs.items():
                     self.assertIsInstance(job.get("timeout-minutes"), int)
+                    if (name, key) in AGGREGATORS:  # a skipped required job reports success, so it always runs
+                        self.assertEqual(job.get("if"), "always()")
+                        self.assertEqual(job.get("needs"), AGGREGATORS[(name, key)])
+                    else:
+                        self.assertNotIn("if", job)
 
     def test_codeql_keeps_python_and_actions_without_a_build(self):
         workflow = load("codeql.yml")
@@ -199,16 +228,133 @@ class EveryWorkflow(unittest.TestCase):
         self.assertIn("--redact", scan_step()["run"])
 
 
+def runs(workflow, job):
+    return [step["run"] for step in load(workflow)["jobs"][job]["steps"] if "run" in step]
+
+
+def install_env(workflow, job):
+    """The env of the job's pinned-tool install steps, merged."""
+    env = {}
+    for step in load(workflow)["jobs"][job]["steps"]:
+        if step.get("name", "").startswith("install just"):
+            env.update(step.get("env", {}))
+    return env
+
+
+@unittest.skipIf(yaml is None, "pyyaml is not installed (CI=1 makes it required)")
+class LayeredGate(unittest.TestCase):
+    """KIT-077: the layers, where each runs, the `ci` gathering job, the red job, ci-full and the release guard."""
+
+    def gather(self, results):
+        """The exit code of the `ci` job's script for the given needs results."""
+        script = load("ci.yml")["jobs"]["ci"]["steps"][0]["run"]
+        code = script.split("<<'PY'\n", 1)[1].rsplit("PY", 1)[0]
+        needs = json.dumps({job: {"result": result, "outputs": {}} for job, result in results.items()})
+        saved = os.environ.get("NEEDS")
+        os.environ["NEEDS"] = needs
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                exec(compile(code, "ci.yml:ci", "exec"), {})  # noqa: S102 - the kit's own workflow text
+        except SystemExit as stop:
+            return stop.code
+        finally:
+            if saved is None:
+                os.environ.pop("NEEDS")
+            else:
+                os.environ["NEEDS"] = saved
+        return None
+
+    def test_ci_passes_only_when_every_layer_passed(self):
+        jobs = AGGREGATORS[("ci.yml", "ci")]
+        self.assertEqual(self.gather({job: "success" for job in jobs}), 0)
+        for job in jobs:
+            for result in ("failure", "cancelled", "skipped"):
+                with self.subTest(job=job, result=result):
+                    self.assertEqual(self.gather({**{j: "success" for j in jobs}, job: result}), 1)
+        self.assertEqual(self.gather({}), 1)
+
+    def test_every_layer_runs_where_the_standard_puts_it(self):
+        found = {}
+        for path in sorted(WORKFLOWS.glob("*.yml")):
+            for key in load(path.name)["jobs"]:
+                for run in runs(path.name, key):
+                    match = re.search(r"run_tests\.py --layer (\S+)", run)
+                    for layer in match.group(1).split(",") if match else ():
+                        found.setdefault(layer, []).append((path.name, key))
+        self.assertEqual(found, LAYER_JOBS)
+
+    def test_a_pull_request_runs_the_integration_tests_its_change_reaches_in_shards(self):
+        for name, changed in (("ci.yml", True), ("ci-full.yml", False)):
+            job = load(name)["jobs"]["integration"]
+            shards = job["strategy"]["matrix"]["shard"]
+            step = next(s for s in job["steps"] if "run_tests.py" in s.get("run", ""))
+            with self.subTest(workflow=name):
+                self.assertEqual(shards, list(range(1, len(shards) + 1)))
+                self.assertEqual(step["env"]["SHARD"], "${{ matrix.shard }}/%d" % len(shards))
+                self.assertIs(job["strategy"]["fail-fast"], False)
+                self.assertEqual("--changed-from HEAD^1" in step["run"], changed)
+        checkout = load("ci.yml")["jobs"]["integration"]["steps"][0]
+        self.assertEqual(checkout["with"]["fetch-depth"], 2)  # HEAD^1: the merge commit's base, or the last push
+
+    def test_jobs_that_run_the_just_and_gitleaks_tests_install_the_pinned_tools(self):
+        gitleaks = next(s for s in steps(load("gitleaks.yml")) if s.get("name", "").startswith("install gitleaks"))
+        java = yaml.safe_load((TEMPLATES / "ci-java.yml").read_text(encoding="utf-8"))
+        just = next(s for s in steps(java) if s.get("name", "").startswith("Install just"))
+        pins = {**{k: v for k, v in gitleaks["env"].items()}, **{k: v for k, v in just["env"].items()}}
+        both = ("JUST", "GITLEAKS")
+        for workflow, job, tools in (("ci.yml", "integration", both), ("ci.yml", "red", both),
+                                     ("ci-full.yml", "integration", both), ("ci-full.yml", "functional", ("JUST",))):
+            env = install_env(workflow, job)
+            for tool in tools:
+                with self.subTest(workflow=workflow, job=job, tool=tool):
+                    for key in (f"{tool}_VERSION", f"{tool}_SHA256"):
+                        self.assertEqual(env.get(key), pins[key])
+
+    def test_red_is_its_own_check_on_the_merge_commit(self):
+        job = load("ci.yml")["jobs"]["red"]
+        self.assertEqual(job["steps"][0]["with"]["fetch-depth"], 0)
+        self.assertIn("python3 -B platforms/tools/ci_red.py", runs("ci.yml", "red"))
+        self.assertNotIn("red", AGGREGATORS[("ci.yml", "ci")])
+
+    def test_ci_full_runs_on_main_nightly_and_on_demand(self):
+        on = triggers(load("ci-full.yml"))
+        self.assertEqual(sorted(on), ["push", "schedule", "workflow_dispatch"])
+        self.assertEqual(on["push"], {"branches": ["main"]})
+        self.assertEqual(len(on["schedule"]), 1)
+        self.assertRegex(on["schedule"][0]["cron"], DAILY)
+
+    def test_performance_runs_nightly_and_on_demand_one_test_at_a_time(self):
+        on = triggers(load("performance.yml"))
+        self.assertEqual(sorted(on), ["schedule", "workflow_dispatch"])
+        self.assertRegex(on["schedule"][0]["cron"], DAILY)
+        self.assertTrue(any("--jobs 1" in run for run in runs("performance.yml", "performance")))
+
+    def test_release_refuses_a_commit_without_a_green_ci_full(self):
+        job = load("release.yml")["jobs"]["release"]
+        names = [step.get("name", "") for step in job["steps"]]
+        guard = next(i for i, step in enumerate(job["steps"]) if "release_guard.py" in step.get("run", ""))
+        self.assertLess(guard, names.index("gh release create"))
+        self.assertEqual(job["permissions"], {"contents": "write", "actions": "read"})
+        self.assertIn('--sha "$SHA" --tag "$TAG"', job["steps"][guard]["run"])
+        self.assertEqual(job["steps"][guard]["env"]["SHA"], "${{ github.sha }}")
+
+
 def scan_step():
     return next((s for s in steps(load("gitleaks.yml")) if s.get("name", "").startswith("scan")), None)
 
 
-@unittest.skipIf(yaml is None or GITLEAKS is None, "pyyaml or gitleaks is not available")
+@unittest.skipIf(yaml is None or (GITLEAKS is None and not os.environ.get("CI")),
+                 "pyyaml or gitleaks is not available (CI=1 makes both required)")
 class GitleaksRange(unittest.TestCase):
     """The scan step's script, run as the workflow runs it, on main with a fabricated token in an old commit (built at
     run time, never in this file) and a pull request branch on top."""
 
+    LAYER = "integration"  # starts processes (scripts, git, temp repos)
+    COVERS = (".github/workflows/gitleaks.yml",)
+
     def setUp(self):
+        if GITLEAKS is None:  # KIT-077: the CI jobs that run this layer install the pinned gitleaks
+            self.fail("gitleaks is not on PATH")
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.repo = Path(self.tmp.name) / "repo"

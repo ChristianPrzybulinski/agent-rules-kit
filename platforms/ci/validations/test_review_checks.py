@@ -17,6 +17,9 @@ import time
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/tools/review_checks.py", "platforms/ci/validations/pr_gates.py")
+
 TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "review_checks.py"
 RUN = f"{sys.executable} -B -m unittest -q {{tests}}"
 

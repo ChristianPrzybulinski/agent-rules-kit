@@ -1,0 +1,30 @@
+name: performance
+
+# KIT-077: the performance layer, the hooks' latency budgets, alone on a runner so no other test loads the machine.
+# Nightly and on demand; never a required check and never part of a release's gate.
+on:
+  schedule:
+    - cron: '47 3 * * *'  # nightly; GitHub turns a public repository's schedule off after 60 days without activity
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CI: "1"
+
+jobs:
+  performance:
+    name: performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # KIT-077: 3 × the longest measured green run, rounded up to 5 min (the record lists the runs)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: pip install pyyaml jsonschema
+      - name: the latency budgets, one test at a time
+        run: python3 -B platforms/tools/run_tests.py --layer performance --jobs 1 --durations 10

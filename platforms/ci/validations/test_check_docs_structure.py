@@ -7,6 +7,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/ci/validations/check_docs_structure.py", "platforms/ci/validations/check_spec.py")
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import check_docs_structure as cds  # noqa: E402
@@ -145,6 +148,8 @@ class IndexRules(unittest.TestCase):
 
 
 class ExemptFile(unittest.TestCase):
+    LAYER = "unit"  # in-process: no subprocess, no git
+
     def test_comments_and_blank_lines_are_skipped(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "exempt.txt"

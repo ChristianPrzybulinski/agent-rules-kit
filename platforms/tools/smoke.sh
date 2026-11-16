@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
-# Exercises bootstrap and doctor in isolated homes. Usage: smoke.sh
+# Exercises bootstrap and doctor in isolated homes. Usage: smoke.sh [--main]
+#   --main  stops after the main path: bootstrap into an empty home, the Codex AGENTS.md link and its repoints, and
+#           a clean doctor run (KIT-077: the integration test test_smoke.py runs it on a pull request; the whole
+#           script is the functional layer's, on main, nightly and before a release)
 set -euo pipefail
+
+MODE="${1:-}"
+case "$MODE" in
+  ''|--main) ;;
+  *) printf 'usage: smoke.sh [--main]\n' >&2; exit 2 ;;
+esac
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ROOT="$(mktemp -d)"
@@ -115,6 +124,11 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-ki
     "$TEST_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-initial.out" 2>&1; then
   cat "$ROOT/doctor-initial.out" >&2
   fail "doctor failed after bootstrap"
+fi
+
+if [[ "$MODE" == --main ]]; then
+  printf 'smoke: main path OK (bootstrap, Codex AGENTS.md link and its repoints, doctor)\n'
+  exit 0
 fi
 
 if [[ "${OSTYPE:-}" == darwin* ]]; then
