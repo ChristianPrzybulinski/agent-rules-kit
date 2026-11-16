@@ -47,9 +47,11 @@ migration line for consumer projects:
 
 1. **Spec tools from the kit.** Skills, the post-edit hook and the `docs` just module call
    `~/.ai-kit/platforms/ci/validations/` (`check_spec.py`, `row_checks.py`, `spec_trace.py`,
-   `check_docs_structure.py`) with `~/.ai-kit/platforms/ci/schemas/`, not `.github/spec-lint/`. The project's CI gets the
-   same path by fetching the kit at a release tag (the `spec-lint.yml` and `pr-contract.yml` templates, or a reusable
-   workflow the project calls with `@vX.Y.Z`), so a command reads the same locally and in CI. `sync-project.sh` stops
+   `check_docs_structure.py`) with `~/.ai-kit/platforms/ci/schemas/`, not `.github/spec-lint/`. The project's CI runs the
+   same tools through a composite action the kit publishes, whose scripts and schemas come with the pinned commit
+   (`github.action_path`), referenced as `uses: ChristianPrzybulinski/agent-rules-kit/<action>@<40-character SHA> #
+   vX.Y.Z`; Renovate or Dependabot bumps that line when the kit releases and merges it on green CI (option B below,
+   owner decision 2026-11-16). The `spec-lint.yml` and `pr-contract.yml` templates call the action. `sync-project.sh` stops
    writing `.github/spec-lint/`, and `--check` stops comparing it.
 2. **No pin.** The vendored mode (`--vendor-skills`, `.claude/skills/` copies, `.claude/ai-kit/`,
    `guardrails-pinned`) goes; the project turns on `guardrails@ai-kit`, which follows the release the machine installed.
@@ -61,6 +63,46 @@ migration line for consumer projects:
 3. **Path rules without copies.** A plugin hook gives the agent the rule when it reads or edits a file the rule's globs
    match, as the `git` hook already adds context to a commit; `.claude/rules/` copies and the `AGENTS.md` blocks go once
    it is measured.
+
+### How a project's CI gets the kit (review of 2026-11-16, option B chosen)
+
+A web review of primary sources compared five ways to run shared validators in many repositories' CI:
+
+| Option | Verdict |
+|---|---|
+| A. Copy into the project (today) | Hermetic, but one sync PR per release and copies that drift; Google's monorepo model |
+| **B. Reference pinned to a commit, bumped by a bot on release** | Recommended by GitHub ("the safest option for stability and security" for reusable workflows), GitLab and Azure; hash-pinned users were unaffected by the tj-actions tag rewrite (CVE-2025-30066) |
+| C. Floating ref (`stable`, `main`) | Weakest: a bad or compromised release reaches every consumer at once; Scorecard counts it as unpinned; pre-commit refuses a branch as `rev` |
+| D. Published package | Strong when pinned by hash; needs a publishing pipeline |
+| E. Agent skill only, no CI check | Rejected by the vendors as a gate |
+
+The vendors' own docs on E:
+- Claude Code: a rule that must hold every time goes into a hook. Claude Code Review "never approves or blocks".
+- OpenAI: Codex review is "an additional reviewer", and tests and branch protections provide the hard enforcement.
+- Copilot: its review "may not identify all of the problems".
+
+So the skill runs the same validator early, and CI is the gate.
+
+What proves B wrong:
+- Over 4 weeks, the bump PRs need the owner more than about once a week (required reviews block automerge).
+- The bumps often break the consumer's CI, which would make kit compatibility the problem rather than distribution.
+
+The machine install keeps `stable` (option C) because the kit is first-party, only the release workflow moves it, after
+a green `ci-full`, and Claude Code has no other way to follow releases. Recommended alongside it: GitHub immutable
+releases on the kit (owner setting).
+
+Sources:
+- https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows
+- https://docs.github.com/en/actions/reference/security/secure-use
+- https://github.com/ossf/scorecard/blob/main/docs/checks.md
+- https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-github-action-cve-2025-30066
+- https://pre-commit.com/
+- https://docs.renovatebot.com/key-concepts/automerge/
+- https://code.claude.com/docs/en/hooks-guide
+- https://code.claude.com/docs/en/code-review
+- https://developers.openai.com/blog/custom-code-review-rules-for-codex
+- https://docs.github.com/en/copilot/responsible-use/code-review
+- https://github.blog/changelog/2025-10-28-immutable-releases-are-now-generally-available/
 
 The starter files a new project needs (`.gitignore`, `.gdlintrc`, the PR template) are the project's own: a skill writes
 them once from the kit templates when it sets the project up; no sync script copies them.
@@ -124,3 +166,4 @@ stage 1.
 - 2026-11-16: stage 2a (every install follows `stable`, above) implemented on `feat/kit-081-stable`; the `stable`
   branch exists at `5a4924e` (= `v13.1.0`). Each machine moves once on its next `refresh.sh`; Devin's team plugin ref
   is set to `stable` by hand once.
+- 2026-11-16: the owner chose option B for the project's CI ("Sim, registre o B").
