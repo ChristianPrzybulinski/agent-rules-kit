@@ -4,7 +4,7 @@ title: "Layered gate: a fast PR gate, a full gate on main and release, and a rev
 status: confirmed
 confirmed: "2026-11-15 (owner, chat of the coordinator session \"Revisão de regras e skills\": \"Sim, aplique\")"
 issue: "#281"
-pr: ""
+pr: "#286 (items 5–6)"
 delivered: "items 5–6 delivered; 1–4 after 13.0.0"
 ---
 
