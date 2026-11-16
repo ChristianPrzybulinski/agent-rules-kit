@@ -55,14 +55,37 @@ runs:
         echo "AI_KIT_DIR=$(cd "$GITHUB_ACTION_PATH/../../../.." && pwd)" >> "$GITHUB_ENV"
     # A project's justfile imports the kit's just modules from ~/.ai-kit (KIT-081 stage 1b): just reads no variable in
     # an import path, so the kit at this commit is linked there, unless the runner already holds a kit at that path.
+    # Such a kit passes only at this action's commit (KIT-083): the HEAD of the action's checkout, or the SHA the caller
+    # pins (github.action_ref), since a runner downloads an action as an archive without .git.
     - name: Link ~/.ai-kit to the kit at this action's commit (the justfile imports)
       shell: bash
+      env:
+        ACTION_REF: ${{ github.action_ref }}
       run: |
         kit="$(cd "$GITHUB_ACTION_PATH/../../../.." && pwd -P)"
+        head_of() {  # the HEAD of the git checkout whose root is $1, else nothing
+          top="$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)" || return 0
+          if [ "$(cd "$top" && pwd -P)" = "$(cd "$1" && pwd -P)" ]; then
+            git -C "$1" rev-parse -q --verify HEAD || true
+          fi
+        }
         if [ ! -e "$HOME/.ai-kit" ] && [ ! -L "$HOME/.ai-kit" ]; then
           ln -s "$kit" "$HOME/.ai-kit"
         elif [ "$(cd "$HOME/.ai-kit" 2>/dev/null && pwd -P)" != "$kit" ]; then
-          echo "::warning::spec-tools: $HOME/.ai-kit already exists, so a justfile importing ~/.ai-kit runs that kit, not this action's commit"
+          want="$(head_of "$kit")"
+          if [ -z "$want" ] && printf '%s' "$ACTION_REF" | grep -Eqx '[0-9a-f]{40}'; then
+            want="$ACTION_REF"
+          fi
+          have="$(head_of "$HOME/.ai-kit")"
+          if [ -z "$want" ]; then
+            echo "::error::spec-tools: $HOME/.ai-kit already exists and this action's commit is unknown (pin the action by its 40-character commit SHA), so a justfile importing ~/.ai-kit may run another kit"
+            exit 1
+          elif [ "$have" = "$want" ]; then
+            echo "::notice::spec-tools: $HOME/.ai-kit is another checkout at this action's commit $want; a justfile importing ~/.ai-kit runs the same kit"
+          else
+            echo "::error::spec-tools: $HOME/.ai-kit is at ${have:-no git commit}, this action at $want, so a justfile importing ~/.ai-kit would run another kit; check out $want there, or remove $HOME/.ai-kit so the action links its own commit"
+            exit 1
+          fi
         fi
     - name: Validate frontmatter and FEAT/REQ references
       if: steps.checks.outputs.spec == 'true'
@@ -74,14 +97,20 @@ runs:
       shell: bash
       run: python3 "$GITHUB_ACTION_PATH/../../validations/check_docs_structure.py"
     # docs/spec/baseline.json holds old findings and may only shrink (KIT-068): a pull request that adds an entry or
-    # raises a value over its base commit fails here.
+    # raises a value over its base commit fails here. With nothing to compare it says why (KIT-083).
     - name: Baseline only shrinks
       if: steps.checks.outputs.spec == 'true' && github.event_name == 'pull_request'
       shell: bash
       env:
         BASE_SHA: ${{ inputs.base }}
       run: |
-        if [ -n "$BASE_SHA" ] && git cat-file -e "$BASE_SHA:docs/spec/baseline.json" 2>/dev/null; then
+        if [ -z "$BASE_SHA" ]; then
+          echo "::notice::spec-tools: no base commit (the base input is empty); the baseline is not compared"
+        elif ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+          echo "::warning::spec-tools: the base commit $BASE_SHA is not in the checkout (fetch-depth: 0 fetches it); the baseline is not compared"
+        elif ! git cat-file -e "$BASE_SHA:docs/spec/baseline.json" 2>/dev/null; then
+          echo "::notice::spec-tools: the base commit has no docs/spec/baseline.json; the baseline is not compared"
+        else
           git show "$BASE_SHA:docs/spec/baseline.json" > "$RUNNER_TEMP/baseline-base.json"
           CI=1 python3 "$GITHUB_ACTION_PATH/../../validations/check_spec.py" \
             --baseline-against "$RUNNER_TEMP/baseline-base.json" docs/spec "$GITHUB_ACTION_PATH/../../schemas"

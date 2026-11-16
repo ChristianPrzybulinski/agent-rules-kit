@@ -4,6 +4,7 @@ commit SHA, keeps `${{ }}` out of `run:`, and runs every tool from its own check
 own shell runs here against a throwaway project, with GITHUB_ACTION_PATH at the kit's action folder."""
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -123,8 +124,8 @@ class SpecToolsActionRuns(unittest.TestCase):
             path.write_text("", encoding="utf-8")
         full = {k: v for k, v in os.environ.items() if k != "CI"}
         full.update({k: str(v) for k, v in files.items()}, GITHUB_ACTION_PATH=str(ACTION_DIR),
-                    RUNNER_TEMP=str(self.tmp), PATH=f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}",
-                    **env)
+                    RUNNER_TEMP=str(self.tmp), PATH=f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}")
+        full.update({k: str(v) for k, v in env.items()})  # a test may also set GITHUB_ACTION_PATH
         result = subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step(name)["run"]],
                                 cwd=self.repo, env=full, capture_output=True, text=True, check=False)
         result.files = {key: path.read_text(encoding="utf-8") for key, path in files.items()}
@@ -150,8 +151,8 @@ class SpecToolsActionRuns(unittest.TestCase):
 
     def test_it_links_home_ai_kit_to_its_own_commit_unless_a_kit_is_there(self):
         """KIT-081 stage 1b: a project's justfile imports ~/.ai-kit/platforms/kits/just/<profile>.just, and just reads no
-        variable in an import path, so the action links ~/.ai-kit to its own checkout; a kit already there stays, with
-        a warning that the justfile runs that one."""
+        variable in an import path, so the action links ~/.ai-kit to its own checkout; a kit already there stays, and
+        (KIT-083) the step fails unless that kit is at the action's commit."""
         name = "Link ~/.ai-kit to the kit at this action's commit (the justfile imports)"
         home = self.tmp / "home"
         home.mkdir()
@@ -163,12 +164,73 @@ class SpecToolsActionRuns(unittest.TestCase):
         again = self.run_step(name, HOME=home)
         self.assertEqual((again.returncode, again.stdout), (0, ""))
         other = self.tmp / "other-home"
-        (other / ".ai-kit").mkdir(parents=True)
+        (other / ".ai-kit").mkdir(parents=True)  # a folder that is no git checkout: its commit is unknown
         kept = self.run_step(name, HOME=other)
-        self.assertEqual(kept.returncode, 0, kept.stderr)
+        self.assertEqual(kept.returncode, 1, kept.stdout + kept.stderr)
         self.assertFalse((other / ".ai-kit").is_symlink())
-        self.assertIn("::warning::spec-tools: ", kept.stdout)
-        self.assertIn("runs that kit, not this action's commit", kept.stdout)
+        self.assertEqual(kept.stdout, f"::error::spec-tools: {other}/.ai-kit is at no git commit, this action at"
+                                      f" {self.head(KIT)}, so a justfile importing ~/.ai-kit would run another kit;"
+                                      f" check out {self.head(KIT)} there, or remove {other}/.ai-kit so the action"
+                                      " links its own commit\n")
+
+    def head(self, path):
+        return subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"], check=True, capture_output=True,
+                              text=True).stdout.strip()
+
+    def test_a_kit_already_at_home_passes_only_at_the_actions_commit(self):
+        """KIT-083: a runner that already holds ~/.ai-kit serves the justfile imports from it, so the step compares its
+        HEAD with the action's commit: the action checkout's HEAD, or on a runner, which downloads an action as an
+        archive without .git, the SHA the caller pins (github.action_ref)."""
+        name = "Link ~/.ai-kit to the kit at this action's commit (the justfile imports)"
+        kit = self.tmp / "kit"  # a kit checkout of its own, so the test controls both commits
+        action = kit / "platforms" / "ci" / "actions" / "spec-tools"
+        action.mkdir(parents=True)
+        (action / "action.yml").write_text("name: x\n", encoding="utf-8")
+        git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false"]
+        subprocess.run([*git, "init", "-q", str(kit)], check=True)
+        subprocess.run([*git, "-C", str(kit), "add", "-A"], check=True)
+        subprocess.run([*git, "-C", str(kit), "commit", "-q", "-m", "kit"], check=True)
+        home = self.tmp / "runner-home"
+        home.mkdir()
+        subprocess.run(["git", "clone", "-q", str(kit), str(home / ".ai-kit")], check=True)
+        sha = self.head(kit)
+        same = self.run_step(name, HOME=home, GITHUB_ACTION_PATH=action)
+        self.assertEqual(same.returncode, 0, same.stdout + same.stderr)
+        self.assertEqual(same.stdout, f"::notice::spec-tools: {home}/.ai-kit is another checkout at this action's"
+                                      f" commit {sha}; a justfile importing ~/.ai-kit runs the same kit\n")
+        subprocess.run([*git, "-C", str(home / ".ai-kit"), "commit", "-q", "--allow-empty", "-m", "newer"], check=True)
+        newer = self.head(home / ".ai-kit")
+        moved = self.run_step(name, HOME=home, GITHUB_ACTION_PATH=action)
+        self.assertEqual(moved.returncode, 1, moved.stdout + moved.stderr)
+        self.assertIn(f"::error::spec-tools: {home}/.ai-kit is at {newer}, this action at {sha}, so a justfile",
+                      moved.stdout)
+        archive = self.tmp / "_actions" / "owner" / "kit" / "ref"  # the runner's layout: a copy with no .git
+        shutil.copytree(kit, archive, ignore=shutil.ignore_patterns(".git"))
+        action = archive / "platforms" / "ci" / "actions" / "spec-tools"
+        for ref, code in ((newer, 0), (sha, 1)):
+            with self.subTest(action_ref=ref):
+                result = self.run_step(name, HOME=home, GITHUB_ACTION_PATH=action, ACTION_REF=ref)
+                self.assertEqual(result.returncode, code, result.stdout + result.stderr)
+        unknown = self.run_step(name, HOME=home, GITHUB_ACTION_PATH=action, ACTION_REF="v14.0.0")
+        self.assertEqual(unknown.returncode, 1, unknown.stdout + unknown.stderr)
+        self.assertEqual(unknown.stdout, f"::error::spec-tools: {home}/.ai-kit already exists and this action's commit"
+                                         " is unknown (pin the action by its 40-character commit SHA), so a justfile"
+                                         " importing ~/.ai-kit may run another kit\n")
+        self.assertTrue((home / ".ai-kit").is_dir() and not (home / ".ai-kit").is_symlink())
+
+    def test_the_baseline_step_says_why_it_compares_nothing(self):
+        """KIT-083: the baseline step printed nothing when it had no base to compare with; it now says why."""
+        name = "Baseline only shrinks"
+        cases = (("", "::notice::spec-tools: no base commit (the base input is empty); the baseline is not compared"),
+                 ("0" * 40, f"::warning::spec-tools: the base commit {'0' * 40} is not in the checkout (fetch-depth: 0"
+                            " fetches it); the baseline is not compared"),
+                 (self.git("rev-parse", "HEAD"), "::notice::spec-tools: the base commit has no docs/spec/baseline.json;"
+                                                 " the baseline is not compared"))
+        for base, line in cases:
+            with self.subTest(base=base):
+                result = self.run_step(name, BASE_SHA=base)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, line + "\n")
 
     def test_the_spec_steps_run_the_kit_validators_on_the_project(self):
         try:

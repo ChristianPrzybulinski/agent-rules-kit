@@ -49,7 +49,7 @@ Migration for a project that has the copy:
 Until stage 1b, `sync-project.sh` wrote each profile's module into its folder as `kit.just` (a folder with several profiles got `kit-<profile>.just` modules and a `kit.just` that ran their shared recipes) and copied the keyed-CSV merge driver into `.github/merge-drivers/`. Now:
 
 - The justfile of each profile folder holds `import '~/.ai-kit/platforms/kits/just/<profile>.just'`. just 1.58.0 replaces a leading `~/` in an import path with the home folder and runs an imported recipe in the importing justfile's folder; an import path is a fixed string, so it cannot read `AI_KIT_DIR`. The sync writes that line into a starter `justfile`, or in place of an `import 'kit.just'` line whose `kit.just` it generated; a justfile without it is a warning, and a `--check` failure naming the line to add. A folder with several profiles gets no import and a warning, since a `mod` module's recipes run in the kit's folder and two imports define the same recipe names.
-- In CI, the spec-tools action links `$HOME/.ai-kit` to the kit at the commit it pins, unless a kit is already there; a job that runs `just` calls it with `checks: none` before its first `just` step, as `ci-godot.yml` and `ci-java.yml` do.
+- In CI, the spec-tools action links `$HOME/.ai-kit` to the kit at the commit it pins, unless a kit is already there, which must be at that commit or the step fails (KIT-083); a job that runs `just` calls it with `checks: none` before its first `just` step, as `ci-godot.yml` and `ci-java.yml` do.
 - The printed `git config merge.keyed-csv.driver` step runs `python3 ~/.ai-kit/platforms/kits/godot/scripts/keyed_csv_merge.py`; `.gitattributes` stays the project's.
 
 Migration for a project that has the copies:
