@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Updates the kit clone plus Codex and Claude marketplace plugins. Usage: refresh.sh
+# Moves the kit clone to the newest release and updates the Codex and Claude marketplace plugins. Usage: refresh.sh
 set -euo pipefail
 
 KIT="${AI_KIT_DIR:-$HOME/.ai-kit}"
 # shellcheck source=SCRIPTDIR/codex-bin.sh
 source "$(dirname "${BASH_SOURCE[0]}")/codex-bin.sh"
+# shellcheck source=SCRIPTDIR/kit-release.sh
+source "$(dirname "${BASH_SOURCE[0]}")/kit-release.sh"
 
 warn() {
   printf 'WARN: refresh: %s\n' "$*" >&2
@@ -109,35 +111,52 @@ run_step() {
 
 [[ -d "$KIT/.git" ]] || fail "$KIT is not a git clone — run platforms/tools/bootstrap.sh"
 
-# KIT-046: the pull replaces this script, but bash keeps running the copy it opened, so a run that pulls a new
-# refresh.sh would finish with the old logic. Hand over once to the pulled script, which skips the pull.
+# #271: the user install follows the newest release tag, not main: the clone sits detached on it, and the Codex
+# marketplace and Devin's plugin use it as their ref. KIT-046: the checkout replaces this script, but bash keeps
+# running the copy it opened, so a run that checks out a new refresh.sh would finish with the old logic. Hand over
+# once to the new script, which skips the fetch.
 if [[ "${AI_KIT_REFRESH_PULLED:-0}" != "1" ]]; then
-  run_step "git fetch origin failed" git -C "$KIT" fetch origin
-
-  branch="$(git -C "$KIT" branch --show-current)" || fail "cannot read current branch"
+  run_step "git fetch origin failed" git -C "$KIT" fetch --tags origin
   status="$(git -C "$KIT" status --short)" || fail "cannot read git status"
   if [[ -n "$status" ]]; then
     printf 'FAIL: refresh: working tree is dirty; refusing to update\n%s\n' "$status" >&2
     exit 1
   fi
-
-  if [[ "$branch" != "main" ]]; then
-    run_step "cannot checkout main" git -C "$KIT" checkout main
-  fi
-
-  before="$(git -C "$KIT" rev-parse HEAD)" || fail "cannot read HEAD"
-  run_step "git pull --ff-only failed" git -C "$KIT" pull --ff-only
-  if ! git -C "$KIT" diff --quiet "$before" HEAD -- platforms/tools/refresh.sh platforms/tools/codex-bin.sh; then
-    printf 'refresh: the pull changed refresh.sh; running the new version\n'
-    exec env AI_KIT_REFRESH_PULLED=1 bash "$KIT/platforms/tools/refresh.sh" "$@"
-  fi
+fi
+tag="$(kit_release_tag "$KIT")"
+[[ -n "$tag" ]] || fail "no vX.Y.Z release tag on origin/main; the user install follows the newest release"
+before="$(git -C "$KIT" rev-parse HEAD)" || fail "cannot read HEAD"
+# A run handed over by a refresh.sh from before #271 has pulled main; it moves to the release here.
+if [[ "$before" != "$(git -C "$KIT" rev-parse "$tag^{commit}")" ]]; then
+  run_step "cannot check out $tag" git -C "$KIT" checkout -q --detach "$tag"
+fi
+if [[ "${AI_KIT_REFRESH_PULLED:-0}" != "1" ]] && ! git -C "$KIT" diff --quiet "$before" HEAD -- \
+    platforms/tools/refresh.sh platforms/tools/codex-bin.sh platforms/tools/kit-release.sh; then
+  printf 'refresh: the release changed refresh.sh; running the new version\n'
+  exec env AI_KIT_REFRESH_PULLED=1 bash "$KIT/platforms/tools/refresh.sh" "$@"
 fi
 
 codex="$(codex_bin || true)"
 if [[ -n "$codex" ]]; then
   marketplaces="$("$codex" plugin marketplace list 2>/dev/null || true)"
   if [[ "$marketplaces" == *"ai-kit"* ]]; then
-    run_step "codex marketplace upgrade failed" "$codex" plugin marketplace upgrade ai-kit
+    codex_ref="$(codex_kit_ref)"
+    if [[ "$codex_ref" == "$tag" ]]; then
+      run_step "codex marketplace upgrade failed" "$codex" plugin marketplace upgrade ai-kit
+    else
+      # Codex keeps a marketplace's source and ref together, so a new ref is a remove and an add; the add of each kit
+      # plugin then replaces its cache with the release's version.
+      run_step "codex marketplace remove failed" "$codex" plugin marketplace remove ai-kit
+      run_step "codex marketplace add failed — run: codex plugin marketplace add $KIT_REPOSITORY --ref $tag" \
+        "$codex" plugin marketplace add "$KIT_REPOSITORY" --ref "$tag"
+      for plugin_dir in "$KIT"/plugins/*/; do
+        [[ -d "$plugin_dir/.devin-plugin" || -d "$plugin_dir/.claude-plugin" || -f "$plugin_dir/plugin.json" ]] || continue
+        plugin_name="$(basename "$plugin_dir")"
+        run_step "codex plugin add failed — run: codex plugin add $plugin_name@ai-kit" \
+          "$codex" plugin add "$plugin_name@ai-kit"
+      done
+      printf 'refresh: codex marketplace ai-kit moved from %s to %s\n' "$codex_ref" "$tag"
+    fi
   else
     warn "codex marketplace ai-kit not registered — run platforms/tools/bootstrap.sh"
   fi
@@ -202,4 +221,4 @@ fi
 
 sha="$(git -C "$KIT" rev-parse --short HEAD)" || fail "cannot read HEAD"
 date="$(git -C "$KIT" show -s --format=%cs HEAD)" || fail "cannot read commit date"
-printf 'refresh: %s %s main\n' "$sha" "$date"
+printf 'refresh: %s %s %s\n' "$sha" "$date" "$tag"

@@ -6,6 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Changed
 - KIT-080 (#280, option a): rule e's component check is three short rules: no `..` path step (a revision range `A..B` still passes), no shell expansion outside a leading `$NAME`, `${NAME}` or `~/` anchor, and no interpreter given inline code. `row-checks.md` states that this is hygiene, not isolation; `proof_var_depths` is no longer read.
+- KIT-080 (#271): the user install follows the newest `vX.Y.Z` release tag on `origin/main`, not `main`: `bootstrap.sh` clones at it, `refresh.sh` fetches the tags and checks the clone out detached there (a kit merge waits for its release), and moves the Codex marketplace `ref` to it with a remove, an add and a fresh add of each kit plugin; `doctor.sh` fails when the clone, the Codex ref or Devin's plugin ref is not at that release and moves the Codex ref itself. The new `platforms/tools/kit-release.sh` holds the tag lookup; `docs/projects.md` lists what stays unpinned and why.
 
 ### Fixed
 - KIT-080 (#270, #269, #266): rule e fails a Proof of `evidence:` clauses only, unless the new `row_checks.evidence_only` is `true`; rule c names every stack whose tests are missing; `sdd-parameters.md` and the schema say that rule j reads `visual_approval`.
@@ -17,6 +18,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Migration
 - KIT-080: under a component, a row proof with `..` (also `$VAR/..`, the old `proof_var_depths` grant), a glob in a dot-name or `python3 -c` now fails rule e: name the path from the component's folder. A project whose evidence-only rows are intended sets `row_checks.evidence_only: true`.
+- KIT-080 (#271): the next `refresh.sh` run (launchd) moves `~/.ai-kit` from `main` to the newest release, detached, and moves the Codex marketplace from `ref = "main"` to that tag. Set the same tag as the ref of Devin's team plugin in Customize → Plugins → Plugin settings → Edit manifest; until then `doctor.sh` fails on it. A kit change reaches the machine with its release, not its merge.
 
 ## [13.0.1] - 2026-11-16
 

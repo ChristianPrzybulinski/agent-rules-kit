@@ -5,8 +5,10 @@ set -euo pipefail
 KIT="${AI_KIT_DIR:-$HOME/.ai-kit}"
 # shellcheck source=SCRIPTDIR/codex-bin.sh
 source "$(dirname "${BASH_SOURCE[0]}")/codex-bin.sh"
-SRC="${AI_KIT_SOURCE:-https://github.com/ChristianPrzybulinski/agent-rules-kit}"
-REPOSITORY="ChristianPrzybulinski/agent-rules-kit"
+# shellcheck source=SCRIPTDIR/kit-release.sh
+source "$(dirname "${BASH_SOURCE[0]}")/kit-release.sh"
+REPOSITORY="$KIT_REPOSITORY"
+SRC="${AI_KIT_SOURCE:-https://github.com/$REPOSITORY}"
 HEADER="# Global Rules — AI Kit"
 
 warn() {
@@ -84,9 +86,15 @@ if [[ ! -e "$KIT" ]]; then
   else
     git clone "$SRC" "$KIT"
   fi
+  # #271: the user install follows the newest release, not main; refresh.sh moves it on with each release
+  tag="$(kit_release_tag "$KIT")"
+  [[ -n "$tag" ]] || fail "no vX.Y.Z release tag on origin/main in $SRC"
+  git -C "$KIT" checkout -q --detach "$tag"
+  printf 'fix: kit clone at release %s\n' "$tag"
 elif [[ ! -d "$KIT" ]]; then
   fail "$KIT exists and is not a directory"
 fi
+tag="$(kit_release_tag "$KIT")"
 
 ensure_agents_link
 
@@ -111,7 +119,7 @@ if [[ -n "$codex" ]]; then
   marketplaces="$("$codex" plugin marketplace list 2>/dev/null || true)"
   if [[ "$marketplaces" == *"ai-kit"* ]]; then
     printf 'ok: codex marketplace ai-kit registered\n'
-  elif "$codex" plugin marketplace add "$REPOSITORY" --ref main >/dev/null 2>&1; then
+  elif [[ -n "$tag" ]] && "$codex" plugin marketplace add "$REPOSITORY" --ref "$tag" >/dev/null 2>&1; then
     printf 'fix: codex marketplace ai-kit registered\n'
   else
     warn "codex marketplace ai-kit registration failed; retry after authentication"
