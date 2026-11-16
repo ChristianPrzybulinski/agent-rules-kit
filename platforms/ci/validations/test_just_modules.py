@@ -297,6 +297,13 @@ class TemplatesNameKitRecipes(unittest.TestCase):
         self.assertIn("ci-godot.yml: names just recipe 'boot-proof', which platforms/kits/just/godot.just "
                       "does not define", result.stderr)
 
+    def test_a_recipe_after_a_long_option_is_checked_too(self):
+        """#283 item 7: ci-godot runs `just --no-deps test` after `just boot`; the recipe after the option still counts."""
+        self.edit("platforms/kits/github/workflows/ci-godot.yml", "just --no-deps test", "just --no-deps tests")
+        result = self.check()
+        self.assertIn("ci-godot.yml: names just recipe 'tests', which platforms/kits/just/godot.just does not define",
+                      result.stderr)
+
     def test_a_template_without_the_gate_recipes_fails(self):
         self.edit("plugins/guardrails/templates/project-agents-godot-2d.md", "just test", "godot test", count=-1)
         result = self.check()

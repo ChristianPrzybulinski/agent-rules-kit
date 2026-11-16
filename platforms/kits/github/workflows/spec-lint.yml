@@ -28,6 +28,15 @@ jobs:
       - run: pip install pyyaml jsonschema
       - name: Validate frontmatter and FEAT/REQ references
         run: CI=1 python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas
+      # sdd.doc_structure (KIT-074): the sync copies check_docs_structure.py while it is enabled and removes it when
+      # off, so this step needs no hand edit. The paths above limit it to spec changes; `just lint` runs it on every one.
+      - name: Every authored folder says what belongs in it (sdd.doc_structure)
+        run: |
+          if [ -f .github/spec-lint/check_docs_structure.py ]; then
+            python3 .github/spec-lint/check_docs_structure.py
+          else
+            echo "doc-structure: not vendored (sdd.doc_structure.enabled is false)"
+          fi
       # docs/spec/baseline.json holds old findings and may only shrink (KIT-068): a pull request that adds an entry
       # or raises a value over its base branch fails here.
       - name: Baseline only shrinks

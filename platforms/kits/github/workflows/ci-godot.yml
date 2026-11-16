@@ -120,13 +120,14 @@ jobs:
         shell: bash
         run: just boot
       - name: Unit tests (just test; a missing runner, no suite or zero executed test cases fails)
-        # container jobs default to `sh -e`; dash rejects `set -o pipefail` (exit 2)
+        # container jobs default to `sh -e`; dash rejects `set -o pipefail` (exit 2). --no-deps: `just boot` above
+        # ran the `import` both recipes depend on, and just runs a dependency once per invocation only
         shell: bash
         env:
           GODOT_TEST_RUNNER: ${{ inputs.test-runner }}
         run: |
           set -euo pipefail
-          just test 2>&1 | tee test-run.log
+          just --no-deps test 2>&1 | tee test-run.log
       - name: Upload test reports (JUnit XML and runner log)
         # gdUnit4 tees the run to test-run.log and writes reports/report_<n>/results.xml; the GUT branch leaves neither
         if: always()
