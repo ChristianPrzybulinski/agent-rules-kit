@@ -57,6 +57,39 @@ class Verdict(unittest.TestCase):
                 self.assertEqual(ci_red.verdict(code, output, body)[0], 1)
 
 
+class CurrentBody(unittest.TestCase):
+    """#294: the body is read when the job runs, so a `## Red` exception added after the push counts on a re-run;
+    the event payload, which `gh run rerun` replays unchanged, is only the fallback."""
+    PAYLOAD = {"pull_request": {"number": 7, "body": "## Red\n\nnothing yet\n"}}
+    ENV = {"GITHUB_REPOSITORY": "o/kit", "GITHUB_API_URL": "https://api.example", "GITHUB_TOKEN": "t0ken"}
+
+    def test_the_body_comes_from_the_api_at_run_time(self):
+        seen = []
+
+        def fetch(request, timeout):
+            seen.append((request.full_url, request.get_header("Authorization"), timeout))
+            return io.BytesIO(b'{"body": "## Red\\n\\nException: manual: a version bump only"}')
+
+        body, note = ci_red.pr_body(self.PAYLOAD, self.ENV, fetch)
+        self.assertEqual(ci_red.red_exception(body), "Exception: manual: a version bump only")
+        self.assertEqual(note, "")
+        self.assertEqual(seen, [("https://api.example/repos/o/kit/pulls/7", "Bearer t0ken", 30)])
+
+    def test_an_api_failure_falls_back_to_the_event_body_with_a_notice(self):
+        def fetch(request, timeout):
+            raise OSError("network down")
+
+        body, note = ci_red.pr_body(self.PAYLOAD, self.ENV, fetch)
+        self.assertEqual(body, "## Red\n\nnothing yet\n")
+        self.assertTrue(note.startswith("::notice title=red::"), note)
+        self.assertIn("network down", note)
+        self.assertNotIn("t0ken", note)
+
+    def test_without_a_repository_or_number_the_event_body_is_used(self):
+        body, note = ci_red.pr_body({"pull_request": {"body": "x"}}, {}, None)
+        self.assertEqual((body, note), ("x", ""))
+
+
 class NoPullRequest(unittest.TestCase):
     def test_a_push_or_a_dispatch_has_nothing_to_compare(self):
         for event in ("push", "workflow_dispatch", ""):

@@ -78,6 +78,16 @@ class Selection(unittest.TestCase):
                     "test_g.Other.test_one", "integration", ("platforms/tools/other.py",))], {"integration"}, [path])
                 self.assertEqual(len(picked), 4)
 
+    def test_a_root_manifest_or_version_change_no_covers_names_runs_the_whole_layer(self):
+        """#294 item 3: the root plugin manifests and VERSION are code too, so a release PR runs every integration
+        class before its merge instead of only the ones whose COVERS names a root file."""
+        for path in (".claude-plugin/marketplace.json", ".agents/plugins/marketplace.json", ".devin-plugin/plugin.json",
+                     "VERSION"):
+            with self.subTest(path=path):
+                self.assertEqual(rt.unknown_code([path], ["platforms/tools/sync-project.sh"]), [path])
+                picked = rt.select(SUITE, {"integration"}, [path])
+                self.assertEqual(ids(picked), ids(rt.select(SUITE, {"integration"})))
+
     def test_unknown_code_ignores_markdown_test_modules_and_paths_outside_the_code_folders(self):
         covers = ["platforms/tools/sync-project.sh"]
         self.assertEqual(rt.unknown_code(["platforms/tools/README.md", "platforms/ci/validations/test_x.py",

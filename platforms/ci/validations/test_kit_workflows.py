@@ -52,7 +52,12 @@ WEEKLY = re.compile(r"^\d{1,2} \d{1,2} \* \* [0-6]$")
 DAILY = re.compile(r"^\d{1,2} \d{1,2} \* \* \*$")
 # The one checkout that keeps its credential: `git lfs pull` in the same job authenticates with it.
 KEEPS_CREDENTIAL = {("ci-godot.yml", "import-and-test")}
-JOB_GRANTS = {"contents": "read", "security-events": "write"}  # security-events: CodeQL's SARIF upload only
+JOB_GRANTS = {"contents": "read", "security-events": "write",  # security-events: CodeQL's SARIF upload only
+              "pull-requests": "read"}  # red reads the PR body when it runs (#294)
+# The only jobs whose token may write, and the scopes (#279): any other `write`, or a `write-all`, fails.
+WRITE_GRANTS = {("codeql.yml", "analyze", "security-events"), ("release.yml", "release", "contents")}
+# A tool fetched by a run step is pinned by version and sha-256 (#294): never a script piped into a shell.
+PIPED_INSTALL = re.compile(r"\b(?:curl|wget)\b[^\n|]*\|\s*(?:sudo\s+)?(?:ba|z|da)?sh\b")
 PINNED = re.compile(r"^\s*-?\s*uses:\s*[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s*v\d+(\.\d+)*\s*$")
 GITLEAKS = shutil.which("gitleaks")
 
@@ -82,6 +87,22 @@ def contexts(job):
 
 def steps(workflow):
     return [step for job in workflow["jobs"].values() for step in job["steps"]]
+
+
+def grants(permissions) -> dict:
+    """A `permissions` value as {scope: level}: the scalar `write-all` or `read-all` grants every scope ("*")."""
+    if isinstance(permissions, str):
+        return {"*": permissions.split("-", 1)[0]}
+    return dict(permissions or {})
+
+
+def token_writes(name, workflow) -> list:
+    """(job, scope) for each grant that writes, at the workflow level (job "*") or in a job, outside WRITE_GRANTS."""
+    out = [("*", scope) for scope, level in grants(workflow.get("permissions")).items() if "write" in str(level)]
+    for job_name, job in (workflow.get("jobs") or {}).items():
+        out += [(job_name, scope) for scope, level in grants(job.get("permissions")).items()
+                if "write" in str(level) and (name, job_name, scope) not in WRITE_GRANTS]
+    return out
 
 
 @unittest.skipIf(yaml is None, "pyyaml is not installed (CI=1 makes it required)")
@@ -181,8 +202,36 @@ class EveryWorkflow(unittest.TestCase):
         for path, workflow in every_workflow():
             with self.subTest(workflow=path.name):
                 self.assertIn("permissions", workflow)
-                grants = workflow["permissions"] or {}
-                self.assertNotIn("write", grants.values() if isinstance(grants, dict) else [grants])
+                self.assertEqual(token_writes(path.name, workflow), [])
+
+    def test_a_write_all_token_or_an_unlisted_job_write_is_caught(self):
+        """#279: `write-all` passed the old check, which looked for the word `write` among the values."""
+        self.assertEqual(token_writes("evals.yml", {"permissions": "write-all", "jobs": {}}), [("*", "*")])
+        self.assertEqual(token_writes("evals.yml", {"permissions": "read-all",
+                                                    "jobs": {"eval": {"permissions": "write-all"}}}), [("eval", "*")])
+        self.assertEqual(token_writes("release.yml", {"permissions": {}, "jobs": {"release": {"permissions": {
+            "contents": "write", "issues": "write"}}}}), [("release", "issues")])
+        self.assertEqual(token_writes("release.yml", {"permissions": {}, "jobs": {"release": {"permissions": {
+            "contents": "write"}}}}), [])
+
+    def test_every_workflow_file_is_a_yml_file(self):
+        """#279 nit: actionlint, zizmor and these tests read `*.yml`; a `.yaml` workflow would escape all three."""
+        for folder in (WORKFLOWS, TEMPLATES):
+            with self.subTest(folder=folder.name):
+                self.assertEqual(sorted(p.name for p in folder.iterdir() if p.suffix != ".yml"), [])
+
+    def test_no_run_step_pipes_a_download_into_a_shell(self):
+        """#294 item 2: Claude Code is fetched by version and sha-256, as just, gitleaks, actionlint and zizmor are."""
+        self.assertTrue(PIPED_INSTALL.search("curl -fsSL https://claude.ai/install.sh | bash"))
+        for path, workflow in every_workflow():
+            for name, job in workflow["jobs"].items():
+                for step in job["steps"]:
+                    with self.subTest(workflow=path.name, job=name, step=step.get("name", "")[:40]):
+                        self.assertIsNone(PIPED_INSTALL.search(step.get("run", "")))
+                        if "claude-code-releases" in step.get("run", ""):
+                            self.assertRegex(step["env"]["CLAUDE_CODE_VERSION"], r"^\d+\.\d+\.\d+$")
+                            self.assertRegex(step["env"]["CLAUDE_CODE_SHA256"], r"^[0-9a-f]{64}$")
+                            self.assertIn("sha256sum -c -", step["run"])
 
     def test_dependabot_updates_the_actions_of_both_folders(self):
         config = yaml.safe_load((KIT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
@@ -309,6 +358,23 @@ class LayeredGate(unittest.TestCase):
                 with self.subTest(workflow=workflow, job=job, tool=tool):
                     for key in (f"{tool}_VERSION", f"{tool}_SHA256"):
                         self.assertEqual(env.get(key), pins[key])
+
+    def test_the_godot_template_imports_once(self):
+        """#283 item 7: `just boot` and `just test` both depend on `import`; two invocations imported twice, so the
+        test step skips the dependency the boot step just ran."""
+        job = load("ci-godot.yml", TEMPLATES)["jobs"]["import-and-test"]
+        calls = [line.strip() for step in job["steps"] for line in step.get("run", "").splitlines()
+                 if re.match(r"\s*just ", line)]
+        self.assertEqual(calls, ["just boot", "just --no-deps test 2>&1 | tee test-run.log"])
+
+    def test_spec_lint_runs_the_doc_structure_check_once_it_is_vendored(self):
+        """#283 item 6: sync-project.sh copies check_docs_structure.py while sdd.doc_structure is on and removes it
+        when off, so the template's step runs it when the copy exists and needs no hand edit."""
+        steps_ = load("spec-lint.yml", TEMPLATES)["jobs"]["validate"]["steps"]
+        step = next((s for s in steps_ if "check_docs_structure.py" in s.get("run", "")), None)
+        self.assertIsNotNone(step, "spec-lint.yml runs no check_docs_structure.py step")
+        self.assertIn("if [ -f .github/spec-lint/check_docs_structure.py ]", step["run"])
+        self.assertIn("python3 .github/spec-lint/check_docs_structure.py", step["run"])
 
     def test_red_runs_on_the_merge_commit_and_ci_needs_it(self):
         job = load("ci.yml")["jobs"]["red"]

@@ -99,7 +99,8 @@ The owner widened this record on 2026-11-15 (chat, relayed by the coordinator, "
        `${{ }}` in `run:` (`template-injection`);
      - read-only top-level `permissions` (`contents: read`, or `{}` where the job needs nothing), and
        `release.yml`'s `contents: write` moved to its one job.
-   - The pedantic persona still lists 18, which the gate does not run:
+   - The pedantic persona still lists 16, which the gate does not run (the other 2 of its 18 are auditor-level:
+     `secrets-outside-env` at `evals.yml:14` and `artipacked` at `ci-godot.yml:82`; #279):
      - 11 jobs without a `name`;
      - 4 workflows without job-level `concurrency`; for the reusable templates the caller's workflow owns it;
      - `ci-godot.yml`'s `container` tag, which follows the `godot-version` input, so a digest pin would fix one

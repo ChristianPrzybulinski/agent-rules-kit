@@ -15,8 +15,9 @@ set its own:
   performance  latency budgets, run one at a time after the rest, so no other test loads the machine
 An integration class lists COVERS, the globs of the files it exercises (pr_gates.py globs: `*` stays inside a folder,
 `**` crosses them). With --changed-from REF it runs only when a file that differs between REF and the working tree
-matches its COVERS or is its own test module, or when a changed file under platforms/ or plugins/ that is no Markdown
-file and no test module matches no COVERS at all (unknown code runs the whole layer). Other layers ignore it.
+matches its COVERS or is its own test module, or when a changed file under platforms/, plugins/, .claude-plugin/,
+.agents/ or .devin-plugin/, or VERSION, that is no Markdown file and no test module matches no COVERS at all (unknown
+code runs the whole layer, so a release PR runs all of it). Other layers ignore it.
 
 --shard I/N runs the I-th of N interleaved slices of the selected chunks (a unit or contract class is one chunk, a
 test of a slower layer one), so N CI jobs share a layer. FILE names test modules under --start (default this kit's
@@ -56,7 +57,7 @@ _SPEC.loader.exec_module(pr_gates)
 LAYERS = ("unit", "contract", "integration", "functional", "performance")
 FAST = ("unit", "contract")  # a class of these layers runs as one chunk; any other test is a chunk of its own
 SLOW = ("integration", "functional", "performance")
-CODE = ("platforms/", "plugins/")
+CODE = ("platforms/", "plugins/", ".claude-plugin/", ".agents/", ".devin-plugin/")  # and VERSION (#294 item 3)
 TEST_MODULE = "platforms/ci/validations/test_*.py"
 SEPARATOR1, SEPARATOR2 = "=" * 70, "-" * 70
 
@@ -118,8 +119,9 @@ def matches(path, globs):
 
 
 def unknown_code(changed, every_cover):
-    """The changed files under platforms/ or plugins/ that no COVERS names: code no integration class claims."""
-    return [p for p in changed if p.startswith(CODE) and not p.endswith(".md")
+    """The changed files under platforms/, plugins/ or the root manifest folders, and VERSION, that no COVERS names:
+    code no integration class claims."""
+    return [p for p in changed if (p.startswith(CODE) or p == "VERSION") and not p.endswith(".md")
             and not pr_gates.path_matches(p, TEST_MODULE) and not matches(p, every_cover)]
 
 

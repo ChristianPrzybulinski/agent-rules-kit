@@ -10,9 +10,12 @@ the output to the job summary for the reviewer, and turns the verdict into the j
   any other finding (exit 1) or error (2)     fail
 
 On a push or a dispatch there is no pull request to compare, so the job says so and passes. The PR body is untrusted
-text: it is read from the event file only to find that section's first line, and the reviewer judges the exception.
+text, read only to find that section's first line, and the reviewer judges the exception. It is read when the job runs,
+through the REST API with the job's read-only token (#294), so an exception added after the push counts once the job
+re-runs; `gh run rerun` replays the event payload unchanged, which is only the fallback when the API cannot answer.
 
-Usage: ci_red.py   (reads GITHUB_EVENT_NAME, GITHUB_EVENT_PATH, GITHUB_STEP_SUMMARY and GITHUB_WORKSPACE)
+Usage: ci_red.py   (reads GITHUB_EVENT_NAME, GITHUB_EVENT_PATH, GITHUB_STEP_SUMMARY, GITHUB_WORKSPACE, GITHUB_REPOSITORY,
+                    GITHUB_API_URL and GITHUB_TOKEN)
 """
 from __future__ import annotations
 
@@ -22,6 +25,7 @@ import re
 import shlex
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 KIT = Path(__file__).resolve().parents[2]
@@ -62,6 +66,25 @@ def verdict(code: int, output: str, body: str | None) -> tuple[int, str]:
     return 1, f"::error title=red::red exited {code}; read this job's log"
 
 
+def pr_body(payload: dict, env, fetch=urllib.request.urlopen) -> tuple[str | None, str]:
+    """(the PR body as GitHub has it now, a notice line or ""): the REST API first, the event payload when the run has
+    no repository or number, or when the call fails (the notice says why, never the token)."""
+    pull = payload.get("pull_request") or {}
+    fallback, number, repo = pull.get("body"), pull.get("number"), env.get("GITHUB_REPOSITORY")
+    if not (repo and isinstance(number, int)):
+        return fallback, ""
+    url = f"{env.get('GITHUB_API_URL') or 'https://api.github.com'}/repos/{repo}/pulls/{number}"
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "kit-ci-red"}
+    if env.get("GITHUB_TOKEN"):
+        headers["Authorization"] = f"Bearer {env['GITHUB_TOKEN']}"
+    try:
+        with fetch(urllib.request.Request(url, headers=headers), timeout=30) as response:
+            return json.loads(response.read().decode("utf-8")).get("body"), ""
+    except (OSError, ValueError, AttributeError) as error:
+        return fallback, (f"::notice title=red::read the PR body from the event payload: the API call failed "
+                          f"({type(error).__name__}: {str(error)[:120]})")
+
+
 def git(*args: str) -> str:
     return subprocess.run(["git", *args], cwd=KIT, capture_output=True, text=True, check=True).stdout.strip()
 
@@ -72,7 +95,9 @@ def main() -> int:
         print(f"red: no pull request on a {event or 'local'} run; nothing to compare")
         return 0
     payload = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
-    body = (payload.get("pull_request") or {}).get("body")
+    body, notice = pr_body(payload, os.environ)
+    if notice:
+        print(notice)
     parents = git("rev-list", "--parents", "-n", "1", "HEAD").split()[1:]
     if len(parents) != 2:
         print("::error title=red::HEAD is not the pull request's merge commit (checkout with fetch-depth: 0)")

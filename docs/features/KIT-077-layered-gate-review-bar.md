@@ -220,6 +220,14 @@ the whole integration layer and `red` ran every module on base and head):
 - Skips: 59, down from 87. They are 54 gdtoolkit, 4 Godot and 1 bash 3.2. The 21 `just` and 6 `gitleaks` skips are
   gone, and the corpus test is functional, so it no longer runs in a pull request job.
 
+After the merge (#294, KIT-080):
+
+- `ci-full` ran green on each push to `main` since #293: runs 43818735237 (`cf98ead`), 43820974443 (`160405d`) and
+  43821553749 (`453648d`). `performance` had not run yet (it runs nightly and on demand); its first run, dispatched
+  on `453648d`, ran 3 tests in 1.1 s, green (run 43848407372).
+- `red` took 349 s (run 43816019580), 460 s (43817751313), 60 s (43820680714) and 8 s (43821419139) on green pull
+  request runs, so its timeout is 25 min: 3 × 460 s, rounded up to 5 minutes, as KIT-076 sets the others.
+
 Pending: the median over five pull request runs, which needs runs of smaller changes.
 
 ## Proof
