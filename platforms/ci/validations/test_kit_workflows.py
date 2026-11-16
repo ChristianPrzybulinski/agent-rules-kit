@@ -360,13 +360,29 @@ class LayeredGate(unittest.TestCase):
                     for key in (f"{tool}_VERSION", f"{tool}_SHA256"):
                         self.assertEqual(env.get(key), pins[key])
 
+    def test_jobs_that_run_the_gdscript_tool_tests_install_the_pinned_gdtoolkit(self):
+        """KIT-082: under CI=1 the test_gd_* tests fail instead of skipping without gdtoolkit, so every job that runs
+        the unit or integration layer, and red on a pull request's changed tests, installs the one pin the Godot kit
+        gives projects."""
+        requirements = "platforms/kits/godot/requirements-gdtoolkit.txt"
+        self.assertRegex((KIT / requirements).read_text(encoding="utf-8"), r"(?m)^gdtoolkit==\d+\.\d+\.\d+$")
+        jobs = sorted({*LAYER_JOBS["unit"], *LAYER_JOBS["integration"], ("ci.yml", "red")})
+        self.assertEqual(len(jobs), 4)
+        for workflow, job in jobs:
+            with self.subTest(workflow=workflow, job=job):
+                runs = [step.get("run", "") for step in load(workflow)["jobs"][job]["steps"]]
+                self.assertIn(f"pip install -r {requirements}", runs)
+
     def test_the_godot_template_imports_once(self):
         """#283 item 7: `just boot` and `just test` both depend on `import`; two invocations imported twice, so the
         test step skips the dependency the boot step just ran."""
         job = load("ci-godot.yml", TEMPLATES)["jobs"]["import-and-test"]
         calls = [line.strip() for step in job["steps"] for line in step.get("run", "").splitlines()
                  if re.match(r"\s*just ", line)]
-        self.assertEqual(calls, ["just boot", "just --no-deps test 2>&1 | tee test-run.log"])
+        self.assertEqual(len(calls), 2, calls)
+        self.assertEqual(calls[0], "just boot")
+        self.assertRegex(calls[1], r"^just --no-deps test(?=\s|$)")  # the import `just boot` ran is not run again
+        self.assertRegex(calls[1], r"\|\s*tee\s+test-run\.log(?=\s|$)")  # the log the upload step keeps
 
     def test_spec_lint_runs_the_doc_structure_check_once_it_is_vendored(self):
         """#283 item 6: sync-project.sh copies check_docs_structure.py while sdd.doc_structure is on and removes it
