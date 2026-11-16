@@ -12,7 +12,9 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
       command}) give each stack its command: `{tests}` (paths relative to cwd), `{res}` (`res://` paths) and
       `{classes}` (stems, comma-joined) fill in the tests, and a prefix in the braces repeats per item (`{-a res}`);
       tests no entry covers run with --run. A run where no test ran (exit 126/127, or a stack's no-test line) is an
-      ERROR, exit 2, never a verdict. --junit reads the run's JUnit XML reports (surefire, gdUnit, pytest).
+      ERROR, exit 2, never a verdict. --junit reads the run's JUnit XML reports (surefire, gdUnit, pytest); without
+      them the unittest or pytest text is read. A case naming no test file of the run, such as another runner's report
+      quoted in a message, is skipped, and a reported failure is an assertion whatever its message quotes.
   review_checks.py scope --base B --head H --files GLOB ... [--body PR.md] [--gates gates.json]
       Changed paths outside the task's Files cell. `## Files widened` may add existing test paths only, and none of
       them may change an assertion line (the falsifier: an assertion changed to pass is a stop).
@@ -30,16 +32,29 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
       not).
 
 Rules files inside the repository (--gates, --review, --patterns) are read only from git, as --base has them (`git show B:path`),
-never from the checkout, so a PR cannot loosen its own rules; only the part of the path in front of the repository is
-resolved, so no link the head commits can move the path. A file outside the repository is read from disk. Every run
-is its own process group, which a timeout, Ctrl-C, SIGTERM or SIGHUP kills whole. Diffs are read as bytes split only
-on newlines, one trailing CR dropped per line, with fixed a/ and b/ prefixes, raw file names and `--text --no-textconv
---no-ext-diff`; the tests cover a `-diff` or `binary` attribute in the head or base, a quote, tab, space or non-ASCII
-character in a file name, a CR, FF or U+2028 inside an added line, a rule anchored at `$` on a CRLF line, and a
-reviewer's diff.noprefix or prefix config. Files read whole (REVIEW.md, a moved test) split on CRLF, CR or LF. A rules
-file or config the tool cannot read or use (a base that is not a commit, bad JSON, not an object, a regex that does not
-compile, a value of the wrong type: `pr_gates.config_errors` checks each known key, #252) exits 2, never the finding
-code 1.
+never from the checkout, so a PR cannot loosen its own rules by editing, deleting or relinking the file. feat-proofs
+without --base reads them from HEAD, on purpose: it runs on main after the merge, where HEAD is the trusted ref and no
+PR head exists; on a PR checkout pass --base. Only the part of the path in front of the repository is resolved (an
+alias folder counts); from the repository root on, the path stays lexical, so no link the head commits, on the file or
+a folder above it, can move it. A working folder inside a linked one is already resolved, so run the tool from the
+repository root. A path that names a folder is a usage error (exit 2). A file outside the repository is read from
+disk. Every run is its own process group, which a timeout, Ctrl-C, SIGTERM or SIGHUP kills whole.
+
+Diffs are read as bytes split only on newlines, one trailing CR dropped per line (so a rule anchored at `$` matches a
+CRLF line), with fixed a/ and b/ prefixes, raw file names and `--text --no-textconv --no-ext-diff`, so a `-diff` or
+`binary` attribute in the head's or base's .gitattributes, an unusual file name, a line separator inside an added line
+or the reviewer's diff-prefix config hides no line; the tests cover a `-diff` or `binary` attribute in the head or
+base, a quote, tab, space or non-ASCII character in a file name, a CR, FF or U+2028 inside an added line, a rule
+anchored at `$` on a CRLF line, and a reviewer's diff.noprefix or prefix config. So dod does not see a line-ending CR:
+a project that needs a rule about CRs enforces line endings with .gitattributes `text` and `eol` rules. Files read
+whole (REVIEW.md, a moved test) split on CRLF, CR or LF.
+
+A rules file or config the tool cannot read or use (a base that is not a commit, as in a shallow clone, bad JSON, not
+an object, a regex that does not compile, a value of the wrong type, even one that still iterates, such as a string
+where a list belongs, named by its key: `pr_gates.config_errors` checks each known key, #252) exits 2, never the
+finding code 1, and so do a copy of the tool without pr_gates.py and a --timeout below 1. A failure the PR's own
+content causes (a path too long for the file system, a PR test under a path that is a file on base) is a finding
+naming the path.
 
 A proof re-run first checks that every path the command names exists, `res://` against Godot's `--path` (a moved
 file is a stale proof, not a failure of the code), then fails a run whose output matches its stack's failure pattern

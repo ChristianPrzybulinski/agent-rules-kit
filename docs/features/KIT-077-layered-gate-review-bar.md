@@ -159,6 +159,8 @@ the bash 3 test. [FACT] The required `ci` job took a median of 771 s over the la
    `platforms/tools/run_tests.py` selects by layer and runs the tests in parallel worker processes (a unit or contract
    class per chunk, any slower test alone), keeps unittest's report lines and lists the skips by reason;
    `check.sh --tests` calls it, so CI and a local run share the entry (#278).
+   [FACT] Measured on macOS, Python 3.12: the whole suite in 327 s on 8 workers at load average 10–12, 196 s of it the
+   whole `smoke.sh` (the unit and contract layers, 146 tests, in about 1 s); moved here from CONTRIBUTING (#291).
 2. **The pull request gate.** `ci.yml` runs `static`, `unit` (unit and contract), `integration (1)` to `(3)` (the
    integration classes the change reaches, `--changed-from HEAD^1`) and `red` in parallel; the required `ci` job needs
    all of them, runs `if: always()` and passes only when each passed. `red` (`platforms/tools/ci_red.py`) records

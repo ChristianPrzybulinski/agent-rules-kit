@@ -30,7 +30,7 @@ A default is the kit's behavior before the key existed, except `max_chain` and `
 | `max_chain` | integer ≥ 1 | `4` | `sdd-tasks`, `check_spec.py` (fails above it): longest chain of a FEAT's own `Depends on` rows |
 | `max_feat_tasks` | integer ≥ 1 | `30` | `sdd-plan` (splits a NEED above it), `check_spec.py` (warns only): task rows in one FEAT |
 | `release` | `merge`, `manual` | `merge` (delivered once on `main`, flag on or none) | `sdd-review`, `sdd-release` |
-| `review_rounds` | integer ≥ 1 | `3` (`review` § 4) | `review`: the escalation cap for a PR whose fix delta adds a new mechanism, in rounds that end `NOT READY` on one criterion before the owner decides |
+| `review_rounds` | integer ≥ 1 | `3` (`review` § 4) | `review`: a ceiling, not a target; the escalation cap for a PR whose fix delta adds a new mechanism, in rounds that end `NOT READY` on one criterion before the owner decides |
 | `commits_by` | `executor`, `orchestrator` | `executor` | `sdd-implement`: who commits a task's work |
 | `protected_paths` | map: rooted path or glob → label | `{}` | `sdd-tasks` cut (the item gets the label), `review`: a change there needs the label |
 | `bundle` | map: `rows` ≥ 1, `points` ≥ 1, `high_rows` ≥ 0 | `{rows: 1, points: 3, high_rows: 1}` | `sdd-tasks` cut: new rows of one repository sharing a Files path in one item; `rows: 1` = one item per row |

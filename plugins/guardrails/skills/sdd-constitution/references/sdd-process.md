@@ -5,10 +5,8 @@ kind: detail
 
 # SDD — Spec-Driven Development
 
-Adapted from [github/spec-kit](https://github.com/github/spec-kit) as repository skills; project artifacts live under `docs/spec/`, never in the kit.
-
+Adapted from [github/spec-kit](https://github.com/github/spec-kit) as repository skills; project artifacts live under `docs/spec/`, never in the kit. Templates: `../../../templates/spec-*.md`. Bootstrap: `platforms/kits/sdd/init-spec.sh <repo>`.
 Entry: every request (idea, need, improvement, problem) is recorded by `sdd-intake` as a `NEED-nnn`. `sdd-specify` decides its type, route and priority: `new`, `improvement`, `platform` and `decision` go on to refinement, a `fix` of behavior an artifact already states and a `content`-only change are routed without it. The NEED (business) becomes REQs (functional, `sdd-clarify`), then a FEAT (technical, `sdd-plan`). A vague idea is stress-tested by `sdd-clarify` asking from its frontier (§ 2); a bug with no named cause goes through `investigate` and a feel or feasibility question through an `sdd-spike` (its branch never merges), and both reports enter `sdd-intake` as the NEED's evidence. A new project or new principles start with `sdd-constitution`. A project turns parts of this flow on or off and sets its limits in the `sdd:` block of `docs/spec/spec.md` (`sdd-parameters.md`); it never copies a step to change it.
-
 The chain is intake → specify → clarify → plan → tasks (the cut included) → implement → review → sdd-review → sdd-release. `sdd-check` is not a step: it is the read-only tool that `sdd-clarify` calls in its functional scope (blocks `refined`) and `sdd-plan` in its full scope (the functional items again plus the technical ones, blocks `planned`); anyone may run it as an audit (`all`).
 
 ## Flow
@@ -21,7 +19,7 @@ The chain is intake → specify → clarify → plan → tasks (the cut included
 | entry | `sdd-intake` | request | NEED proposed |
 | 1 | `sdd-specify` | proposed NEED; later the triaged one | decide: triaged, or closed; describe: specified |
 | 2 | `sdd-clarify` | specified NEED | REQs (new, amended), journeys, product decisions; NEED refined |
-| tool (was 3) | `sdd-check` | called by clarify (NEED, functional) and plan (FEAT, full); `all` for audits | read-only report that blocks refined or planned |
+| tool | `sdd-check` | called by clarify (NEED, functional) and plan (FEAT, full); `all` for audits | read-only report that blocks refined or planned |
 | 4 | `sdd-plan` | refined NEED | FEAT with technical criteria, Plan + decisions; planned |
 | 5 | `sdd-tasks` | planned FEAT | task rows (spec PR), then one cut item per row or bundle |
 | 6 | `sdd-implement` | a cut item, a FEAT's ready items or a PR's findings | code/tests/docs; PR per `pr_unit` with Red, Proof and executor line |
@@ -31,10 +29,15 @@ The chain is intake → specify → clarify → plan → tasks (the cut included
 
 ## Identifiers and status
 
-`NEED-nnn` → `needs/`; `FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DEC-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `TASK-nnn` → `tasks/` (`tracker: none`); `J-nn` → `journeys/`. A project that numbers decisions per kind declares `decision_kinds` (kind → prefix) in `spec.md`; each decision then carries its `kind` and that kind's prefix. Number sequentially inside each prefix; never reuse. When two or more spec sessions run against one specification at the same time, each session's prompt reserves a block of ids for every kind it may create (`NEED`, `FEAT`, `REQ-F`, `REQ-NF`, `DEC` or each declared decision prefix, `DEBT`, `TASK`, `J`); a session takes ids only from its own block. A reserved id left unused stays a gap and is never reused.
+`NEED-nnn` → `needs/`; `FEAT-nnn` → `features/`; `REQ-F-nnn`/`REQ-NF-nnn` → `requirements/`; `DEC-nnn` → `decisions/`; `DEBT-nnn` → `debts/`; `TASK-nnn` → `tasks/` (`tracker: none`); `J-nn` → `journeys/`. A project that numbers decisions per kind declares `decision_kinds` (kind → prefix) in `spec.md`; each decision then carries its `kind` and that kind's prefix. Number sequentially inside each prefix; never reuse. When two or more spec sessions run against one specification at the same time, each session's prompt reserves a block of ids for every kind it may create (`NEED`, `FEAT`, `REQ-F`, `REQ-NF`, `DEC` or each declared decision prefix, `DEBT`, `TASK`, `J`); a session takes ids only from its own block. A reserved id left unused stays a gap and is never reused. Every spec/decision classifies claims as `[FACT]`, `[DECISION]`, `[PROPOSAL]`, `[HYPOTHESIS]` or `[BLOCKER]`. `baseline.json` holds old `check_spec.py` and `sdd-check all` findings per rule so they neither block nor hide new ones; it only shrinks.
 
-A NEED moves `proposed → triaged → specified → refined → delivered`, or closes `rejected`, `merged`, `routed` or `parked` (a parked NEED returns to `triaged` when taken up): `triaged` once product confirms type, route and priority (the agent routes a fix or a duplicate, which product reviews later), `specified` once its outcome, Situations, scope and constraints are written, `refined` once product approves its REQs after a clean functional check, `delivered` once every FEAT it lists is delivered (set with its last FEAT by `spec_trace.py deliver`, or `validate` under `release: merge`; a `decision` NEED with no FEAT, by the approval of its decision record in `sdd-clarify`). Its links are written only in the NEED. A REQ moves `proposed → approved` (or `retired`; absent means `approved`) and is listed by the FEATs that implement it, or by its NEED until `sdd-plan` creates one. Journeys (`proposed → approved` or `retired`) are written inside `sdd-clarify` and checked by `sdd-check`, only where the project keeps them. A FEAT moves `proposed → planned → in-progress → validated → delivered` (or `cancelled`; `clarified` remains on FEATs older than the NEED flow); a `doing` or `done` task row derives `in-progress`, the most rows derive (`todo`, `blocked` and `cancelled` rows move nothing); `validated` (the closure passed on `main`) is written only by `sdd-review` and `delivered` (released and accepted, flag on or none) only by `sdd-release`, or by `sdd-review` under `release: merge`, each through `spec_trace.py validate`/`deliver` with the History line `check_spec.py` requires. A task row's `Status` (`todo`, `doing`, `blocked`, `done`, `cancelled`) is derived from its item: the GitHub issue, or the `TASK-nnn` file's `status`; a FEAT cut before KIT-068 may keep `docs/spec/progress/FEAT-nnn.json`, which `check_spec.py` still validates and `sdd-implement` never orients on. Every spec/decision classifies claims as `[FACT]`, `[DECISION]`, `[PROPOSAL]`, `[HYPOTHESIS]` or `[BLOCKER]`. `baseline.json` holds old `check_spec.py` and `sdd-check all` findings per rule so they neither block nor hide new ones; it only shrinks.
-
+| Machine | States | Transitions and who sets them |
+|---|---|---|
+| NEED | `proposed → triaged → specified → refined → delivered`, or closes `rejected`, `merged`, `routed` or `parked` (a parked NEED returns to `triaged` when taken up) | `triaged` once product confirms type, route and priority (the agent routes a fix or a duplicate, which product reviews later), `specified` once its outcome, Situations, scope and constraints are written, `refined` once product approves its REQs after a clean functional check, `delivered` once every FEAT it lists is delivered (set with its last FEAT by `spec_trace.py deliver`, or `validate` under `release: merge`; a `decision` NEED with no FEAT, by the approval of its decision record in `sdd-clarify`). Its links are written only in the NEED. |
+| REQ | `proposed → approved` (or `retired`; absent means `approved`) | listed by the FEATs that implement it, or by its NEED until `sdd-plan` creates one |
+| Journey | `proposed → approved` or `retired` | written inside `sdd-clarify` and checked by `sdd-check`, only where the project keeps them |
+| FEAT | `proposed → planned → in-progress → validated → delivered` (or `cancelled`; `clarified` remains on FEATs older than the NEED flow) | a `doing` or `done` task row derives `in-progress`, the most rows derive (`todo`, `blocked` and `cancelled` rows move nothing); `validated` (the closure passed on `main`) is written only by `sdd-review` and `delivered` (released and accepted, flag on or none) only by `sdd-release`, or by `sdd-review` under `release: merge`, each through `spec_trace.py validate`/`deliver` with the History line `check_spec.py` requires |
+| Task row | `Status`: `todo`, `doing`, `blocked`, `done`, `cancelled` | derived from its item: the GitHub issue, or the `TASK-nnn` file's `status`; a FEAT cut before KIT-068 may keep `docs/spec/progress/FEAT-nnn.json`, which `check_spec.py` still validates and `sdd-implement` never orients on |
 ## Regimes
 
 Two regimes, after Böckeler/Thoughtworks (2025-10: spec-first, spec-anchored, spec-as-source; the kit has no spec-as-source):
@@ -55,6 +58,3 @@ docs/spec/
 ├── progress/FEAT-nnn.json (FEATs cut before KIT-068)
 └── journeys/J-nn.md
 ```
-
-Templates: `../../../templates/spec-*.md`. Bootstrap: `platforms/kits/sdd/init-spec.sh <repo>`.
-
