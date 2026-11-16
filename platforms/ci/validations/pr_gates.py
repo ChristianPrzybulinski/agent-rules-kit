@@ -299,6 +299,11 @@ INLINE_CODE = "an interpreter given inline code: put the code in a script file a
 _INLINE = {"python": ("c", ()), "bash": ("c", ()), "sh": ("c", ()), "zsh": ("c", ()), "dash": ("c", ()),
            "ksh": ("c", ()), "node": ("ep", ("--eval", "--print")), "perl": ("eE", ()), "ruby": ("e", ()),
            "env": ("S", ("--split-string",))}
+# Interpreters whose own options end at the first other word (the script, or the module after `-m`, which gets every
+# later word) or at `--`: (short options that take a value, the rest of their cluster or the next word; long options
+# that take the next word; the letter after which the next word is the module).
+_OPTIONS_END = {"python": ("WX", ("--check-hash-based-pycs",), "m"), "bash": ("oO", (), ""), "sh": ("o", (), ""),
+                "zsh": ("o", (), ""), "dash": ("o", (), ""), "ksh": ("o", (), "")}
 
 
 def _shell_words(text: str) -> list:
@@ -409,15 +414,38 @@ def _dotdot(text: str) -> bool:
 
 def _inline_code(words: list) -> bool:
     """Whether the program (words[0]) is an interpreter of `_INLINE` and a later word hands it inline code: one of
-    its long options (alone or with `=value`) or a short-option cluster holding one of its letters (`-c`, `-Ic`)."""
+    its long options (alone or with `=value`) or a short-option cluster holding one of its letters (`-c`, `-Ic`).
+    For the interpreters of `_OPTIONS_END` the scan stops where their own options end, so `python3 -m pytest -c
+    pytest.ini` and `bash tools/run.sh -c` pass; the others are scanned to the end."""
     name = re.sub(r"[\d.]+$", "", posixpath.basename("".join(ch for _, ch in words[0])))
     letters, long_options = _INLINE.get(name, ("", ()))
-    for word in words[1:]:
+    if name not in _OPTIONS_END:
+        for word in words[1:]:
+            text = "".join(ch for _, ch in word)
+            if any(text == o or text.startswith(o + "=") for o in long_options):
+                return True
+            if re.fullmatch(r"-[A-Za-z]+", text) and any(letter in text[1:] for letter in letters):
+                return True
+        return False
+    valued, valued_long, module = _OPTIONS_END[name]
+    rest = iter(words[1:])
+    for word in rest:
         text = "".join(ch for _, ch in word)
-        if any(text == o or text.startswith(o + "=") for o in long_options):
-            return True
-        if re.fullmatch(r"-[A-Za-z]+", text) and any(letter in text[1:] for letter in letters):
-            return True
+        if text == "--" or not re.match(r"[-+].", text):
+            return False  # the script (or `--`): later words are its arguments
+        if text.startswith("--"):
+            if text in valued_long:
+                next(rest, None)
+            continue
+        for index, letter in enumerate(text[1:], 1):
+            if text[0] == "-" and letter in letters:
+                return True
+            if module and letter == module:
+                return False  # `-m <module>`: later words are the module's arguments
+            if letter in valued:
+                if index == len(text) - 1:
+                    next(rest, None)
+                break  # the rest of the cluster, or the next word, is this option's value
     return False
 
 

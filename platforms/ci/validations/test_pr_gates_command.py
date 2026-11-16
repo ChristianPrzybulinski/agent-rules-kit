@@ -97,13 +97,16 @@ class Sandbox(unittest.TestCase):
         for cmd in ('python3 -c "print(open(chr(46)*2 + chr(47) + chr(120)).read())"', "python3 -Ic 'print(1)'",
                     "python3.12 -c 'print(1)'", "bash -c 'cat x'", "sh -ec 'cat x'", "env -S 'cat x'",
                     "env --split-string='cat x'", "node -e 'require(1)'", "node --print=1", "perl -ne 'print' x",
-                    "ruby -e 'p 1'"):
+                    "ruby -e 'p 1'", "python3 -W ignore -c 'print(1)'", "bash -o pipefail -c 'cat x'",
+                    "python3 -X dev -Ic 'print(1)'", "python3 -Wmodule -c 'print(1)'", "bash +o posix -c 'cat x'",
+                    "python3 --check-hash-based-pycs never -c 'print(1)'"):
             with self.subTest(cmd=cmd):
                 ok, message = command_allowed(cmd, allow, cwd="server")
                 self.assertFalse(ok, cmd)
                 self.assertIn(INLINE, message, cmd)
         for cmd in ("python3 -m unittest discover -s tests -p 'test_*.py'", "python3 tools/check.py --check",
-                    "bash tools/run.sh"):
+                    "bash tools/run.sh", "python3 -m pytest -c pytest.ini", "python3 -Im pytest -c pytest.ini",
+                    "python3 tools/check.py -c cfg.toml", "bash tools/run.sh -c", "bash -e -- tools/run.sh -c x"):
             with self.subTest(cmd=cmd):
                 self.assertEqual(command_allowed(cmd, allow, cwd="server"), (True, ""), cmd)
 
