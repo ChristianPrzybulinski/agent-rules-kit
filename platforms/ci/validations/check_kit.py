@@ -444,9 +444,11 @@ session_start_commands = []
 git_context_commands = []
 checklist_commands = []
 attribution_commands = []
+rule_load_commands = []
 GIT_CONTEXT_MARKER = "ai-kit git, after this "
 CHECKLIST_MARKER = "ai-kit session start:"
 ATTRIBUTION_MARKER = "ai-kit attribution:"
+RULE_LOAD_MARKER = "ai-kit rule-load log"
 if hooks_path.exists():
     hooks_data = read_json(hooks_path)
     if not isinstance(hooks_data, dict) or set(hooks_data) != {"hooks"}:
@@ -456,7 +458,8 @@ if hooks_path.exists():
         if not isinstance(hook_events, dict):
             fail(rel(hooks_path), "hooks must be an object")
             hook_events = {}
-        unknown_events = set(hook_events) - {"PreToolUse", "PostToolUse", "SessionStart", "SubagentStart"}
+        unknown_events = set(hook_events) - {"PreToolUse", "PostToolUse", "SessionStart", "SubagentStart",
+                                            "InstructionsLoaded"}
         if unknown_events:
             fail(rel(hooks_path), f"unsupported hooks: {sorted(unknown_events)}")
         pre_tool_hooks = hook_events.get("PreToolUse", [])
@@ -606,6 +609,37 @@ if hooks_path.exists():
                         fail(rel(hooks_path), f"{location} is not the attribution hook ('{ATTRIBUTION_MARKER}')")
                     elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
                         attribution_commands.append((command, timeout))
+        # KIT-070 (#238): InstructionsLoaded records every instruction-file load for skill_usage.py --rules; no output.
+        loaded_hooks = hook_events.get("InstructionsLoaded", [])
+        if not isinstance(loaded_hooks, list):
+            fail(rel(hooks_path), "hooks.InstructionsLoaded must be an array")
+        else:
+            for group_index, group in enumerate(loaded_hooks):
+                if not isinstance(group, dict) or "matcher" in group:
+                    fail(rel(hooks_path), f"InstructionsLoaded[{group_index}] must be an object without a matcher "
+                         "(every load reason counts)")
+                    continue
+                hooks = group.get("hooks")
+                if not isinstance(hooks, list):
+                    fail(rel(hooks_path), f"InstructionsLoaded[{group_index}].hooks must be an array")
+                    continue
+                for hook_index, hook in enumerate(hooks):
+                    location = f"InstructionsLoaded[{group_index}].hooks[{hook_index}]"
+                    if not isinstance(hook, dict):
+                        fail(rel(hooks_path), f"{location} must be an object")
+                        continue
+                    if hook.get("type") != "command":
+                        fail(rel(hooks_path), f"{location} type must be 'command'")
+                    timeout = hook.get("timeout")
+                    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout > 5:
+                        fail(rel(hooks_path), f"{location} timeout must be at most 5")
+                    command = hook.get("command")
+                    if not isinstance(command, str) or not command:
+                        fail(rel(hooks_path), f"{location} command missing")
+                    elif RULE_LOAD_MARKER not in command:
+                        fail(rel(hooks_path), f"{location} is not the rule-load log hook ('{RULE_LOAD_MARKER}')")
+                    elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 5:
+                        rule_load_commands.append((command, timeout))
 elif KIT_PLUGIN in plugins:
     fail(f"plugins/{KIT_PLUGIN}/hooks/hooks.json", f"{KIT_PLUGIN} plugin requires hooks/hooks.json")
 
@@ -891,6 +925,34 @@ else:
                 elif not want and result.stdout != "":
                     fail(rel(git_context_cases_path), f"silent case printed {result.stdout!r}: {case}")
 
+if hooks_path.exists() and not rule_load_commands:
+    fail(rel(hooks_path), f"InstructionsLoaded needs the rule-load log hook (a command with '{RULE_LOAD_MARKER}')")
+RULE_LOAD_CASE = {"session_id": "s1", "transcript_path": "/x/t.jsonl", "cwd": "/repo",
+                  "hook_event_name": "InstructionsLoaded", "file_path": "/repo/.claude/rules/guardrails-godot.md",
+                  "memory_type": "Project", "load_reason": "path_glob_match", "globs": ["client/**/*.gd"],
+                  "trigger_file_path": "/repo/client/a.gd"}
+for command, timeout in rule_load_commands:
+    with tempfile.TemporaryDirectory() as rule_load_data:
+        try:
+            result = subprocess.run(["bash", "-c", command], input=json.dumps(RULE_LOAD_CASE), text=True,
+                                    capture_output=True, timeout=timeout, check=False,
+                                    env=dict(os.environ, CLAUDE_PLUGIN_DATA=rule_load_data))
+        except subprocess.TimeoutExpired:
+            fail(rel(hooks_path), "InstructionsLoaded rule-load log timed out")
+            continue
+        counts["hook_cases"] += 1
+        log = Path(rule_load_data) / "instructions-loaded.jsonl"
+        try:
+            records = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()] if log.exists() else []
+        except ValueError:
+            records = []
+        wanted = ("file_path", "load_reason", "globs", "trigger_file_path")
+        if (result.returncode != 0 or result.stdout or len(records) != 1 or not isinstance(records[0], dict)
+                or any(records[0].get(key) != RULE_LOAD_CASE[key] for key in wanted)
+                or "transcript_path" in records[0]):
+            fail(rel(hooks_path), "InstructionsLoaded rule-load log must exit 0 silently and append one record with "
+                 "the load's file_path, load_reason, globs and trigger_file_path (and no transcript path)")
+
 
 # --- 6. Skills ---
 skill_names = {}
@@ -975,6 +1037,39 @@ for name, plugin_dir in plugins.items():
                 fail(rel(skill_file), "description lacks literal 'Use when'")
             if "Not for" not in description:
                 fail(rel(skill_file), "description lacks literal 'Not for'")
+
+    # KIT-070: a references/<folder>/ (a stack index such as sdd-implement/references/godot/), at any depth, holds
+    # references like the flat ones plus a README.md index that lists each of its files; SKILL.md names a first-level
+    # index and the parent folder's index names a deeper one.
+    def names_path(path, text):  # whole path components: "deep/tests.md" lists no "tests.md", "godot/" names no "ot/"
+        return bool(re.search(rf"(?<![\w./-]){re.escape(path)}(?![\w/-])", text))
+
+    for references in sorted(skills_root.glob("*/references")):
+        if not references.is_dir() or (references.parent / "VENDOR.md").exists():
+            continue
+        for folder in sorted(path for path in references.rglob("*") if path.is_dir()):
+            index = folder / "README.md"
+            if not index.exists():
+                fail(rel(folder), "a nested reference folder needs a README.md index")
+                continue
+            owner = references.parent / "SKILL.md" if folder.parent == references else folder.parent / "README.md"
+            named = f"{folder.name}/README.md"
+            owner_text = owner.read_text(encoding="utf-8") if owner.exists() else ""
+            if not (names_path(named, owner_text) or names_path(f"references/{named}", owner_text)):
+                fail(rel(index), f"'{named}' not referenced in {rel(owner)}")
+        for reference in sorted(references.rglob("*.md")):
+            if reference.parent == references or reference.name == "README.md":
+                continue
+            reference_data, reference_lines = frontmatter(reference)
+            if reference_data is None:
+                fail(rel(reference), "missing/invalid frontmatter")
+            else:
+                validate_schema(reference, reference_data, "reference.schema.json")
+            if reference_lines > REFERENCE_MAX_LINES:
+                fail(rel(reference), f"{reference_lines} lines (>{REFERENCE_MAX_LINES})")
+            index = reference.parent / "README.md"
+            if index.exists() and not names_path(reference.name, index.read_text(encoding="utf-8")):
+                fail(rel(reference), f"not listed in {rel(index)}")
 
     for reference in sorted(skills_root.glob("*/references/*.md")):
         skill_dir = reference.parent.parent

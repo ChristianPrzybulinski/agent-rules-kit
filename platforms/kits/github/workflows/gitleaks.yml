@@ -31,9 +31,9 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run, rounded up to 5 min (the kit's full-history CLI scan: 10 s)
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0  # the whole history, not only the tip
           persist-credentials: false

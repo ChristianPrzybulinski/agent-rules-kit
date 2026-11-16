@@ -3,6 +3,7 @@
 set -euo pipefail
 
 KIT="${AI_KIT_DIR:-$HOME/.ai-kit}"
+# shellcheck source=SCRIPTDIR/codex-bin.sh
 source "$(dirname "${BASH_SOURCE[0]}")/codex-bin.sh"
 
 warn() {

@@ -49,7 +49,7 @@ python3 - "$SOURCE" <<'PY'
 from pathlib import Path
 import sys
 
-replacement = "description: Smoke lifecycle fixture. Use when testing bootstrap and doctor. Not for production guidance (skill testing)."
+replacement = "description: Smoke lifecycle fixture. Use when testing bootstrap and doctor. Not for production guidance (skill review)."
 for skill in Path(sys.argv[1], "plugins").glob("*/skills/*/SKILL.md"):
     lines = skill.read_text(encoding="utf-8").splitlines()
     for index, line in enumerate(lines):
@@ -214,10 +214,10 @@ grep -q '^FAIL:' "$ROOT/doctor-foreign.out" || fail "foreign-file failure was no
 cmp -s "$ROOT/foreign-before" "$FOREIGN_HOME/.codex/AGENTS.md" || fail "foreign Codex AGENTS.md changed"
 
 APP_HOME="$ROOT/app-home"
-mkdir -p "$APP_HOME/.codex/skills/asset-import"
+mkdir -p "$APP_HOME/.codex/skills/investigate"
 git clone "$SOURCE" "$APP_HOME/.ai-kit" >/dev/null 2>&1
 touch "$APP_HOME/.codex/config.toml"
-touch "$APP_HOME/.codex/skills/asset-import/.agent-rules-kit"
+touch "$APP_HOME/.codex/skills/investigate/.agent-rules-kit"
 if ! env HOME="$APP_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$APP_HOME/.ai-kit" \
     "$APP_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-app.out" 2>&1; then
   cat "$ROOT/doctor-app.out" >&2
@@ -523,6 +523,54 @@ stub_fallback_count="$(find "$STUB_HOME/.codex/skills" -type l | wc -l | tr -d '
 grep -Fq 'ok: codex plugin exposes 43 kit skills' "$ROOT/doctor-stub-remove.out" \
   || fail "stub re-exposure count was not reported"
 
+# KIT-072: a project that vendors kit copies pins the kit only while its settings turn guardrails@ai-kit off.
+# A pinned project loads its pinned skills only once its main checkout root is trusted.
+for proj in pinned untrusted leak plain; do
+  mkdir -p "$ROOT/pin-$proj/.claude/skills"
+done
+# A linked worktree (pin-wt) takes its trust from its main checkout root (pin-main).
+git init -q "$ROOT/pin-main"
+git -C "$ROOT/pin-main" -c user.name=smoke -c user.email=smoke@example.invalid commit -q --allow-empty -m init
+git -C "$ROOT/pin-main" worktree add -q --detach "$ROOT/pin-wt"
+mkdir -p "$ROOT/pin-wt/.claude/skills"
+for proj in pinned untrusted wt; do
+  printf '{}\n' > "$ROOT/pin-$proj/.claude/skills/KIT_MANIFEST.json"
+  mkdir -p "$ROOT/pin-$proj/.claude/skills/guardrails-pinned"
+  printf '{"enabledPlugins": {"guardrails@ai-kit": false, "guardrails-pinned@skills-dir": true}}\n' \
+    > "$ROOT/pin-$proj/.claude/settings.json"
+done
+printf '{"projects": {"%s": {"hasTrustDialogAccepted": true}, "%s": {"hasTrustDialogAccepted": true}}}\n' \
+  "$ROOT/pin-pinned" "$ROOT/pin-main" > "$STUB_HOME/.claude.json"
+printf '{}\n' > "$ROOT/pin-leak/.claude/skills/KIT_MANIFEST.json"
+printf '{"enabledPlugins": {"guardrails@ai-kit": true}}\n' > "$ROOT/pin-leak/.claude/settings.json"
+printf '{"enabledPlugins": {"guardrails@ai-kit": true}}\n' > "$ROOT/pin-plain/.claude/settings.json"
+mkdir -p "$STUB_HOME/.claude/plugins"
+cat > "$STUB_HOME/.claude/plugins/installed_plugins.json" <<EOF
+{"version": 2, "plugins": {"guardrails@ai-kit": [
+  {"scope": "project", "projectPath": "$ROOT/pin-pinned"},
+  {"scope": "project", "projectPath": "$ROOT/pin-untrusted"},
+  {"scope": "project", "projectPath": "$ROOT/pin-wt"},
+  {"scope": "project", "projectPath": "$ROOT/pin-leak"},
+  {"scope": "local", "projectPath": "$ROOT/pin-leak"},
+  {"scope": "project", "projectPath": "$ROOT/pin-plain"},
+  {"scope": "project", "projectPath": "$ROOT/pin-gone"},
+  {"scope": "user"}]}}
+EOF
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-pin.out" 2>&1; then
+  cat "$ROOT/doctor-stub-pin.out" >&2
+  fail "doctor failed with pinned and unpinned projects"
+fi
+grep -Fq "warn: claude: 1 project vendors kit copies but loads guardrails@ai-kit, the kit head, beside them: $ROOT/pin-leak — run platforms/tools/sync-project.sh there (KIT-072)" \
+  "$ROOT/doctor-stub-pin.out" || fail "doctor did not report the project that loads the kit head beside its copies"
+grep -Fq 'ok: claude: 3 vendored projects pin their kit version (guardrails@ai-kit off)' "$ROOT/doctor-stub-pin.out" \
+  || fail "doctor did not report the pinned projects"
+grep -Eq "warn: claude: 1 pinned checkout root not trusted: [^ ]*/pin-untrusted — its kit hooks run" \
+  "$ROOT/doctor-stub-pin.out" || fail "doctor did not report only the pinned project whose root is not trusted"
+! grep -Fq 'pin-plain' "$ROOT/doctor-stub-pin.out" || fail "doctor reported a plugins-mode project"
+rm -f "$STUB_HOME/.claude/plugins/installed_plugins.json" "$STUB_HOME/.claude.json"
+
 # KIT-013: a cache that differs from the kit without a version bump is reported, then reinstalled.
 printf 'stale\n' >> "$STUB_STATE/claude-cache/guardrails/INDEX.md"
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
@@ -699,8 +747,8 @@ cp "$SOURCE/plugins/guardrails/hooks/hooks.json" "$SOURCE/plugins/guardrails/hoo
 expect_validator_failure "root hooks.json" "hooks.json is forbidden"
 rm "$SOURCE/plugins/guardrails/hooks.json"
 
-skill="$SOURCE/plugins/guardrails/skills/asset-import/SKILL.md"
-cp "$skill" "$ROOT/asset-import.before"
+skill="$SOURCE/plugins/guardrails/skills/sdd-spike/SKILL.md"
+cp "$skill" "$ROOT/sdd-spike.before"
 python3 - "$skill" <<'PY'
 from pathlib import Path
 import sys
@@ -708,7 +756,7 @@ path = Path(sys.argv[1])
 path.write_text(path.read_text(encoding="utf-8").replace("disable-model-invocation: true\n", "", 1), encoding="utf-8")
 PY
 expect_validator_failure "user-only Claude parity" "user-only parity requires"
-cp "$ROOT/asset-import.before" "$skill"
+cp "$ROOT/sdd-spike.before" "$skill"
 
 profile="$SOURCE/plugins/guardrails/agents/researcher.md"
 cp "$profile" "$ROOT/researcher.before"
@@ -881,7 +929,7 @@ fi
 godot_skills="$(awk -F'|' '/^skills\// { name = $1; gsub(/ /, "", name); if ((" " $2 " ") ~ / godot /) { sub(/^skills\//, "", name); print name } }' \
   "$SOURCE/platforms/tools/sync-profiles.txt")"
 [[ -n "$godot_skills" ]] || fail "sync-profiles.txt sends no skill to profile godot"
-expected_skills="$(printf '%s\n' $godot_skills | wc -l | tr -d ' ')"
+expected_skills="$(printf '%s\n' "$godot_skills" | wc -l | tr -d ' ')"
 expected_files=$(( $(for n in $godot_skills; do find "$SOURCE/plugins/guardrails/skills/$n" -type f; done | wc -l) + expected_skills ))
 mkdir -p "$ROOT/vendor-proj/.claude/skills/review-loop"
 printf '# proj\n' > "$ROOT/vendor-proj/AGENTS.md"
@@ -895,21 +943,44 @@ if ! env PATH="$RESTRICTED_PATH" \
 fi
 grep -Fq 'sync: skills=vendored' "$ROOT/sync-vendor.out" \
   || fail "sync-project did not report the vendored mode"
-[[ "$(find "$ROOT/vendor-proj/.claude/skills" -name .agent-rules-kit | wc -l | tr -d ' ')" == "$expected_skills" ]] \
+[[ "$(find "$ROOT/vendor-proj/.claude/skills" -name .agent-rules-kit -not -path '*/guardrails-pinned/*' | wc -l | tr -d ' ')" == "$expected_skills" ]] \
   || fail "vendored marker count differs from $expected_skills"
+# KIT-072: the rest of the plugin is the pinned copy, a skills-directory plugin with its own manifest name
+[[ -f "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/.agent-rules-kit" ]] \
+  || fail "vendored sync wrote no pinned plugin copy"
+grep -Fq '"name": "guardrails-pinned"' "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/.claude-plugin/plugin.json" \
+  || fail "the pinned plugin copy does not carry the name guardrails-pinned"
+# B1: the kit hooks run from .claude/settings.json, which needs no folder trust, and not from the copy
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/guardrails-pinned/hooks" ]] \
+  || fail "the pinned plugin copy carries hooks beside the settings hooks"
+python3 - "$ROOT/vendor-proj/.claude/settings.json" <<'PY' || fail "vendored settings.json does not run the pinned guard hook"
+import json, sys
+groups = json.load(open(sys.argv[1], encoding="utf-8"))["hooks"]["PreToolUse"]
+want = 'bash "${CLAUDE_PROJECT_DIR}/.claude/ai-kit/hooks/PreToolUse-0-0.sh"'
+sys.exit(0 if any(hook.get("command") == want for group in groups for hook in group["hooks"]) else 1)
+PY
+[[ -f "$ROOT/vendor-proj/.claude/ai-kit/hooks/PreToolUse-0-0.sh" ]] || fail "vendored sync wrote no pinned hook script"
 manifest_files="$(python3 -c 'import json,sys; print(sum(len(s["files"]) for s in json.load(open(sys.argv[1]))["skills"].values()))' \
   "$ROOT/vendor-proj/.claude/skills/KIT_MANIFEST.json")"
 [[ "$manifest_files" == "$expected_files" ]] \
   || fail "manifest lists $manifest_files files, expected $expected_files"
+# KIT-072 B2: a vendored copy is the kit copy with each ~/.ai-kit/platforms/ call pointed at the pin
+mkdir -p "$ROOT/vendor-expected"
 for n in $godot_skills; do
-  vendor_diff="$(diff -r -q "$SOURCE/plugins/guardrails/skills/$n/" "$ROOT/vendor-proj/.claude/skills/$n" || true)"
+  cp -R "$SOURCE/plugins/guardrails/skills/$n" "$ROOT/vendor-expected/$n"
+  python3 "$SOURCE/platforms/tools/sync_pinned_plugin.py" rewrite "$ROOT/vendor-expected/$n"
+  vendor_diff="$(diff -r -q "$ROOT/vendor-expected/$n/" "$ROOT/vendor-proj/.claude/skills/$n" || true)"
   [[ "$vendor_diff" == "Only in $ROOT/vendor-proj/.claude/skills/$n: .agent-rules-kit" ]] \
     || fail "vendored $n differs from the kit copy: $vendor_diff"
 done
+! grep -rqF '/.ai-kit/platforms/' "$ROOT/vendor-proj/.claude/skills" "$ROOT/vendor-proj/.claude/rules" \
+  || fail "a vendored copy still calls a tool from the kit clone"
 [[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
   || fail "hand-written review-loop skill was touched"
 [[ "$(grep -c '@ai-kit' "$ROOT/vendor-proj/.claude/settings.json")" == "1" ]] \
   || fail "vendored settings.json does not keep exactly guardrails@ai-kit"
+grep -Fq '"guardrails@ai-kit": false' "$ROOT/vendor-proj/.claude/settings.json" \
+  || fail "vendored settings.json does not turn the head plugin off (KIT-072)"
 first_vendor_hashes="$(find "$ROOT/vendor-proj/.claude" -type f -exec shasum -a 256 {} + | sort)"
 if ! env PATH="$RESTRICTED_PATH" \
     "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/vendor-proj" \
@@ -928,7 +999,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-vendor-check.out" >&2
   fail "sync-project --check failed on a vendored repo"
 fi
-printf x >> "$ROOT/vendor-proj/.claude/skills/godot-standards/SKILL.md"
+printf x >> "$ROOT/vendor-proj/.claude/skills/investigate/SKILL.md"
 set +e
 sync_vendor_drift_out="$(env PATH="$RESTRICTED_PATH" \
   "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" 2>&1)"
@@ -944,7 +1015,7 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-vendor-resync.out" >&2
   fail "vendored resync after the edit failed"
 fi
-printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/testing/extra.txt"
+printf 'extra\n' > "$ROOT/vendor-proj/.claude/skills/docker/extra.txt"
 set +e
 sync_vendor_extra_out="$(env PATH="$RESTRICTED_PATH" \
   "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/vendor-proj" 2>&1)"
@@ -960,15 +1031,15 @@ if ! env PATH="$RESTRICTED_PATH" \
   cat "$ROOT/sync-vendor-docs.out" >&2
   fail "vendored sync-project --profile docs failed"
 fi
-[[ ! -e "$ROOT/vendor-proj/.claude/skills/godot-standards" ]] \
-  || fail "godot-standards survived the profile switch"
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/investigate" ]] \
+  || fail "investigate survived the profile switch"
 [[ -f "$ROOT/vendor-proj/.claude/skills/sdd-tasks/SKILL.md" ]] \
   || fail "sdd-tasks missing after the profile switch"
 [[ "$(cat "$ROOT/vendor-proj/.claude/skills/review-loop/SKILL.md")" == "mine" ]] \
   || fail "hand-written review-loop skill was touched by the profile switch"
-[[ ! -e "$ROOT/vendor-proj/.claude/skills/testing" ]] \
-  || fail "testing survived the switch to a profile without dev"
-mkdir -p "$ROOT/vendor-proj2/.claude/skills/godot-standards"
+[[ ! -e "$ROOT/vendor-proj/.claude/skills/docker" ]] \
+  || fail "docker survived the switch to a profile without code"
+mkdir -p "$ROOT/vendor-proj2/.claude/skills/investigate"
 printf '# mine\n' > "$ROOT/vendor-proj2/AGENTS.md"
 touch "$ROOT/vendor-proj2/project.godot"
 set +e
@@ -977,7 +1048,7 @@ sync_vendor_refuse_out="$(env PATH="$RESTRICTED_PATH" \
 sync_vendor_refuse_status=$?
 set -e
 [[ "$sync_vendor_refuse_status" -eq 1 ]] \
-  || fail "sync-project did not refuse an unmarked .claude/skills/godot-standards"
+  || fail "sync-project did not refuse an unmarked .claude/skills/investigate"
 [[ "$sync_vendor_refuse_out" == *"is not generated"* ]] \
   || fail "sync-project refusal did not report 'is not generated'"
 [[ ! -e "$ROOT/vendor-proj2/.claude/skills/KIT_MANIFEST.json" ]] \
@@ -1007,7 +1078,7 @@ grep -Fqx '  - "server/**/pom.xml"' "$ROOT/mono-proj/.claude/rules/guardrails-ja
   || fail "java:server did not scope the java rule to server/"
 grep -Fqx '  - "docs/spec/**/*.md"' "$ROOT/mono-proj/.claude/rules/guardrails-spec.md" \
   || fail "the unscoped docs profile changed the spec rule globs"
-for s in sdd-tasks godot-standards java-standards persistence; do
+for s in sdd-tasks sdd-implement investigate docker; do
   [[ -f "$ROOT/mono-proj/.claude/skills/$s/.agent-rules-kit" ]] || fail "multi-profile sync did not vendor $s"
 done
 [[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["profile"])' \

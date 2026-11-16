@@ -13,7 +13,7 @@ Base for Godot 4 2D projects.
 | `../git-lfs/.gitattributes` | combine with the `.gitignore` (binaries in LFS) |
 | `../github/workflows/ci-godot.yml` | headless CI through the `just` recipes of `../just/godot.just` (`just boot`, `just test`, `just lint`): import, boot proof, gdUnit4 by default or GUT, fails when no runner or zero tests, JUnit artifact, gdformat/gdlint, manual export |
 
-GDScript/scene-architecture rules: `plugins/guardrails/skills/godot-standards/SKILL.md`.
+GDScript and scene rules: `plugins/guardrails/rules/godot.md`; coding detail: `plugins/guardrails/skills/sdd-implement/references/godot/README.md`; design detail: `plugins/guardrails/skills/sdd-plan/references/godot/README.md`.
 
 ## Keyed-CSV merge driver
 

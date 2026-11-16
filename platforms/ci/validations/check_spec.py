@@ -440,6 +440,19 @@ def sdd_params(path, data, spec_schema, spec_dir):
     return resolved
 
 
+def load_params(spec_dir, schemas_dir):
+    """The resolved `sdd` block for another kit tool (row_checks.py, spec_trace.py): (params, errors), where errors
+    lists each refused key or an unreadable spec.md; nothing is printed and no failure is kept for this run."""
+    start = len(failures)
+    index = spec_dir / "spec.md"
+    data = frontmatter(index) if index.exists() else {}
+    spec_schema = json.loads((schemas_dir / "spec.schema.json").read_text(encoding="utf-8"))
+    resolved = sdd_params(index, data if isinstance(data, dict) else {}, spec_schema, spec_dir)
+    errors = [msg for _, _, msg, *_ in failures[start:]]
+    del failures[start:]
+    return resolved, errors
+
+
 def print_params(spec_dir, schemas_dir):
     """check_spec.py --params: the resolved `sdd` block as JSON on stdout; exit 1 when the block is invalid."""
     index = spec_dir / "spec.md"

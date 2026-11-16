@@ -66,6 +66,17 @@
           }
         ]
       }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c 'import json,os,sys,time\nM=\"ai-kit rule-load log\"\ntry:\n    d=json.load(sys.stdin)\nexcept Exception:\n    sys.exit(0)\np=os.environ.get(\"CLAUDE_PLUGIN_DATA\")\nif not isinstance(d,dict) or not p:\n    sys.exit(0)\nr={\"ts\":int(time.time())}\nfor k in (\"session_id\",\"cwd\",\"file_path\",\"memory_type\",\"load_reason\",\"globs\",\"trigger_file_path\",\"parent_file_path\"):\n    r[k]=d.get(k)\nf=os.path.join(p,\"instructions-loaded.jsonl\")\ntry:\n    os.makedirs(p,exist_ok=True)\n    if os.path.isfile(f) and os.path.getsize(f)>5*2**20:\n        os.replace(f,f+\".1\")\n    with open(f,\"a\",encoding=\"utf-8\") as h:\n        h.write(json.dumps(r,ensure_ascii=False)+\"\\n\")\nexcept OSError:\n    pass'",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

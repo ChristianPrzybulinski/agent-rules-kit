@@ -25,6 +25,9 @@ on:
         description: "'true' when the diff touches more than docs and tests/ — the caller's export job reads it"
         value: ${{ jobs.changes.outputs.export }}
 
+permissions:
+  contents: read
+
 # Git LFS assets would reach Godot as pointer files, so each job checks out without LFS, restores
 # .git/lfs from a cache keyed on the LFS object list and runs `git lfs pull`: unchanged assets cost
 # no LFS bandwidth. barichello/godot-ci ships git-lfs.
@@ -34,15 +37,16 @@ jobs:
     # GitHub counts a skipped job as success for a required check; this job is required itself because
     # a job skipped after a failed `needs` also reports success.
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run (7 s), rounded up to 5 min
     outputs:
       code: ${{ steps.diff.outputs.code }}
       export: ${{ steps.diff.outputs.export }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
           lfs: false
+          persist-credentials: false
       - id: diff
         env:
           EVENT: ${{ github.event_name }}
@@ -74,12 +78,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45  # KIT-076: 3 × the longest measured green run (828 s), rounded up to 5 min
     container: barichello/godot-ci:${{ inputs.godot-version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           lfs: false
+          # `git lfs pull` below authenticates with this credential; the job uploads only test-run.log and reports/
+          persist-credentials: true
       - name: List LFS objects (cache key)
         # the container runs as root but the runner creates the workspace as uid 1001, and checkout trusts it
         # only in a temporary HOME: without safe.directory, git fails with "detected dubious ownership"
@@ -89,7 +95,7 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
       - name: Restore LFS cache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: .git/lfs
           key: lfs-${{ hashFiles('.lfs-assets-id') }}
@@ -124,7 +130,7 @@ jobs:
       - name: Upload test reports (JUnit XML and runner log)
         # gdUnit4 tees the run to test-run.log and writes reports/report_<n>/results.xml; the GUT branch leaves neither
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: godot-test-reports
           path: |
@@ -136,12 +142,13 @@ jobs:
     # outside the Godot container: the image has no pinned Python. gdformat has no exclusion flag
     # (only `excluded_directories` in gdformatrc, which this kit does not ship), so the recipe's find skips them
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run (70 s), rounded up to 5 min
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           lfs: false
-      - uses: actions/setup-python@v7
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: '3.12'
       - run: pip install -r requirements-gdtoolkit.txt

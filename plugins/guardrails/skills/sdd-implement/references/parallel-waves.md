@@ -10,7 +10,7 @@ Feat mode of skill `sdd-implement`. The waves come from the FEAT's `Wave` column
 ## Order
 
 - Wave 0 runs alone and first: contracts, schemas, migrations and shared fixtures the later rows read. Its PRs merge before wave 1 starts.
-- A later wave starts when every row it depends on is merged. Inside a wave, rows run together only when they share no file, index, port, database or fixture and neither has an external side effect. A shared file is no conflict until a `git merge-tree` replay says so (skill `parallelize`, reference `measure-conflicts.md`); semantic hotspots (migration number, protocol version, error-code allocation) stay sequential.
+- A later wave starts when every row it depends on is merged. Inside a wave, rows run together only when they share no file, index, port, database or fixture and neither has an external side effect. A shared file is no conflict until a `git merge-tree` replay says so (`measure-conflicts.md`); semantic hotspots (migration number, protocol version, error-code allocation) stay sequential.
 
 ## Fan out
 
@@ -26,7 +26,7 @@ Feat mode of skill `sdd-implement`. The waves come from the FEAT's `Wave` column
 
 ## Keep main green per wave
 
-- After a wave's last merge, run the broad suite once on a clean checkout of `main` (skill `testing` § 6, the broad row).
+- After a wave's last merge, run the broad suite once on a clean checkout of `main` (`test-gates.md` § 3, the broad row).
 - A red `main` stops every merge. Create a fix row at once (blocker class A in skill `review`, reference `coordination.md`), deliver it in fix or task mode, and resume merges only when the broad suite is green again on the fixed `main`.
 - Record the suite command, the `main` commit and the result in the wave's coordination note or the FEAT's History.
 

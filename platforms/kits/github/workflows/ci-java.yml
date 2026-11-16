@@ -18,20 +18,24 @@ on:
       NVD_API_KEY:
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   changes:
     # GitHub counts a skipped job as success for a required check; this job is required itself because
     # a job skipped after a failed `needs` also reports success.
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run (40 s), rounded up to 5 min
     outputs:
       code: ${{ steps.diff.outputs.code }}
       deps: ${{ steps.diff.outputs.deps }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
           lfs: false
+          persist-credentials: false
       - id: diff
         env:
           EVENT: ${{ github.event_name }}
@@ -63,10 +67,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10  # KIT-076: 3 × the longest measured green run (105 s), rounded up to 5 min
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880  # v6.3.0
         with:
           distribution: temurin
           java-version: ${{ inputs.java-version }}
@@ -89,14 +95,14 @@ jobs:
         run: just verify
       - name: Upload JaCoCo report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: jacoco-report
           path: '**/target/site/jacoco/'
           if-no-files-found: ignore
       - name: Upload PIT report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: pit-report
           path: '**/target/pit-reports/'
@@ -106,16 +112,19 @@ jobs:
     needs: changes
     if: needs.changes.outputs.deps == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    # KIT-076: GitHub's 360-minute job limit; 3 × the longest measured green run (13,987 s, a cold NVD sync) exceeds it
+    timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880  # v6.3.0
         with:
           distribution: temurin
           java-version: ${{ inputs.java-version }}
           cache: maven
       - name: Restore dependency-check NVD data
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: ${{ runner.os }}-dc-nvd-${{ github.run_id }}
@@ -140,9 +149,9 @@ jobs:
         run: just dependency-check
       - name: Save dependency-check NVD data
         # Save even when the gate fails on a real CVE: the full NVD sync costs
-        # ~2h on a cold cache and a red run must not throw it away.
+        # up to ~4h on a cold cache (13,987 s measured) and a red run must not throw it away.
         if: always()
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: ${{ runner.os }}-dc-nvd-${{ github.run_id }}

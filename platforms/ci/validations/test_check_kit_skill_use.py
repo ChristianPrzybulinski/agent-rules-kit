@@ -61,7 +61,7 @@ class CheckKitSkillUseTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_bare_preload_name_fails(self):
-        self.preload("review", "guardrails:testing")
+        self.preload("review", "guardrails:security")
         result = self.check()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("skills: 'review' needs its plugin prefix", result.stderr)

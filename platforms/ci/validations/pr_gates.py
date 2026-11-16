@@ -37,6 +37,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shlex
 import sys
@@ -226,10 +227,161 @@ def _mask_quotes(cmd: str) -> str:
     return "".join(out)
 
 
-def command_allowed(cmd: str, allowlist: list[str]) -> tuple[bool, str]:
+_DOTDOT = re.compile(r"(?:^|[/=~])\.\.(?:/|$)")
+_PROOF_VAR = re.compile(r"^\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))")
+_GLUED_SHORT = re.compile(r"^-[A-Za-z](?=.)")
+_ANCHOR_NAME = re.compile(r"\{[A-Za-z_]\w*\}|[A-Za-z_]\w*")
+_PLAIN, _DOUBLE, _SINGLE, _ESCAPED = "plain", "double", "single", "escaped"
+UNPREDICTABLE = "expansion the proof check cannot predict: quote it or name the path"
+
+
+def _shell_words(text: str) -> list:
+    """The words of one simple command as lists of (quoting, char): `plain` (unquoted), `double` (inside "..."),
+    `single` (inside '...') or `escaped` (after a backslash). Unquoted blanks and operators end a word; an unclosed
+    quote raises ValueError. shlex drops the quoting, which the sandbox needs to know what bash expands."""
+    words, word, started, i, n = [], [], False, 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in " \t\n;&|<>()":
+            if started:
+                words.append(word)
+            word, started, i = [], False, i + 1
+        elif ch == "\\":
+            if i + 1 < n and text[i + 1] != "\n":
+                word.append((_ESCAPED, text[i + 1]))
+                started = True
+            i += 2
+        elif ch == "'":
+            end = text.find("'", i + 1)
+            if end < 0:
+                raise ValueError("unclosed single quote")
+            word += [(_SINGLE, c) for c in text[i + 1:end]]
+            started, i = True, end + 1
+        elif ch == '"':
+            i += 1
+            while i < n and text[i] != '"':
+                if text[i] == "\\" and i + 1 < n and text[i + 1] in '$`"\\\n':
+                    if text[i + 1] != "\n":
+                        word.append((_ESCAPED, text[i + 1]))
+                    i += 2
+                else:
+                    word.append((_DOUBLE, text[i]))
+                    i += 1
+            if i >= n:
+                raise ValueError("unclosed double quote")
+            started, i = True, i + 1
+        else:
+            word.append((_PLAIN, ch))
+            started, i = True, i + 1
+    if started:
+        words.append(word)
+    return words
+
+
+def _anchor_end(word: list, i: int):
+    """The index after a `$NAME` or `${NAME}` anchor at `word[i]`, written in one quoting, when it ends the word or a
+    `/` follows it; else None (`${NAME:-x}`, `${NAME%/}`, `$NAMEx...`, `$1`, `$'...'`)."""
+    kind, j, run = word[i][0], i + 1, []
+    while j < len(word) and word[j][0] == kind:
+        run.append(word[j][1])
+        j += 1
+    m = _ANCHOR_NAME.match("".join(run))
+    if not m:
+        return None
+    end = i + 1 + m.end()
+    return end if end == len(word) or word[end][1] == "/" else None
+
+
+def _unpredictable(word: list) -> bool:
+    """Whether bash may expand `word` into a path the sandbox cannot read from its text. Single-quoted and escaped
+    characters are literal. In unquoted or double-quoted text the only expansion accepted is an anchor at the start of
+    the word or of an `--opt=` value: `$NAME`, `${NAME}` or `~` followed by `/` or the end. Refused: any other `$`
+    (`$'...'`, `$"..."`, `${NAME:-x}`, `$1`), a tilde form other than home (`~user`, `~+`) or after `=...:`, an unquoted
+    brace pair
+    holding a `,` or `..` (brace expansion), and an unquoted `*`, `?` or `[` in a path component that starts with `.`
+    or `[`, the only components that can match `.` or `..`."""
+    starts = {0}
+    eq = next((i for i, (kind, ch) in enumerate(word) if kind == _PLAIN and ch == "="), None)
+    if eq is not None:
+        starts.add(eq + 1)
+    anchored, i = set(), 0
+    while i < len(word):
+        kind, ch = word[i]
+        if ch == "$" and kind in (_PLAIN, _DOUBLE):
+            end = _anchor_end(word, i) if i in starts else None
+            if end is None:
+                return True
+            anchored.update(range(i, end))
+            i = end
+            continue
+        if ch == "~" and kind == _PLAIN and i in starts and i + 1 < len(word) and word[i + 1][1] != "/":
+            return True
+        if ch == "~" and kind == _PLAIN and eq is not None and i > eq and word[i - 1] == (_PLAIN, ":"):
+            return True  # bash expands `~` after `:` in an assignment-shaped argument (`A=x:~/..`)
+        i += 1
+    plain = [ch for i, (kind, ch) in enumerate(word) if kind == _PLAIN and i not in anchored]
+    for n, ch in enumerate(plain):
+        if ch == "{" and "}" in plain[n + 1:]:
+            inner = "".join(plain[n + 1:n + 1 + plain[n + 1:].index("}")])
+            if "," in inner or ".." in inner:
+                return True
+    first, glob = None, False
+    for kind, ch in word + [(_PLAIN, "/")]:
+        if ch == "/":
+            if glob and first in (".", "["):
+                return True
+            first, glob = None, False
+            continue
+        first = ch if first is None else first
+        glob = glob or (kind == _PLAIN and ch in "*?[")
+    return False
+
+
+def _outside_sandbox(token: str, cwd: str, var_depths: dict) -> bool:
+    """`token` reads outside what a proof sandbox run in the repository folder `cwd` grants: a `..` that climbs out
+    of `cwd` (or any `..` in an absolute path), or one anchored on `$VAR`/`~` that climbs above the depth
+    `var_depths` grants that variable (`~` is `HOME`); a variable `var_depths` does not name may not climb at all.
+    A value glued to an option is judged by these same rules: the `--file=../x` value, and every suffix of a
+    short-option cluster (`-rf../x` -> `f../x`, `../x`). `token` is a word `_unpredictable` accepted, so its text is
+    what bash passes on."""
+    if "=" in token.split("/", 1)[0]:
+        return _outside_sandbox(token.split("=", 1)[1], cwd, var_depths)
+    if _GLUED_SHORT.match(token):
+        return any(_outside_sandbox(token[k:], cwd, var_depths) for k in range(2, len(token)))
+    if not _DOTDOT.search(token):
+        return False
+    var = _PROOF_VAR.match(token)
+    if var or token.startswith("~"):
+        if var:
+            depth, rest = var_depths.get(var.group(1) or var.group(2)), token[var.end():]
+        else:
+            depth, rest = (var_depths.get("HOME"), token[1:]) if token.startswith("~/") else (None, "")
+        if depth is None:
+            return True
+        for part in rest.split("/"):
+            if part == "..":
+                depth -= 1
+                if depth < 0:
+                    return True
+            elif part and part != ".":
+                depth += 1
+        return False
+    if token.startswith("/"):
+        return True
+    resolved = posixpath.normpath(posixpath.join(cwd, token))
+    return resolved == ".." or resolved.startswith("../") or (
+        cwd != "." and not (resolved == cwd or resolved.startswith(cwd + "/")))
+
+
+def command_allowed(cmd: str, allowlist, cwd: str | None = None,
+                    var_depths: dict | None = None) -> tuple[bool, str]:
     """A proof/close_when command may only chain allowlisted programs; no subshells, files or network tools.
 
-    `$(` and backticks are refused even inside quotes: bash expands them inside double quotes."""
+    `$(` and backticks are refused even inside quotes: bash expands them inside double quotes. `! git diff` without
+    `--quiet` or `--exit-code` is refused: `git diff` exits 0 whether or not it prints, so the negation never passes.
+    With `cwd` (KIT-073), the repository folder the command runs in (`.` for the root, `server` for a component),
+    a word whose expansion cannot be predicted is refused (`_unpredictable`), and so is an operand that reads outside
+    the folder; `var_depths` grants `$VAR/..` reads (see `_outside_sandbox`)."""
     if _FORBIDDEN.search(cmd):
         return False, "forbidden construct"
     rest = _SAFE_REDIRECT.sub(lambda m: " " * len(m.group()), _mask_quotes(cmd))
@@ -245,12 +397,27 @@ def command_allowed(cmd: str, allowlist: list[str]) -> tuple[bool, str]:
             tokens = shlex.split(segment)
         except ValueError:
             return False, "unbalanced quotes"
+        negated = False
         while tokens and tokens[0] == "!":
-            tokens = tokens[1:]
+            negated, tokens = not negated, tokens[1:]
         if not tokens:
             continue
         if tokens[0] not in allowlist:
             return False, f"'{tokens[0]}' not in allowlist"
+        if negated and tokens[:2] == ["git", "diff"] and not {"--quiet", "--exit-code"} & set(tokens):
+            return False, "`! git diff` without --quiet or --exit-code never passes; use `git diff --quiet …`"
+        if cwd is not None:
+            try:
+                words = _shell_words(segment)
+            except ValueError:
+                return False, "unbalanced quotes"
+            for word in words:
+                text = "".join(ch for _, ch in word)
+                if _unpredictable(word):
+                    return False, f"{text}: {UNPREDICTABLE}"
+                if _outside_sandbox(text, cwd, var_depths or {}):
+                    return False, (f"{text} escapes the proof sandbox's granted paths — run the read from the "
+                                   "folder that owns it, or through a granted variable")
     return True, ""
 
 
