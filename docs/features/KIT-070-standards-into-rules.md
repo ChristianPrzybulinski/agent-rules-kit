@@ -93,6 +93,39 @@ Limitation: the machine's global `~/.codex/AGENTS.md` links to `~/.ai-kit` at `m
 `sdd-implement` reference `test-gates.md` instead. A first batch without `--disable plugins` listed the cached old
 skills and is not counted.
 
+### Re-run after the 13.1.0 refresh (#273)
+
+The 2026-11-15 runs used `--ephemeral` while `~/.ai-kit` still held the removed skills, and their prompts were not kept.
+On 2026-11-16 `refresh.sh` moved `~/.ai-kit` to `v13.1.0` (`git -C ~/.ai-kit describe --tags` → `v13.1.0`; the Codex
+marketplace ref `v13.1.0`, plugin cache 13.1.0 only), so the gate ran again with no removed skill on disk.
+
+Method: as above, on a rebuilt fixture (`client/` Godot 4.7 with `scripts/player.gd`, `scripts/inventory.gd` and a
+gdUnit4 test; `server/` Java 25 Maven with `InventoryService` and its JUnit 5 test; a root `AGENTS.md` that names no
+skill or rule), synced by kit 13.1.0 with `sync-project.sh --vendor-skills --profile godot:client,java:server`. Each
+prompt ran twice on a fresh copy with `codex exec --json -s workspace-write --disable plugins` (Codex CLI 0.164.0,
+model `gpt-6-astra` at reasoning effort high, from `~/.codex/config.toml`), without `--ephemeral`: the 20 rollouts are
+kept in the owner's `~/.codex/sessions/2026/11/16/` (threads `01a1e4d1-9226…` to `01a1e4d9-216e…`). Same counting
+rule; a listing such as `rg --files` is no read.
+
+[FACT] Result (2026-11-16, 20 runs, all exit 0): Godot 10 of 10 and testing 10 of 10 opened the rule block or a
+reference; the block was read in 20 of 20 and a reference in 20 of 20; no run read a removed skill (0 of 20, against
+19 of 20 before the refresh). `characterization.md` was read in 7 of 10 test runs and a `godot/` reference in 9 of 10
+Godot runs. Usage: 8,653,544 input tokens (7,925,760 cached) and 68,001 output tokens over the 20 runs. The gate
+holds: both skills stay removed with no router.
+
+| Prompt | Text | Run 1 references read | Run 2 references read |
+|---|---|---|---|
+| `godot-1` | In the game client, the player's take_damage function can let health go below zero for a moment and reaches the HUD through an absolute node path. Clean it up. | README.md, gdscript-4-pitfalls.md, tdd.md, test-gates.md, testable-game-logic.md | README.md, coding.md, gdscript-4-pitfalls.md, scenes-and-generated-files.md, tdd.md, test-gates.md, testable-game-logic.md |
+| `godot-2` | Review client/scripts/player.gd and tell me what you would change before we ship it. Do not edit any file. | gdscript-4-pitfalls.md, testable-game-logic.md | README.md |
+| `godot-3` | Add a per-item stack limit to the client inventory: no single item may hold more than 99, and an add beyond that is refused. | README.md, coding.md, gdscript-4-pitfalls.md, living-docs.md, scenes-and-generated-files.md, tdd.md, test-gates.md, testable-game-logic.md | README.md, coding.md, gdscript-4-pitfalls.md, living-docs.md, tdd.md, test-gates.md, testable-game-logic.md |
+| `godot-4` | The HUD must refresh when the player's inventory changes. Wire it so the HUD hears about inventory changes without the player knowing the HUD's node path. | README.md, coding.md, gdscript-4-pitfalls.md, living-docs.md, scenes-and-generated-files.md, tdd.md, test-gates.md | README.md, gdscript-4-pitfalls.md, scenes-and-generated-files.md, tdd.md, test-gates.md, testable-game-logic.md |
+| `godot-5` | Add static types to the client's player script wherever they are missing. | README.md, coding.md, gdscript-4-pitfalls.md, living-docs.md, test-gates.md | test-gates.md |
+| `tests-1` | Add tests for removing items from the server's InventoryService, edge cases included. | characterization.md, tdd.md, test-gates.md | characterization.md, tdd.md, test-gates.md |
+| `tests-2` | The client inventory tests only cover adding. Cover removal and the changed signal too. | characterization.md, tdd.md, test-gates.md | README.md, characterization.md, gdscript-4-pitfalls.md, scenes-and-generated-files.md, tdd.md, test-gates.md, testable-game-logic.md |
+| `tests-3` | Someone reports that InventoryService.add on the server accepts a negative count in some path. Write a test that shows whether it does, then fix it if it does. | characterization.md, tdd.md, test-gates.md | README.md, tdd.md, test-gates.md |
+| `tests-4` | Before I move the server's InventoryService to another storage, pin its current behaviour with tests so the move cannot change it unnoticed. | README.md, build-and-dependencies.md, characterization.md, tdd.md, test-gates.md | README.md, characterization.md, tdd.md, test-gates.md |
+| `tests-5` | One of the client inventory tests fails now and then in CI. Make the client inventory tests deterministic. | test-gates.md | test-gates.md |
+
 ## Proof
 
 Red on `origin/main` (`4f035d1`) with the new tests copied in: `test_check_kit_references` 2 failures, 2 errors
@@ -124,3 +157,4 @@ subtest of `test_each_removed_skill_form_alone_fails`.
 - 2026-11-14: confirmed (owner, chat of the SDD review session).
 - 2026-11-15: review of PR #261 at `00d8123` BLOCKED (coordinator); fix round on the same branch.
 - 2026-11-15: delta review at `91f5fe4` BLOCKED on two items (coordinator); second fix round.
+- 2026-11-16: the Codex gate re-ran after the 13.1.0 refresh, rollouts kept: 10 of 10 and 10 of 10, no removed skill read (#273).
