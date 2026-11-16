@@ -9,7 +9,7 @@ One review round per PR. The reviewer reads the diff against the acceptance crit
 A finding blocks only for one of four reasons, which it names (`review` § 4):
 - (a) an unmet acceptance criterion;
 - (b) broken existing behavior: a failing test, a reproduced regression, or a test deleted, skipped or loosened without a reason in the PR;
-- (c) a security gap where untrusted input enters;
+- (c) a security gap where untrusted input enters, or a secret or personal data exposed in code or logs;
 - (d) a rule lost in a migration.
 
 Everything else, a line below included when it is none of the four, goes to one follow-up issue: edge cases, nits, wording, style, missing extra tests. A small fix with no new mechanism is verified by the coordinator (red check plus a targeted probe), with no new round.

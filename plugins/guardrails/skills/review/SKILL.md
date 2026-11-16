@@ -34,7 +34,7 @@ A `record` step reads the result recorded for the exact pushed head (CI checks, 
 |---|---|---|---|
 | 1 | Pin the criteria | judgment | criterion rows from the row's CA, its REQs' Verification, the Plan § it cites and the project `REVIEW.md`, written before reading the code; the author's verdict stays out |
 | 2 | Gates | record | every required gate passes on the pushed head; a red or pending one is `NOT READY`; a record whose inputs are unchanged is reused on a `Reused:` line |
-| 3 | Red check | record, then judgment | `red`'s result recorded for the head (CI, or the PR's `## Red` naming base and head): Red is a test failing on base on an assertion or on a symbol the PR adds, head passing; a test-only PR is exempt; judge only what it flags, or the `## Red` exception |
+| 3 | Red check | record, then judgment | `red`'s result recorded for the head by CI or the project's gate record, else `red` run once on the clean checkout (the PR's `## Red` is the author's claim): Red is a test failing on base on an assertion or on a symbol the PR adds, head passing; a test-only PR is exempt; judge only what it flags, or the `## Red` exception |
 | 4 | Scope | script | `scope`: paths inside Files, `## Files widened` only existing tests with no assertion changed, `protected_paths` labels |
 | 5 | Acceptance | record, then judgment | `proof` lints the block; a line with no result recorded for the head is re-run (`--run`); each CA the row covers has code, test and doc at `path:line` |
 | 6 | Design | judgment | the diff follows the Plan § (layers, contract, data, flag); a deviation the Plan lacks is a `spec` finding |
