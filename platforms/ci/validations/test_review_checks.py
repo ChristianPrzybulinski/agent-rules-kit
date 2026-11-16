@@ -1286,6 +1286,23 @@ class DodTest(ToolCase):
         self.assertIn("tests/test_sub.py:6", out)
         self.assertIn("No focused or skipped test", out)
 
+    def test_a_match_inside_a_test_fixture_string_is_no_finding(self):
+        """#277: a REVIEW.md fixture or a test file a test writes is data, not a skipped test."""
+        fixture = TEST_SUB + ('\nREVIEW = """\\\n- No skipped test. <!-- grep tests: @Disabled|unittest\\\\.skip -->\n'
+                              '    @unittest.skip("not here")\n"""\nONE = "x.only(y)"\nTWO = \'@Disabled\'\n')
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": fixture})
+        code, out = self.dod(head)
+        self.assertEqual(code, 0, out)
+
+    def test_a_real_skip_beside_a_fixture_string_still_fails(self):
+        fixture = ('"""A docstring that names @unittest.skip and opens no string: \'"""\n' + TEST_SUB.replace(
+            "    def test_sub", "    @unittest.skip('later')  # \"\"\" in a comment opens nothing\n    def test_sub"))
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": fixture})
+        code, out = self.dod(head)
+        self.assertEqual(code, 1, out)
+        self.assertIn("tests/test_sub.py:7", out)
+        self.assertEqual(out.count("No focused or skipped test"), 1, out)
+
     def test_tests_marker_ignores_production_files(self):
         head = self.repo.commit("sub", **{"calc.py": CALC_SUB + "\nNOTE = 'x.only(y)'\n"})
         code, out = self.dod(head)

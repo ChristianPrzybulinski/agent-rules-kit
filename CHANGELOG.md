@@ -10,6 +10,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Fixed
 - KIT-080 (#270, #269, #266): rule e fails a Proof of `evidence:` clauses only, unless the new `row_checks.evidence_only` is `true`; rule c names every stack whose tests are missing; `sdd-parameters.md` and the schema say that rule j reads `visual_approval`.
 - KIT-080 (#265, #267, #268): `spec_trace.py check` holds the one-sided FEAT↔REQ links that `check_spec.py`'s `baseline.json` holds and fails a new one, as `check_spec.py` does; `sync-status` exits 2 with a stderr message when `gh` fails or no backlog repository is known, and maps a row to its issue through the KIT-068 `Item` cell before the issue title.
+- KIT-080 (#277, #288): `review_checks.py dod` ignores a match wholly inside a string literal of a test file (a REVIEW.md fixture, a test file a test writes), so the kit's own PRs pass `dod` against its template; its usage names `--gates`, and the stale #252 note is gone. `check_spec.py` and `sdd-parameters.md` state that `needs-off` reads the Markdown files at the top of `needs/`, not the folder; the FEAT template no longer assumes a NEED, and `spec_trace.py status --write` documents that every move to `in-progress` gets its History line.
 - KIT-080 (#282 item 2): a vendored project's pin carries `platforms/ci/schemas/` beside its spec tools, so the pinned `spec_trace.py sync-status` no longer refuses every `sdd` block.
 
 ### Migration

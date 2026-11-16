@@ -8,7 +8,7 @@ One review round per PR. The reviewer reads the diff against the acceptance crit
 
 A finding blocks only for one of the four reasons of `review` § 4, the bar's single home, which it names; every other finding, even one under a line below, goes to one follow-up issue.
 
-A line ending in `<!-- grep: REGEX -->` (or `grep tests:` for test files only) is checked by `review_checks.py dod` on the diff's added lines; keep the regex narrow enough that a hit is worth reading.
+A line ending in `<!-- grep: REGEX -->` (or `grep tests:` for test files only) is checked by `review_checks.py dod` on the diff's added lines; in a test file a match wholly inside a string literal is fixture data and does not count. Keep the regex narrow enough that a hit is worth reading.
 
 ## Scope
 - The PR does one thing; Conventional Commit title; the body links the issue, FEAT, REQ or DEC it implements (`git` § 3, § 7).

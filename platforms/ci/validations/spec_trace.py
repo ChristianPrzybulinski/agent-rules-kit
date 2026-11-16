@@ -17,7 +17,9 @@
                                        set the task row's Status to `done` and append a History line
   spec_trace.py status SPEC [--write]  derive each FEAT's status from its task rows (in-progress at most);
                                        fail on a mismatch or a validated/delivered FEAT with an open row,
-                                       or with --write rewrite `status` and `updated`
+                                       or with --write rewrite `status` and `updated` and add the History
+                                       line `status: <old> -> in-progress (<rows>)`, whether a doing or a
+                                       done row moved it (intended since #247: every move is recorded)
   spec_trace.py validate SPEC FEAT-NNN --at SHA [--check]
                                        sdd-review: every row done, a `## Closure` record, every step of a
                                        journey its NEEDs list filled; then `validated`, or `delivered` under

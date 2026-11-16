@@ -13,10 +13,12 @@ owner: "[product]"
 created: "YYYY-MM-DD"
 updated: "YYYY-MM-DD"
 ---
-<!-- Created by sdd-plan from a refined NEED: a FEAT is one delivery, the technical package that implements approved REQs,
-     never a bucket for later work; a NEED whose work exceeds sdd.max_feat_tasks rows is split into several FEATs.
+<!-- Created by sdd-plan from a refined NEED, or from the request itself under sdd.needs: false: a FEAT is one delivery,
+     the technical package that implements approved REQs, never a bucket for later work; work that exceeds
+     sdd.max_feat_tasks rows is split into several FEATs.
      status: proposed while sdd-plan drafts it, planned after a clean full-scope sdd-check; in-progress is derived once a
-     task row is doing or done (the rows follow their items: GitHub issues, or TASK files with tracker: none);
+     task row is doing or done (the rows follow their items: GitHub issues, or TASK files with tracker: none), and
+     status --write records that move in History whichever row moved it;
      validated is written by sdd-review and delivered by sdd-release (or sdd-review under release: merge), through
      spec_trace.py with their History line; clarified remains only on FEATs written before the NEED flow. Never
      edit status by hand. -->
