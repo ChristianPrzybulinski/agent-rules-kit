@@ -1,8 +1,9 @@
 """The functional layer (KIT-077): the kit synced into the consumer project kept in platforms/ci/fixtures/consumer/,
 then that project's own checks, as its CI and its developers run them: the spec-lint workflow's validation step,
-`just verify` in each profile folder, `sync-project.sh --check`, and a second sync that changes nothing. Both sync
-modes run: the plugins mode and the vendored mode that pins the kit (KIT-072). ci-full runs this layer on push to
-main, nightly and before a release, with the pinned just installed; a CI run without just fails instead of skipping."""
+`just verify` in each profile folder, `sync-project.sh --check`, and a second sync that changes nothing. The project
+uses the installed guardrails@ai-kit plugin; the vendored mode that pinned the kit (KIT-072) went with KIT-081 stage 2b.
+ci-full runs this layer on push to main, nightly and before a release, with the pinned just installed; a CI run without
+just fails instead of skipping."""
 import os
 import shutil
 import subprocess
@@ -40,7 +41,7 @@ class ConsumerFixture(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.repo = Path(tmp.name) / "consumer"
         shutil.copytree(FIXTURE, self.repo)
-        self.env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, AI_KIT_CLAUDE_PROBE="0")
+        self.env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull)
         self.git("init", "-q", "-b", "main")
         self.commit("the fixture as the kit keeps it")
 
@@ -75,20 +76,12 @@ class ConsumerFixture(unittest.TestCase):
         self.sync(*args)
         self.assertEqual(self.git("status", "--porcelain").stdout, "")
 
-    def test_plugins_mode_sync_then_the_projects_checks_pass(self):
-        # plugins mode records no profile list (no KIT_MANIFEST.json), so every run names it, as the project's CI does
-        args = ("--profile", PROFILE)
-        self.sync(*args)
+    def test_sync_then_the_projects_checks_pass(self):
+        self.sync("--profile", PROFILE)
         self.assertTrue((self.repo / ".github" / "spec-lint" / "check_spec.py").is_file())
         self.assertTrue((self.repo / "tools" / "kit.just").is_file())
-        self.assert_own_checks_pass(*args)
-        self.assert_resync_changes_nothing(*args)
-
-    def test_vendored_mode_pins_the_kit_and_the_projects_checks_pass(self):
-        self.sync("--vendor-skills", "--profile", PROFILE)
-        self.assertTrue((self.repo / ".claude" / "skills" / "guardrails-pinned").is_dir())
-        self.assertTrue((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").is_file())
-        self.assert_own_checks_pass()  # KIT_MANIFEST.json records the mode and the profile list: bare runs keep them
+        self.assertFalse((self.repo / ".claude" / "skills").exists())  # KIT-081 stage 2b: no copy in the project
+        self.assert_own_checks_pass()  # the CLAUDE.md marker records the profile list: bare runs keep it
         self.assert_resync_changes_nothing()
 
 

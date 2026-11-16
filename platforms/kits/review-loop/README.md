@@ -5,7 +5,7 @@ What the kit says to a project that runs the orchestrated implement-review-merge
 ## How to use
 
 1. Take the loop skills, templates, `verdict.schema.json` and the generic example config (`examples/generic/platform/loop-config/`) from that repository's `platform/review-loop/`.
-   Each child type (implementer, reviewer, apply) preloads the kit skills its prompt relies on, by plugin-qualified name in its profile's `skills:` list (`guardrails:review`, `guardrails:git`; in a vendored project the names `sync-project.sh` gives the kit's own agents: `guardrails-pinned:<skill>`, or the plain copy's name): a bare `review` can resolve to Claude Code's bundled skill. Check one child transcript per type for the kit's base directory (#241).
+   Each child type (implementer, reviewer, apply) preloads the kit skills its prompt relies on, by plugin-qualified name in its profile's `skills:` list (`guardrails:review`, `guardrails:git`): a bare `review` can resolve to Claude Code's bundled skill. Check one child transcript per type for the kit's base directory (#241).
 2. Keep machine paths out of the committed config: `${WORKSPACE_ROOT}` stays a placeholder, and the local clone paths live in an untracked overlay.
 3. `proof_allowlist` is a security boundary of the project: review every word before adding one.
 4. Start a batch as that repository's `platform/review-loop/README.md` says (the pinned batch-log issue, `batch_log_issue`, then `start` to the orchestrator session).

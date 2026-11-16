@@ -1,55 +1,40 @@
 #!/usr/bin/env bash
 # Syncs the spec validator and the agent configuration with a project (a copy, no link to the kit).
-# Usage: sync-project.sh [--profile <profile>[,<profile>...]] [--vendor-skills] [--workflow <file>] <repo-dir>
+# Usage: sync-project.sh [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>
 #                                                          installs/updates .github/spec-lint/ (repos with docs/spec only),
-#                                                          CLAUDE.md (imports AGENTS.md),
+#                                                          CLAUDE.md (imports AGENTS.md; its marker records the
+#                                                          profile list),
 #                                                          .claude/settings.json (ai-kit marketplace at
 #                                                          ref stable (KIT-081) +
 #                                                          enabledPlugins guardrails@ai-kit +
 #                                                          includeGitInstructions false) and
 #                                                          .claude/rules/guardrails-<rule>.md (the profile's
-#                                                          path rules, marked as generated); with
-#                                                          --vendor-skills also .claude/skills/<name>/
-#                                                          (whole skill directories, .agent-rules-kit
-#                                                          marker, KIT_MANIFEST.json hashes)
-#        sync-project.sh --check [--profile <profile>[,<profile>...]] [--vendor-skills] [--workflow <file>] <repo-dir>
+#                                                          path rules, marked as generated)
+#        sync-project.sh --check [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>
 #                                                          compares all of them with the kit and scans the
 #                                                          repo's *.md for obsolete kit paths and
 #                                                          citations of skills KIT-070 removed;
 #                                                          exit 1 on any divergence or stale citation
-# --profile selects the kit rules copied into .claude/rules/ and the kit skills copied into
-# .claude/skills/: platforms/tools/sync-profiles.txt names the profiles that receive each one
-# (KIT-047). Without it the list that .claude/skills/KIT_MANIFEST.json
-# records is used; a repo without a manifest gets the profile inferred, first match wins:
-# project.godot (godot), pom.xml (java), docs/spec/ (docs). The run prints which source won.
+# --profile selects the kit rules copied into .claude/rules/: platforms/tools/sync-profiles.txt names the profiles that
+# receive each one (KIT-047). Without it the list the generated CLAUDE.md marker records is used, then (a repository
+# synced in the vendored mode before KIT-081 stage 2b) the list .claude/skills/KIT_MANIFEST.json records; a repo with
+# neither gets the profile inferred, first match wins: project.godot (godot), pom.xml (java), docs/spec/ (docs). The
+# run prints which source won.
 # <profile> is godot|java|docs|python, optionally followed by :<dir>. A comma list syncs the union
-# of its profiles' rules and skills, for a monorepo such as
+# of its profiles' rules, for a monorepo such as
 # docs,godot:client,java:server,python:platform. The :<dir> suffix scopes the globs/paths of the rule named
 # after that profile to <dir>/ ("**/*.gd" renders as "client/**/*.gd"; java:server leaves the
 # godot rule alone), and any other rule to the folders of every profile that receives the rule.
-# The list is stored sorted and deduplicated, which is the form KIT_MANIFEST.json
-# records.
+# The list is stored sorted and deduplicated, which is the form the CLAUDE.md marker records.
 # A .claude/rules/*.md destination that exists without the generated marker refuses
 # the sync before any write; a marked file that falls out of the profile is removed.
-# --vendor-skills copies the profile's plugins/guardrails/skills/<name>/ directories whole (the always-on
-# skills, "-" in the map, excepted: they load from the enabled plugin)
-# into .claude/skills/<name>/, marks each copy with .agent-rules-kit and writes
-# KIT_MANIFEST.json (kit version, profile, plugin, sha256 per file). The manifest is
-# sticky: once it exists a bare sync-project.sh <repo> keeps the vendored mode and the
-# recorded profile list. A
-# .claude/skills/<name>/ directory without the marker is never read, replaced or
-# deleted - its presence refuses the sync before any write. Plugins mode enables only
-# guardrails@ai-kit in .claude/settings.json (the kit ships one plugin, KIT-047). Vendored mode pins
-# the whole kit (KIT-072, written by platforms/tools/sync_pinned_plugin.py): .claude/ai-kit/hooks/ holds
-# the kit hooks as scripts that .claude/settings.json "hooks" runs, so the guard needs no folder trust;
-# .claude/ai-kit/platforms/ holds the kit tools the skills and rules call, and the vendored copies call
-# them there instead of in ~/.ai-kit (pin_rewrite);
-# .claude/skills/guardrails-pinned/ is a skills-directory plugin with the kit agents, templates and
-# every skill not copied as a plain skill; KIT_MANIFEST.json records the kit commit and the hashes; and
-# once both are written .claude/settings.json sets guardrails@ai-kit, which follows the kit head, to
-# false and guardrails-pinned@skills-dir to true, so each kit skill lists once and a kit merge changes
-# nothing in the project until the next sync. --check also reports a settings.local.json that
-# re-enables the head and, with AI_KIT_CLAUDE_PROBE=1, the plugins Claude Code lists for the repository.
+# The project uses the installed guardrails@ai-kit plugin, which follows the kit's stable branch (KIT-081): the
+# settings enable only that plugin (the kit ships one, KIT-047). The vendored mode (--vendor-skills, KIT-072) is gone:
+# the flag exits 2, and a repository that still holds its state (KIT_MANIFEST.json, the .claude/skills/ copies and
+# guardrails-pinned/ marked .agent-rules-kit, .claude/ai-kit/, the pinned hooks and key in .claude/settings.json) is
+# migrated by platforms/tools/sync_unvendor.py: install removes only the kit-marked folders and the kit's settings
+# entries, after the plugin is on and CLAUDE.md records the profile list, and --check reports each leftover. An
+# unmarked folder or a symbolic link is never read, replaced or deleted.
 # docs/spec/spec.md may set sdd.rule_paths, kit rule name -> folders (KIT-067): it scopes that rule's globs
 # like :<dir> does and wins over the profile folders; "." keeps the whole repository. A key that names no kit
 # rule, or an sdd block check_spec.py refuses, stops both modes before any write (exit 2).
@@ -73,26 +58,26 @@ set -euo pipefail
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # The kit's one plugin (KIT-047), named guardrails since KIT-055.
 KIT_PLUGIN="guardrails"
-# A vendored project's pinned copy of it (KIT-072); platforms/tools/sync_pinned_plugin.py owns the folder.
-PINNED_PLUGIN="guardrails-pinned"
-PIN_TOOL="$KIT_DIR/platforms/tools/sync_pinned_plugin.py"
+# KIT-081 stage 2b: removes or reports the state the retired vendored mode (KIT-072) left in a repository.
+UNVENDOR_TOOL="$KIT_DIR/platforms/tools/sync_unvendor.py"
 
 MODE="install"
 PROFILE=""
 WORKFLOW=""
-VENDOR_FLAG=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --check) MODE="check" ;;
-    --profile) PROFILE="${2:?usage: sync-project.sh [--check] [--profile <profile>[,<profile>...]] [--vendor-skills] [--workflow <file>] <repo-dir>}"; shift ;;
-    --workflow) WORKFLOW="${2:?usage: sync-project.sh [--check] [--profile <profile>[,<profile>...]] [--vendor-skills] [--workflow <file>] <repo-dir>}"; shift ;;
-    --vendor-skills) VENDOR_FLAG=1 ;;
+    --profile) PROFILE="${2:?usage: sync-project.sh [--check] [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>}"; shift ;;
+    --workflow) WORKFLOW="${2:?usage: sync-project.sh [--check] [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>}"; shift ;;
+    --vendor-skills)
+      echo "sync: --vendor-skills was removed in KIT-081 stage 2b: a project uses the installed guardrails@ai-kit plugin; run sync-project.sh <repo-dir> without it, which also migrates a vendored repository" >&2
+      exit 2 ;;
     --) shift; break ;;
     *) break ;;
   esac
   shift
 done
-REPO="${1:?usage: sync-project.sh [--check] [--profile <profile>[,<profile>...]] [--vendor-skills] [--workflow <file>] <repo-dir>}"
+REPO="${1:?usage: sync-project.sh [--check] [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>}"
 DEST="$REPO/.github/spec-lint"
 SCHEMAS="spec feature requirement decision debt need progress task"
 CLAUDE_MARKER="generated by agent-rules-kit sync-project.sh"
@@ -108,10 +93,7 @@ RULE_MARKER_PREFIX='<!-- agent-rules-kit: generated from '
 # (sdd-implement and sdd-plan are user-only skills). sync_agents_md.py drops it from the AGENTS.md block, whose intro
 # says the same once per folder.
 # shellcheck disable=SC2016  # literal Markdown backticks
-RULE_LOCATION='Kit files this rule names: skill `<skill>`, reference `<file>` is `.claude/skills/<skill>/references/<file>` when this repository vendors the skill, else `~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`.'
-# Vendored mode (KIT-072): a skill not copied plain is in the pinned plugin, so the line names the pin, not the kit head (#282).
-# shellcheck disable=SC2016  # literal Markdown backticks
-RULE_LOCATION_PINNED='Kit files this rule names: skill `<skill>`, reference `<file>` is `.claude/skills/<skill>/references/<file>` when this repository vendors the skill plain, else `.claude/skills/guardrails-pinned/skills/<skill>/references/<file>`.'
+RULE_LOCATION='Kit files this rule names: skill `<skill>`, reference `<file>` is `~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`.'
 version="$(cat "$KIT_DIR/VERSION")"
 
 if [[ -n "$WORKFLOW" && ( "$WORKFLOW" == */* || "$WORKFLOW" == .* ) ]]; then
@@ -152,31 +134,6 @@ merge_driver_marked() { # the vendored driver's docstring line names the kit; an
     [[ "$(sed -n 2p "$REPO/$MERGE_DRIVER_REL")" == "$MERGE_DRIVER_HEADER"* ]]
 }
 
-# KIT-072: the pin, in one block so merges stay mechanical; platforms/tools/sync_pinned_plugin.py does the work.
-pin_sources() { # prints "src<TAB>repo-path" for every copy the sync vendors outside .claude/skills: each file
-  # kit_files lists, under .github/spec-lint/, so a file a later kit adds to kit_files is pinned and checked with the
-  # rest. A tab, not a space, separates the two: a repository path may hold a space (KIT-079)
-  local src rel
-  if [[ -d "$REPO/docs/spec" ]]; then
-    kit_files | while read -r src rel; do printf '%s\t%s\n' "$src" ".github/spec-lint/$rel"; done
-  fi
-  # KIT-074: the keyed-CSV merge driver, a byte copy of its kit source, and each generated just module. A module is
-  # rendered (a marked header, or an aggregate of several profiles), so its source is the file the sync wrote, which
-  # pin_record reads after the write; sync_just.py check compares its content with the kit.
-  if merge_driver_wanted; then printf '%s\t%s\n' "$MERGE_DRIVER_SRC" "$MERGE_DRIVER_REL"; fi
-  python3 "$KIT_DIR/platforms/tools/sync_just.py" list "$REPO" - "$PROFILE" |
-    while read -r rel; do printf '%s\t%s\n' "$REPO/$rel" "$rel"; done
-}
-pin_preflight() { python3 "$PIN_TOOL" preflight "$REPO"; }
-pin_write() { python3 "$PIN_TOOL" write "$REPO" "$KIT_DIR" "$version" "$@"; } # "$@": the skills copied as plain skills
-pin_settings() { python3 "$PIN_TOOL" settings "$REPO"; } # after pin_write: the kit hooks on, the head off
-pin_record() { pin_sources | python3 "$PIN_TOOL" pin "$REPO" "$KIT_DIR"; } # KIT_MANIFEST.json keys of the pin
-pin_check() { pin_sources | python3 "$PIN_TOOL" check "$REPO" "$1"; }
-pin_remove() { python3 "$PIN_TOOL" remove "$REPO"; }
-pin_rewrite() { # vendored mode: the copies call the tools pinned under .claude/ai-kit/platforms/, not the kit clone
-  [[ "${VENDOR:-0}" != 1 ]] || python3 "$PIN_TOOL" rewrite "$@"
-}
-
 rule_files() { # prints "src rel-dest" for every kit rule the map gives to a profile in $PROFILE
   local name
   while read -r name; do
@@ -210,11 +167,10 @@ render_rule() { # $1 = kit rule file, $2 = output path: frontmatter (first --- t
       separators=$((separators + 1))
       if [[ "$separators" -eq 2 ]]; then
         printf '%s\n' "<!-- agent-rules-kit: generated from ${src#"$KIT_DIR"/} by platforms/tools/sync-project.sh; kit $(cat "$KIT_DIR/VERSION"); do not edit -->"
-        if [[ "${VENDOR:-0}" == 1 ]]; then printf '%s\n' "$RULE_LOCATION_PINNED"; else printf '%s\n' "$RULE_LOCATION"; fi
+        printf '%s\n' "$RULE_LOCATION"
       fi
     fi
   done < "$src" > "$out"
-  pin_rewrite "$out"  # KIT-072: in vendored mode the rule calls the pinned tools
 }
 
 has_check_spec_workflow() { # any project workflow that runs check_spec.py
@@ -233,10 +189,18 @@ infer_profile() { # $1 = repo dir
   fi
 }
 
-manifest_profile() { # $1 = KIT_MANIFEST.json; prints the profile list it records, or nothing
-  # when the file is missing, unreadable or records none
+claude_profile() { # $1 = CLAUDE.md; prints the profile list its generated marker records (KIT-081 stage 2b), or
+  # nothing when the file is missing, hand-written or from a sync before the marker carried one
   [[ -f "$1" ]] || return 0
-  python3 - "$1" <<'PY'
+  sed -n '1s/^<!-- generated by agent-rules-kit sync-project\.sh v[^;]*; profile \([^; ]*\); AGENTS\.md is the source -->$/\1/p' "$1"
+}
+
+manifest_profile() { # prints the profile list the KIT_MANIFEST.json of a repository synced in the vendored mode before
+  # KIT-081 stage 2b records, or nothing when the file is missing, unreadable, records none or is reached through a
+  # symbolic link (sync_unvendor.py never reads through one either)
+  local manifest="$REPO/.claude/skills/KIT_MANIFEST.json"
+  [[ -f "$manifest" && ! -L "$REPO/.claude" && ! -L "$REPO/.claude/skills" && ! -L "$manifest" ]] || return 0
+  python3 - "$manifest" <<'PY'
 import json, sys
 try:
     with open(sys.argv[1], encoding="utf-8") as handle:
@@ -352,15 +316,6 @@ render_agents_rules() { # renders every rule an AGENTS.md block carries into a f
   echo "$dir"
 }
 
-skill_dirs() { # prints "<plugin> <name>" for every kit skill the map gives to a profile in $PROFILE;
-  # the always-on skills ("-") stay out: the plugin is enabled in .claude/settings.json (its guard hook
-  # lives only in the plugin), so they load from the plugin (KIT-002)
-  local name
-  while read -r name; do
-    echo "$KIT_PLUGIN $name"
-  done < <(map_selected skills)
-}
-
 # Obsolete kit paths (layouts 1.x to 11.x). A consumer line that must keep one
 # (historical citation) appends the marker "<!-- kit-path-ok -->".
 # .claude/ is skipped: generated kit copies there are verified by their own
@@ -463,20 +418,24 @@ PY
 # Claude Code and Devin run at session start (KIT-021).
 warn_synced_folder "$REPO"
 
-# The repo profile selects the plugin set; check and install both need it. The list is
-# sticky like the vendored mode below: without --profile, the list KIT_MANIFEST.json
-# records wins over inference, so a bare run keeps a monorepo's union (KIT-017).
+# The repo profile selects the rules; check and install both need it. The list is sticky: without --profile, the list
+# the CLAUDE.md marker records wins, then (migration from the vendored mode, KIT-081 stage 2b) the one
+# KIT_MANIFEST.json records, then inference, so a bare run keeps a monorepo's union (KIT-017).
 if [[ -n "$PROFILE" ]]; then
   profile_source="--profile"
-elif PROFILE="$(manifest_profile "$REPO/.claude/skills/KIT_MANIFEST.json")" && [[ -n "$PROFILE" ]]; then
+elif PROFILE="$(claude_profile "$REPO/CLAUDE.md")" && [[ -n "$PROFILE" ]]; then
+  profile_source="CLAUDE.md"
+elif PROFILE="$(manifest_profile)" && [[ -n "$PROFILE" ]]; then
   profile_source="manifest"
 else
   PROFILE="$(infer_profile "$REPO")"
   profile_source="inferred"
 fi
 PROFILE="$(normalize_profile "$PROFILE")" || {
-  [[ "$profile_source" != manifest ]] \
-    || echo "sync: .claude/skills/KIT_MANIFEST.json records that profile; pass --profile to replace it" >&2
+  case "$profile_source" in
+    CLAUDE.md) echo "sync: CLAUDE.md records that profile; pass --profile to replace it" >&2 ;;
+    manifest) echo "sync: .claude/skills/KIT_MANIFEST.json records that profile; pass --profile to replace it" >&2 ;;
+  esac
   exit 2
 }
 echo "sync: profile=$PROFILE ($profile_source)"
@@ -516,19 +475,8 @@ PY
   done <<< "$RULE_PATHS"
 fi
 
-# --vendor-skills is sticky: an existing manifest keeps the repo vendored without
-# the flag, so init-spec.sh and a bare `sync-project.sh <repo>` preserve the mode.
-VENDOR=0
-if [[ "$VENDOR_FLAG" == 1 || -f "$REPO/.claude/skills/KIT_MANIFEST.json" ]]; then
-  VENDOR=1
-fi
-vendored_skills=0
-vendored_files=0
-# The kit ships one plugin (KIT-047). Plugins mode enables it; in vendored mode the pin sets enabledPlugins
-# (pin_settings, pin_check), which turns it off once the pinned copy is written (KIT-072).
+# The kit ships one plugin (KIT-047); the project enables it (KIT-081 stage 2b: no vendored mode).
 SETTINGS_PLUGINS="$KIT_PLUGIN"
-export AI_KIT_PINNED="$VENDOR"
-if [[ "$VENDOR" == 1 ]]; then echo "sync: skills=vendored"; else echo "sync: skills=plugins"; fi
 
 if [[ "$MODE" == check ]]; then
   FAILED=0
@@ -570,8 +518,12 @@ if [[ "$MODE" == check ]]; then
   scan_stale_kit_paths "$REPO" || FAILED=1
   scan_removed_kit_skills "$REPO" || FAILED=1
   claude_file="$REPO/CLAUDE.md"
-  if [[ ! -f "$claude_file" ]] \
-      || ! grep -qF "$CLAUDE_MARKER v$expected;" "$claude_file" \
+  recorded="$(claude_profile "$claude_file")"
+  if [[ -n "$recorded" && "$recorded" != "$PROFILE" ]]; then
+    echo "sync: CLAUDE.md records profile '$recorded' expected '$PROFILE' (pass --profile or rerun sync-project.sh)"
+    FAILED=1
+  elif [[ ! -f "$claude_file" ]] \
+      || ! grep -qF "$CLAUDE_MARKER v$expected; profile $PROFILE;" "$claude_file" \
       || [[ "$(grep -v '^<!--' "$claude_file" || true)" != "@AGENTS.md" ]]; then
     echo "sync: CLAUDE.md missing or diverges (rerun sync-project.sh)"
     FAILED=1
@@ -579,8 +531,7 @@ if [[ "$MODE" == check ]]; then
   AI_KIT_PLUGINS="$SETTINGS_PLUGINS" python3 - "$REPO/.claude/settings.json" "$PROFILE" <<'PY' || FAILED=1
 import json, os, sys
 path, profile = sys.argv[1], sys.argv[2]
-pinned = os.environ.get("AI_KIT_PINNED") == "1"  # KIT-072: then pin_check owns enabledPlugins
-want = set() if pinned else {name + "@ai-kit" for name in os.environ.get("AI_KIT_PLUGINS", "").split()}
+want = {name + "@ai-kit" for name in os.environ.get("AI_KIT_PLUGINS", "").split()}
 # KIT-081: the user's marketplace follows the stable branch; a project source without that ref conflicts with it
 market = {"source": {"source": "github", "repo": "ChristianPrzybulinski/agent-rules-kit", "ref": "stable"}}
 try:
@@ -600,7 +551,7 @@ else:
     enabled = data.get("enabledPlugins")
     if not isinstance(enabled, dict):
         enabled = {}
-    have = {key for key in enabled if isinstance(key, str) and key.endswith("@ai-kit") and not pinned}
+    have = {key for key in enabled if isinstance(key, str) and key.endswith("@ai-kit")}
     missing = sorted((want - have) | {key for key in have & want if enabled[key] is not True})
     extra = sorted(have - want)
     if missing:
@@ -639,110 +590,8 @@ PY
         ;;
     esac
   done
-  if [[ -f "$REPO/.claude/skills/KIT_MANIFEST.json" ]]; then
-    # The vendored tree verifies against its manifest, never against the kit
-    # directories: unmarked skills under .claude/skills are not even opened.
-    SKILL_DIRS="$(skill_dirs)" PINNED_PLUGIN="$PINNED_PLUGIN" python3 - "$REPO/.claude/skills" "$expected" "$PROFILE" <<'PY' || FAILED=1
-import hashlib, json, os, sys
-
-root, version, profile = sys.argv[1], sys.argv[2], sys.argv[3]
-
-
-def sha256(path):
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def scanned_files(directory):  # relative path per regular file, links skipped
-    found = []
-    for base, dirnames, filenames in os.walk(directory):
-        dirnames.sort()
-        for filename in sorted(filenames):
-            path = os.path.join(base, filename)
-            if os.path.islink(path) or not os.path.isfile(path):
-                continue
-            found.append(os.path.relpath(path, directory).replace(os.sep, "/"))
-    return found
-
-
-try:
-    with open(os.path.join(root, "KIT_MANIFEST.json"), encoding="utf-8") as handle:
-        manifest = json.load(handle)
-except (OSError, ValueError):
-    print("sync: .claude/skills/KIT_MANIFEST.json is not valid JSON; resync")
-    sys.exit(1)
-if not isinstance(manifest, dict):
-    print("sync: .claude/skills/KIT_MANIFEST.json is not a JSON object; resync")
-    sys.exit(1)
-failed = False
-
-
-def report(line):
-    global failed
-    failed = True
-    print("sync: " + line)
-
-
-got_version = manifest.get("KIT_VERSION")
-if got_version != version:
-    report(f".claude/skills/KIT_MANIFEST.json KIT_VERSION='{got_version}' kit='{version}'")
-got_profile = manifest.get("profile")
-if got_profile != profile:
-    report(f".claude/skills/KIT_MANIFEST.json profile='{got_profile}'"
-           f" expected '{profile}' (pass --profile or resync)")
-skills = manifest.get("skills")
-if not isinstance(skills, dict):
-    skills = {}
-want = sorted({line.split()[-1] for line in os.environ.get("SKILL_DIRS", "").splitlines() if line.strip()})
-missing = sorted(set(want) - set(skills))
-extra = sorted(set(skills) - set(want))
-if missing or extra:
-    parts = []
-    if missing:
-        parts.append("missing: " + ",".join(missing))
-    if extra:
-        parts.append("extra: " + ",".join(extra))
-    report(f".claude/skills manifest skills differ from profile {profile} ({'; '.join(parts)})")
-for name in sorted(skills):
-    entry = skills[name]
-    files = entry.get("files") if isinstance(entry, dict) else None
-    if not isinstance(files, dict):
-        continue
-    for rel in sorted(files):
-        norm = os.path.normpath(rel)
-        if norm.startswith("..") or os.path.isabs(norm):
-            continue
-        target = os.path.join(root, name, norm)
-        if os.path.islink(target) or not os.path.isfile(target):
-            report(f".claude/skills/{name}/{rel} missing")
-        elif sha256(target) != files[rel]:
-            report(f".claude/skills/{name}/{rel} diverges from the manifest")
-for name in sorted(os.listdir(root)):
-    directory = os.path.join(root, name)
-    if not os.path.isdir(directory) or name == os.environ.get("PINNED_PLUGIN"):  # KIT-072: sync_pinned_plugin.py checks it
-        continue
-    if not os.path.isfile(os.path.join(directory, ".agent-rules-kit")):
-        continue
-    entry = skills.get(name)
-    if not isinstance(entry, dict):
-        report(f".claude/skills/{name} is generated but not in manifest")
-        continue
-    listed = entry.get("files")
-    listed = set(listed) if isinstance(listed, dict) else set()
-    for rel in scanned_files(directory):
-        if rel not in listed:
-            report(f".claude/skills/{name}/{rel} not in manifest")
-sys.exit(1 if failed else 0)
-PY
-    # KIT-072: the pinned plugin copy, the local settings and the plugins Claude Code lists for the repository
-    pin_check "$expected" || FAILED=1
-  elif [[ "$VENDOR" == 1 ]]; then
-    echo "sync: .claude/skills/KIT_MANIFEST.json missing (run sync-project.sh --vendor-skills)"
-    FAILED=1
-  fi
+  # KIT-081 stage 2b: the state the retired vendored mode left (copies, the pin, its settings entries) fails the check
+  python3 "$UNVENDOR_TOOL" check "$REPO" || FAILED=1
   python3 "$KIT_DIR/platforms/tools/sync_agents_md.py" check "$REPO" "$expected" "$(render_agents_rules)" || FAILED=1
   if [[ $FAILED -eq 0 ]]; then echo "sync: $REPO consistent with kit $expected"; else exit 1; fi
   exit 0
@@ -770,26 +619,6 @@ while read -r src rel; do
     exit 1
   fi
 done < <(rule_files)
-# The same refusal applies to vendored skill destinations: a .claude/skills/<name>
-# without the .agent-rules-kit marker is repo-owned, so the sync stops here, before
-# any write, leaving the repo exactly as it was.
-if [[ "$VENDOR" == 1 ]]; then
-  if [[ -e "$REPO/.claude/skills" && ! -d "$REPO/.claude/skills" ]]; then
-    echo "sync: $REPO/.claude/skills exists and is not a directory; move it by hand"
-    exit 1
-  fi
-  while read -r plugin name; do
-    [[ -n "$plugin" ]] || continue
-    dst="$REPO/.claude/skills/$name"
-    if [[ -e "$dst" || -L "$dst" ]] && [[ ! -f "$dst/.agent-rules-kit" ]]; then
-      echo "sync: $dst exists and is not generated; rename it or drop the profile that receives it (platforms/tools/sync-profiles.txt)"
-      exit 1
-    fi
-  done < <(skill_dirs)
-  # KIT-072: the pin's folders follow the same rule (exit 1); settings it cannot merge into exit 2
-  pin_preflight || exit $?
-fi
-
 # A target AGENTS.md that is a symbolic link, or one whose path-rule block markers are broken, refuses here too.
 AGENTS_RULES="$(render_agents_rules)"
 python3 "$KIT_DIR/platforms/tools/sync_agents_md.py" preflight "$REPO" "$version" "$AGENTS_RULES" || exit 1
@@ -826,10 +655,9 @@ markets = data.setdefault("extraKnownMarketplaces", OrderedDict())
 markets["ai-kit"] = OrderedDict(source=OrderedDict(source="github", repo="ChristianPrzybulinski/agent-rules-kit",
                                                    ref="stable"))
 enabled = data.setdefault("enabledPlugins", OrderedDict())
-pinned = os.environ.get("AI_KIT_PINNED") == "1"  # KIT-072: then pin_settings sets them, after the pinned copy
-for key in [k for k in enabled if k.endswith("@ai-kit") and not pinned]:
+for key in [k for k in enabled if k.endswith("@ai-kit")]:
     del enabled[key]
-for name in [] if pinned else plugins:
+for name in plugins:
     enabled[name + "@ai-kit"] = True
 # KIT-071: Claude Code's built-in commit and PR instructions compete with skill git.
 data["includeGitInstructions"] = False
@@ -896,116 +724,16 @@ elif merge_driver_marked; then
   echo "sync: removed $MERGE_DRIVER_REL (no godot profile)"
 fi
 
-# In vendored mode each profile skill directory is copied whole (SKILL.md,
-# references/, agents/, scripts/, VENDOR.md, LICENSE.txt) and marked
-# .agent-rules-kit; a copy is replaced only when diff finds drift, and marked
-# directories that fall out of the profile are removed. Unmarked directories
-# are never touched - the collision refusal above already stopped the sync.
-if [[ "$VENDOR" == 1 ]]; then
-  mkdir -p "$REPO/.claude/skills"
-  skill_tmp="$(mktemp -d)"
-  skill_names=""
-  while read -r plugin name; do
-    [[ -n "$plugin" ]] || continue
-    skill_names="$skill_names$name "
-    vendored_skills=$((vendored_skills + 1))
-    cp -R "$KIT_DIR/plugins/$plugin/skills/$name" "$skill_tmp/$name"
-    pin_rewrite "$skill_tmp/$name"  # KIT-072: the copy calls the pinned tools
-    printf '%s\n' "plugins/$plugin/skills/$name kit $version generated by platforms/tools/sync-project.sh; do not edit" \
-      > "$skill_tmp/$name/.agent-rules-kit"
-    vendored_files=$((vendored_files + $(find "$skill_tmp/$name" -type f | wc -l)))
-    dst="$REPO/.claude/skills/$name"
-    if [[ ! -d "$dst" ]]; then
-      mv "$skill_tmp/$name" "$dst"
-    elif ! diff -r -q "$skill_tmp/$name" "$dst" >/dev/null; then
-      find "$dst" -delete
-      mv "$skill_tmp/$name" "$dst"
-    fi
-  done < <(skill_dirs)
-  for dst in "$REPO/.claude/skills"/*/; do
-    [[ -d "$dst" && -f "$dst/.agent-rules-kit" ]] || continue
-    name="${dst%/}"
-    name="${name##*/}"
-    [[ "$name" != "$PINNED_PLUGIN" ]] || continue
-    case " $skill_names" in
-      *" $name "*) ;;
-      *)
-        find "${dst%/}" -delete
-        echo "sync: removed .claude/skills/$name (not in profile)"
-        ;;
-    esac
-  done
-  # KIT-072: the kit hooks and the rest of the kit plugin (agents, the skills not copied above) as the pin;
-  # only once it is written does pin_settings turn guardrails@ai-kit off
-  # shellcheck disable=SC2086
-  pin_write $skill_names
-  pin_settings
-  AI_KIT_PIN="$(pin_record)" PINNED_PLUGIN="$PINNED_PLUGIN" \
-    python3 - "$REPO/.claude/skills" "$version" "$PROFILE" <<'PY'
-import hashlib, json, os, sys
-
-root, version, profile = sys.argv[1], sys.argv[2], sys.argv[3]
-
-
-def sha256(path):
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def scanned_files(directory):  # sha256 per regular file, links skipped
-    files = {}
-    for base, dirnames, filenames in os.walk(directory):
-        dirnames.sort()
-        for filename in sorted(filenames):
-            path = os.path.join(base, filename)
-            if os.path.islink(path) or not os.path.isfile(path):
-                continue
-            rel = os.path.relpath(path, directory).replace(os.sep, "/")
-            files[rel] = sha256(path)
-    return files
-
-
-skills = {}
-for name in sorted(os.listdir(root)):
-    directory = os.path.join(root, name)
-    marker = os.path.join(directory, ".agent-rules-kit")
-    if not os.path.isdir(directory) or not os.path.isfile(marker) or name == os.environ.get("PINNED_PLUGIN"):
-        continue
-    with open(marker, encoding="utf-8") as handle:
-        parts = handle.readline().split()
-    token = parts[0] if parts else ""
-    fields = token.split("/")
-    plugin = fields[1] if len(fields) == 4 and fields[0] == "plugins" and fields[2] == "skills" else ""
-    skills[name] = {"plugin": plugin, "files": scanned_files(directory)}
-manifest = {"KIT_VERSION": version,
-            "generator": "platforms/tools/sync-project.sh",
-            "profile": profile,
-            "skills": skills}
-manifest.update(json.loads(os.environ.get("AI_KIT_PIN") or "{}"))  # KIT-072: KIT_COMMIT and the plugin copy
-text = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
-path = os.path.join(root, "KIT_MANIFEST.json")
-try:
-    with open(path, encoding="utf-8") as handle:
-        current = handle.read()
-except OSError:
-    current = None
-if current != text:
-    with open(path, "w", encoding="utf-8") as handle:
-        handle.write(text)
-PY
-  find "$skill_tmp" -delete
-else
-  pin_remove  # KIT-072: plugins mode loads guardrails@ai-kit, so no pinned copy beside it
-fi
-
-claude_body="<!-- $CLAUDE_MARKER v$version; AGENTS.md is the source -->
+# The marker records the profile list, which a sync without --profile reuses (KIT-081 stage 2b).
+claude_body="<!-- $CLAUDE_MARKER v$version; profile $PROFILE; AGENTS.md is the source -->
 @AGENTS.md"
 if [[ ! -f "$REPO/CLAUDE.md" ]] || [[ "$(cat "$REPO/CLAUDE.md")" != "$claude_body" ]]; then
   printf '%s\n' "$claude_body" > "$REPO/CLAUDE.md"
 fi
+
+# KIT-081 stage 2b: a repository synced in the vendored mode loses the kit-marked copies, the pin and the pin's
+# settings entries; guardrails@ai-kit is already on and CLAUDE.md records the profile, so a failure here loses neither.
+python3 "$UNVENDOR_TOOL" remove "$REPO"
 
 spec_lint_note=""
 if [[ -d "$REPO/docs/spec" ]]; then
@@ -1034,27 +762,8 @@ each collaborator's local Claude Code after they trust the folder; CI runs load 
 when the runner has trusted the folder (\`hasTrustDialogAccepted\`), and cloud sessions do
 not load them.
 EOF
-  if [[ "$VENDOR" == 1 ]]; then
-    cat >> "$DEST/README.md" <<'EOF'
-
-`.claude/skills/` holds a copy of the kit skills for this profile, each directory marked
-`.agent-rules-kit` and listed with hashes in `KIT_MANIFEST.json`; do not edit.
-`.claude/ai-kit/hooks/` holds the kit hooks at the same version, which `.claude/settings.json`
-`hooks` runs in every session at the repo root. `.claude/skills/guardrails-pinned/` holds the
-kit agents and the other skills, which Claude Code loads as `guardrails-pinned@skills-dir`
-once the main checkout root is trusted. `enabledPlugins` turns off `guardrails@ai-kit`, which
-follows the kit head, so the project uses the kit version it synced until the next sync
-(KIT-072). Devin reads `.claude/skills/`
-as well (verify against the docs.devin.ai skills overview before relying on it) and recommends `.agents/skills/`, which this sync does
-not generate.
-EOF
-  fi
   spec_lint_note="spec-lint, "
 else
   echo "sync: no docs/spec, spec-lint skipped"
 fi
-skills_note=""
-if [[ "$VENDOR" == 1 ]]; then
-  skills_note=", .claude/skills ($vendored_skills skills, $vendored_files files)"
-fi
-echo "sync: $REPO <- kit $version (profile $PROFILE: ${spec_lint_note}CLAUDE.md, .claude/settings.json, .claude/rules [$rules_written written, $rules_removed removed]$skills_note)"
+echo "sync: $REPO <- kit $version (profile $PROFILE: ${spec_lint_note}CLAUDE.md, .claude/settings.json, .claude/rules [$rules_written written, $rules_removed removed])"
