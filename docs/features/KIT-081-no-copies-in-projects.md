@@ -88,3 +88,5 @@ stage 1.
 
 - 2026-11-16: confirmed (owner). Replaces the unrecorded starter-file proposal of the same session (a sync step that
   wrote starter files into a project).
+- 2026-11-16: the owner chose stage 2 first, and agreed on the `stable` branch as its prerequisite; the CI side of stage 1
+  waits for a best-practices review (vendored copy, pinned reference or agent-only check).
