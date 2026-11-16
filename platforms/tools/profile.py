@@ -437,7 +437,8 @@ def migrate(resolver, resolved):
         print(f"profile: {e}", file=sys.stderr)
         return 1
     text = "\n".join(header + body) + "\n"
-    if (resolver.cs.load_yaml(text) or {}) != out:
+    # Both parsers: a hook or CI runner without pyyaml reads the file through mini_yaml, whatever parser migrate had.
+    if (resolver.cs.load_yaml(text) or {}) != out or (resolver.cs.mini_yaml(text) or {}) != out:
         print("profile: the written text would not read back as the resolved view; nothing written", file=sys.stderr)
         return 1
     target.write_text(text, encoding="utf-8")

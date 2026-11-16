@@ -100,10 +100,15 @@ MINI_KEY = re.compile(r"""^("[^"]*"|'[^']*'|[^\s"'#\-\[\]{},][^:]*?):(?:\s+(.*))
 
 
 def mini_scalar(text):
-    """A plain or quoted scalar: quoted text, null/~, YAML booleans, integers, else the text itself."""
+    """A plain or quoted scalar: quoted text, null/~, YAML booleans, integers, else the text itself. Quoted text loses
+    only its own pair of quotes, so 'a "b"' keeps the inner quotes, and a single-quoted '' reads as one ' (as in
+    pyyaml); an unclosed quote is outside the format."""
     text = text.strip()
     if text[:1] in ("'", '"'):
-        return text.strip("\"'")
+        if len(text) < 2 or text[-1] != text[0]:
+            raise ValueError(f"unclosed quote: {text!r}")
+        inner = text[1:-1]
+        return inner.replace("''", "'") if text[0] == "'" else inner
     if text in ("null", "Null", "NULL", "~"):
         return None
     if text in YAML_TRUE:

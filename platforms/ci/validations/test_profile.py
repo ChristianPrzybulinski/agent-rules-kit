@@ -200,7 +200,8 @@ class Writer(unittest.TestCase):
                 "sdd": {"protected_paths": {"**/db/migration/**": "migration"}, "cut_command": "a: b # c, [d]",
                         "row_checks": {"tests": [{"code": ["src/*.py"], "tests": "tests/test_$1.py", "level": "warn"}]},
                         "row_check": None, "needs": False, "max_chain": 6, "owner_approvals": []},
-                "gates": {"proof_allowlist": ["it's"], "repos": {}}, "tracker": {"labels": {"blocked": ["true"]}}}
+                "gates": {"proof_allowlist": ["it's"], "repos": {}}, "tracker": {"labels": {"blocked": ["true"]}},
+                "tests": {"python": {"unit": 'pytest -k "a or b"'}}}
         text = "\n".join(profile.dump(data)) + "\n"
         self.assertEqual(cs.mini_yaml(text), data)
         try:
