@@ -293,6 +293,21 @@ class RedTest(StubCase):
         self.assertNotIn("red: test (failures=1)", out)
         self.assertIn("red: OK — 1 of 1 failing tests", out)
 
+    def test_a_test_base_cannot_hold_is_named_by_its_real_cause(self):
+        """#288 item 4 (KIT-079): a name too long for the file system is not "a folder of its path is a file". The
+        head commits the name through git's index, which has no file-name limit."""
+        long_name = "tests/test_" + "x" * 300 + ".py"
+        self.repo.write("calc.py", CALC_SUB)
+        blob = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=self.repo.root, input=TEST_SUB,
+                              capture_output=True, text=True, check=True).stdout.strip()
+        git(self.repo.root, "add", "calc.py")
+        git(self.repo.root, "update-index", "--add", "--cacheinfo", f"100644,{blob},{long_name}")
+        git(self.repo.root, "commit", "-q", "-m", "sub")
+        code, out = self.red(git(self.repo.root, "rev-parse", "HEAD"))
+        self.assertEqual(code, 1, out)
+        self.assertIn(f"{long_name} cannot be placed on base (File name too long), so its Red cannot run", out)
+        self.assertNotIn("a folder of its path is a file there", out)
+
     def nested(self):
         base = self.repo.commit("mul bug", **{"calc.py": CALC_MUL_BUG})
         head = self.repo.commit("mul fix", **{"calc.py": CALC_MUL, "tests__test_mul.py": TEST_MUL_NESTED})
@@ -609,6 +624,14 @@ class ProofTest(StubCase):
         self.assertEqual(code, 1, out)
         self.assertIn("exit 0", out)
         self.assertIn("exit 3", out)
+
+    def test_a_nul_in_a_proof_path_is_a_finding_not_a_traceback(self):
+        """#288 item 3 (KIT-079): the file system refuses a NUL with ValueError, not OSError."""
+        code, out = self.run_tool("proof", "--body", self.body("python3 -B a\0b/*.py"), "--run", "--allow", "python3",
+                                  "--cwd", str(self.repo.root))
+        self.assertEqual(code, 1, out)
+        self.assertIn("the file system cannot check this path, not run", out)
+        self.assertNotIn("Traceback", out)
 
     def test_run_skips_a_line_outside_the_allowlist(self):
         proof = "ls -la"
@@ -1355,6 +1378,14 @@ class DodDiscoveryTest(StubCase):
     def test_a_rename_that_stays_discoverable_drops_nothing(self):
         head = renamed_commit(self.repo, "tests/test_add.py", "tests/unit/test_add.py", "move the test")
         code, out = self.dod(head, self.gates({"red": [{"glob": "tests/**/test_*.py", "command": RUN}]}))
+        self.assertEqual(code, 0, out)
+        self.assertIn("no assertion dropped", out)
+
+    def test_a_rename_inside_the_test_globs_that_no_red_glob_names_drops_nothing(self):
+        """#288 item 1 (KIT-079): both names stay inside the test globs and no `red` glob names either, so the move
+        tells nothing about the runner's discovery."""
+        head = renamed_commit(self.repo, "tests/test_add.py", "tests/test_add2.py", "rename the test")
+        code, out = self.dod(head, self.gates({"red": [{"glob": "spec/*_spec.py", "command": RUN}]}))
         self.assertEqual(code, 0, out)
         self.assertIn("no assertion dropped", out)
 

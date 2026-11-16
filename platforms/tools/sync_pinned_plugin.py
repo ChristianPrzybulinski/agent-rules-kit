@@ -392,14 +392,18 @@ def kit_commit(kit):
 
 
 def read_sources():
-    """(kit file, repo path) per stdin line; none when stdin is a terminal."""
+    """(kit file, repo path) per stdin line, the two separated by a tab, since either path may hold a space (KIT-079);
+    none when stdin is a terminal."""
     if sys.stdin is None or sys.stdin.isatty():
         return []
     pairs = []
     for line in sys.stdin.read().splitlines():
-        parts = line.split()
+        parts = line.split("\t")
         if len(parts) == 2:
             pairs.append((parts[0], parts[1]))
+        elif line.strip():
+            print(f"sync: pin: a source line is not <kit file><TAB><repo path>, so it is not pinned: {line!r}",
+                  file=sys.stderr)
     return pairs
 
 

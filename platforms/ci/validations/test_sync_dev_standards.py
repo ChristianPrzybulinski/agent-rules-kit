@@ -35,10 +35,12 @@ def header(profile):
 
 
 class Base(unittest.TestCase):
+    FOLDER = ""  # the repository's folder name inside the temporary folder; "" is the temporary folder itself
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.repo = Path(self.tmp.name)
+        self.repo = Path(self.tmp.name) / self.FOLDER
         subprocess.run(["git", "init", "-q", str(self.repo)], check=True)
         (self.repo / "AGENTS.md").write_text("# x\n")
         (self.repo / "docs" / "spec").mkdir(parents=True)
@@ -235,6 +237,19 @@ class MergeDriver(Base):
         self.assertEqual(self.text(self.COPY), "print('mine')\n")
         self.assertFalse((self.repo / "CLAUDE.md").exists())
 
+    def test_a_project_driver_that_names_the_kit_stays_the_projects(self):
+        """#283 item 2 (KIT-079): only the generated header line marks the copy as the kit's, so a project's own
+        driver that mentions the kit is neither removed nor replaced."""
+        (self.repo / ".github" / "merge-drivers").mkdir(parents=True)
+        own = '"""Our CSV driver, adapted from agent-rules-kit KIT-074."""\nprint("mine")\n'
+        (self.repo / self.COPY).write_text(own)
+        self.ok("--profile", "docs")  # no godot profile: a generated leftover would go
+        self.assertEqual(self.text(self.COPY), own)
+        self.ok("--check", "--profile", "docs")
+        (self.repo / "client").mkdir()
+        self.assertIn(f"{self.COPY} exists and is not generated", self.failing("--profile", "docs,godot:client").stdout)
+        self.assertEqual(self.text(self.COPY), own)
+
 
 
 class PinnedCopies(Base):
@@ -272,6 +287,12 @@ class PinnedCopies(Base):
         copies = json.loads(self.text(".claude/skills/KIT_MANIFEST.json"))["copies"]
         self.assertEqual([rel for rel in copies if "__pycache__" in rel or rel.endswith(".pyc")], [])
         self.ok("--check", *self.PROFILE)
+
+
+class PinnedCopiesInAFolderWithASpace(PinnedCopies):
+    """#283 item 5 (KIT-079): a repository path with a space keeps every copy in the pin; a module's source is
+    `<repo>/<module>`, so the space is in the source of each "source repo-path" line."""
+    FOLDER = "my game"
 
 
 if __name__ == "__main__":

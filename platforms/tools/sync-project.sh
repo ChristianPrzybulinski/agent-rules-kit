@@ -99,6 +99,7 @@ RULE_PATHS=""  # "<rule> <dir>..." lines from docs/spec/spec.md sdd.rule_paths (
 DOC_STRUCTURE=0  # 1 when docs/spec/spec.md sets sdd.doc_structure.enabled (KIT-074)
 MERGE_DRIVER_SRC="$KIT_DIR/platforms/kits/godot/scripts/keyed_csv_merge.py"
 MERGE_DRIVER_REL=".github/merge-drivers/keyed_csv_merge.py"  # vendored for a godot profile (KIT-074)
+MERGE_DRIVER_HEADER='"""Keyed-CSV git merge driver (agent-rules-kit KIT-074)' # how line 2 of a vendored copy starts
 SYNC_TMP="$(mktemp -d)"
 trap 'find "$SYNC_TMP" -delete' EXIT
 RULE_MARKER_PREFIX='<!-- agent-rules-kit: generated from '
@@ -141,23 +142,26 @@ merge_driver_wanted() { # a godot profile gets the keyed-CSV merge driver (KIT-0
   profile_entries "$PROFILE" | cut -d' ' -f1 | grep -qx godot
 }
 
-merge_driver_marked() { # the vendored driver names the kit; a file without the name is the project's
-  grep -qF 'agent-rules-kit' "$REPO/$MERGE_DRIVER_REL" 2>/dev/null
+merge_driver_marked() { # the vendored driver's docstring line names the kit; any other file is the project's, even
+  # one that mentions the kit elsewhere (KIT-079)
+  [[ -f "$REPO/$MERGE_DRIVER_REL" ]] &&
+    [[ "$(sed -n 2p "$REPO/$MERGE_DRIVER_REL")" == "$MERGE_DRIVER_HEADER"* ]]
 }
 
 # KIT-072: the pin, in one block so merges stay mechanical; platforms/tools/sync_pinned_plugin.py does the work.
-pin_sources() { # prints "src repo-path" for every copy the sync vendors outside .claude/skills: each file kit_files
-  # lists, under .github/spec-lint/, so a file a later kit adds to kit_files is pinned and checked with the rest
+pin_sources() { # prints "src<TAB>repo-path" for every copy the sync vendors outside .claude/skills: each file
+  # kit_files lists, under .github/spec-lint/, so a file a later kit adds to kit_files is pinned and checked with the
+  # rest. A tab, not a space, separates the two: a repository path may hold a space (KIT-079)
   local src rel
   if [[ -d "$REPO/docs/spec" ]]; then
-    kit_files | while read -r src rel; do echo "$src .github/spec-lint/$rel"; done
+    kit_files | while read -r src rel; do printf '%s\t%s\n' "$src" ".github/spec-lint/$rel"; done
   fi
   # KIT-074: the keyed-CSV merge driver, a byte copy of its kit source, and each generated just module. A module is
   # rendered (a marked header, or an aggregate of several profiles), so its source is the file the sync wrote, which
   # pin_record reads after the write; sync_just.py check compares its content with the kit.
-  if merge_driver_wanted; then echo "$MERGE_DRIVER_SRC $MERGE_DRIVER_REL"; fi
+  if merge_driver_wanted; then printf '%s\t%s\n' "$MERGE_DRIVER_SRC" "$MERGE_DRIVER_REL"; fi
   python3 "$KIT_DIR/platforms/tools/sync_just.py" list "$REPO" - "$PROFILE" |
-    while read -r rel; do echo "$REPO/$rel $rel"; done
+    while read -r rel; do printf '%s\t%s\n' "$REPO/$rel" "$rel"; done
 }
 pin_preflight() { python3 "$PIN_TOOL" preflight "$REPO"; }
 pin_write() { python3 "$PIN_TOOL" write "$REPO" "$KIT_DIR" "$version" "$@"; } # "$@": the skills copied as plain skills

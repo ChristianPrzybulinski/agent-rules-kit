@@ -21,10 +21,11 @@ file and no test module matches no COVERS at all (unknown code runs the whole la
 --shard I/N runs the I-th of N interleaved slices of the selected chunks (a unit or contract class is one chunk, a
 test of a slower layer one), so N CI jobs share a layer. FILE names test modules under --start (default this kit's
 platforms/ci/validations) to run whole, whatever their layers and untagged ones too: the red job runs the PR's test
-files on the base commit that way. The runner keeps its own helper out of the tests' imports, so a base run imports
-only the base's modules. The summary keeps unittest's lines (`Ran N tests in`, `OK`, `FAILED (...)`) and each
-failure's traceback, then the skips by reason; --durations N adds the slowest tests, --json FILE every test's layer,
-seconds and outcome.
+files on the base commit that way, one module at a time, so a module that cannot import there (it loads a file the
+PR adds) is one error and the others still run. The runner keeps its own helper out of the tests' imports, so a base
+run imports only the base's modules. The summary keeps unittest's lines (`Ran N tests in`, `OK`, `FAILED (...)`) and
+each failure's traceback, then the skips by reason; --durations N adds the slowest tests, --json FILE every test's
+layer, seconds and outcome.
 
 Exit 0 when every selected test passed or skipped, or when --changed-from leaves nothing to run; 1 on a failure or
 an error; 2 on a usage error: an unknown layer, a test class with no layer or an unknown one, an integration class
@@ -84,9 +85,9 @@ def discover(start=TESTS, files=()):
     and one line per class with no layer, an unknown one or an integration class without COVERS. With files, only
     those modules, and an untagged class is no problem."""
     loader = unittest.TestLoader()
-    if files:
-        sys.path.insert(0, str(start))
-        suite = unittest.TestSuite(loader.loadTestsFromName(Path(name).stem) for name in files)
+    if files:  # one discovery per module: any import error is that module's error, as in a whole discovery (KIT-079)
+        suite = unittest.TestSuite(loader.discover(str(start), pattern=Path(name).name, top_level_dir=str(start))
+                                   for name in files)
     else:
         suite = loader.discover(str(start), pattern="test_*.py", top_level_dir=str(start))
     entries, failed, problems = [], [], {}

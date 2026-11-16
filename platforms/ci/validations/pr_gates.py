@@ -22,7 +22,8 @@ closes, and the rule inputs:
      "proof_allowlist": ["python3", "grep", "./mvnw"],
      "expected_red_checks": {"<repo>": {"<check name>": {"until_issue_closed": <issue>, "why": "..."}}}}
 
-`--repo` is the PR's repository name — a key of `repos`. Report rules:
+`owner`, `backlog_repo`, `repos` and `proof_allowlist` are required: a config without one, or with a value of the
+wrong type, exits 2 naming the key. `--repo` is the PR's repository name — a key of `repos`. Report rules:
 - **no-task**: a body without `Closes <owner>/<backlog_repo>#N` has no task issue to check against, so
   the task gates (Closes link, proof block, the three scope rules, the changelog fragment and the
   proof allowlist) are reported `skip` and only the CI state is evaluated — architect PRs pass.
@@ -54,7 +55,7 @@ REVIEW_CONTEXT: str | None = None
 FRAGMENT_RE = re.compile(r"^changelog\.d/[^/]+\.(added|changed|deprecated|removed|fixed|security)\.md$")
 
 
-REQUIRED_KEYS = ("owner", "backlog_repo", "repos")
+REQUIRED_KEYS = ("owner", "backlog_repo", "repos", "proof_allowlist")  # every task PR's report reads the allowlist
 
 
 def _strings(value) -> bool:

@@ -283,6 +283,18 @@ class ParallelRun(unittest.TestCase):
         self.assertIn("ERROR: test_rt_broken", result.stdout)
         self.assertIn("ModuleNotFoundError", result.stdout)
 
+    def test_in_files_mode_a_module_that_cannot_import_stops_only_itself(self):
+        """#294 item 1 (KIT-079): red runs the PR's modules on base, where loading a file the PR adds raises
+        FileNotFoundError, not ImportError; that module is one error and the next module still runs."""
+        (self.folder / "test_rt_new.py").write_text("open('/a file the PR adds/ci_red.py')\n", encoding="utf-8")
+        result = self.run_cli(str(self.folder / "test_rt_new.py"), str(self.folder / "test_rt_fail.py"))
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("ERROR: test_rt_new", result.stdout)
+        self.assertIn("FileNotFoundError", result.stdout)
+        self.assertIn("FAIL: test_two (test_rt_fail.Fail.test_two)", result.stdout)
+        self.assertIn("Ran 2 tests in ", result.stdout)
+        self.assertNotIn("Traceback (most recent call last)", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

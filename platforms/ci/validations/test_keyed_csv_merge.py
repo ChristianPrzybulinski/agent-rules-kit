@@ -238,6 +238,20 @@ class Driver(unittest.TestCase):
         self.assertIn("keyed_csv_merge: client/i18n/strings.csv:", result.stdout + result.stderr)
         self.assertIn("<<<<<<<", self.read())
 
+    def test_a_stray_quote_merges_the_whole_file_as_text_and_warns(self):
+        """#283 item 3 (KIT-079), the documented fallback: the record split reads every `"` as a quote, so an inch
+        mark in an unquoted field leaves the side unparsable; the warning says the keyed merge is off and how to
+        write the mark so it parses."""
+        files = {"base": csv_text("a.key,A,A", "b.key,B,B"), "ours": csv_text('a.key,5" screen,A', "b.key,B,B"),
+                 "theirs": csv_text("a.key,A,A", "b.key,B2,B2")}
+        for name, text in files.items():
+            (self.repo / name).write_text(text, encoding="utf-8")
+        result = subprocess.run([sys.executable, "-B", str(SCRIPT), "--path", self.CSV,
+                                 *(str(self.repo / name) for name in files)], capture_output=True, text=True)
+        self.assertIn(f"keyed_csv_merge: {self.CSV}: a quoted field is not closed; warning: the whole file merges as "
+                      "text, not by key", result.stderr)
+        self.assertIn('"5"" screen"', result.stderr)
+
     def test_a_usage_error_exits_2(self):
         result = subprocess.run([sys.executable, "-B", str(SCRIPT), "only-one-file"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)

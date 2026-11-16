@@ -19,7 +19,10 @@ with b, o, t its rows in the base, ours and theirs (or none): o == t gives o; o 
 else is a conflict. A key twice on one side is a conflict, and so are two different headers. Order: when every side
 is sorted by key, the result is sorted; otherwise it keeps our order and places each of their new keys after the key
 before it on their side. Line ending: ours (CRLF and LF rows compare equal). A conflict is written in place with git's
-markers (ours, then theirs) and exits 1; an input that does not parse is merged as text by `git merge-file`.
+markers (ours, then theirs) and exits 1; an input that does not parse is merged as text by `git merge-file`, with a
+warning. The record split reads every `"` as a quote, wherever it stands, so a `"` inside an unquoted field (an inch
+mark: `5" screen`) leaves the file unparsable and the whole file merges as text; write that field quoted with the
+mark doubled (`"5"" screen"`) to keep the keyed merge.
 
 Usage: keyed_csv_merge.py [--key-column N] [--marker-size N] [--path P] BASE OURS THEIRS
 Writes the result to OURS. Exit 0 clean, 1 conflicts, 2 usage error.
@@ -107,7 +110,7 @@ def merged_order(ours: list[str], theirs: list[str], keys: set[str], sort: bool)
 def merge(base: str, ours: str, theirs: str, key_column: int = 1, labels: tuple[str, str] = ("ours", "theirs"),
           marker_size: int = 7) -> tuple[str, list[str]]:
     """(the merged text, the sorted conflicting keys). A conflict sits in the text between git's markers. Raises
-    ValueError when a side does not parse."""
+    ValueError or csv.Error when a side does not parse."""
     sides = [parse(text, key_column) for text in (base, ours, theirs)]
     nl = "\r\n" if "\r\n" in ours else "\n"
     conflicts: list[str] = []
@@ -164,7 +167,9 @@ def main(argv: list[str] | None = None) -> int:
         texts = [p.read_bytes().decode("utf-8") for p in paths]
         text, conflicts = merge(*texts, key_column=args.key_column, marker_size=args.marker_size)
     except (OSError, UnicodeDecodeError, ValueError, csv.Error) as err:
-        print(f"keyed_csv_merge: {args.path or args.ours}: {err}; merging as text", file=sys.stderr)
+        print(f"keyed_csv_merge: {args.path or args.ours}: {err}; warning: the whole file merges as text, not by key "
+              '(a " counts as a quote wherever it stands: quote a field that holds one and double it, "5"" screen")',
+              file=sys.stderr)
         return text_merge(*paths, args.marker_size)
     paths[1].write_bytes(text.encode("utf-8"))
     if conflicts:
