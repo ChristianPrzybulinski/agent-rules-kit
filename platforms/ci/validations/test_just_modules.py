@@ -266,6 +266,30 @@ class Docs(ModuleTest):
         self.assertEqual(self.calls(), [])
 
 
+# check_kit.py § 14 reads these paths; each fixture holds one mistake or one case that must pass.
+FIXTURES = {
+    "platforms/kits/just/godot.just": (
+        "import:\n    godot --headless --import\n\n"
+        'boot scene="res://main.tscn": import\n    godot --headless {{scene}}\n\n'
+        "test: import\n    godot --headless -s runner.gd\n\n"
+        "verify: test\n"),
+    "platforms/kits/just/java.just": "test:\n    ./mvnw test\n\nverify:\n    ./mvnw verify\n",
+    "plugins/guardrails/templates/project-agents-java-spring.md": (
+        "# Fixture AGENTS template (java)\n\n- Tests `just test`, the gate `just verify`.\n"
+        "- A recipe java.just lacks: `just verify-all`.\n"),
+    "plugins/guardrails/templates/project-agents-godot-2d.md": (
+        "# Fixture AGENTS template (godot)\n\n- The gate `just verify` and the boot proof `just boot`; no tests.\n"),
+    "platforms/kits/github/workflows/ci-godot.yml": (
+        "# Fixture CI template (godot)\njobs:\n  test:\n    steps:\n"
+        "      - run: just boot\n"
+        "      - run: just boot-proof\n"
+        "      - run: just --no-deps test 2>&1 | tee test-run.log\n"
+        "      - run: just --no-deps tests\n"),
+    "platforms/kits/github/workflows/ci-java.yml": (
+        "# Fixture CI template (java)\njobs:\n  verify:\n    steps:\n      - run: just verify\n"),
+}
+
+
 class TemplatesNameKitRecipes(unittest.TestCase):
     """check_kit.py fails when an AGENTS or CI template names a recipe its profile module lacks."""
 
@@ -287,46 +311,30 @@ class TemplatesNameKitRecipes(unittest.TestCase):
     def check(self):
         return subprocess.run([sys.executable, "-B", str(self.kit / CHECK_KIT)], capture_output=True, text=True)
 
-    def edit(self, rel, old, new, count=1):
-        path = self.kit / rel
-        text = path.read_text(encoding="utf-8")
-        self.assertIn(old, text)
-        path.write_text(text.replace(old, new, count), encoding="utf-8")
-        self.addCleanup(path.write_text, text, encoding="utf-8")
-
-    def test_the_kit_passes(self):
+    def test_each_template_mistake_fails_on_its_own_line(self):
+        """Synthetic modules and templates at the four paths check_kit.py reads, so rewording a real template breaks
+        no test; the real kit passing is the static job's check_kit.py run (.github/workflows/ci.yml). One run: each
+        template is checked on its own, so the mistakes neither mask nor add a line."""
+        for rel, body in FIXTURES.items():
+            (self.kit / rel).write_text(body, encoding="utf-8")
         result = self.check()
-        self.assertNotIn("just recipe", result.stdout + result.stderr)
-
-    def test_an_agents_template_naming_a_missing_recipe_fails(self):
-        self.edit("plugins/guardrails/templates/project-agents-java-spring.md", "just verify", "just verify-all")
-        result = self.check()
-        self.assertIn("project-agents-java-spring.md: names just recipe 'verify-all', which "
-                      "platforms/kits/just/java.just does not define", result.stderr)
-
-    def test_a_ci_template_naming_a_missing_recipe_fails(self):
-        self.edit("platforms/kits/github/workflows/ci-godot.yml", "just boot", "just boot-proof")
-        result = self.check()
-        self.assertIn("ci-godot.yml: names just recipe 'boot-proof', which platforms/kits/just/godot.just "
-                      "does not define", result.stderr)
-
-    def test_a_recipe_after_a_long_option_is_checked_too(self):
-        """#283 item 7: ci-godot runs `just --no-deps test` after `just boot`; the recipe after the option still counts."""
-        self.edit("platforms/kits/github/workflows/ci-godot.yml", "just --no-deps test", "just --no-deps tests")
-        result = self.check()
-        self.assertIn("ci-godot.yml: names just recipe 'tests', which platforms/kits/just/godot.just does not define",
-                      result.stderr)
-
-    def test_a_recipe_with_a_default_parameter_is_defined(self):  # #283 item 8
-        self.edit("platforms/kits/just/godot.just", "\nboot: import\n", '\nboot scene="res://main.tscn": import\n')
-        result = self.check()
-        self.assertNotIn("names just recipe 'boot'", result.stdout + result.stderr)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_a_template_without_the_gate_recipes_fails(self):
-        self.edit("plugins/guardrails/templates/project-agents-godot-2d.md", "just test", "godot test", count=-1)
-        result = self.check()
-        self.assertIn("project-agents-godot-2d.md: names no `just test`", result.stderr)
+        lines = [line for line in result.stderr.splitlines() if line.startswith("FAIL: ")]
+        expected = [
+            "project-agents-java-spring.md: names just recipe 'verify-all', which platforms/kits/just/java.just "
+            "does not define",
+            "ci-godot.yml: names just recipe 'boot-proof', which platforms/kits/just/godot.just does not define",
+            # #283 item 7: ci-godot runs `just --no-deps test` after `just boot`; the recipe after the option counts
+            "ci-godot.yml: names just recipe 'tests', which platforms/kits/just/godot.just does not define",
+            "project-agents-godot-2d.md: names no `just test`",
+        ]
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        for text in expected:
+            with self.subTest(text=text):
+                self.assertEqual(sum(text in line for line in lines), 1, result.stderr)
+        self.assertEqual([line for line in lines if not any(text in line for text in expected)], [], result.stderr)
+        self.assertEqual(len(lines), len(expected), result.stderr)
+        self.assertNotIn("names just recipe 'boot'", result.stderr)  # #283 item 8: a default parameter is defined
+        self.assertNotIn("names just recipe 'test'", result.stderr)  # the recipe after --no-deps is read whole
 
 
 if __name__ == "__main__":

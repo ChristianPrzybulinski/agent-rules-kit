@@ -34,6 +34,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install pyyaml jsonschema
+      - name: install gdtoolkit (the Godot kit's pin; the GDScript tool tests fail instead of skipping under CI)
+        run: pip install -r platforms/kits/godot/requirements-gdtoolkit.txt
       - name: install just and gitleaks (pinned, sha-256 checked; their tests fail instead of skipping under CI)
         env:
           JUST_VERSION: 1.58.0

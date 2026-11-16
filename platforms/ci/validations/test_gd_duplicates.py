@@ -1,4 +1,5 @@
 """gd_duplicates.py: structural duplicates of changed GDScript functions in a throwaway repo."""
+import functools
 import importlib.util
 import json
 import os
@@ -13,7 +14,20 @@ COVERS = ("platforms/tools/gd_duplicates.py",)
 
 TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "gd_duplicates.py"
 HAS_GDTOOLKIT = importlib.util.find_spec("gdtoolkit") is not None
-NEEDS_PARSER = unittest.skipUnless(HAS_GDTOOLKIT, "gdtoolkit is not installed (pip install gdtoolkit==4.5.0)")
+
+
+def NEEDS_PARSER(test):  # noqa: N802 (a decorator named like the skip decorators it replaces)
+    """A test that parses GDScript skips without gdtoolkit, except under CI=1: the CI jobs that run it install the
+    pinned gdtoolkit (KIT-082), so there a missing one fails the test, as a missing just or gitleaks does."""
+    if HAS_GDTOOLKIT:
+        return test
+    if not os.environ.get("CI"):
+        return unittest.skip("gdtoolkit is not installed (pip install gdtoolkit==4.5.0; CI=1 makes it required)")(test)
+
+    def missing(self, *args, **kwargs):
+        self.fail("gdtoolkit is not installed (CI=1 makes it required: pip install gdtoolkit==4.5.0)")
+    return functools.wraps(test)(missing)
+
 
 # Copied from two validators of a consumer Godot client (group and stats validation).
 INTEGER = """static func _integer(value: Variant, minimum: int, maximum: int) -> bool:
