@@ -30,9 +30,9 @@ profile holds only parameters the kit reads; another tool's settings (a review l
 
 ## Change
 
-Four phases, one PR each (#322):
+Four phases, one PR each, plus P1b, the kit's own profile (#322):
 
-- **P1 — schema and dual-read resolver (MINOR): done on branch `feat/kit-087-p1-profile-resolver`.**
+- **P1 — schema and dual-read resolver (MINOR): done in #327 (c85e381).**
   1. `platforms/ci/schemas/profile.schema.json`: a top-level `kit` pin (`">=X.Y"`, checked against `VERSION`) and the
      sections `stacks`, `sdd` (the 23 keys of `spec.schema.json`, `journeys` nullable, plus `task_cut` and
      `decision_folding` for KIT-086), `tracker` (labels limited to the two `spec_trace.py` reads), `models`, `tests`,
