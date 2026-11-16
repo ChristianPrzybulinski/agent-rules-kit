@@ -32,6 +32,27 @@ jobs:
       # the copy in .github/spec-lint/ is generated
       - run: CI=1 python3 .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas
 """
+# KIT-083: lines 4, 8 and 10 are entries of a paths filter, inline, in a block list and at the key's indent; lines 16 to
+# 18 name the old folder only in a trailing comment, after the action, a shell command and a quoted '#'.
+TRIGGERS = """name: docs
+on:
+  pull_request:
+    paths: ['.github/spec-lint/**', 'docs/spec/**']
+  push:
+    paths:
+      - docs/spec/**
+      - '.github/spec-lint/**'
+    paths-ignore:
+    - .github/spec-lint/README.md
+permissions: {}
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@%s  # was .github/spec-lint/
+      - run: echo "lint"  # replaced python3 .github/spec-lint/check_spec.py
+      - run: echo 'no #' # .github/spec-lint/
+""" % ("0" * 40)
 
 
 def kit_head():
@@ -121,6 +142,21 @@ class SpecTools(unittest.TestCase):
                                  " (platforms/kits/github/README.md)"])  # line 8 is a comment
         install = self.ok()
         self.assertIn("sync: warning: .github/workflows/docs.yml:9 names .github/spec-lint/", install.stderr)
+
+    def test_a_trailing_comment_names_nothing_and_a_paths_entry_is_a_stale_trigger(self):
+        """KIT-083: only a line that still uses the old folder is a caller; a trailing comment is not, and an entry of a
+        paths or paths-ignore filter is a stale trigger, reported as one."""
+        self.ok()
+        self.write(".github/workflows/docs.yml", TRIGGERS)
+        result = self.sync("--check")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        stale = ("names .github/spec-lint/ in a paths filter, a stale trigger: the kit no longer writes that folder;"
+                 " remove the entry")
+        lines = [line for line in result.stdout.splitlines() if ".github/spec-lint/" in line]
+        self.assertEqual(lines, [f"sync: .github/workflows/docs.yml:{n} {stale}" for n in (4, 8, 10)])
+        install = self.ok()
+        warnings = [line for line in install.stderr.splitlines() if ".github/spec-lint/" in line]
+        self.assertEqual(warnings, [f"sync: warning: .github/workflows/docs.yml:{n} {stale}" for n in (4, 8, 10)])
 
     def test_the_written_workflow_pins_the_kit_commit_with_its_version(self):
         result = self.ok()
