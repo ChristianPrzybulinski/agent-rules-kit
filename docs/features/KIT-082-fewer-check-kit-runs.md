@@ -1,10 +1,10 @@
 ---
 id: KIT-082
 title: "Fewer check_kit.py runs on kit copies, no mutations keyed to kit wording, and the GDScript tool tests run in CI"
-status: confirmed
+status: done
 confirmed: "2026-11-16 (owner, chat of the coordinator session on the test suite review: \"Sim, comece a parte A\")"
 issue: "#311"
-pr: ""
+pr: "#312"
 ---
 
 # KIT-082 — Fewer check_kit.py runs on kit copies, no mutations keyed to kit wording, and the GDScript tool tests run in CI

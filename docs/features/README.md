@@ -103,6 +103,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-079-correctness-fixes.md`](KIT-079-correctness-fixes.md) | 13.0.x correctness fixes | done | #295 | #296 |
 | [`KIT-080-issue-bundle-13-1.md`](KIT-080-issue-bundle-13-1.md) | 13.1.0 issue bundle | done | #300 | #301 |
 | [`KIT-081-no-copies-in-projects.md`](KIT-081-no-copies-in-projects.md) | the kit copies nothing into a project | confirmed | #308 | |
-| [`KIT-082-fewer-check-kit-runs.md`](KIT-082-fewer-check-kit-runs.md) | fewer check_kit runs, gdtoolkit in CI | confirmed | #311 | |
+| [`KIT-082-fewer-check-kit-runs.md`](KIT-082-fewer-check-kit-runs.md) | fewer check_kit runs, gdtoolkit in CI | done | #311 | #312 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
