@@ -17,6 +17,7 @@ JUST = shutil.which("just")
 MODULES = KIT / "platforms" / "kits" / "just"
 DRIVER = KIT / "platforms" / "kits" / "godot" / "scripts" / "keyed_csv_merge.py"
 DOCS_CHECK = KIT / "platforms" / "ci" / "validations" / "check_docs_structure.py"
+SYNC_JUST = KIT / "platforms" / "tools" / "sync_just.py"
 
 
 def header(profile):
@@ -167,6 +168,37 @@ class JustModules(Base):
         result = self.failing("--profile", "docs,godot:client")
         self.assertIn("client goes through a symbolic link", result.stdout + result.stderr)
         self.assertEqual(os.listdir(outside.name), [])
+
+    def sync_just(self, mode, profiles):
+        """sync_just.py alone, as a write after a skipped preflight would run it."""
+        return subprocess.run([sys.executable, str(SYNC_JUST), mode, str(self.repo), VERSION, profiles],
+                              capture_output=True, text=True, check=False)
+
+    def test_a_dangling_justfile_link_refuses_the_sync_and_writes_nothing_outside(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        (self.repo / "client").mkdir()
+        (self.repo / "client" / "justfile").symlink_to(Path(outside.name) / "justfile")  # dangling
+        message = "sync: client/justfile is a symbolic link; the sync writes no starter justfile through it"
+        self.assertIn(message, self.failing("--profile", "docs,godot:client").stdout)
+        for mode in ("preflight", "write"):
+            with self.subTest(mode=mode):
+                result = self.sync_just(mode, "docs,godot:client")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn(message, result.stdout)
+        self.assertEqual(os.listdir(outside.name), [])
+
+    def test_a_justfile_that_is_a_directory_refuses_the_sync(self):
+        (self.repo / "justfile").mkdir()
+        message = "sync: justfile is not a regular file; the sync writes no starter justfile there"
+        self.assertIn(message, self.failing().stdout)
+        for mode in ("preflight", "write"):
+            with self.subTest(mode=mode):
+                result = self.sync_just(mode, "docs")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn(message, result.stdout)
+                self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse((self.repo / "kit.just").exists())
 
     def test_a_dropped_profile_takes_its_module_and_keeps_the_justfile(self):
         (self.repo / "client").mkdir()
