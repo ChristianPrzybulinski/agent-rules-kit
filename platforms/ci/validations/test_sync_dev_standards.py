@@ -1,5 +1,6 @@
 """sync-project.sh and the KIT-074 dev standards: the opt-in doc-structure check in .github/spec-lint/, a generated
 kit.just per profile folder, and the keyed-CSV merge driver for the godot profile."""
+import json
 import os
 import shutil
 import subprocess
@@ -33,7 +34,7 @@ class Base(unittest.TestCase):
         (self.repo / "docs" / "spec").mkdir(parents=True)
 
     def run_sync(self, *args):
-        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull)
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, AI_KIT_CLAUDE_PROBE="0")  # KIT-072: no claude CLI probe
         return subprocess.run(["bash", str(SCRIPT), *args, str(self.repo)], capture_output=True, text=True,
                               check=False, env=env)
 
@@ -218,6 +219,44 @@ class MergeDriver(Base):
         self.assertIn(f"{self.COPY} exists and is not generated", result.stdout + result.stderr)
         self.assertEqual(self.text(self.COPY), "print('mine')\n")
         self.assertFalse((self.repo / "CLAUDE.md").exists())
+
+
+
+class PinnedCopies(Base):
+    """KIT-072's pin (--vendor-skills) records the merge driver and every generated just module, so --check names a
+    copy that changed after the sync."""
+    PROFILE = ("--profile", "docs,godot:client")
+    COPIES = (MergeDriver.COPY, "kit.just", "client/kit.just")
+
+    def setUp(self):
+        super().setUp()
+        (self.repo / "client").mkdir()
+        self.ok("--vendor-skills", *self.PROFILE)
+
+    def test_the_pin_records_the_driver_and_each_module(self):
+        copies = json.loads(self.text(".claude/skills/KIT_MANIFEST.json"))["copies"]
+        for rel in self.COPIES:
+            self.assertIn(rel, copies)
+        self.ok("--check", *self.PROFILE)
+
+    def test_a_modified_driver_copy_fails_check(self):
+        path = self.repo / MergeDriver.COPY
+        path.write_text(path.read_text(encoding="utf-8") + "# edited\n", encoding="utf-8")
+        self.assertIn(f"sync: {MergeDriver.COPY} diverges from the pin", self.failing("--check", *self.PROFILE).stdout)
+
+    def test_a_modified_module_fails_check(self):
+        path = self.repo / "client" / "kit.just"
+        path.write_text(path.read_text(encoding="utf-8") + "# edited\n", encoding="utf-8")
+        self.assertIn("sync: client/kit.just diverges from the pin", self.failing("--check", *self.PROFILE).stdout)
+
+    def test_bytecode_beside_the_driver_stays_out_of_the_pin(self):
+        cache = self.repo / ".github" / "merge-drivers" / "__pycache__"
+        cache.mkdir()
+        (cache / "keyed_csv_merge.cpython-312.pyc").write_bytes(b"\x00bytecode")
+        self.ok("--vendor-skills", *self.PROFILE)
+        copies = json.loads(self.text(".claude/skills/KIT_MANIFEST.json"))["copies"]
+        self.assertEqual([rel for rel in copies if "__pycache__" in rel or rel.endswith(".pyc")], [])
+        self.ok("--check", *self.PROFILE)
 
 
 if __name__ == "__main__":
