@@ -9,8 +9,7 @@ The kit skills are the process; a project never copies a step to change it. It s
 block of the `docs/spec/spec.md` frontmatter, next to `decision_kinds`. `sdd-constitution` writes the block (the
 `spec-index.md` template carries it with every default). `check_spec.py` refuses an unknown key or a value outside its
 range, with or without pyyaml; `spec.schema.json` holds the keys, values and defaults. To see what a step will read, run
-`python3 .github/spec-lint/check_spec.py --params docs/spec .github/spec-lint/schemas`: it prints the resolved block,
-every absent key at its default.
+`python3 .github/spec-lint/check_spec.py --params docs/spec .github/spec-lint/schemas`: it prints the resolved block, every absent key at its default.
 
 A default is the kit's behavior before the key existed, except `max_chain` and `max_feat_tasks`, which the kit did not limit. A step marked KIT-069 reads its key once that change lands; until then its own text decides, matching the default. `points` sums the bundled rows' `Complexity`: Low 1, Med 2, High 3.
 
@@ -38,6 +37,7 @@ A default is the kit's behavior before the key existed, except `max_chain` and `
 | `rule_paths` | map: kit rule name → folders, `.` for the whole repository | `{}` (the `--profile` folders) | `sync-project.sh`: the rule's globs and its `AGENTS.md` block |
 | `visual_approval` | `owner`, `reviewer`, `none` | `none` | `review` (KIT-069): who approves a screen or motion change's captures against its REQ's mock before the merge |
 | `owner_approvals` | list of change kinds, kebab-case | `[decision]` | `review` (KIT-069) and an orchestrator under owner-review autonomy: kinds only the owner approves, such as `approved-dec-change`, `protocol-version`, `in-game-evidence` |
+| `doc_structure` | map: `enabled` (`true`, `false`), `exempt` (a path in the repository), `headings` (list of `##` to `######` headings), `done_index` (`true`, `false`) | `{enabled: false, exempt: .github/doc-structure-exempt.txt, headings: ["## What goes here", "## What does not go here"], done_index: true}` | `sync-project.sh` (vendors `check_docs_structure.py` into `.github/spec-lint/` while enabled, removes it when off), `check_docs_structure.py`, the `docs.just` `lint` recipe (KIT-074) |
 
 ## Rule paths
 

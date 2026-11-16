@@ -11,7 +11,8 @@ An outdated document is worse than a missing one: the agent trusts it. Written a
 
 | Changed... | Update |
 |---|---|
-| build/run/test command | the module's `README.md` + the repo's `AGENTS.md` |
+| build/run/test command | the module's `README.md` + the repo's `AGENTS.md`, both naming the `just` recipe when the folder imports the kit's `kit.just` |
+| new authored folder, with `sdd.doc_structure` on | its `README.md` (title and the configured headings); a new child of a `done/` folder → that folder's `INDEX.md` |
 | public Java API | Javadoc on the public class/method (the what + invariants; do not repeat the signature) |
 | exported GDScript/autoload script | `##` docstring above `class_name`, `@export`, signals |
 | user-visible behavior | `CHANGELOG.md` `Unreleased` section |
@@ -42,6 +43,10 @@ For README narrative, reports, release notes, e-mail and team messages:
 - Preserve uncertainty; never invent examples, names, numbers or anecdotes for fluency.
 - Cut AI clichés and filler: "it is important to note", "worth highlighting", "in summary", decorative triads ("fast, secure and efficient"), bold on half the words, a list where a paragraph suffices, closing with a rhetorical question or an offer of help, unmeasured "robust", "scalable" or "seamless"; and the structural tells: a "not X but Y" whose X nobody claimed, a "no X, no Y, no Z" list, a run-up sentence before the point, a one-line closer that repeats the paragraph. After rewriting, check that no fact, number, name or quote changed.
 - Governed text (specs, CHANGELOG, commits, comments, `AGENTS.md`, skills, protocol contracts) follows its template and schema, keeps `[FACT]`, `[DECISION]`, `[PROPOSAL]`, `[HYPOTHESIS]` and `[BLOCKER]`, and never compresses structural repetition; inside a technical answer, a governed passage is still emitted in its final format.
+
+## Folder READMEs and done/ indexes
+
+With `sdd.doc_structure.enabled: true`, `check_docs_structure.py` (vendored into `.github/spec-lint/`, run by `just lint`) holds every folder `git ls-files` lists to a `README.md` with a `# ` title and the `headings` (default `## What goes here` and `## What does not go here`), and every `done/` folder to an `INDEX.md` naming each direct child. A generated or vendored folder goes in the `exempt` file (default `.github/doc-structure-exempt.txt`): one glob per line, a `#` line for the reason; `.github` itself and the folders `sync-project.sh` generates are always exempt. Keys: skill `sdd-constitution`, reference `sdd-parameters.md`.
 
 ## Condition → action
 

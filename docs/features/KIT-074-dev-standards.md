@@ -39,7 +39,9 @@ to the CLI for that reason).
    `.github/README.md` in place of the root README) and the folders `sync-project.sh` generates. `sync-project.sh`
    vendors it into `.github/spec-lint/` while enabled and removes it when turned off; `--check` flags a leftover.
    The `spec.md` template that `init-spec.sh` copies (`plugins/guardrails/templates/spec-index.md`) carries the block
-   with its defaults, like every other `sdd` key.
+   with its defaults, like every other `sdd` key. The standard is written in KIT-070's homes: the `sdd-implement`
+   living-docs reference (a checklist row and § Folder READMEs and done/ indexes) and `sdd-constitution`
+   `references/sdd-parameters.md` (the key's row).
    The kit's own `check_kit.py` rule "INDEX.md only at plugins/<name>/" now says it is the kit repository's rule
    (`check_kit.py` message, `.github/CONTRIBUTING.md`).
 2. `platforms/kits/just/{godot,java,python,docs}.just`: standard recipes `test`, `verify`, `fmt`, `lint`, `run` where
@@ -56,7 +58,9 @@ to the CLI for that reason).
 3. `platforms/kits/github/workflows/gitleaks.yml`: the gitleaks CLI 8.30.1 pinned by sha-256, `--redact`, the whole
    history (`--log-opts=HEAD`), a `config` input, `.gitleaksignore` at the root; push, pull request, dispatch and
    `workflow_call` triggers. The action template is not kept. The scan standard (a branch range before the PR, the
-   whole history in CI) goes into `security`, and `git` points to it.
+   whole history in CI) goes into `security` (`references/scan.md` § 3, which § 2's exposure step cites), and `git`
+   points to it. The template pins `actions/checkout` by commit SHA and keeps a 5-minute timeout, as KIT-076's
+   `workflow-lint` requires.
 4. `platforms/kits/godot/scripts/keyed_csv_merge.py`: a git merge driver (`merge=keyed-csv`) merging a keyed CSV row by
    row: the 3-way rule per key, a conflict written between git's markers at the key's place, `--key-column N`, quoted
    keys and multi-line quoted values, our order kept (sorted sides stay sorted), CRLF rows equal to LF ones, and a
