@@ -17,6 +17,8 @@ allowed-tools:
 
 The functional refinement: makes each Situation of a `specified` NEED precise as REQs, a journey step or a product decision, and ends with the NEED `refined`. No technical choice, FEAT, debt or task row. Process: `../sdd-constitution/references/sdd-process.md`. Scope rules: `references/req-scope.md`. Templates: `../../templates/spec-requirement-functional.md`, `../../templates/spec-requirement-non-functional.md`.
 
+With `sdd.needs: false` (`check_spec.py --params`; `../sdd-constitution/references/sdd-parameters.md`) there is no NEED: map the Situations `sdd-specify` settled, write REQs with `source: request YYYY-MM-DD S<n>`, and put each answer in its REQ or in the FEAT's Problem section instead of a NEED's History; skip the Refinement table and `sdd-check NEED-nnn`, and hand the approved REQs to `sdd-plan`, since `check_spec.py` requires each REQ to have its FEAT: the REQs land in the change that creates it, and `sdd-plan`'s full-scope check covers them.
+
 ## 1. Map each Situation
 
 Read the NEED, `docs/spec/spec.md` and the REQs and journeys its Triage names. Work each Situation as an example map: the rules it implies become REQs, its examples and counterexamples become their Verification, and what is still unknown becomes a question for §2. A size L NEED or a new area may start with a short event-storming pass (domain events, the commands that cause them, the rules between). For every Situation choose one, following `references/req-scope.md`:

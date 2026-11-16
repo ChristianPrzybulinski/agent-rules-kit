@@ -54,11 +54,69 @@ REVIEW_CONTEXT: str | None = None
 FRAGMENT_RE = re.compile(r"^changelog\.d/[^/]+\.(added|changed|deprecated|removed|fixed|security)\.md$")
 
 
+REQUIRED_KEYS = ("owner", "backlog_repo", "repos")
+
+
+def _strings(value) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def _red_entry(value) -> bool:
+    return (isinstance(value, dict) and isinstance(value.get("glob"), str) and isinstance(value.get("command"), str)
+            and isinstance(value.get("cwd", "."), str))
+
+
+# key: (check, the shape it wants). A string where a list belongs is still iterable, so an unchecked value would be
+# read per character (`"protected/**"` would protect every path through its `*`).
+_CONFIG_SHAPES = {
+    "owner": (lambda v: isinstance(v, str), "a string"),
+    "backlog_repo": (lambda v: isinstance(v, str), "a string"),
+    "review_context": (lambda v: isinstance(v, str), "a string"),
+    "repos": (lambda v: isinstance(v, dict) and all(isinstance(r, dict) for r in v.values()),
+              "an object mapping each repository name to an object"),
+    "protected_paths": (lambda v: isinstance(v, dict) and all(_strings(g) for g in v.values()),
+                        "an object mapping each label to a list of globs"),
+    "generated_neighbours": (_strings, "a list of strings"),
+    "proof_allowlist": (_strings, "a list of strings"),
+    "proof_script_runners": (lambda v: isinstance(v, dict) and all(_strings(o) for o in v.values()),
+                             "an object mapping a program to a list of option strings"),
+    "proof_var_depths": (lambda v: isinstance(v, dict) and all(isinstance(d, int) and not isinstance(d, bool)
+                                                               and d >= 0 for d in v.values()),
+                         "an object mapping a variable to a whole number of levels (0 or more)"),
+    "expected_red_checks": (lambda v: isinstance(v, dict) and all(
+        isinstance(checks, dict) and all(isinstance(rule, dict) for rule in checks.values()) for checks in v.values()),
+        "an object mapping a repository to {check name: {until_issue_closed, why}}"),
+    "red": (lambda v: isinstance(v, list) and all(_red_entry(e) for e in v),
+            "a list of {glob, command[, cwd]} objects with string values"),
+}
+
+
+def config_errors(config, required=()) -> list[str]:
+    """One message per key of `config` whose value has the wrong type, and per `required` key that is missing; each
+    message starts with the key. Keys this module does not know are left alone."""
+    if not isinstance(config, dict):
+        return [f"the config must be a JSON object, not {type(config).__name__}"]
+    errors = [f"{key} is required" for key in required if key not in config]
+    for key, (ok, shape) in _CONFIG_SHAPES.items():
+        if key in config and not ok(config[key]):
+            errors.append(f"{key} must be {shape}, not {json.dumps(config[key])}")
+    return errors
+
+
+class ConfigError(ValueError):
+    """A gates config that `config_errors` refuses."""
+
+
 def configure(path) -> None:
     """Load the gates JSON (the module docstring lists the keys) into the module globals the pure
-    helpers and the report read. Called once by `main`; an importer passes the same fields in-line."""
+    helpers and the report read. Called once by `main`; an importer passes the same fields in-line. A config
+    `config_errors` refuses raises ConfigError and leaves the globals as they were."""
     global CONFIG, OWNER, BACKLOG, REVIEW_CONTEXT
-    CONFIG = json.loads(Path(path).read_text(encoding="utf-8"))
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    errors = config_errors(data, required=REQUIRED_KEYS)
+    if errors:
+        raise ConfigError("; ".join(errors))
+    CONFIG = data
     OWNER = CONFIG["owner"]
     BACKLOG = CONFIG["backlog_repo"]
     REVIEW_CONTEXT = CONFIG.get("review_context")
@@ -71,11 +129,18 @@ def now() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
 
 
+def body_lines(text: str | None) -> list[str]:
+    """A PR or issue body's lines, split only on the CommonMark line endings (CRLF, CR, LF): str.splitlines() also
+    breaks on VT, FF, \\x1c-\\x1e, NEL, U+2028 and U+2029, which GitHub renders inside a line, so a heading the reader
+    never sees could start a section."""
+    return re.split(r"\r\n|\r|\n", text or "")
+
+
 def sections(body: str | None) -> dict[str, str]:
-    """Split a markdown body into {heading: text} on `## ` headings."""
+    """Split a markdown body into {heading: text} on `## ` headings (lines as `body_lines` splits them)."""
     out: dict[str, list[str]] = {}
     current = None
-    for line in (body or "").splitlines():
+    for line in body_lines(body):
         m = re.match(r"^##\s+(.+?)\s*$", line)
         if m:
             current = m.group(1)
@@ -194,10 +259,10 @@ def proof_hash(commands: list[str]) -> str:
 
 
 def parse_proof(body: str | None) -> list[str]:
-    m = re.search(r"```proof[ \t]*\r?\n(.*?)```", body or "", re.S)
+    m = re.search(r"```proof[ \t]*(?:\r\n|\r|\n)(.*?)```", body or "", re.S)
     if not m:
         return []
-    lines = [ln.strip() for ln in m.group(1).splitlines()]
+    lines = [ln.strip() for ln in body_lines(m.group(1))]
     return [ln for ln in lines if ln and not ln.startswith("#") and not ln.startswith("<")]
 
 
@@ -648,7 +713,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--repo", required=True, help="the PR's repository name — a key of the config's repos")
     ap.add_argument("--pr", type=int, required=True)
     a = ap.parse_args(argv)
-    configure(a.config)
+    try:
+        configure(a.config)
+    except (OSError, ValueError) as error:  # ConfigError, a JSON error or an unreadable file: no verdict, exit 2
+        print(f"pr_gates: --config {a.config}: {error}", file=sys.stderr)
+        return 2
     if a.repo not in CONFIG.get("repos", {}):
         raise SystemExit(f"--repo {a.repo!r} is not a key of the config's repos: "
                          f"{sorted(CONFIG.get('repos', {}))}")

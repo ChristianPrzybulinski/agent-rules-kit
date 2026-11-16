@@ -66,7 +66,14 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ci" / "validations"))
-import pr_gates  # noqa: E402
+try:
+    import pr_gates  # noqa: E402
+except ImportError as _import_error:  # a copy without its sibling module: no verdict, exit 2 (1 is the finding code)
+    if __name__ != "__main__":
+        raise
+    print(f"review_checks: cannot import pr_gates ({_import_error}): run the kit's copy, which keeps "
+          "platforms/ci/validations/pr_gates.py beside it", file=sys.stderr)
+    sys.exit(2)
 
 TEST_GLOBS = ("**/test_*.py", "**/*_test.py", "**/tests/**", "**/test/**", "**/*Test.java", "**/*Tests.java",
               "**/*IT.java", "**/test_*.gd", "**/*_test.gd", "**/*.test.*", "**/*.spec.*")
@@ -478,7 +485,7 @@ def red(args) -> int:
     for cwd, command, _ in groups:
         print(f"red: run in {cwd}: {command}")
     stacks = load_stacks(args)
-    tmp, trees, results = Path(tempfile.mkdtemp(prefix="review-red-")), [], {}
+    tmp, trees, results, unplaced = Path(tempfile.mkdtemp(prefix="review-red-")), [], {}, []
     try:
         for side, rev in (("base", args.base), ("head", args.head)):
             tree = tmp / side
@@ -487,9 +494,15 @@ def red(args) -> int:
             if side == "base":
                 for path in tests:
                     target = tree / path
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_bytes(subprocess.run(["git", "show", f"{args.head}:{path}"], cwd=repo, check=True,
-                                                      capture_output=True).stdout)
+                    try:
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_bytes(subprocess.run(["git", "show", f"{args.head}:{path}"], cwd=repo,
+                                                          check=True, capture_output=True).stdout)
+                    except OSError as error:  # the PR's own layout, such as a test under a path that is a file
+                        unplaced.append(f"{path} cannot be placed on base ({error.strerror}): a folder of its path "
+                                        "is a file there, so its Red cannot run")
+                if unplaced:
+                    break
             exit_code, output, parts = run_side(tree, groups, args.timeout)
             results[side] = (exit_code, output, junit_cases(tree, args.junit), parts)
             sha = git(repo, "rev-parse", "--short", rev).strip()
@@ -499,6 +512,10 @@ def red(args) -> int:
             subprocess.run(["git", "worktree", "remove", "--force", str(tree)], cwd=repo, capture_output=True)
         subprocess.run(["git", "worktree", "prune"], cwd=repo, capture_output=True)
         shutil.rmtree(tmp, ignore_errors=True)
+    if unplaced:
+        for text in unplaced:
+            out.add(text)
+        return out.close("")
     base_code, base_out, base_cases, base_parts = results["base"]
     head_code, head_out, _, head_parts = results["head"]
     print(f"red: base output, last {EXCERPT_LINES} lines")
@@ -616,14 +633,20 @@ def rules_json(args, path, flag: str) -> dict:
 
 
 def gates_config(args) -> dict:
-    return rules_json(args, args.gates, "--gates")
+    """The --gates config, each known key checked for its type (`pr_gates.config_errors`): a string where a list
+    belongs would otherwise be read per character."""
+    data = rules_json(args, args.gates, "--gates")
+    errors = pr_gates.config_errors(data)
+    if errors:
+        usage_error(f"--gates {args.gates}: {'; '.join(errors)}")
+    return data
 
 
 def widened_paths(body: str) -> list[str]:
     secs = pr_gates.sections(body)
     text = next((v for k, v in secs.items() if k.lower().startswith("files widened")), "")
     return pr_gates.parse_files_cell("\n".join(ln.split(":", 1)[0] if ln.lstrip().startswith("-") else ln
-                                               for ln in text.splitlines()))
+                                               for ln in pr_gates.body_lines(text)))
 
 
 def scope(args) -> int:
@@ -695,9 +718,18 @@ def check_line(label: str, line: str, out: Findings, args, stacks: dict, allow: 
     if not ok:
         out.add(f"{label}not run ({why}): {line}")
         return
-    cwd = Path(args.cwd)
-    missing = [p for p in named_paths(line) if not (glob.glob(str(cwd / p)) if any(c in p for c in "*?[")
-                                                  else (cwd / p).exists())]
+    cwd, missing, unusable = Path(args.cwd), [], []
+    for p in named_paths(line):
+        try:
+            found = glob.glob(str(cwd / p)) if any(c in p for c in "*?[") else (cwd / p).exists()
+        except OSError as error:  # the PR's own text (a name too long for the file system): a finding, not a crash
+            unusable.append(f"{p} ({error.strerror})")
+            continue
+        if not found:
+            missing.append(p)
+    if unusable:
+        out.add(f"{label}{', '.join(unusable)}: the file system cannot check this path, not run: {line}")
+        return
     if missing:
         out.add(f"{label}{', '.join(missing)} does not exist: a stale proof (moved or renamed?), not run: {line}")
         return
@@ -738,7 +770,7 @@ def proof(args) -> int:
 def feat_rows(path: Path) -> list[tuple[str, str, str]]:
     """(row id, state, Proof cell) for each row of the FEAT's task table."""
     rows, proof_at, state_at = [], None, None
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in diff_lines(path.read_text(encoding="utf-8")):  # only "\n" ends a row: FF, NEL, U+2028 stay inside
         cells = [c.strip() for c in pr_gates.re.split(r"(?<!\\)\|", line.strip())[1:-1]]
         if line.startswith("| ID |"):
             proof_at = next((i for i, c in enumerate(cells) if c.startswith("Proof")), None)
@@ -791,16 +823,20 @@ def dod(args) -> int:
     counts = {}
     for path, line, text in added_lines(repo, args.base, args.head):
         test = matches(path, TEST_GLOBS)
-        if test and ASSERTION.search(text):
-            counts.setdefault(path, [0, 0])[0 if line else 1] += 1
+        hits = sum(1 for part in text.split("\r") if ASSERTION.search(part)) if test else 0  # a CR-only file is one
+        if hits:  # diff line: count its CR lines
+            counts.setdefault(path, [0, 0])[0 if line else 1] += hits
         if line is None:
             continue
         for section, rule, tests_only, pattern in rules:
             if (test or not tests_only) and pattern.search(text):
                 out.add(f"{section}: {path}:{line}: {text.strip()} — {rule}")
     fork = git(repo, "merge-base", args.base, args.head).strip()  # where the renames and the diff start
-    for old, new in renames(repo, args.base, args.head):  # a test moved out of the test globs keeps no assertion
-        if matches(old, TEST_GLOBS) and not matches(new, TEST_GLOBS):
+    # A test its runner no longer collects keeps no assertion: the runners' discovery patterns are the gates `red`
+    # globs (`tests/test_add.py` -> `tests/test_add.py.off` stays inside `tests/**`), else the broad test globs.
+    discovery = [entry["glob"] for entry in gates_config(args).get("red", [])] or TEST_GLOBS
+    for old, new in renames(repo, args.base, args.head):
+        if (matches(old, TEST_GLOBS) or matches(old, discovery)) and not matches(new, discovery):
             kept = sum(1 for text in file_lines(git(repo, "show", f"{fork}:{old}")) if ASSERTION.search(text))
             counts.setdefault(old, [0, 0])[1] += kept
     for path, (added, removed) in sorted(counts.items()):
@@ -808,6 +844,14 @@ def dod(args) -> int:
             out.add(f"Correctness: {path}: {removed} assertion lines removed, {added} added — a loosened check the "
                     "PR must name")
     return out.close(f"{len(rules)} grep-able REVIEW.md lines, no match; no assertion dropped")
+
+
+def positive_seconds(text: str) -> int:
+    """--timeout: whole seconds, 1 or more (0 would fail every run, and the failure would read as a finding)."""
+    value = int(text)
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be 1 or more seconds, not {value}")
+    return value
 
 
 def main(argv=None) -> int:
@@ -823,7 +867,7 @@ def main(argv=None) -> int:
     p.add_argument("--code-roots", action="append", help="glob of production code (repeatable; default: non-docs)")
     p.add_argument("--junit", action="append", help="glob of the run's JUnit XML reports, relative to the checkout")
     p.add_argument("--patterns", help="JSON file that extends the per-stack patterns")
-    p.add_argument("--timeout", type=int, default=900)
+    p.add_argument("--timeout", type=positive_seconds, default=900)
     p = sub.add_parser("scope")
     p.add_argument("--base", required=True)
     p.add_argument("--head", required=True)
@@ -841,11 +885,13 @@ def main(argv=None) -> int:
         p.add_argument("--base", help="the PR's base: a --gates file inside the repository is read as base has it")
         p.add_argument("--patterns", help="JSON file that extends the per-stack patterns")
         p.add_argument("--cwd", default=None, help="where the proof runs (default: --repo)")
-        p.add_argument("--timeout", type=int, default=900)
+        p.add_argument("--timeout", type=positive_seconds, default=900)
     p = sub.add_parser("dod")
     p.add_argument("--base", required=True)
     p.add_argument("--head", required=True)
     p.add_argument("--review", help="the project REVIEW.md (default: REVIEW.md in --repo when base has it)")
+    p.add_argument("--gates", help="pr_gates.py config: its `red` globs are the runners' discovery patterns (inside "
+                                   "the repository: read from --base)")
     args = parser.parse_args(argv)
     args.repo = args.repo.resolve()
     for name in ("SIGTERM", "SIGHUP"):  # a supervisor's kill then takes the BaseException path in run_group too
