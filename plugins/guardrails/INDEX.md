@@ -84,5 +84,7 @@
 ## `hooks/`
 
 - `hooks.json`
+- `path_rules.py`
+- `sync-profiles.txt`
 
 Manifests: `.devin-plugin/plugin.json` (Devin) · `.claude-plugin/plugin.json` (Claude) · `plugin.json` (Codex).

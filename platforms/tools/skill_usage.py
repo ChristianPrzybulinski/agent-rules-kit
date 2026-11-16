@@ -18,8 +18,9 @@ vendored copy, so a bundled name that matches a kit skill counts too) and kit sk
 By default only the kit's own skills (plugins/*/skills/*/) are listed; --all lists every name found.
 --rules (KIT-070, #238) reports rule loads instead: for Claude Code, the records the plugin's InstructionsLoaded hook
 appends to --rule-log (default ~/.claude/plugins/data/guardrails-ai-kit/instructions-loaded.jsonl, plus its rotated
-.1 copy), counted per rule (`.claude/rules/<plugin>-<rule>.md` under the rule's name; any other file under its file
-name with --all) as loads, sessions and loads per load_reason; for Codex, the rollouts with a tool call that names a
+.1 copy), counted per rule (`.claude/rules/<plugin>-<rule>.md`, and a record of the plugin's path-rule hook, load_reason
+kit_hook_path_match (KIT-081 stage 3), under the rule's name; any other file under its file name with --all) as loads,
+sessions and loads per load_reason; for Codex, the rollouts with a tool call that names a
 kit skill reference (`skills/<skill>/references/<path>.md`), as sessions per `<skill>/<path>`.
 Prints a table, or one JSON document with --json.
 
@@ -176,10 +177,16 @@ def scan_codex(path: Path, pattern: re.Pattern = SKILL_FILE) -> tuple[set[str], 
     return found, cwd
 
 
-def rule_key(file_path: str, plugins: set[str]) -> str:
+HOOK_REASON = "kit_hook_path_match"  # the plugin's path-rule hook, whose file_path is the plugin's rules/<rule>.md
+
+
+def rule_key(file_path: str, plugins: set[str], reason: object = None) -> str:
     """A synced rule `.claude/rules/<plugin>-<rule>.md` counts under `<rule>` when the plugin is the kit's (now or
-    before a rename); any other instruction file under its file name."""
+    before a rename), and so does a delivery of the plugin's path-rule hook (KIT-081 stage 3); any other instruction
+    file under its file name."""
     path = Path(file_path)
+    if reason == HOOK_REASON and path.parent.name == "rules":
+        return path.stem
     if path.parent.name == "rules" and path.parent.parent.name == ".claude":
         plugin, separator, short = path.stem.partition("-")
         return short if separator and plugin in plugins else path.stem
@@ -212,7 +219,7 @@ def rule_loads(logs: list[Path], days: float, project: str | None = None, now: f
                         continue
                     session = str(record.get("session_id"))
                     sessions.add(session)
-                    entry = rules[rule_key(record["file_path"], plugins)]
+                    entry = rules[rule_key(record["file_path"], plugins, record.get("load_reason"))]
                     entry["loads"] += 1
                     entry["sessions"].add(session)
                     entry["reasons"][str(record.get("load_reason"))] += 1

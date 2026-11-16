@@ -10,8 +10,9 @@ From `git ls-files` (the index, so a sparse checkout is checked whole), fail whe
    folder) other than `README.md` and `INDEX.md`.
 
 Always exempt: `.github` itself (GitHub shows a `.github/README.md` on the repository page in place of the root
-README; its subfolders are still checked) and the folders platforms/tools/sync-project.sh writes (`.claude/rules`,
-`.claude/skills`, their interiors, and `.claude` itself, which holds the generated settings). `.github/spec-lint` and
+README; its subfolders are still checked) and the Claude Code folders (`.claude` itself, which holds the settings
+platforms/tools/sync-project.sh generates, and `.claude/rules` and `.claude/skills`, where older syncs wrote copies and a
+project keeps its own, with their interiors). `.github/spec-lint` and
 `.github/merge-drivers` are no longer among them (KIT-081 stages 1 and 1b: the sync removes the copies it once wrote
 there), so a project that keeps files in one says what belongs there. The exempt file holds one fnmatch glob per line against the folder path from the repository
 root (`*` also matches `/`; a glob ending in `/**` exempts the folders below a folder, not the folder itself); `#`

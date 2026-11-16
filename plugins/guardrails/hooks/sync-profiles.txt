@@ -1,0 +1,17 @@
+# Which repository profiles receive each kit rule (KIT-047). Since KIT-081 stage 3 a rule reaches Claude Code through
+# hooks/path_rules.py, which reads this file next to the rules it serves, and the Codex AGENTS.md block through
+# platforms/tools/sync-project.sh, which reads it from the kit; no project holds a .claude/rules copy any more.
+# platforms/ci/validations/check_kit.py requires exactly one line per plugins/guardrails/rules/<name>.md, and only the
+# profiles godot, java, python and docs. A skill has no line since KIT-083.
+# rules/<file> | <profiles, space-separated>
+rules/assets.md         | godot
+rules/code.md           | godot java python
+rules/docker.md         | godot java python
+rules/godot.md          | godot java python
+rules/java.md           | godot java python
+rules/json.md           | godot java python docs
+rules/migrations.md     | java python
+rules/protocol.md       | godot java python docs
+rules/python.md         | godot java python
+rules/spec.md           | docs
+rules/tests.md          | godot java python

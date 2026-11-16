@@ -1,10 +1,10 @@
 ---
 id: KIT-083
 title: "Fix the small findings of the KIT-081 reviews"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, chat of the kit session: \"Sua recomendação, quem sabe paralelizar?\", on running these fixes beside the KIT-081 stage 3 measurement)"
 issue: "#317"
-pr: ""
+pr: "#318"
 ---
 
 # KIT-083 — Fix the small findings of the KIT-081 reviews
@@ -110,3 +110,4 @@ tested with a local git checkout and a copy without `.git`, never on a GitHub ru
 ## History
 
 - 2026-11-16: confirmed (owner, "Sua recomendação, quem sabe paralelizar?").
+- 2026-11-16: done; PR #318 merged as `be62ae9`.

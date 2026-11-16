@@ -32,6 +32,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "^(Read|Edit|Write|MultiEdit|NotebookEdit|Bash|Grep)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/path_rules.py\" || exit 0",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SessionStart": [
