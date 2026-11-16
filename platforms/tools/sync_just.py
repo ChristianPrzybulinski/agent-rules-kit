@@ -12,7 +12,8 @@ never overwritten; a justfile without the import is a warning here and a failure
 exist gets no module, and nothing here creates one.
 
 preflight refuses, before the sync's first write, a module path that holds a file without the marker or a symbolic
-link, and a profile folder reached through a symbolic link. write writes the modules that differ, creates the starter
+link, a profile folder reached through a symbolic link, and a justfile or .justfile that is a symbolic link (dangling
+or not) or not a regular file. write writes the modules that differ, creates the starter
 justfiles and removes marked modules no profile needs any more. check prints one "sync: ..." line per difference and
 exits 1. list prints the path of each module the profiles want, one per line, for the KIT-072 pin (sync-project.sh
 pin_sources). The walk for stale modules skips SKIP_DIRS and nested checkouts, as sync_agents_md.py does.
@@ -143,6 +144,16 @@ def main():
         elif path.exists() and not marked(path):
             problems.append(f"sync: {name} exists and is not generated; rename it or drop the profile that receives"
                             " it (sync-project.sh --profile)")
+    for folder in folders:  # the starter justfile is written only into a folder with none: never through a link
+        for path in sorted((repo / folder).iterdir()):
+            if path.name.lower() not in ("justfile", ".justfile"):
+                continue
+            if path.is_symlink():
+                problems.append(f"sync: {rel(folder, path.name)} is a symbolic link; the sync writes no starter"
+                                " justfile through it")
+            elif not path.is_file():
+                problems.append(f"sync: {rel(folder, path.name)} is not a regular file; the sync writes no starter"
+                                " justfile there")
     stale = [name for name in generated(repo) if name not in files]
     imports = {}
     for folder in folders:

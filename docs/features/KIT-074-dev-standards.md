@@ -50,8 +50,9 @@ to the CLI for that reason).
    (fixed export names, `run-dev`, `db-shell`, compose paths, protocol and content checks) stay in the project's
    justfile. `platforms/tools/sync_just.py`, called by `sync-project.sh`, writes `kit.just` in each profile folder
    (`:<dir>` scoping), `kit-<profile>.just` modules plus shared recipes when one folder has several profiles, and a
-   starter `justfile` with `import 'kit.just'` where a folder has none; it refuses an unmarked `kit.just` and a folder
-   reached through a symbolic link, removes marked modules no profile needs, and `--check` fails on drift or a
+   starter `justfile` with `import 'kit.just'` where a folder has none; it refuses an unmarked `kit.just`, a folder
+   reached through a symbolic link and a `justfile` that is a symbolic link (dangling or not) or not a regular file
+   (review of #263), removes marked modules no profile needs, and `--check` fails on drift or a
    justfile without the import. The AGENTS templates and `ci-godot.yml`/`ci-java.yml` call the same recipes (just
    1.58.0 from its release tarball, sha-256 checked); `check_kit.py` § 14 fails a template that names a recipe its
    module lacks, an AGENTS template without `just test` and `just verify`, and two different `just` pins.
