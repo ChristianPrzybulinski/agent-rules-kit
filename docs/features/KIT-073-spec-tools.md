@@ -1,7 +1,7 @@
 ---
 id: KIT-073
 title: "spec_trace.py gains sync-status, the journey checklist and the spec.md index check, and row_checks.py checks task rows a-k from the sdd: block"
-status: confirmed
+status: done
 confirmed: "2026-11-15 (owner, chat of the rules-and-skills review session: a consumer's generic repository tools become kit standards in 13.0.0)"
 issue: "#259"
 pr: "#262"

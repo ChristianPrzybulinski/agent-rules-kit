@@ -6,13 +6,7 @@ Review criteria for this repository, its quality definition of done. Read by Ant
 
 One review round per PR. The reviewer reads the diff against the acceptance criteria, plus the required gates' result recorded for the exact head: the CI checks, or the project's gate record where it runs no CI on pull requests. Only when no such result exists for that head does the reviewer run the gates, once, on a clean checkout; beyond that it runs nothing, except a targeted probe at a security boundary where untrusted input enters (`review` § 2).
 
-A finding blocks only for one of four reasons, which it names (`review` § 4):
-- (a) an unmet acceptance criterion;
-- (b) broken existing behavior: a failing test, a reproduced regression, or a test deleted, skipped or loosened without a reason in the PR;
-- (c) a security gap where untrusted input enters, or a secret or personal data exposed in code or logs;
-- (d) a rule lost in a migration.
-
-Everything else, a line below included when it is none of the four, goes to one follow-up issue: edge cases, nits, wording, style, missing extra tests. A small fix with no new mechanism is verified by the coordinator (red check plus a targeted probe), with no new round.
+A finding blocks only for one of the four reasons of `review` § 4, the bar's single home, which it names; every other finding, even one under a line below, goes to one follow-up issue.
 
 A line ending in `<!-- grep: REGEX -->` (or `grep tests:` for test files only) is checked by `review_checks.py dod` on the diff's added lines; keep the regex narrow enough that a hit is worth reading.
 

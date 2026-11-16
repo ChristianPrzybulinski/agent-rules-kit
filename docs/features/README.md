@@ -86,18 +86,19 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-062-stale-plugin-folders.md`](KIT-062-stale-plugin-folders.md) | done | #215 | #216 |
 | [`KIT-063-codeql-secret-scanning.md`](KIT-063-codeql-secret-scanning.md) | done | #221 | #222 |
 | [`KIT-064-project-decision-kinds.md`](KIT-064-project-decision-kinds.md) | done | #225 | #226 |
-| [`KIT-065-owner-review-autonomy.md`](KIT-065-owner-review-autonomy.md) | confirmed | #229 | #230 |
-| [`KIT-066-need-intake.md`](KIT-066-need-intake.md) | confirmed | #231 | #232 |
-| [`KIT-067-sdd-parameters.md`](KIT-067-sdd-parameters.md) | confirmed | #234 | #236 |
-| [`KIT-068-plan-and-tasks-cut.md`](KIT-068-plan-and-tasks-cut.md) | confirmed | #243 | #244 |
-| [`KIT-069-delivery-side.md`](KIT-069-delivery-side.md) | confirmed | #242 | #246 |
-| [`KIT-070-standards-into-rules.md`](KIT-070-standards-into-rules.md) | confirmed | #256 | #261 |
-| [`KIT-071-guaranteed-skill-use.md`](KIT-071-guaranteed-skill-use.md) | confirmed | #233 | #235 |
-| [`KIT-072-kit-version-pin.md`](KIT-072-kit-version-pin.md) | confirmed | #257 | #260 |
-| [`KIT-073-spec-tools.md`](KIT-073-spec-tools.md) | confirmed | #259 | #262 |
-| [`KIT-074-dev-standards.md`](KIT-074-dev-standards.md) | confirmed | #258 | #263 |
-| [`KIT-075-followups.md`](KIT-075-followups.md) | confirmed | #284 | #285 |
-| [`KIT-076-ci-on-pull-requests.md`](KIT-076-ci-on-pull-requests.md) | confirmed | #264 | #272 |
-| [`KIT-077-layered-gate-review-bar.md`](KIT-077-layered-gate-review-bar.md) | confirmed (items 5–6 delivered; 1–4 after 13.0.0) | #281 | #286 |
+| [`KIT-065-owner-review-autonomy.md`](KIT-065-owner-review-autonomy.md) | done | #229 | #230 |
+| [`KIT-066-need-intake.md`](KIT-066-need-intake.md) | done | #231 | #232 |
+| [`KIT-067-sdd-parameters.md`](KIT-067-sdd-parameters.md) | done | #234 | #236 |
+| [`KIT-068-plan-and-tasks-cut.md`](KIT-068-plan-and-tasks-cut.md) | done | #243 | #244 |
+| [`KIT-069-delivery-side.md`](KIT-069-delivery-side.md) | done | #242 | #246 |
+| [`KIT-070-standards-into-rules.md`](KIT-070-standards-into-rules.md) | done | #256 | #261 |
+| [`KIT-071-guaranteed-skill-use.md`](KIT-071-guaranteed-skill-use.md) | done | #233 | #235 |
+| [`KIT-072-kit-version-pin.md`](KIT-072-kit-version-pin.md) | done | #257 | #260 |
+| [`KIT-073-spec-tools.md`](KIT-073-spec-tools.md) | done | #259 | #262 |
+| [`KIT-074-dev-standards.md`](KIT-074-dev-standards.md) | done | #258 | #263 |
+| [`KIT-075-followups.md`](KIT-075-followups.md) | done | #284 | #285 |
+| [`KIT-076-ci-on-pull-requests.md`](KIT-076-ci-on-pull-requests.md) | done | #264 | #272 |
+| [`KIT-077-layered-gate-review-bar.md`](KIT-077-layered-gate-review-bar.md) | confirmed | #281 | #286 |
+| [`KIT-078-docs-consistency.md`](KIT-078-docs-consistency.md) | done | #290 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

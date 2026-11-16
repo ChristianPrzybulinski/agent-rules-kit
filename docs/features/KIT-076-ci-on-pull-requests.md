@@ -1,7 +1,7 @@
 ---
 id: KIT-076
 title: "The kit's ci, gitleaks and CodeQL workflows run on every pull request and push to main as required checks, with linted, pinned and time-bounded workflows"
-status: confirmed
+status: done
 confirmed: "2026-11-15 (owner, chat, relayed by the coordinator session \"Revisão de regras e skills\": \"Revisão + CI verde\")"
 issue: "#264"
 pr: "#272"
