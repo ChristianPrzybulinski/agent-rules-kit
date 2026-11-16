@@ -23,6 +23,13 @@ inputs:
     description: The pull request's head commit, where the row checks diff to.
     required: false
     default: ${{ github.event.pull_request.head.sha }}
+  profile:
+    description: >-
+      The project profile (KIT-087), relative to the repository root. platforms/tools/profile.py resolves it, falling
+      back to the legacy homes for each key it does not set, and the action exports the resolved view as JSON in
+      AI_KIT_PROFILE_JSON. A missing file resolves every key from its legacy home or default, with a warning.
+    required: false
+    default: .ai-kit.yaml
 runs:
   using: composite
   steps:
@@ -53,6 +60,17 @@ runs:
       shell: bash
       run: |  # zizmor: ignore[github-env]
         echo "AI_KIT_DIR=$(cd "$GITHUB_ACTION_PATH/../../../.." && pwd)" >> "$GITHUB_ENV"
+    # The resolved profile (KIT-087) for a later step of the job. An invalid profile, or a key set differently in
+    # .ai-kit.yaml and a legacy home, fails here. The value is the resolver's JSON between a random delimiter, so no
+    # line of the project's file can end it early and set another variable.
+    - name: Resolve the project profile and export AI_KIT_PROFILE_JSON
+      shell: bash
+      env:
+        PROFILE: ${{ inputs.profile }}
+      run: |
+        json="$(python3 "$GITHUB_ACTION_PATH/../../../tools/profile.py" resolve --json --file "$PROFILE" .)"
+        delim="ai_kit_profile_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+        { echo "AI_KIT_PROFILE_JSON<<$delim"; printf '%s\n' "$json"; echo "$delim"; } >> "$GITHUB_ENV"
     # A project's justfile imports the kit's just modules from ~/.ai-kit (KIT-081 stage 1b): just reads no variable in
     # an import path, so the kit at this commit is linked there, unless the runner already holds a kit at that path.
     # Such a kit passes only at this action's commit (KIT-083): the HEAD of the action's checkout, or the SHA the caller

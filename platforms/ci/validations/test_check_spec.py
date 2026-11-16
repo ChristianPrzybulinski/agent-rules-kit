@@ -546,8 +546,10 @@ class MiniYamlTest(unittest.TestCase):
 
     LAYER = "unit"  # in-process: no subprocess, no git
 
-    TEXT = 'k: ["a #b", c]  # note\nt: it\'s here  # c\nq: "x # y"  # z\nm: {path: "p #1"}\n'
-    WANT = {"k": ["a #b", "c"], "t": "it's here", "q": "x # y", "m": {"path": "p #1"}}
+    TEXT = ('k: ["a #b", c]  # note\nt: it\'s here  # c\nq: "x # y"  # z\nm: {path: "p #1"}\n'
+            'c: \'gh issue create --title "x"\'\nd: "it\'s"\ne: \'it\'\'s\'\n')
+    WANT = {"k": ["a #b", "c"], "t": "it's here", "q": "x # y", "m": {"path": "p #1"},
+            "c": 'gh issue create --title "x"', "d": "it's", "e": "it's"}
 
     def test_quoted_text_keeps_its_hash(self):
         loader = importlib.util.spec_from_file_location("check_spec_under_test", CHECK_SPEC)

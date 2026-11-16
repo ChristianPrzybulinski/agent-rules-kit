@@ -76,8 +76,9 @@ class SpecToolsActionFile(unittest.TestCase):
         runs = "\n".join(item.get("run", "") for item in action()["runs"]["steps"])
         tools = TOOL.findall(runs)
         self.assertEqual(sorted(set(t for t in tools if t.endswith(".py"))),
-                         ["../../validations/check_docs_structure.py", "../../validations/check_spec.py",
-                          "../../validations/row_checks.py", "../../validations/spec_trace.py"])
+                         ["../../../tools/profile.py", "../../validations/check_docs_structure.py",
+                          "../../validations/check_spec.py", "../../validations/row_checks.py",
+                          "../../validations/spec_trace.py"])
         for rel in tools:
             with self.subTest(path=rel):
                 self.assertTrue((ACTION_DIR / rel).exists(), rel)
@@ -97,7 +98,7 @@ class SpecToolsActionRuns(unittest.TestCase):
     COVERS = ("platforms/ci/actions/spec-tools/**", "platforms/ci/validations/check_spec.py",
               "platforms/ci/validations/check_docs_structure.py", "platforms/ci/validations/spec_trace.py",
               "platforms/ci/validations/row_checks.py", "platforms/ci/validations/pr_gates.py",
-              "platforms/ci/schemas/**")
+              "platforms/ci/schemas/**", "platforms/tools/profile.py")
 
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -266,6 +267,31 @@ class SpecToolsActionRuns(unittest.TestCase):
         unchanged = self.run_step(rows, EVENT="pull_request", BASE_SHA=base, HEAD_SHA=self.git("rev-parse", "HEAD"))
         self.assertEqual(unchanged.returncode, 0, unchanged.stdout + unchanged.stderr)  # --changed: no FEAT changed
         self.assertNotIn(finding, unchanged.stdout)
+
+    def test_it_exports_the_resolved_profile_as_json(self):
+        """KIT-087: the profile input names the file; the step exports the resolved view, and a conflict fails it."""
+        import json
+        name = "Resolve the project profile and export AI_KIT_PROFILE_JSON"
+        self.assertEqual(action()["inputs"]["profile"]["default"], ".ai-kit.yaml")
+        missing = self.run_step(name, PROFILE=".ai-kit.yaml")
+        self.assertEqual(missing.returncode, 0, missing.stderr)
+        self.assertIn("profile: warning: no .ai-kit.yaml", missing.stderr)
+        (self.repo / "ci.yaml").write_text("ci:\n  trigger: auto\nx-team: {any: thing}\n", encoding="utf-8")
+        result = self.run_step(name, PROFILE="ci.yaml")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lines = result.files["GITHUB_ENV"].splitlines()
+        self.assertRegex(lines[0], r"^AI_KIT_PROFILE_JSON<<ai_kit_profile_[0-9a-f]{32}$")
+        self.assertEqual(lines[-1], lines[0].split("<<", 1)[1])
+        resolved = json.loads("\n".join(lines[1:-1]))
+        self.assertEqual(resolved["ci"]["trigger"], "auto")
+        self.assertNotIn("x-team", resolved)
+        (self.repo / "ci.yaml").write_text("sdd:\n  tracker: none\n", encoding="utf-8")
+        (self.repo / "docs/spec/spec.md").write_text(SPEC_MD.replace("---\n\n", "sdd:\n  tracker: github\n---\n\n"),
+                                                     encoding="utf-8")
+        conflict = self.run_step(name, PROFILE="ci.yaml")
+        self.assertEqual(conflict.returncode, 1, conflict.stderr)
+        self.assertIn("profile: sdd.tracker is", conflict.stderr)
+        self.assertEqual(conflict.files["GITHUB_ENV"], "")
 
 
 if __name__ == "__main__":
