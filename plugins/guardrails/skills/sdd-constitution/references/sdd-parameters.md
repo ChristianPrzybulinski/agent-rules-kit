@@ -53,8 +53,8 @@ sdd:
     godot: [game/client]
 ```
 
-The sync writes `game/protocol/**/*.json` into `.claude/rules/guardrails-json.md`, and the rule's body into a
-generated block in `game/protocol/AGENTS.md`, for runtimes that load no rule by path. `sync-project.sh --check` flags
-both when the parameter changes. A folder that does not exist gets no block.
+The sync writes the json rule into a block in `game/protocol/AGENTS.md` (glob `game/protocol/**/*.json`) for runtimes
+that load no rule by path, and `--check` flags it when the parameter changes; a missing folder gets no block. Claude
+Code gets the rule from the plugin's hook by the kit's own globs, which the parameter does not narrow (KIT-081 stage 3).
 
 A setting with no key here (a model map, a host limit, a formatter) stays in the project's tooling config or `AGENTS.md`; the block takes no project-private keys.

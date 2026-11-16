@@ -21,7 +21,8 @@ rt = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(rt)
 PERFORMANCE = {"test_hooks_context.ContextHooksTest.test_latency_budget",
                "test_hooks_guard_compact.HooksTest.test_each_hook_within_budget",
-               "test_hooks_instructions_loaded.InstructionsLoadedHookTest.test_stays_within_budget"}
+               "test_hooks_instructions_loaded.InstructionsLoadedHookTest.test_stays_within_budget",
+               "test_hooks_path_rules.HookCommandTest.test_stays_within_budget"}  # KIT-081 stage 3
 
 
 class Fake:
