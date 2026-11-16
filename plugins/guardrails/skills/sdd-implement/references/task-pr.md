@@ -8,7 +8,7 @@ kind: detail
 ## Scope
 
 - The row (its issue body or TASK file) is the spec, verbatim. Read the repo's `AGENTS.md`, then only the spec artifacts the row's `Spec` line names plus the binding decisions that FEAT cites.
-- Change only the paths in the `Files` cell, plus a `changelog.d/` fragment when the repo uses one — in that case never edit `CHANGELOG.md` directly.
+- Change only the paths in the `Files` cell, plus a `changelog.d/<id>.<type>.md` fragment of `- ` bullets when the repo uses one — in that case never edit `CHANGELOG.md` directly. The kit's `changelog_fragments.py --check` (`just changelog --check`) validates it; the `changelog-consolidate.yml` template moves fragments into `CHANGELOG.md` (KIT-084).
 - `## Files widened` may add an existing test path outside Files that reads a changed file, one line each: `` `path`: why ``. It never adds production code, a new file or a changed assertion; `review_checks.py scope` refuses each.
 - Run the `DoD` commands from `<Repository>/AGENTS.md` § Commands; they must pass.
 

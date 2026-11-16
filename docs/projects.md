@@ -44,6 +44,10 @@ Migration for a project that has the copy:
 2. Replace each workflow step the sync names (`sync: warning: <file>:<line> names .github/spec-lint/`) with the action, pinned by SHA (`checks: spec,trace,rows` covers `check_spec.py`, the doc-structure check, the baseline, `spec_trace.py check` and the row checks), or run another kit tool after it from `$AI_KIT_DIR`, such as `spec_trace.py sync-status --write`.
 3. Add the Dependabot or Renovate entry that bumps the pin, and commit everything in one PR; `sync-project.sh --check <repo>` passes on it.
 
+## Changelog fragments, the status-sync pull request and the secret scan (KIT-084)
+
+A project that keeps `changelog.d/<id>.<type>.md` fragments runs the kit's `platforms/ci/validations/changelog_fragments.py` from the installed kit (`just changelog`, `just changelog --check` in a justfile that imports the `docs` module), and its CI copies the `changelog-consolidate.yml` template, which runs the tool from `$AI_KIT_DIR` after the spec-tools action and opens one pull request. A spec with `sdd.tracker: github` copies `spec-status-sync.yml`, which does the same with `spec_trace.py sync-status --write`. Both templates run on dispatch only and need the `PR_BOT_TOKEN` secret (`platforms/kits/github/README.md` lists its permissions); no tool or body file is copied into the project. The secret scan is the kit's gitleaks action, `platforms/ci/actions/gitleaks`, pinned by SHA as a step of any job or through the `gitleaks.yml` template, which calls it.
+
 ## The just modules and the merge driver run from the kit (KIT-081 stage 1b)
 
 Until stage 1b, `sync-project.sh` wrote each profile's module into its folder as `kit.just` (a folder with several profiles got `kit-<profile>.just` modules and a `kit.just` that ran their shared recipes) and copied the keyed-CSV merge driver into `.github/merge-drivers/`. Now:

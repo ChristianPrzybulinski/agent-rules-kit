@@ -24,7 +24,7 @@ RECIPES = {
     "godot": {"editor", "run", "import", "boot", "test", "lint", "fmt", "verify", "export"},
     "java": {"run", "test", "verify", "fmt", "lint", "dependency-check"},
     "python": {"test", "lint", "fmt", "verify"},
-    "docs": {"lint", "verify"},
+    "docs": {"lint", "verify", "changelog"},
 }
 
 
@@ -260,7 +260,7 @@ class Docs(ModuleTest):
         other = tempfile.TemporaryDirectory()
         self.addCleanup(other.cleanup)
         self.kit = Path(other.name) / "kit"
-        for name in ("check_spec.py", "spec_trace.py", "check_docs_structure.py"):
+        for name in ("check_spec.py", "spec_trace.py", "check_docs_structure.py", "changelog_fragments.py"):
             executable(self.kit / "platforms" / "ci" / "validations" / name, self.STUB)
         (self.root / "docs" / "spec").mkdir(parents=True)
 
@@ -288,6 +288,23 @@ class Docs(ModuleTest):
         result = self.just(self.root, "lint", env=self.env())
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(f"lint: no agent-rules-kit spec tools in {self.home}/.ai-kit", result.stderr)
+        self.assertEqual(self.calls(), [])
+
+    def test_changelog_runs_the_kit_consolidator_on_the_repository_root(self):
+        """KIT-084: `just changelog` moves the changelog.d fragments into CHANGELOG.md; `--check` only validates."""
+        (self.root / "sub").mkdir()
+        for args, want in ((("changelog",), "changelog_fragments.py --repo-dir ."),
+                           (("changelog", "--check"), "changelog_fragments.py --repo-dir . --check")):
+            with self.subTest(args=args):
+                self.log.unlink(missing_ok=True)
+                result = self.just(self.root / "sub", *args, env=self.env(AI_KIT_DIR=str(self.kit)))
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(self.names(), [want])
+
+    def test_without_the_kit_changelog_fails_and_says_where_it_looked(self):
+        result = self.just(self.root, "changelog", env=self.env())
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"changelog: no agent-rules-kit changelog tool in {self.home}/.ai-kit", result.stderr)
         self.assertEqual(self.calls(), [])
 
 

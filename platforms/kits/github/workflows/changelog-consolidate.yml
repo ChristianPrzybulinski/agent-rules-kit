@@ -1,0 +1,104 @@
+name: changelog-consolidate
+
+# Moves the changelog.d fragments into CHANGELOG.md → ## [Unreleased], then opens or refreshes one pull request
+# (agent-rules-kit KIT-084). The tool, changelog_fragments.py, comes from the kit commit the spec-tools action pins
+# (KIT-081: no copy in the project); the action exports AI_KIT_DIR, the kit at that commit. It names every malformed
+# fragment line in one failure before it writes anything. The workflow never merges the pull request.
+#
+# Idempotent: the branch is rebuilt from the dispatched ref on every run and an open pull request is reused, so a second
+# run while it waits only refreshes it. With no fragment nothing changes and no pull request opens.
+#
+# Token: the repository secret PR_BOT_TOKEN pushes the branch and opens the pull request, because GitHub starts no
+# workflow for a pull request the job's own GITHUB_TOKEN opens, so its required checks would never run. Its minimal
+# permissions are in agent-rules-kit platforms/kits/github/README.md. The checkout keeps no credential: only the last
+# step holds the token.
+#
+# Manual dispatch only (Actions > changelog-consolidate > Run workflow). To run it on a schedule too, add under `on:`
+#   schedule:
+#     - cron: '0 6 * * 1'  # Mondays 06:00 UTC; GitHub disables a public repository's schedule after 60 idle days
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: changelog-consolidate
+  cancel-in-progress: true
+
+jobs:
+  consolidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # KIT-076: 3 × the longest measured green run of a consumer's consolidation (46 s), rounded up to 5 min
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false  # the last step pushes with PR_BOT_TOKEN; no other step holds a credential
+      # Python 3.12 and AI_KIT_DIR, the kit at the pinned commit. changelog_fragments.py ships after 14.0.0: until the
+      # pin names a release that has it, the next step fails with "can't open file".
+      - name: The kit at the pinned commit (changelog_fragments.py)
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@776d6ce381f89bfc12b4ca17f2b35577346ef37a  # v14.0.0
+        with:
+          checks: none
+      - name: Move the fragments into CHANGELOG.md (every malformed line named before any write)
+        id: tool
+        run: |
+          set -euo pipefail
+          python3 "$AI_KIT_DIR/platforms/ci/validations/changelog_fragments.py" --repo-dir . | tee "$RUNNER_TEMP/changelog.json"
+          count="$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1]))["fragments"]))' "$RUNNER_TEMP/changelog.json")"
+          echo "fragments=$count" >> "$GITHUB_OUTPUT"
+          if [ -n "$(git status --porcelain -- CHANGELOG.md changelog.d)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "nothing to consolidate"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Open or refresh the pull request (only when the tool changed something)
+        if: steps.tool.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PR_BOT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          BASE: ${{ github.ref_name }}
+          N: ${{ steps.tool.outputs.fragments }}
+          BRANCH: chore/changelog-consolidate
+        run: |
+          set -euo pipefail
+          title="chore(changelog): consolidate $N fragment(s)"
+          {
+            cat <<'EOF'
+          ## What
+
+          The kit's `changelog_fragments.py` (agent-rules-kit, at the commit the `changelog-consolidate` workflow pins)
+          moved the fragments of `changelog.d/` into `CHANGELOG.md` → `## [Unreleased]`, grouped Added, Changed,
+          Deprecated, Removed, Fixed and Security in file-name order, and deleted them. No other file changes.
+
+          ## Why
+
+          Fragments keep parallel pull requests from conflicting on `CHANGELOG.md`; this pull request folds them in. The
+          workflow opened it and never merges it; a later run rebuilds the branch and refreshes it.
+
+          ## How I tested
+
+          ```text
+          EOF
+            cat "$RUNNER_TEMP/changelog.json"
+            printf '```\n'
+          } > "$RUNNER_TEMP/body.md"
+          git config user.name changelog-consolidate
+          git config user.email changelog-consolidate@users.noreply.github.com
+          git checkout -q -B "$BRANCH"
+          git add -A -- CHANGELOG.md changelog.d
+          git commit -q -m "$title"
+          # The token reaches git through this helper only: never a command line, a URL or .git/config. The single
+          # quotes are meant: $1 and $GH_TOKEN expand in the shell git starts for the helper.
+          # shellcheck disable=SC2016
+          git -c credential.helper= \
+            -c 'credential.helper=!f() { if [ "$1" = get ]; then printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; fi; }; f' \
+            push -q --force origin "HEAD:refs/heads/$BRANCH"
+          pr="$(gh pr list --head "$BRANCH" --base "$BASE" --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$pr" ]; then
+            gh pr create --head "$BRANCH" --base "$BASE" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr edit "$pr" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi
