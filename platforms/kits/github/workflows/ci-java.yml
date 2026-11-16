@@ -79,7 +79,7 @@ jobs:
           java-version: ${{ inputs.java-version }}
           cache: maven
       - name: Link the pinned kit to ~/.ai-kit, where the justfile imports its recipes (KIT-081 stage 1b)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@776d6ce381f89bfc12b4ca17f2b35577346ef37a  # v14.0.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@b38e84c9ec113399a61461c111e320def78cd0b0  # v15.0.0
         with:
           checks: none
       - name: Install just (pinned, sha-256 checked; the justfile imports the kit's recipes)
@@ -135,7 +135,7 @@ jobs:
           key: ${{ runner.os }}-dc-nvd-${{ github.run_id }}
           restore-keys: ${{ runner.os }}-dc-nvd-
       - name: Link the pinned kit to ~/.ai-kit, where the justfile imports its recipes (KIT-081 stage 1b)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@776d6ce381f89bfc12b4ca17f2b35577346ef37a  # v14.0.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@b38e84c9ec113399a61461c111e320def78cd0b0  # v15.0.0
         with:
           checks: none
       - name: Install just (pinned, sha-256 checked; the justfile imports the kit's recipes)

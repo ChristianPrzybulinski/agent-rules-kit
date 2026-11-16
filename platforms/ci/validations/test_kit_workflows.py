@@ -406,9 +406,9 @@ class LayeredGate(unittest.TestCase):
 
     def test_the_templates_pin_one_kit_release_that_has_the_spec_tools_action(self):
         """Every kit action pin in the templates (spec-tools, and gitleaks since KIT-084) names the same commit, as
-        `<40-hex SHA>  # vX.Y.Z`, of a release no older than 14.0.0, the first that ships the spec-tools action: a
-        project whose workflow pins 13.1.0 (5a4924e) fails at that `uses:` line, since the commit has no
-        platforms/ci/actions/spec-tools/action.yml."""
+        `<40-hex SHA>  # vX.Y.Z`, of a release no older than 15.0.0, the first that ships the gitleaks action and the
+        changelog_fragments.py the KIT-084 templates run: a project whose workflow pins 14.0.0 (776d6ce) fails at the
+        gitleaks `uses:` line, and one pinning 13.1.0 (5a4924e) has no spec-tools action either."""
         kit_action = re.compile(r"/platforms/ci/actions/[\w-]+@")
         pins = {kit_action.split(line, 1)[1].strip()
                 for path in sorted(TEMPLATES.glob("*.yml"))
@@ -416,7 +416,7 @@ class LayeredGate(unittest.TestCase):
         self.assertEqual(len(pins), 1, pins)
         match = re.fullmatch(r"[0-9a-f]{40}  # v(\d+)\.(\d+)\.(\d+)", pins.pop())
         self.assertIsNotNone(match)
-        self.assertGreaterEqual(tuple(int(part) for part in match.groups()), (14, 0, 0))
+        self.assertGreaterEqual(tuple(int(part) for part in match.groups()), (15, 0, 0))
 
     def test_spec_lint_runs_the_kit_spec_tools_through_the_pinned_action(self):
         """KIT-081 stage 1: no template runs a copy of the spec tools in the project. spec-lint.yml and pr-contract.yml
