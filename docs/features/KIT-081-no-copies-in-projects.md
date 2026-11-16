@@ -29,9 +29,15 @@ wrote:
 `sync-project.sh` is 1,056 lines and its helpers `sync_pinned_plugin.py`, `sync_agents_md.py` and `sync_just.py` another
 1,027 (`wc -l`), and 8 test modules name `.github/spec-lint/` alone (`git grep -l spec-lint -- platforms/ci/validations/test_*.py`).
 
-[FACT] What changed since KIT-072: from 13.1.0 (#271) the user install follows the newest `vX.Y.Z` release tag, not
-`main`, so the installed plugin changes only when a release is published. The kit repository is public
-(`gh repo view --json visibility`), so a project's CI can fetch it at a tag without a token.
+[FACT] What changed since KIT-072: from 13.1.0 (#271) the `~/.ai-kit` clone and the Codex marketplace follow the newest
+`vX.Y.Z` release tag. The kit repository is public (`gh repo view --json visibility`), so a project's CI can fetch it at a
+tag without a token.
+
+[FACT] Claude Code does not follow the release yet: on 2026-11-16 the user-scope `guardrails@ai-kit` record in
+`~/.claude/plugins/installed_plugins.json` was at `a008d72` (`main` after #304), while `~/.ai-kit` was at `v13.1.0`
+(`5a4924e`). KIT-080 left it on `main` (#271): Claude Code 2.1.287 takes a marketplace ref (`owner/repo#ref`) but has no
+command that changes it, a second add with another ref is refused while the first source is declared, and
+`claude plugin marketplace remove` uninstalls the plugin and deletes its data (the rule-load log).
 
 ## Change
 
@@ -47,6 +53,11 @@ migration line for consumer projects:
    writing `.github/spec-lint/`, and `--check` stops comparing it.
 2. **No pin.** The vendored mode (`--vendor-skills`, `.claude/skills/` copies, `.claude/ai-kit/`,
    `guardrails-pinned`) goes; the project turns on `guardrails@ai-kit`, which follows the release the machine installed.
+   Prerequisite: Claude Code follows the release. Without it, ending the pin brings back the KIT-072 problem, each kit
+   merge changing every project session. Proposed: a `stable` branch that the release workflow moves to each release
+   tag; the Claude and Codex marketplaces (and the project's `extraKnownMarketplaces`) name `#stable` once, so a release
+   reaches them through a plain `marketplace update` and no project file changes per release. The one-time move per
+   machine backs up the plugin data folder before the remove and restores it after the add.
 3. **Path rules without copies.** A plugin hook gives the agent the rule when it reads or edits a file the rule's globs
    match, as the `git` hook already adds context to a commit; `.claude/rules/` copies and the `AGENTS.md` blocks go once
    it is measured.
@@ -60,6 +71,8 @@ Open before stage 2 and 3 (each `[HYPOTHESIS]` until checked against the install
 - Codex has no way to receive a path rule without a file in the project (stage 3 keeps the `AGENTS.md` block for Codex
   if so).
 - No consumer needs a kit version other than the machine's for longer than a release cycle (stage 2 rests on it).
+- A marketplace declared `owner/repo#stable` updates to the branch's new commit on `claude plugin marketplace update`
+  and `codex plugin marketplace upgrade` (the stage 2 prerequisite rests on it).
 
 What proves the change wrong: a consumer that must stay on an older kit release while the machine moves on, or a
 hook-delivered rule followed less often than the path rule (measured as in KIT-070).
