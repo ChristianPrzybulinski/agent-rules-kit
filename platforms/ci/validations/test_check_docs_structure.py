@@ -102,7 +102,6 @@ class ReadmeRules(unittest.TestCase):
         r.write(".claude/settings.json", "{}\n")
         r.write(".claude/rules/guardrails-java.md")
         r.write(".claude/skills/testing/SKILL.md")
-        r.write(".github/merge-drivers/keyed_csv_merge.py")
         r.write(".github/CODEOWNERS")
         r.write(".github/workflows/ci.yml")
         req, fails = r.run()
@@ -117,6 +116,15 @@ class ReadmeRules(unittest.TestCase):
         req, fails = r.run()
         self.assertEqual(req, [".github/spec-lint"])
         self.assertEqual(fails, ["FAIL: .github/spec-lint/ has no README.md"])
+
+    def test_a_merge_drivers_folder_is_the_projects_since_the_kit_stopped_writing_it(self):
+        # KIT-081 stage 1b: the keyed-CSV merge driver runs from the installed kit and the sync removes the copy it
+        # vendored, so a folder still there holds the project's own driver and says what belongs in it
+        r = Repo(self)
+        r.write(".github/merge-drivers/keyed_csv_merge.py")
+        req, fails = r.run()
+        self.assertEqual(req, [".github/merge-drivers"])
+        self.assertEqual(fails, ["FAIL: .github/merge-drivers/ has no README.md"])
 
     def test_a_folder_outside_the_generated_ones_under_claude_is_still_required(self):
         r = Repo(self)

@@ -1444,8 +1444,8 @@ else:
             fail(rel(script), f"bash -n failed under {shell_bash}: {message}")
 
 # --- 14. Recipe names in templates (KIT-074) ---
-# The project AGENTS templates and the CI templates call the per-profile just modules that sync-project.sh writes as
-# kit.just, so a command has one definition: each `just <recipe>` they name must exist in the module of their profile,
+# The project AGENTS templates and the CI templates call the per-profile just modules a project's justfile imports
+# from the installed kit (KIT-081 stage 1b), so a command has one definition: each `just <recipe>` they name must exist in the module of their profile,
 # an AGENTS template names `just test` and `just verify`, and every pinned just download in the templates is the same.
 JUST_MODULES = KIT / "platforms" / "kits" / "just"
 JUST_RECIPE = re.compile(r"^@?([A-Za-z_][A-Za-z0-9_-]*)(?:[ \t]+[+*$]?[A-Za-z_][A-Za-z0-9_-]*(?:=(?:\"[^\"]*\"|'[^']*'|[^\s:\"']+))?)*[ \t]*:(?![=:])")  # sync_just.py RECIPE

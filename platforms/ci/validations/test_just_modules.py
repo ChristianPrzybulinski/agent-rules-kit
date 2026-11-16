@@ -1,5 +1,7 @@
 """The per-profile just modules (KIT-074): recipe names, the commands each recipe runs (stub tools on PATH), and the
-check_kit.py gate that keeps the AGENTS and CI templates on the modules' recipe names."""
+check_kit.py gate that keeps the AGENTS and CI templates on the modules' recipe names. A project imports a module from
+the installed kit, `import '~/.ai-kit/platforms/kits/just/<profile>.just'` (KIT-081 stage 1b: no copy), so each test
+project does so, with a throwaway HOME whose ~/.ai-kit holds the kit's modules."""
 import os
 import re
 import shutil
@@ -34,26 +36,31 @@ def executable(path, text):
 
 @unittest.skipIf(JUST is None and not os.environ.get("CI"), "just is not on PATH (CI=1 makes it required)")
 class ModuleTest(unittest.TestCase):
-    """Each module copied into a throwaway project as kit.just and imported by the project's justfile, the way
-    sync-project.sh leaves it."""
+    """Each module imported by a throwaway project's justfile from ~/.ai-kit, the line sync-project.sh writes; HOME is
+    a throwaway folder whose .ai-kit/platforms/kits/just is the kit's module folder."""
 
     def setUp(self):
         if JUST is None:  # KIT-077: the CI jobs that run this layer install the pinned just
             self.fail("just is not on PATH")
 
-    def project(self, profile, justfile="import 'kit.just'\n"):
+    def project(self, profile, justfile=None):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        root = Path(tmp.name)
-        shutil.copyfile(MODULES / f"{profile}.just", root / "kit.just")
-        (root / "justfile").write_text(justfile, encoding="utf-8")
+        root = Path(tmp.name) / "project"
+        root.mkdir()
+        self.home = Path(tmp.name) / "home"
+        (self.home / ".ai-kit" / "platforms" / "kits").mkdir(parents=True)
+        (self.home / ".ai-kit" / "platforms" / "kits" / "just").symlink_to(MODULES)
+        line = f"import '~/.ai-kit/platforms/kits/just/{profile}.just'\n"
+        (root / "justfile").write_text(line + (justfile or ""), encoding="utf-8")
         self.bin = root / ".stub-bin"
         self.bin.mkdir()
         self.log = root / ".stub-log"
         return root
 
     def just(self, root, *args, env=None):
-        full = dict(os.environ, PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", STUB_LOG=str(self.log))
+        full = dict(os.environ, PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", STUB_LOG=str(self.log),
+                    HOME=str(self.home))
         full.update(env or {})
         return subprocess.run([JUST, *args], cwd=root, capture_output=True, text=True, env=full, check=False)
 
@@ -71,9 +78,27 @@ class RecipeNames(ModuleTest):
                 self.assertEqual(set(result.stdout.split()), want)
 
     def test_a_project_recipe_sits_beside_the_imported_ones(self):
-        root = self.project("java", "import 'kit.just'\n\n# project recipe\ndb-shell:\n    echo db\n")
+        root = self.project("java", "\n# project recipe\ndb-shell:\n    echo db\n")
         result = self.just(root, "--summary")
         self.assertEqual(set(result.stdout.split()), RECIPES["java"] | {"db-shell"})
+
+
+class ImportedFromTheKit(ModuleTest):
+    def test_an_imported_recipe_runs_in_the_projects_folder(self):
+        """just runs an imported recipe in the importing justfile's folder, so `--path .` is the project, never the
+        kit's module folder, and the kit's file stays where it is."""
+        root = self.project("godot")
+        executable(self.bin / "godot", '#!/usr/bin/env bash\nprintf "%s %s\\n" "$PWD" "$*" >> "$STUB_LOG"\n')
+        self.assertEqual(self.just(root, "editor").returncode, 0)
+        self.assertEqual(self.calls(), [f"{root.resolve()} --path . --editor"])
+        self.assertEqual([p.name for p in root.iterdir() if p.suffix == ".just"], [])
+
+    def test_without_the_installed_kit_just_names_the_missing_import(self):
+        root = self.project("docs")
+        (self.home / ".ai-kit" / "platforms" / "kits" / "just").unlink()
+        result = self.just(root, "--summary")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could not find source file for import", result.stderr)
 
 
 class Godot(ModuleTest):
@@ -230,11 +255,11 @@ class Docs(ModuleTest):
     STUB = '#!/usr/bin/env python3\nimport os, sys\nopen(os.environ["STUB_LOG"], "a").write(" ".join(sys.argv) + "\\n")\n'
 
     def setUp(self):
-        self.root = self.project("docs")
+        self.root = self.project("docs")  # self.home/.ai-kit holds the modules only, no validator
         subprocess.run(["git", "init", "-q", str(self.root)], check=True)
         other = tempfile.TemporaryDirectory()
         self.addCleanup(other.cleanup)
-        self.kit, self.home = Path(other.name) / "kit", Path(other.name) / "home"
+        self.kit = Path(other.name) / "kit"
         for name in ("check_spec.py", "spec_trace.py", "check_docs_structure.py"):
             executable(self.kit / "platforms" / "ci" / "validations" / name, self.STUB)
         (self.root / "docs" / "spec").mkdir(parents=True)
@@ -255,7 +280,7 @@ class Docs(ModuleTest):
                                         "spec_trace.py check docs/spec", "check_docs_structure.py"])
 
     def test_without_ai_kit_dir_the_installed_kit_in_home_runs(self):
-        shutil.copytree(self.kit, self.home / ".ai-kit")
+        shutil.copytree(self.kit / "platforms" / "ci", self.home / ".ai-kit" / "platforms" / "ci")
         self.assertEqual(self.just(self.root, "verify", env=self.env()).returncode, 0)
         self.assertEqual(self.names()[0], f"check_spec.py docs/spec {self.home}/.ai-kit/platforms/ci/schemas")
 

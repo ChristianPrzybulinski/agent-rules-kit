@@ -1,5 +1,8 @@
-"""sync-project.sh and the KIT-074 dev standards: a generated kit.just per profile folder and the keyed-CSV merge driver
-for the godot profile. The opt-in doc-structure check runs from the kit since KIT-081 stage 1 (no copy to write)."""
+"""sync-project.sh and the KIT-074 dev standards, which run from the installed kit since KIT-081 stage 1b: each profile
+folder's justfile imports the kit's just module, and the godot profile's keyed-CSV merge driver runs from the kit
+(the sync prints the one-time git config step). The copies older syncs wrote go: a marked kit.just or vendored driver
+is removed, an unmarked one stays, and --check names what is left. The opt-in doc-structure check runs from the kit
+since KIT-081 stage 1 (no copy to write)."""
 import os
 import shutil
 import subprocess
@@ -19,17 +22,18 @@ COVERS = ("platforms/tools/sync-project.sh", "platforms/tools/sync_agents_md.py"
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from test_sync_project import KIT, SCRIPT, SPEC_MD, VERSION  # noqa: E402
+from test_sync_project import KIT, SCRIPT, SPEC_MD  # noqa: E402
 
 JUST = shutil.which("just")
-MODULES = KIT / "platforms" / "kits" / "just"
 DRIVER = KIT / "platforms" / "kits" / "godot" / "scripts" / "keyed_csv_merge.py"
 SYNC_JUST = KIT / "platforms" / "tools" / "sync_just.py"
+MARKED = ("# agent-rules-kit: generated from platforms/kits/just/docs.just by platforms/tools/sync-project.sh; kit 13.1.0;"
+          " do not edit\nlint:\n    echo copy\n")
+KIT_DRIVER = "python3 ~/.ai-kit/platforms/kits/godot/scripts/keyed_csv_merge.py --marker-size %L --path %P %O %A %B"
 
 
-def header(profile):
-    return (f"# agent-rules-kit: generated from platforms/kits/just/{profile}.just by platforms/tools/sync-project.sh;"
-            f" kit {VERSION}; do not edit\n")
+def imports(profile):
+    return f"import '~/.ai-kit/platforms/kits/just/{profile}.just'"
 
 
 class Base(unittest.TestCase):
@@ -66,52 +70,58 @@ class Base(unittest.TestCase):
 
 
 class JustModules(Base):
-    # The module logic alone (a project's justfile and its import line, an edited module, a dropped profile, a
-    # missing folder) is tested in-process in test_sync_just.py (KIT-077).
+    # The import logic alone (the starter justfile, a project's justfile and its import line, the migration, a folder
+    # with several profiles, a missing folder) is tested in-process in test_sync_just.py (KIT-077).
 
-    def test_a_root_profile_gets_kit_just_and_a_starter_justfile(self):
-        self.ok()
-        self.assertEqual(self.text("kit.just"), header("docs") + (MODULES / "docs.just").read_text())
-        self.assertIn("import 'kit.just'", self.text("justfile").splitlines())
-        self.ok("--check")
-        before = self.text("kit.just")
-        self.ok()
-        self.assertEqual(before, self.text("kit.just"))
+    def summary(self, folder):
+        """`just --summary` in a folder, with a throwaway HOME whose ~/.ai-kit is this kit, as the action links it."""
+        home = Path(self.tmp.name) / "home"
+        if not home.exists():
+            home.mkdir()
+            (home / ".ai-kit").symlink_to(KIT)
+        return subprocess.run([JUST, "--summary"], cwd=self.repo / folder, capture_output=True, text=True,
+                              env=dict(os.environ, HOME=str(home)))
 
-    def test_monorepo_folders_get_their_own_module(self):
+    def test_each_profile_folder_imports_the_installed_kit_module_and_holds_no_copy(self):
         for folder in ("client", "server"):
             (self.repo / folder).mkdir()
         self.ok("--profile", "docs,godot:client,java:server,python:platform")
-        self.assertEqual(self.text("client/kit.just"), header("godot") + (MODULES / "godot.just").read_text())
-        self.assertEqual(self.text("server/kit.just"), header("java") + (MODULES / "java.just").read_text())
-        self.assertEqual(self.text("kit.just"), header("docs") + (MODULES / "docs.just").read_text())
-        for folder in ("client", "server", "."):
-            self.assertIn("import 'kit.just'", self.text(f"{folder}/justfile").splitlines())
-        self.assertFalse((self.repo / "platform").exists())  # no folder, no module: the sync creates none
+        for folder, profile in ((".", "docs"), ("client", "godot"), ("server", "java")):
+            with self.subTest(folder=folder):
+                self.assertEqual(self.text(f"{folder}/justfile").splitlines()[-1], imports(profile))
+                self.assertFalse((self.repo / folder / "kit.just").exists())
+        self.assertFalse((self.repo / "platform").exists())  # no folder, no justfile: the sync creates none
         self.ok("--check", "--profile", "docs,godot:client,java:server,python:platform")
-
-    def test_two_profiles_in_one_folder_get_a_module_each_and_shared_recipes(self):
-        self.ok("--profile", "docs,python")
-        self.assertEqual(self.text("kit-docs.just"), header("docs") + (MODULES / "docs.just").read_text())
-        self.assertEqual(self.text("kit-python.just"), header("python") + (MODULES / "python.just").read_text())
-        kit = self.text("kit.just").splitlines()
-        self.assertIn("mod kit-docs 'kit-docs.just'", kit)
-        self.assertIn("mod kit-python 'kit-python.just'", kit)
-        self.assertIn("lint: kit-docs::lint kit-python::lint", kit)
-        self.assertIn("test: kit-python::test", kit)
-        self.assertIn("verify: kit-docs::verify kit-python::verify", kit)
-        self.ok("--check", "--profile", "docs,python")
         if JUST:
-            summary = subprocess.run([JUST, "--summary"], cwd=self.repo, capture_output=True, text=True)
-            self.assertEqual(summary.returncode, 0, summary.stderr)
-            self.assertTrue({"fmt", "lint", "test", "verify"} <= set(summary.stdout.split()), summary.stdout)
+            for folder, recipe in ((".", "lint"), ("client", "boot"), ("server", "dependency-check")):
+                with self.subTest(folder=folder):
+                    result = self.summary(folder)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn(recipe, result.stdout.split())
 
-    def test_an_unmarked_kit_just_refuses_the_sync_before_any_write(self):
-        (self.repo / "kit.just").write_text("own:\n    echo own\n")
-        result = self.failing()
-        self.assertIn("kit.just exists and is not generated", result.stdout + result.stderr)
-        self.assertFalse((self.repo / ".claude").exists())
-        self.assertFalse((self.repo / "CLAUDE.md").exists())
+    def test_the_sync_migrates_the_generated_copies(self):
+        """KIT-081 stage 1b: a marked kit.just goes and the line importing it names the kit's module; an unmarked
+        kit.just is the project's and stays."""
+        (self.repo / "client").mkdir()
+        (self.repo / "kit.just").write_text(MARKED)
+        (self.repo / "client" / "kit.just").write_text(MARKED)
+        (self.repo / "justfile").write_text("set allow-duplicate-recipes := true\nimport 'kit.just'\n\nown:\n"
+                                            "    echo own\n")
+        (self.repo / "client" / "kit-own.just").write_text("own:\n    echo own\n")
+        check = self.failing("--check", "--profile", "docs,godot:client").stdout
+        self.assertIn("sync: kit.just is a copy the kit no longer generates", check)
+        self.assertIn("sync: justfile:2 imports kit.just, which the kit no longer generates", check)
+        result = self.ok("--profile", "docs,godot:client")
+        self.assertIn("sync: removed client/kit.just (", result.stdout)
+        self.assertIn("sync: kept client/kit-own.just (not generated by the kit; the project's own)", result.stdout)
+        self.assertFalse((self.repo / "kit.just").exists())
+        self.assertEqual(self.text("client/kit-own.just"), "own:\n    echo own\n")
+        self.assertEqual(self.text("justfile").splitlines()[1], imports("docs"))
+        self.ok("--check", "--profile", "docs,godot:client")
+        if JUST:
+            result = self.summary(".")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(set(result.stdout.split()), {"lint", "own", "verify"})
 
     def test_a_symlinked_profile_folder_refuses_the_sync(self):
         outside = tempfile.TemporaryDirectory()
@@ -123,7 +133,7 @@ class JustModules(Base):
 
     def sync_just(self, mode, profiles):
         """sync_just.py alone, as a write after a skipped preflight would run it."""
-        return subprocess.run([sys.executable, str(SYNC_JUST), mode, str(self.repo), VERSION, profiles],
+        return subprocess.run([sys.executable, str(SYNC_JUST), mode, str(self.repo), profiles],
                               capture_output=True, text=True, check=False)
 
     def test_a_dangling_justfile_link_refuses_the_sync_and_writes_nothing_outside(self):
@@ -131,7 +141,7 @@ class JustModules(Base):
         self.addCleanup(outside.cleanup)
         (self.repo / "client").mkdir()
         (self.repo / "client" / "justfile").symlink_to(Path(outside.name) / "justfile")  # dangling
-        message = "sync: client/justfile is a symbolic link; the sync writes no starter justfile through it"
+        message = "sync: client/justfile is a symbolic link; the sync writes no justfile through it"
         self.assertIn(message, self.failing("--profile", "docs,godot:client").stdout)
         for mode in ("preflight", "write"):
             with self.subTest(mode=mode):
@@ -150,50 +160,67 @@ class JustModules(Base):
                 self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
                 self.assertIn(message, result.stdout)
                 self.assertNotIn("Traceback", result.stderr)
-        self.assertFalse((self.repo / "kit.just").exists())
+        self.assertFalse((self.repo / "CLAUDE.md").exists())
 
 
 class MergeDriver(Base):
+    """KIT-081 stage 1b: the driver runs from the installed kit; the copy older syncs vendored is a leftover."""
     COPY = ".github/merge-drivers/keyed_csv_merge.py"
 
-    def config(self):
-        return subprocess.run(["git", "-C", str(self.repo), "config", "--get", "merge.keyed-csv.driver"],
+    def config(self, *args):
+        return subprocess.run(["git", "-C", str(self.repo), "config", *args, "merge.keyed-csv.driver"],
                               capture_output=True, text=True, env=dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull))
 
-    def test_the_godot_profile_vendors_the_driver_and_names_the_setup_step(self):
+    def vendored(self):
+        (self.repo / ".github" / "merge-drivers").mkdir(parents=True)
+        (self.repo / self.COPY).write_bytes(DRIVER.read_bytes())
+
+    def test_the_godot_profile_names_the_installed_kits_driver_and_writes_no_copy(self):
         (self.repo / "client").mkdir()
         result = self.ok("--profile", "docs,godot:client")
-        self.assertEqual((self.repo / self.COPY).read_bytes(), DRIVER.read_bytes())
-        self.assertIn("git config merge.keyed-csv.driver", result.stdout)
-        self.assertNotEqual(self.config().returncode, 0)  # the sync never writes git config
+        self.assertIn(f"sync:   git config merge.keyed-csv.driver '{KIT_DRIVER}'", result.stdout)
+        self.assertFalse((self.repo / ".github" / "merge-drivers").exists())
+        self.assertNotEqual(self.config("--get").returncode, 0)  # the sync never writes git config
         self.ok("--check", "--profile", "docs,godot:client")
-        (self.repo / self.COPY).write_text("# edited by agent-rules-kit\n")
-        self.assertIn(f"sync: {self.COPY} diverges from the kit",
-                      self.failing("--check", "--profile", "docs,godot:client").stdout)
+        self.assertNotIn("git config merge.keyed-csv", self.ok("--profile", "docs").stdout)
 
     def test_the_step_is_not_repeated_once_configured(self):
         (self.repo / "client").mkdir()
         subprocess.run(["git", "-C", str(self.repo), "config", "merge.keyed-csv.driver", "x %O %A %B"], check=True)
         self.assertNotIn("git config merge.keyed-csv.driver", self.ok("--profile", "docs,godot:client").stdout)
 
-    def test_no_godot_profile_no_driver_and_a_leftover_goes(self):
-        self.ok()
-        self.assertFalse((self.repo / ".github" / "merge-drivers").exists())
+    def test_a_vendored_copy_is_reported_then_removed(self):
+        self.vendored()
         (self.repo / "client").mkdir()
-        self.ok("--profile", "docs,godot:client")
-        self.assertIn(f"sync: {self.COPY} is generated but not in profile",
-                      self.failing("--check", "--profile", "docs").stdout)
-        self.ok("--profile", "docs")
-        self.assertFalse((self.repo / self.COPY).exists())
+        self.assertIn(f"sync: {self.COPY} is a copy the kit no longer generates (KIT-081 stage 1b); sync-project.sh"
+                      " removes it", self.failing("--check", "--profile", "docs,godot:client").stdout)
+        result = self.ok("--profile", "docs,godot:client")
+        self.assertIn(f"sync: removed {self.COPY} (the driver runs from the installed kit, KIT-081 stage 1b)",
+                      result.stdout)
+        self.assertFalse((self.repo / ".github" / "merge-drivers").exists())
+        self.ok("--check", "--profile", "docs,godot:client")
 
-    def test_a_hand_written_file_at_the_driver_path_refuses_the_sync(self):
+    def test_check_names_a_git_config_that_runs_the_removed_copy(self):
+        (self.repo / "client").mkdir()
+        old = f"python3 {self.COPY} --marker-size %L --path %P %O %A %B"
+        subprocess.run(["git", "-C", str(self.repo), "config", "merge.keyed-csv.driver", old], check=True)
+        self.assertIn(f"sync:   git config merge.keyed-csv.driver '{KIT_DRIVER}'",
+                      self.ok("--profile", "docs,godot:client").stdout)
+        out = self.failing("--check", "--profile", "docs,godot:client").stdout
+        self.assertIn(f"sync: git config merge.keyed-csv.driver runs {self.COPY}, which the kit no longer generates;"
+                      f" run:\nsync:   git config merge.keyed-csv.driver '{KIT_DRIVER}'", out)
+        self.assertEqual(self.config("--get").stdout.strip(), old)  # --check reads the config and never changes it
+        subprocess.run(["git", "-C", str(self.repo), "config", "merge.keyed-csv.driver", KIT_DRIVER], check=True)
+        self.ok("--check", "--profile", "docs,godot:client")
+
+    def test_a_hand_written_file_at_the_driver_path_stays_the_projects(self):
         (self.repo / ".github" / "merge-drivers").mkdir(parents=True)
         (self.repo / self.COPY).write_text("print('mine')\n")
         (self.repo / "client").mkdir()
-        result = self.failing("--profile", "docs,godot:client")
-        self.assertIn(f"{self.COPY} exists and is not generated", result.stdout + result.stderr)
+        result = self.ok("--profile", "docs,godot:client")
+        self.assertIn(f"sync: kept {self.COPY} (not generated by the kit", result.stdout)
         self.assertEqual(self.text(self.COPY), "print('mine')\n")
-        self.assertFalse((self.repo / "CLAUDE.md").exists())
+        self.ok("--check", "--profile", "docs,godot:client")
 
     def test_a_project_driver_that_names_the_kit_stays_the_projects(self):
         """#283 item 2 (KIT-079): only the generated header line marks the copy as the kit's, so a project's own
@@ -201,12 +228,21 @@ class MergeDriver(Base):
         (self.repo / ".github" / "merge-drivers").mkdir(parents=True)
         own = '"""Our CSV driver, adapted from agent-rules-kit KIT-074."""\nprint("mine")\n'
         (self.repo / self.COPY).write_text(own)
-        self.ok("--profile", "docs")  # no godot profile: a generated leftover would go
+        self.ok("--profile", "docs")
         self.assertEqual(self.text(self.COPY), own)
         self.ok("--check", "--profile", "docs")
         (self.repo / "client").mkdir()
-        self.assertIn(f"{self.COPY} exists and is not generated", self.failing("--profile", "docs,godot:client").stdout)
+        self.ok("--profile", "docs,godot:client")
         self.assertEqual(self.text(self.COPY), own)
+
+    def test_a_copy_reached_through_a_symbolic_link_is_never_removed(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        (Path(outside.name) / "keyed_csv_merge.py").write_bytes(DRIVER.read_bytes())
+        (self.repo / ".github").mkdir()
+        (self.repo / ".github" / "merge-drivers").symlink_to(outside.name)
+        self.ok("--profile", "docs")
+        self.assertEqual((Path(outside.name) / "keyed_csv_merge.py").read_bytes(), DRIVER.read_bytes())
 
 
 if __name__ == "__main__":

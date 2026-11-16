@@ -170,6 +170,29 @@ and, with `docs/spec`, on no workflow that runs the spec tools. `check_docs_stru
 `.github/spec-lint`, since the kit stops generating it. Out of this stage: the `kit*.just` modules, the merge driver
 and `.claude/rules` (stage 3).
 
+**Stage 1b, the `just` modules and the merge driver.** [FACT] just 1.58.0 (`just --changelog`; just.systems/man/en
+imports, modules and strings pages; probed in a throwaway `HOME` on 2026-11-16): an `import` or `mod` path may be
+absolute and "A leading `~/`" in it "is replaced with the current user's home directory"; it is a string, not an
+expression (`import env('HOME') + '...'` is a parse error); an imported recipe runs in the importing justfile's folder,
+also inside a submodule; a `mod` module's recipes run "with the working directory set to the directory containing the
+submodule source file" unless `[no-cd]`, which gives the invocation folder; `import?` is optional. A shell-expanded
+`x'${AI_KIT_DIR:-~/.ai-kit}/...'` path also resolves, but `${VAR:-DEFAULT}` keeps a set-but-empty variable and `~` in
+the default is not documented, so the line names `~/.ai-kit`. So each profile folder's justfile holds
+`import '~/.ai-kit/platforms/kits/just/<profile>.just'`, the one line `platforms/tools/sync_just.py` writes: into a
+starter justfile, or in place of an `import 'kit.just'` line whose `kit.just` was generated (and of another profile's
+kit import after a profile switch). A folder with several profiles gets no import and a warning: a `mod` module would
+run its recipes in the kit's folder, and two imports define the same recipe names. The spec-tools action links
+`$HOME/.ai-kit` to its own checkout unless a kit is there (then it warns), and the `ci-godot.yml` and `ci-java.yml`
+templates call it with `checks: none` before their first `just` step. The keyed-CSV merge driver is not copied: the
+printed `git config merge.keyed-csv.driver` line runs `python3 ~/.ai-kit/platforms/kits/godot/scripts/keyed_csv_merge.py`
+(git runs it through `sh`, which expands `~`), and `.gitattributes` stays the project's. Migration: install removes a
+`kit.just` or `kit-<profile>.just` whose first line carries the generated marker and the driver whose second line is the
+kit's docstring, keeps an unmarked one (`sync: kept`) and never reads or removes through a symbolic link; `--check`
+fails on each marked copy left, on a justfile line that imports the removed `kit.just` (`file:line` and the fix), on a
+single-profile folder whose justfile lacks the import, and on a `merge.keyed-csv.driver` config that still runs the
+removed copy (read with `git config --get`, never written). `check_docs_structure.py` no longer exempts
+`.github/merge-drivers`.
+
 Open before stage 2 and 3 (each `[HYPOTHESIS]` until checked against the installed version or its docs):
 
 - A Claude Code plugin cannot ship path-scoped rules (stage 3 rests on it).
@@ -225,3 +248,6 @@ stage 1.
   - The cache directory is named by version (`13.1.0`), so right after the move it still held the files installed from
     `main`. `refresh.sh`'s KIT-013 reinstall (a user-scope cache that differs from the marketplace clone, now on
     `stable`) corrects it on the next run.
+- 2026-11-16: stage 1b, the `just` modules and the merge driver from the installed kit, implemented on
+  `feat/kit-081-just`, on top of stage 1, owner-approved ("implemente tudo isso agora"); a dry migration of a copy of
+  Stratics is in the PR.

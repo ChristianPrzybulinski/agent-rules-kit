@@ -25,7 +25,7 @@ res://
 
 ## Commands
 
-The recipes come from `kit.just`, which agent-rules-kit's `sync-project.sh` writes from the kit's godot module; this folder's `justfile` imports it and adds the project's own recipes. `just --show <recipe>` prints a recipe's commands; CI runs the same recipes (the kit `ci-godot.yml`).
+The recipes come from the installed agent-rules-kit's godot module, which this folder's `justfile` imports (`import '~/.ai-kit/platforms/kits/just/godot.just'`, written by the kit's `sync-project.sh`) before the project's own recipes. `just --show <recipe>` prints a recipe's commands; CI runs the same recipes (the kit `ci-godot.yml`).
 
 ```bash
 just editor                        # open the editor

@@ -11,7 +11,7 @@ An outdated document is worse than a missing one: the agent trusts it. Written a
 
 | Changed... | Update |
 |---|---|
-| build/run/test command | the module's `README.md` + the repo's `AGENTS.md`, both naming the `just` recipe when the folder imports the kit's `kit.just` |
+| build/run/test command | the module's `README.md` + the repo's `AGENTS.md`, both naming the `just` recipe when the folder's justfile imports the kit's just module of its profile |
 | new authored folder, with `sdd.doc_structure` on | its `README.md` (title and the configured headings); a new child of a `done/` folder → that folder's `INDEX.md` |
 | public Java API | Javadoc on the public class/method (the what + invariants; do not repeat the signature) |
 | exported GDScript/autoload script | `##` docstring above `class_name`, `@export`, signals |

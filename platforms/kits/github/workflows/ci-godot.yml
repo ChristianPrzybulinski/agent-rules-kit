@@ -1,9 +1,10 @@
 name: ci-godot
 
 # Reusable Godot CI: the project copies this file to .github/workflows/ and calls it from its own
-# workflow (`uses: ./.github/workflows/ci-godot.yml` — see README.md). Each step runs a recipe of the project's
-# kit.just (agent-rules-kit sync-project.sh, godot profile at the repository root), so CI and a developer run the
-# same command (KIT-074). The `changes` job decides what
+# workflow (`uses: ./.github/workflows/ci-godot.yml` — see README.md). Each step runs a recipe the project's justfile
+# imports from the kit's godot module (agent-rules-kit sync-project.sh, godot profile at the repository root), so CI and
+# a developer run the same command (KIT-074); the spec-tools action links that module's kit, at the commit it pins, to
+# ~/.ai-kit, the path the import names (KIT-081 stage 1b: no copy in the project). The `changes` job decides what
 # the diff needs: a docs-only diff skips import and tests; a diff it cannot compute (schedule,
 # workflow_dispatch, new branch) runs everything (fail-open).
 
@@ -101,7 +102,11 @@ jobs:
           key: lfs-${{ hashFiles('.lfs-assets-id') }}
       - name: Pull LFS objects
         run: git lfs pull
-      - name: Install just (pinned, sha-256 checked; the recipes come from the project's kit.just)
+      - name: Link the pinned kit to ~/.ai-kit, where the justfile imports its recipes (KIT-081 stage 1b)
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@5a4924e802f6ab4675d4f9674c8626269b00b999  # v13.1.0
+        with:
+          checks: none
+      - name: Install just (pinned, sha-256 checked; the justfile imports the kit's recipes)
         shell: bash
         env:
           JUST_VERSION: 1.58.0
@@ -153,7 +158,11 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements-gdtoolkit.txt
-      - name: Install just (pinned, sha-256 checked; the recipes come from the project's kit.just)
+      - name: Link the pinned kit to ~/.ai-kit, where the justfile imports its recipes (KIT-081 stage 1b)
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@5a4924e802f6ab4675d4f9674c8626269b00b999  # v13.1.0
+        with:
+          checks: none
+      - name: Install just (pinned, sha-256 checked; the justfile imports the kit's recipes)
         shell: bash
         env:
           JUST_VERSION: 1.58.0

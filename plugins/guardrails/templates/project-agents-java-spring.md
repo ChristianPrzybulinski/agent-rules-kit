@@ -26,7 +26,7 @@ src/test/java       # mirrors main
 
 ## Commands
 
-The recipes come from `kit.just`, which agent-rules-kit's `sync-project.sh` writes from the kit's java module; this folder's `justfile` imports it and adds the project's own recipes. Each runs the Maven wrapper (`just --show <recipe>`); CI runs the same recipes (the kit `ci-java.yml`).
+The recipes come from the installed agent-rules-kit's java module, which this folder's `justfile` imports (`import '~/.ai-kit/platforms/kits/just/java.just'`, written by the kit's `sync-project.sh`) before the project's own recipes. Each runs the Maven wrapper (`just --show <recipe>`); CI runs the same recipes (the kit `ci-java.yml`).
 
 ```bash
 just run                           # run locally (spring-boot:run)

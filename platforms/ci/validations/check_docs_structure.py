@@ -11,9 +11,9 @@ From `git ls-files` (the index, so a sparse checkout is checked whole), fail whe
 
 Always exempt: `.github` itself (GitHub shows a `.github/README.md` on the repository page in place of the root
 README; its subfolders are still checked) and the folders platforms/tools/sync-project.sh writes (`.claude/rules`,
-`.claude/skills`, `.github/merge-drivers`, their interiors, and `.claude` itself, which holds the generated settings).
-`.github/spec-lint` is no longer one of them (KIT-081 stage 1: the sync removes the copy it once wrote there), so a
-project that keeps files in it says what belongs there. The exempt file holds one fnmatch glob per line against the folder path from the repository
+`.claude/skills`, their interiors, and `.claude` itself, which holds the generated settings). `.github/spec-lint` and
+`.github/merge-drivers` are no longer among them (KIT-081 stages 1 and 1b: the sync removes the copies it once wrote
+there), so a project that keeps files in one says what belongs there. The exempt file holds one fnmatch glob per line against the folder path from the repository
 root (`*` also matches `/`; a glob ending in `/**` exempts the folders below a folder, not the folder itself); `#`
 starts a comment line. A missing exempt file exempts nothing.
 
@@ -37,8 +37,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_HEADINGS = ("## What goes here", "## What does not go here")
-GENERATED = (".claude", ".claude/rules", ".claude/rules/**", ".claude/skills", ".claude/skills/**",
-             ".github", ".github/merge-drivers", ".github/merge-drivers/**")
+GENERATED = (".claude", ".claude/rules", ".claude/rules/**", ".claude/skills", ".claude/skills/**", ".github")
 
 
 def load_exempt(path: Path) -> list[str]:

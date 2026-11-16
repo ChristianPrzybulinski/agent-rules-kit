@@ -148,6 +148,28 @@ class SpecToolsActionRuns(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.files["GITHUB_ENV"], f"AI_KIT_DIR={KIT}\n")
 
+    def test_it_links_home_ai_kit_to_its_own_commit_unless_a_kit_is_there(self):
+        """KIT-081 stage 1b: a project's justfile imports ~/.ai-kit/platforms/kits/just/<profile>.just, and just reads no
+        variable in an import path, so the action links ~/.ai-kit to its own checkout; a kit already there stays, with
+        a warning that the justfile runs that one."""
+        name = "Link ~/.ai-kit to the kit at this action's commit (the justfile imports)"
+        home = self.tmp / "home"
+        home.mkdir()
+        linked = self.run_step(name, HOME=home)
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        self.assertTrue((home / ".ai-kit").is_symlink())
+        self.assertEqual((home / ".ai-kit").resolve(), KIT.resolve())
+        self.assertTrue((home / ".ai-kit" / "platforms" / "kits" / "just" / "godot.just").is_file())
+        again = self.run_step(name, HOME=home)
+        self.assertEqual((again.returncode, again.stdout), (0, ""))
+        other = self.tmp / "other-home"
+        (other / ".ai-kit").mkdir(parents=True)
+        kept = self.run_step(name, HOME=other)
+        self.assertEqual(kept.returncode, 0, kept.stderr)
+        self.assertFalse((other / ".ai-kit").is_symlink())
+        self.assertIn("::warning::spec-tools: ", kept.stdout)
+        self.assertIn("runs that kit, not this action's commit", kept.stdout)
+
     def test_the_spec_steps_run_the_kit_validators_on_the_project(self):
         try:
             import jsonschema  # noqa: F401  (the step runs with CI=1, which needs both libraries)
