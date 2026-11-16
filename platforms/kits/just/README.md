@@ -16,7 +16,7 @@ One [just](https://just.systems) module per profile, so a project's daily comman
 | [`godot.just`](godot.just) | `editor`, `run *ARGS`, `import`, `boot` (import, then `--quit` with the log checked for `SCRIPT ERROR`, `Parse Error`, `Parser Error`, `Can't load script`), `test` (import, then gdUnit4 or GUT; a missing runner, no suite or zero executed test cases fails), `lint` (`gdformat --check`, `gdlint`), `fmt`, `verify` (lint, boot, test), `export PRESET OUT` |
 | [`java.just`](java.just) | `run *ARGS` (`spring-boot:run`), `test *ARGS`, `verify` (`spotless:check verify`), `fmt` (`spotless:apply`), `lint` (`spotless:check`), `dependency-check` (OWASP, CVSS 7, `NVD_API_KEY`); always `./mvnw` |
 | [`python.just`](python.just) | `test` (pytest when configured, else `unittest` discovery in each folder holding a `test_*.py`; zero tests fails), `lint` (syntax of every `.py`, no bytecode written, then `ruff check` when configured), `fmt` (`ruff format`; fails when no formatter is configured), `verify` (lint, test) |
-| [`docs.just`](docs.just) | `lint` (the kit's `check_spec.py`, `spec_trace.py check` and `check_docs_structure.py`, which passes as `off` unless `sdd.doc_structure` is on, from `${AI_KIT_DIR:-$HOME/.ai-kit}`, run from the repository root), `verify` (lint) |
+| [`docs.just`](docs.just) | `lint` (the kit's `check_spec.py`, `spec_trace.py check` and `check_docs_structure.py`, which passes as `off` unless `sdd.doc_structure` is on, from `${AI_KIT_DIR:-$HOME/.ai-kit}`, run from the repository root), `verify` (lint), `changelog *ARGS` (the kit's `changelog_fragments.py --repo-dir .`: the `changelog.d` fragments into `CHANGELOG.md`; `--check` writes nothing; KIT-084) |
 
 ## Which commands are standard
 
