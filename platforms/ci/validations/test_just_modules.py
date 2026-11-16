@@ -226,31 +226,44 @@ class Python(ModuleTest):
 
 
 class Docs(ModuleTest):
+    """KIT-081 stage 1: the recipes run the installed kit's validators, ${AI_KIT_DIR:-$HOME/.ai-kit}, not a copy."""
     STUB = '#!/usr/bin/env python3\nimport os, sys\nopen(os.environ["STUB_LOG"], "a").write(" ".join(sys.argv) + "\\n")\n'
 
     def setUp(self):
         self.root = self.project("docs")
         subprocess.run(["git", "init", "-q", str(self.root)], check=True)
-        spec_lint = self.root / ".github" / "spec-lint"
+        other = tempfile.TemporaryDirectory()
+        self.addCleanup(other.cleanup)
+        self.kit, self.home = Path(other.name) / "kit", Path(other.name) / "home"
         for name in ("check_spec.py", "spec_trace.py", "check_docs_structure.py"):
-            executable(spec_lint / name, self.STUB)
+            executable(self.kit / "platforms" / "ci" / "validations" / name, self.STUB)
         (self.root / "docs" / "spec").mkdir(parents=True)
 
     def names(self):
         return [" ".join([Path(c.split()[0]).name, *c.split()[1:]]) for c in self.calls()]
 
-    def test_lint_runs_every_vendored_check_from_the_repository_root(self):
+    def env(self, **extra):
+        env = {"PYTHON": sys.executable, "AI_KIT_DIR": "", "HOME": str(self.home)}
+        env.update(extra)
+        return env
+
+    def test_lint_runs_every_kit_check_from_the_repository_root(self):
         (self.root / "sub").mkdir()
-        result = self.just(self.root / "sub", "lint", env={"PYTHON": sys.executable})
+        result = self.just(self.root / "sub", "lint", env=self.env(AI_KIT_DIR=str(self.kit)))
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.names(), ["check_spec.py docs/spec .github/spec-lint/schemas",
+        self.assertEqual(self.names(), [f"check_spec.py docs/spec {self.kit}/platforms/ci/schemas",
                                         "spec_trace.py check docs/spec", "check_docs_structure.py"])
 
-    def test_a_check_that_was_not_vendored_is_skipped(self):
-        (self.root / ".github" / "spec-lint" / "spec_trace.py").unlink()
-        (self.root / ".github" / "spec-lint" / "check_docs_structure.py").unlink()
-        self.assertEqual(self.just(self.root, "verify", env={"PYTHON": sys.executable}).returncode, 0)
-        self.assertEqual(self.names(), ["check_spec.py docs/spec .github/spec-lint/schemas"])
+    def test_without_ai_kit_dir_the_installed_kit_in_home_runs(self):
+        shutil.copytree(self.kit, self.home / ".ai-kit")
+        self.assertEqual(self.just(self.root, "verify", env=self.env()).returncode, 0)
+        self.assertEqual(self.names()[0], f"check_spec.py docs/spec {self.home}/.ai-kit/platforms/ci/schemas")
+
+    def test_without_the_kit_lint_fails_and_says_where_it_looked(self):
+        result = self.just(self.root, "lint", env=self.env())
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"lint: no agent-rules-kit spec tools in {self.home}/.ai-kit", result.stderr)
+        self.assertEqual(self.calls(), [])
 
 
 class TemplatesNameKitRecipes(unittest.TestCase):

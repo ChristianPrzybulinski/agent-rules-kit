@@ -219,12 +219,12 @@
           "default": ["decision"]
         },
         "doc_structure": {
-          "description": "The README and done/INDEX.md check (check_docs_structure.py, KIT-074), opt-in; read by sync-project.sh (vendors the check when enabled), the check itself and the docs just module",
+          "description": "The README and done/INDEX.md check (check_docs_structure.py, KIT-074), opt-in; read by the check itself, which the docs just module and the spec-tools action run",
           "type": "object",
           "additionalProperties": false,
           "properties": {
             "enabled": {
-              "description": "Run the check: sync-project.sh vendors it into .github/spec-lint/ and just lint runs it",
+              "description": "Run the check: just lint and the spec-tools action run the kit's check_docs_structure.py, which passes as off while false",
               "type": "boolean",
               "default": false
             },

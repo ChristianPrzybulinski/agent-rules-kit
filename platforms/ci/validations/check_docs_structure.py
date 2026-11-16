@@ -11,8 +11,9 @@ From `git ls-files` (the index, so a sparse checkout is checked whole), fail whe
 
 Always exempt: `.github` itself (GitHub shows a `.github/README.md` on the repository page in place of the root
 README; its subfolders are still checked) and the folders platforms/tools/sync-project.sh writes (`.claude/rules`,
-`.claude/skills`, `.github/spec-lint`, `.github/merge-drivers`, their interiors, and `.claude` itself, which holds the
-generated settings). The exempt file holds one fnmatch glob per line against the folder path from the repository
+`.claude/skills`, `.github/merge-drivers`, their interiors, and `.claude` itself, which holds the generated settings).
+`.github/spec-lint` is no longer one of them (KIT-081 stage 1: the sync removes the copy it once wrote there), so a
+project that keeps files in it says what belongs there. The exempt file holds one fnmatch glob per line against the folder path from the repository
 root (`*` also matches `/`; a glob ending in `/**` exempts the folders below a folder, not the folder itself); `#`
 starts a comment line. A missing exempt file exempts nothing.
 
@@ -21,8 +22,8 @@ Parameters (`sdd.doc_structure`, check_spec.py --params resolves the defaults): 
 
 Usage:  check_docs_structure.py [--root DIR] [--list]
 Reports every problem as a `FAIL:` line; exit 1 on any failure, 2 on an invalid sdd block, 0 otherwise. --list prints
-the authored folders it requires. Stdlib only. A copy of this file lives in a project's .github/spec-lint/, written
-by agent-rules-kit's platforms/tools/sync-project.sh; it reads check_spec.py and schemas/ beside it.
+the authored folders it requires. Stdlib only. A project runs it from the kit (KIT-081 stage 1): the installed kit's
+platforms/ci/validations/, or the spec-tools action in CI; it reads check_spec.py beside it and the kit's schemas.
 """
 from __future__ import annotations
 
@@ -37,8 +38,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DEFAULT_HEADINGS = ("## What goes here", "## What does not go here")
 GENERATED = (".claude", ".claude/rules", ".claude/rules/**", ".claude/skills", ".claude/skills/**",
-             ".github", ".github/spec-lint", ".github/spec-lint/**", ".github/merge-drivers",
-             ".github/merge-drivers/**")
+             ".github", ".github/merge-drivers", ".github/merge-drivers/**")
 
 
 def load_exempt(path: Path) -> list[str]:

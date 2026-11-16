@@ -102,14 +102,21 @@ class ReadmeRules(unittest.TestCase):
         r.write(".claude/settings.json", "{}\n")
         r.write(".claude/rules/guardrails-java.md")
         r.write(".claude/skills/testing/SKILL.md")
-        r.write(".github/spec-lint/check_spec.py")
-        r.write(".github/spec-lint/schemas/spec.schema.json")
         r.write(".github/merge-drivers/keyed_csv_merge.py")
         r.write(".github/CODEOWNERS")
         r.write(".github/workflows/ci.yml")
         req, fails = r.run()
         self.assertEqual(req, [".github/workflows"])
         self.assertEqual(fails, ["FAIL: .github/workflows/ has no README.md"])
+
+    def test_a_spec_lint_folder_is_the_projects_since_the_kit_stopped_writing_it(self):
+        # KIT-081 stage 1: sync-project.sh no longer generates .github/spec-lint/ and removes the copy it wrote, so a
+        # folder still there holds the project's own files and says what belongs in it
+        r = Repo(self)
+        r.write(".github/spec-lint/pr-gates.json", "{}\n")
+        req, fails = r.run()
+        self.assertEqual(req, [".github/spec-lint"])
+        self.assertEqual(fails, ["FAIL: .github/spec-lint/ has no README.md"])
 
     def test_a_folder_outside_the_generated_ones_under_claude_is_still_required(self):
         r = Repo(self)

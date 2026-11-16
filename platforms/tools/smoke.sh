@@ -980,7 +980,7 @@ set -e
 [[ "$(grep -c '^# mine$' "$ROOT/proj2/CLAUDE.md")" == "1" ]] \
   || fail "hand-written CLAUDE.md changed"
 [[ ! -e "$ROOT/proj2/.claude/settings.json" ]] || fail "settings.json was written despite the refusal"
-[[ ! -e "$ROOT/proj2/.github/spec-lint" ]] || fail "spec-lint was written despite the refusal"
+[[ ! -e "$ROOT/proj2/.github" ]] || fail ".github was written despite the refusal"
 
 # sync-project.sh also renders the profile's path rules into .claude/rules/
 # (restricted PATH like bootstrap/doctor above; still the $SOURCE fixture).
@@ -1133,8 +1133,8 @@ fi
 [[ "$(grep -c '@ai-kit' "$ROOT/mono-plugins-proj/.claude/settings.json")" == "1" ]] \
   || fail "godot,java settings.json does not enable only guardrails@ai-kit"
 
-# sync-project.sh copies the spec validator only into repos with docs/spec: a
-# Java repo without it gets no .github/spec-lint and --check still passes.
+# sync-project.sh writes the spec-tools workflow only into repos with docs/spec (KIT-081 stage 1: the spec tools run
+# from the kit): a Java repo without it gets no workflow and --check still passes.
 mkdir -p "$ROOT/nospec-proj"
 : > "$ROOT/nospec-proj/AGENTS.md"
 : > "$ROOT/nospec-proj/pom.xml"
@@ -1142,10 +1142,10 @@ if ! "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/nospec-proj" >"$ROOT/sync-
   cat "$ROOT/sync-nospec.out" >&2
   fail "sync-project install failed on a repo without docs/spec"
 fi
-grep -Fq 'sync: no docs/spec, spec-lint skipped' "$ROOT/sync-nospec.out" \
-  || fail "sync-project did not report the skipped spec-lint"
-[[ ! -e "$ROOT/nospec-proj/.github/spec-lint" ]] \
-  || fail "sync-project wrote .github/spec-lint without docs/spec"
+grep -Fq 'sync: no docs/spec, spec tools skipped' "$ROOT/sync-nospec.out" \
+  || fail "sync-project did not report the skipped spec tools"
+[[ ! -e "$ROOT/nospec-proj/.github" ]] \
+  || fail "sync-project wrote .github without docs/spec"
 if ! "$SOURCE/platforms/tools/sync-project.sh" --check "$ROOT/nospec-proj" >"$ROOT/sync-nospec-check.out" 2>&1; then
   cat "$ROOT/sync-nospec-check.out" >&2
   fail "sync-project --check failed on a repo without docs/spec"

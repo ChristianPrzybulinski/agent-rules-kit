@@ -46,7 +46,7 @@ For README narrative, reports, release notes, e-mail and team messages:
 
 ## Folder READMEs and done/ indexes
 
-With `sdd.doc_structure.enabled: true`, `check_docs_structure.py` (vendored into `.github/spec-lint/`, run by `just lint`) holds every folder `git ls-files` lists to a `README.md` with a `# ` title and the `headings` (default `## What goes here` and `## What does not go here`), and every `done/` folder to an `INDEX.md` naming each direct child. A generated or vendored folder goes in the `exempt` file (default `.github/doc-structure-exempt.txt`): one glob per line, a `#` line for the reason; `.github` itself and the folders `sync-project.sh` generates are always exempt. Keys: skill `sdd-constitution`, reference `sdd-parameters.md`.
+With `sdd.doc_structure.enabled: true`, `check_docs_structure.py` (the kit's, run by `just lint` and the CI spec-tools action) holds every folder `git ls-files` lists to a `README.md` with a `# ` title and the `headings` (default `## What goes here` and `## What does not go here`), and every `done/` folder to an `INDEX.md` naming each direct child. A generated or vendored folder goes in the `exempt` file (default `.github/doc-structure-exempt.txt`): one glob per line, a `#` line for the reason; `.github` itself and the folders `sync-project.sh` generates are always exempt. Keys: skill `sdd-constitution`, reference `sdd-parameters.md`.
 
 ## Condition → action
 

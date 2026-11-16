@@ -181,8 +181,9 @@ jobs:
           PY
 
   workflow-lint:
-    # actionlint and zizmor (default persona) over the kit's workflows and the templates projects copy (KIT-076);
-    # a finding fails the job. Locally: zizmor .github/workflows/*.yml platforms/kits/github/workflows/*.yml
+    # actionlint and zizmor (default persona) over the kit's workflows and the templates projects copy (KIT-076), and
+    # zizmor over the composite actions projects pin (KIT-081; actionlint reads workflows only); a finding fails the
+    # job. Locally: zizmor .github/workflows/*.yml platforms/kits/github/workflows/*.yml platforms/ci/actions/*/action.yml
     name: workflow-lint  # the required check context (KIT-076)
     runs-on: ubuntu-latest
     timeout-minutes: 5  # KIT-076: 3 × the longest measured green run, rounded up to 5 min (the record lists the runs)
@@ -215,4 +216,4 @@ jobs:
       - name: zizmor (online audits read public action metadata with the read-only token)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zizmor --format plain .github/workflows/*.yml platforms/kits/github/workflows/*.yml
+        run: zizmor --format plain .github/workflows/*.yml platforms/kits/github/workflows/*.yml platforms/ci/actions/*/action.yml

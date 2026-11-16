@@ -1,16 +1,22 @@
-# Spec recipes (agent-rules-kit, KIT-074). They run the copies platforms/tools/sync-project.sh vendors into
-# .github/spec-lint/, from the repository root wherever the module sits. PYTHON names the interpreter (default python3).
+# Spec recipes (agent-rules-kit, KIT-074). They run the installed kit's validators and schemas (KIT-081 stage 1: no
+# copy in the project), ${AI_KIT_DIR:-$HOME/.ai-kit}/platforms/ci/, from the repository root wherever the module sits.
+# PYTHON names the interpreter (default python3).
 
 python := env('PYTHON', 'python3')
 
-# check_spec.py on docs/spec, spec_trace.py check when journeys are on, check_docs_structure.py when vendored
+# check_spec.py on docs/spec, spec_trace.py check, and check_docs_structure.py (it passes as "off" unless enabled)
 lint:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "$(git rev-parse --show-toplevel)"
-    "{{python}}" -B .github/spec-lint/check_spec.py docs/spec .github/spec-lint/schemas
-    if [ -f .github/spec-lint/spec_trace.py ]; then "{{python}}" -B .github/spec-lint/spec_trace.py check docs/spec; fi
-    if [ -f .github/spec-lint/check_docs_structure.py ]; then "{{python}}" -B .github/spec-lint/check_docs_structure.py; fi
+    kit="${AI_KIT_DIR:-$HOME/.ai-kit}/platforms/ci"
+    if [ ! -f "$kit/validations/check_spec.py" ]; then
+      echo "lint: no agent-rules-kit spec tools in ${AI_KIT_DIR:-$HOME/.ai-kit}; set AI_KIT_DIR to the kit or run its platforms/tools/bootstrap.sh" >&2
+      exit 1
+    fi
+    "{{python}}" -B "$kit/validations/check_spec.py" docs/spec "$kit/schemas"
+    "{{python}}" -B "$kit/validations/spec_trace.py" check docs/spec
+    "{{python}}" -B "$kit/validations/check_docs_structure.py"
 
 # the gate before a commit or PR
 verify: lint

@@ -1,5 +1,5 @@
-"""sync-project.sh and the KIT-074 dev standards: the opt-in doc-structure check in .github/spec-lint/, a generated
-kit.just per profile folder, and the keyed-CSV merge driver for the godot profile."""
+"""sync-project.sh and the KIT-074 dev standards: a generated kit.just per profile folder and the keyed-CSV merge driver
+for the godot profile. The opt-in doc-structure check runs from the kit since KIT-081 stage 1 (no copy to write)."""
 import os
 import shutil
 import subprocess
@@ -24,7 +24,6 @@ from test_sync_project import KIT, SCRIPT, SPEC_MD, VERSION  # noqa: E402
 JUST = shutil.which("just")
 MODULES = KIT / "platforms" / "kits" / "just"
 DRIVER = KIT / "platforms" / "kits" / "godot" / "scripts" / "keyed_csv_merge.py"
-DOCS_CHECK = KIT / "platforms" / "ci" / "validations" / "check_docs_structure.py"
 SYNC_JUST = KIT / "platforms" / "tools" / "sync_just.py"
 
 
@@ -64,46 +63,6 @@ class Base(unittest.TestCase):
 
     def text(self, rel):
         return (self.repo / rel).read_text(encoding="utf-8")
-
-
-class DocStructure(Base):
-    COPY = ".github/spec-lint/check_docs_structure.py"
-
-    def test_off_by_default(self):
-        self.spec_md("sdd:\n  tracker: none\n")
-        self.ok()
-        self.assertFalse((self.repo / self.COPY).exists())
-        self.ok("--check")
-
-    def test_enabled_vendors_the_check_and_check_compares_it(self):
-        self.spec_md("sdd:\n  doc_structure:\n    enabled: true\n")
-        self.ok()
-        self.assertEqual((self.repo / self.COPY).read_bytes(), DOCS_CHECK.read_bytes())
-        self.ok("--check")
-        (self.repo / self.COPY).write_text("# edited\n")
-        self.assertIn("sync: check_docs_structure.py diverges from the kit", self.failing("--check").stdout)
-
-    def test_turned_off_again_the_copy_goes(self):
-        self.spec_md("sdd:\n  doc_structure:\n    enabled: true\n")
-        self.ok()
-        self.spec_md("sdd:\n  doc_structure:\n    enabled: false\n")
-        result = self.failing("--check")
-        self.assertIn("sync: .github/spec-lint/check_docs_structure.py is generated but sdd.doc_structure is off",
-                      result.stdout)
-        self.ok()
-        self.assertFalse((self.repo / self.COPY).exists())
-        self.ok("--check")
-
-    def test_the_vendored_copy_reads_its_block_and_runs(self):
-        self.spec_md("sdd:\n  doc_structure:\n    enabled: true\n")
-        self.ok()
-        subprocess.run(["git", "-C", str(self.repo), "add", "-A"], check=True)
-        result = subprocess.run([sys.executable, "-B", str(self.repo / self.COPY), "--root", str(self.repo)],
-                                capture_output=True, text=True, env=dict(os.environ, CI=""))
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn("FAIL: docs/ has no README.md", result.stdout)
-        self.assertNotIn(".github/spec-lint", result.stdout)
-        self.assertNotIn("FAIL: .claude", result.stdout)
 
 
 class JustModules(Base):
