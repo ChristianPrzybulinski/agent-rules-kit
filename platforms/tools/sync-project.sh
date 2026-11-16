@@ -37,10 +37,18 @@
 # sticky: once it exists a bare sync-project.sh <repo> keeps the vendored mode and the
 # recorded profile list. A
 # .claude/skills/<name>/ directory without the marker is never read, replaced or
-# deleted - its presence refuses the sync before any write. Both modes enable only
-# guardrails@ai-kit in .claude/settings.json: the kit ships one plugin (KIT-047) and the guard
-# hook lives in the plugin only, so a local session that trusts the folder also loads
-# each vendored skill from the plugin; the copy serves sessions that load no plugin.
+# deleted - its presence refuses the sync before any write. Plugins mode enables only
+# guardrails@ai-kit in .claude/settings.json (the kit ships one plugin, KIT-047). Vendored mode pins
+# the whole kit (KIT-072, written by platforms/tools/sync_pinned_plugin.py): .claude/ai-kit/hooks/ holds
+# the kit hooks as scripts that .claude/settings.json "hooks" runs, so the guard needs no folder trust;
+# .claude/ai-kit/platforms/ holds the kit tools the skills and rules call, and the vendored copies call
+# them there instead of in ~/.ai-kit (pin_rewrite);
+# .claude/skills/guardrails-pinned/ is a skills-directory plugin with the kit agents, templates and
+# every skill not copied as a plain skill; KIT_MANIFEST.json records the kit commit and the hashes; and
+# once both are written .claude/settings.json sets guardrails@ai-kit, which follows the kit head, to
+# false and guardrails-pinned@skills-dir to true, so each kit skill lists once and a kit merge changes
+# nothing in the project until the next sync. --check also reports a settings.local.json that
+# re-enables the head and, with AI_KIT_CLAUDE_PROBE=1, the plugins Claude Code lists for the repository.
 # docs/spec/spec.md may set sdd.rule_paths, kit rule name -> folders (KIT-067): it scopes that rule's globs
 # like :<dir> does and wins over the profile folders; "." keeps the whole repository. A key that names no kit
 # rule, or an sdd block check_spec.py refuses, stops both modes before any write (exit 2).
@@ -58,6 +66,9 @@ set -euo pipefail
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # The kit's one plugin (KIT-047), named guardrails since KIT-055.
 KIT_PLUGIN="guardrails"
+# A vendored project's pinned copy of it (KIT-072); platforms/tools/sync_pinned_plugin.py owns the folder.
+PINNED_PLUGIN="guardrails-pinned"
+PIN_TOOL="$KIT_DIR/platforms/tools/sync_pinned_plugin.py"
 
 MODE="install"
 PROFILE=""
@@ -113,6 +124,23 @@ kit_files() { # prints "src rel-dest"
   fi
 }
 
+# KIT-072: the pin, in one block so merges stay mechanical; platforms/tools/sync_pinned_plugin.py does the work.
+pin_sources() { # prints "src repo-path" for every copy the sync vendors outside .claude/skills: each file kit_files
+  # lists, under .github/spec-lint/, so a file a later kit adds to kit_files is pinned and checked with the rest
+  [[ -d "$REPO/docs/spec" ]] || return 0
+  local src rel
+  kit_files | while read -r src rel; do echo "$src .github/spec-lint/$rel"; done
+}
+pin_preflight() { python3 "$PIN_TOOL" preflight "$REPO"; }
+pin_write() { python3 "$PIN_TOOL" write "$REPO" "$KIT_DIR" "$version" "$@"; } # "$@": the skills copied as plain skills
+pin_settings() { python3 "$PIN_TOOL" settings "$REPO"; } # after pin_write: the kit hooks on, the head off
+pin_record() { pin_sources | python3 "$PIN_TOOL" pin "$REPO" "$KIT_DIR"; } # KIT_MANIFEST.json keys of the pin
+pin_check() { pin_sources | python3 "$PIN_TOOL" check "$REPO" "$1"; }
+pin_remove() { python3 "$PIN_TOOL" remove "$REPO"; }
+pin_rewrite() { # vendored mode: the copies call the tools pinned under .claude/ai-kit/platforms/, not the kit clone
+  [[ "${VENDOR:-0}" != 1 ]] || python3 "$PIN_TOOL" rewrite "$@"
+}
+
 rule_files() { # prints "src rel-dest" for every kit rule the map gives to a profile in $PROFILE
   local name
   while read -r name; do
@@ -150,6 +178,7 @@ render_rule() { # $1 = kit rule file, $2 = output path: frontmatter (first --- t
       fi
     fi
   done < "$src" > "$out"
+  pin_rewrite "$out"  # KIT-072: in vendored mode the rule calls the pinned tools
 }
 
 has_check_spec_workflow() { # any project workflow that runs check_spec.py
@@ -457,9 +486,10 @@ if [[ "$VENDOR_FLAG" == 1 || -f "$REPO/.claude/skills/KIT_MANIFEST.json" ]]; the
 fi
 vendored_skills=0
 vendored_files=0
-# The kit ships one plugin (KIT-047); it stays enabled in both modes for the
-# PreToolUse/PostToolUse guard hooks, which a copied tree cannot carry.
+# The kit ships one plugin (KIT-047). Plugins mode enables it; in vendored mode the pin sets enabledPlugins
+# (pin_settings, pin_check), which turns it off once the pinned copy is written (KIT-072).
 SETTINGS_PLUGINS="$KIT_PLUGIN"
+export AI_KIT_PINNED="$VENDOR"
 if [[ "$VENDOR" == 1 ]]; then echo "sync: skills=vendored"; else echo "sync: skills=plugins"; fi
 
 if [[ "$MODE" == check ]]; then
@@ -498,7 +528,8 @@ if [[ "$MODE" == check ]]; then
   AI_KIT_PLUGINS="$SETTINGS_PLUGINS" python3 - "$REPO/.claude/settings.json" "$PROFILE" <<'PY' || FAILED=1
 import json, os, sys
 path, profile = sys.argv[1], sys.argv[2]
-want = {name + "@ai-kit" for name in os.environ.get("AI_KIT_PLUGINS", "").split()}
+pinned = os.environ.get("AI_KIT_PINNED") == "1"  # KIT-072: then pin_check owns enabledPlugins
+want = set() if pinned else {name + "@ai-kit" for name in os.environ.get("AI_KIT_PLUGINS", "").split()}
 market = {"source": {"source": "github", "repo": "ChristianPrzybulinski/agent-rules-kit"}}
 try:
     with open(path, encoding="utf-8") as fh:
@@ -509,7 +540,7 @@ if not isinstance(data, dict):
     data = None
 parts = []
 if data is None:
-    parts.append("missing: " + ",".join(sorted(want)))
+    parts.append("missing" + (": " + ",".join(sorted(want)) if want else ""))
 else:
     markets = data.get("extraKnownMarketplaces")
     if not isinstance(markets, dict) or markets.get("ai-kit") != market:
@@ -517,7 +548,7 @@ else:
     enabled = data.get("enabledPlugins")
     if not isinstance(enabled, dict):
         enabled = {}
-    have = {key for key in enabled if isinstance(key, str) and key.endswith("@ai-kit")}
+    have = {key for key in enabled if isinstance(key, str) and key.endswith("@ai-kit") and not pinned}
     missing = sorted((want - have) | {key for key in have & want if enabled[key] is not True})
     extra = sorted(have - want)
     if missing:
@@ -559,7 +590,7 @@ PY
   if [[ -f "$REPO/.claude/skills/KIT_MANIFEST.json" ]]; then
     # The vendored tree verifies against its manifest, never against the kit
     # directories: unmarked skills under .claude/skills are not even opened.
-    SKILL_DIRS="$(skill_dirs)" python3 - "$REPO/.claude/skills" "$expected" "$PROFILE" <<'PY' || FAILED=1
+    SKILL_DIRS="$(skill_dirs)" PINNED_PLUGIN="$PINNED_PLUGIN" python3 - "$REPO/.claude/skills" "$expected" "$PROFILE" <<'PY' || FAILED=1
 import hashlib, json, os, sys
 
 root, version, profile = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -639,7 +670,7 @@ for name in sorted(skills):
             report(f".claude/skills/{name}/{rel} diverges from the manifest")
 for name in sorted(os.listdir(root)):
     directory = os.path.join(root, name)
-    if not os.path.isdir(directory):
+    if not os.path.isdir(directory) or name == os.environ.get("PINNED_PLUGIN"):  # KIT-072: sync_pinned_plugin.py checks it
         continue
     if not os.path.isfile(os.path.join(directory, ".agent-rules-kit")):
         continue
@@ -654,6 +685,8 @@ for name in sorted(os.listdir(root)):
             report(f".claude/skills/{name}/{rel} not in manifest")
 sys.exit(1 if failed else 0)
 PY
+    # KIT-072: the pinned plugin copy, the local settings and the plugins Claude Code lists for the repository
+    pin_check "$expected" || FAILED=1
   elif [[ "$VENDOR" == 1 ]]; then
     echo "sync: .claude/skills/KIT_MANIFEST.json missing (run sync-project.sh --vendor-skills)"
     FAILED=1
@@ -701,6 +734,8 @@ if [[ "$VENDOR" == 1 ]]; then
       exit 1
     fi
   done < <(skill_dirs)
+  # KIT-072: the pin's folders follow the same rule (exit 1); settings it cannot merge into exit 2
+  pin_preflight || exit $?
 fi
 
 # A target AGENTS.md that is a symbolic link, or one whose path-rule block markers are broken, refuses here too.
@@ -724,9 +759,10 @@ except json.JSONDecodeError:
 markets = data.setdefault("extraKnownMarketplaces", OrderedDict())
 markets["ai-kit"] = OrderedDict(source=OrderedDict(source="github", repo="ChristianPrzybulinski/agent-rules-kit"))
 enabled = data.setdefault("enabledPlugins", OrderedDict())
-for key in [k for k in enabled if k.endswith("@ai-kit")]:
+pinned = os.environ.get("AI_KIT_PINNED") == "1"  # KIT-072: then pin_settings sets them, after the pinned copy
+for key in [k for k in enabled if k.endswith("@ai-kit") and not pinned]:
     del enabled[key]
-for name in plugins:
+for name in [] if pinned else plugins:
     enabled[name + "@ai-kit"] = True
 # KIT-071: Claude Code's built-in commit and PR instructions compete with skill git.
 data["includeGitInstructions"] = False
@@ -787,6 +823,7 @@ if [[ "$VENDOR" == 1 ]]; then
     skill_names="$skill_names$name "
     vendored_skills=$((vendored_skills + 1))
     cp -R "$KIT_DIR/plugins/$plugin/skills/$name" "$skill_tmp/$name"
+    pin_rewrite "$skill_tmp/$name"  # KIT-072: the copy calls the pinned tools
     printf '%s\n' "plugins/$plugin/skills/$name kit $version generated by platforms/tools/sync-project.sh; do not edit" \
       > "$skill_tmp/$name/.agent-rules-kit"
     vendored_files=$((vendored_files + $(find "$skill_tmp/$name" -type f | wc -l)))
@@ -802,6 +839,7 @@ if [[ "$VENDOR" == 1 ]]; then
     [[ -d "$dst" && -f "$dst/.agent-rules-kit" ]] || continue
     name="${dst%/}"
     name="${name##*/}"
+    [[ "$name" != "$PINNED_PLUGIN" ]] || continue
     case " $skill_names" in
       *" $name "*) ;;
       *)
@@ -810,7 +848,13 @@ if [[ "$VENDOR" == 1 ]]; then
         ;;
     esac
   done
-  python3 - "$REPO/.claude/skills" "$version" "$PROFILE" <<'PY'
+  # KIT-072: the kit hooks and the rest of the kit plugin (agents, the skills not copied above) as the pin;
+  # only once it is written does pin_settings turn guardrails@ai-kit off
+  # shellcheck disable=SC2086
+  pin_write $skill_names
+  pin_settings
+  AI_KIT_PIN="$(pin_record)" PINNED_PLUGIN="$PINNED_PLUGIN" \
+    python3 - "$REPO/.claude/skills" "$version" "$PROFILE" <<'PY'
 import hashlib, json, os, sys
 
 root, version, profile = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -841,7 +885,7 @@ skills = {}
 for name in sorted(os.listdir(root)):
     directory = os.path.join(root, name)
     marker = os.path.join(directory, ".agent-rules-kit")
-    if not os.path.isdir(directory) or not os.path.isfile(marker):
+    if not os.path.isdir(directory) or not os.path.isfile(marker) or name == os.environ.get("PINNED_PLUGIN"):
         continue
     with open(marker, encoding="utf-8") as handle:
         parts = handle.readline().split()
@@ -853,6 +897,7 @@ manifest = {"KIT_VERSION": version,
             "generator": "platforms/tools/sync-project.sh",
             "profile": profile,
             "skills": skills}
+manifest.update(json.loads(os.environ.get("AI_KIT_PIN") or "{}"))  # KIT-072: KIT_COMMIT and the plugin copy
 text = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
 path = os.path.join(root, "KIT_MANIFEST.json")
 try:
@@ -865,6 +910,8 @@ if current != text:
         handle.write(text)
 PY
   find "$skill_tmp" -delete
+else
+  pin_remove  # KIT-072: plugins mode loads guardrails@ai-kit, so no pinned copy beside it
 fi
 
 claude_body="<!-- $CLAUDE_MARKER v$version; AGENTS.md is the source -->
@@ -903,9 +950,13 @@ EOF
 
 `.claude/skills/` holds a copy of the kit skills for this profile, each directory marked
 `.agent-rules-kit` and listed with hashes in `KIT_MANIFEST.json`; do not edit.
-`enabledPlugins` keeps only `guardrails@ai-kit` for the guard hook, which lives in the plugin
-only. Devin reads `.claude/skills/` as well (verify against the docs.devin.ai skills
-overview before relying on it) and recommends `.agents/skills/`, which this sync does
+`.claude/ai-kit/hooks/` holds the kit hooks at the same version, which `.claude/settings.json`
+`hooks` runs in every session at the repo root. `.claude/skills/guardrails-pinned/` holds the
+kit agents and the other skills, which Claude Code loads as `guardrails-pinned@skills-dir`
+once the main checkout root is trusted. `enabledPlugins` turns off `guardrails@ai-kit`, which
+follows the kit head, so the project uses the kit version it synced until the next sync
+(KIT-072). Devin reads `.claude/skills/`
+as well (verify against the docs.devin.ai skills overview before relying on it) and recommends `.agents/skills/`, which this sync does
 not generate.
 EOF
   fi

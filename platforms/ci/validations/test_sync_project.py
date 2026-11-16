@@ -1,6 +1,7 @@
 """sync-project.sh --check: stale kit path scan on a throwaway repo."""
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -11,6 +12,11 @@ SCRIPT = Path(__file__).resolve().parent.parent.parent / "tools" / "sync-project
 KIT = SCRIPT.parents[2]
 VERSION = (KIT / "VERSION").read_text(encoding="utf-8").strip()
 MAP = KIT / "platforms" / "tools" / "sync-profiles.txt"  # KIT-047: one plugin, the map picks the copies
+PLUGIN = KIT / "plugins" / "guardrails"
+PINNED = "guardrails-pinned"  # KIT-072: the project's pinned copy of the plugin, a skills-directory plugin
+KIT_SKILLS = sorted(p.name for p in (PLUGIN / "skills").iterdir() if (p / "SKILL.md").is_file())
+HEAD_TOOL = "~/.ai-kit/platforms/"  # B2: a kit tool or template the skills and rules call from the kit clone
+PINNED_TOOL = '"$(git rev-parse --show-toplevel)"/.claude/ai-kit/platforms/'  # ... and from the pin in a vendored repo
 
 STALE = "- agent-rules-kit `kits/java-maven/pom-parent.xml` requires [25,26)"
 
@@ -28,7 +34,11 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def run_sync(self, *args, repo=None, home=None, env=None):
-        full = dict(os.environ, **({"HOME": str(home)} if home else {}), **(env or {})) if home or env else None
+        # KIT-072: AI_KIT_CLAUDE_PROBE=1 makes --check ask the claude CLI which plugins load; a test opts in with a stub
+        full = dict(os.environ, AI_KIT_CLAUDE_PROBE="0")
+        if home:
+            full["HOME"] = str(home)
+        full.update(env or {})
         return subprocess.run(["bash", str(SCRIPT), *args, str(repo or self.repo)],
                               capture_output=True, text=True, errors="replace", check=False, env=full)
 
@@ -197,7 +207,8 @@ class SyncProjectCheckTest(unittest.TestCase):
         result = self.vendor_install()
         self.assertIn("sync: skills=vendored", result.stdout)
         root = self.repo / ".claude" / "skills"
-        self.assertEqual(len(list(root.glob("*/.agent-rules-kit"))), len(skills))
+        marked = {p.parent.name for p in root.glob("*/.agent-rules-kit")}
+        self.assertEqual(marked - {PINNED}, set(skills))  # KIT-072: the pinned plugin copy is marked too
         manifest = json.loads((root / "KIT_MANIFEST.json").read_text())
         kit_files = sum(f.is_file() for name in skills
                         for f in (KIT / "plugins" / "guardrails" / "skills" / name).rglob("*"))
@@ -653,6 +664,456 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("sync: warning: build/gen is inside a folder the AGENTS.md scan skips", result.stderr)
         self.assertIn(rule_bullet("json"), self.text("build/gen/AGENTS.md"))
+
+    # KIT-072: a vendored project pins the whole kit. .claude/ai-kit/hooks/ carries the kit hooks, which
+    # .claude/settings.json runs; the plugin copy under .claude/skills/guardrails-pinned/ carries the agents and every
+    # skill the profile does not copy as a plain skill; guardrails@ai-kit, which follows the kit head, is off.
+
+    def scratch(self):
+        """A folder outside the test repository, which the stale-path scan must not read."""
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        return Path(scratch.name)
+
+    def pinned(self, rel=""):
+        return self.repo / ".claude" / "skills" / PINNED / rel
+
+    def settings(self, name="settings.json"):
+        return json.loads((self.repo / ".claude" / name).read_text())
+
+    def write_settings(self, data, name="settings.json"):
+        (self.repo / ".claude" / name).write_text(json.dumps(data, indent=2) + "\n")
+
+    def kit_hooks(self):
+        """The kit hooks as {event: [(matcher, timeout, command)]}, from plugins/guardrails/hooks/hooks.json."""
+        hooks = json.loads((PLUGIN / "hooks" / "hooks.json").read_text())["hooks"]
+        return {event: [(group.get("matcher"), hook.get("timeout"), hook["command"])
+                        for group in groups for hook in group["hooks"]] for event, groups in hooks.items()}
+
+    def settings_hooks(self):
+        """The settings hooks as {event: [(matcher, timeout, script text)]}, each command resolved in the repo."""
+        found = {}
+        for event, groups in self.settings().get("hooks", {}).items():
+            for group in groups:
+                for hook in group["hooks"]:
+                    command = hook["command"]
+                    self.assertTrue(command.startswith('bash "${CLAUDE_PROJECT_DIR}/.claude/ai-kit/hooks/'), command)
+                    script = self.repo / command.split("${CLAUDE_PROJECT_DIR}/", 1)[1].rstrip('"')
+                    found.setdefault(event, []).append((group.get("matcher"), hook.get("timeout"),
+                                                        script.read_text()))
+        return found
+
+    def test_vendored_mode_pins_the_plugin(self):
+        for profile in ("docs", "godot", "docs,godot:client,java:server,python:platform"):
+            with self.subTest(profile=profile):
+                self.vendor_install("--profile", profile)
+                plain = set(self.kit_skills(set(p.split(":")[0] for p in profile.split(","))))
+                copied = {p.name for p in self.pinned("skills").iterdir()}
+                self.assertEqual(copied, set(KIT_SKILLS) - plain)  # each kit skill lists once
+                for name in self.kit_skills({"-"}):
+                    self.assertIn(name, copied)
+                manifest_plugin = json.loads(self.pinned(".claude-plugin/plugin.json").read_text())
+                self.assertEqual((manifest_plugin["name"], manifest_plugin["version"]), (PINNED, VERSION))
+                hooks = self.settings_hooks()  # every kit hook runs from settings, verbatim, with its matcher
+                self.assertEqual({e: [(m, t) for m, t, _ in h] for e, h in hooks.items()},
+                                 {e: [(m, t) for m, t, _ in h] for e, h in self.kit_hooks().items()})
+                for event, entries in self.kit_hooks().items():
+                    for (_, _, script), (_, _, command) in zip(hooks[event], entries):
+                        self.assertTrue(script.endswith("\n" + command + "\n"), event)
+                for gone in ("hooks", "AGENTS.md", "INDEX.md", "evals", "rules", "plugin.json", ".devin-plugin"):
+                    self.assertFalse(self.pinned(gone).exists(), gone)
+                self.assertTrue(self.pinned("templates").is_dir())
+                self.assertIn(f"plugins/guardrails kit {VERSION} generated by platforms/tools/sync-project.sh",
+                              self.pinned(".agent-rules-kit").read_text())
+                enabled = self.settings()["enabledPlugins"]
+                self.assertIs(enabled["guardrails@ai-kit"], False)
+                self.assertIs(enabled[f"{PINNED}@skills-dir"], True)
+                manifest = json.loads((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").read_text())
+                self.assertNotIn(PINNED, manifest["skills"])
+                self.assertRegex(manifest["KIT_COMMIT"], r"^([0-9a-f]{40}(-dirty)?)?$")
+                files = {str(p.relative_to(self.pinned())) for p in self.pinned().rglob("*") if p.is_file()}
+                self.assertEqual(set(manifest["plugin"]["files"]), files)
+                self.assertEqual(manifest["plugin"]["name"], PINNED)
+                kit_dir = self.repo / ".claude" / "ai-kit"
+                files = {str(p.relative_to(kit_dir)) for p in kit_dir.rglob("*") if p.is_file()}
+                self.assertEqual(set(manifest["kit_dir"]["files"]), files)
+                check = self.run_sync("--check", "--profile", profile)
+                self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    def test_pinned_agents_name_skills_that_resolve(self):
+        # The kit agents preload only always-on skills since KIT-070; a fixture preload of investigate, copied plain
+        # for godot and pinned for docs, keeps both renames covered.
+        kit = self.scratch() / "kit-agents"
+        shutil.copytree(KIT, kit, ignore=shutil.ignore_patterns(".git", "evals"))
+        agent = kit / "plugins" / "guardrails" / "agents" / "reviewer.md"
+        text = agent.read_text()
+        self.assertIn("  - guardrails:review\n", text)
+        agent.write_text(text.replace("  - guardrails:review\n", "  - guardrails:review\n  - guardrails:investigate\n", 1))
+        script = kit / "platforms" / "tools" / "sync-project.sh"
+        for profile, investigate in (("docs", f"{PINNED}:investigate"), ("godot", "investigate")):
+            with self.subTest(profile=profile):
+                result = self.run_kit(script, "--vendor-skills", "--profile", profile)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                text = self.pinned("agents/reviewer.md").read_text()
+                self.assertIn(f"  - {PINNED}:review\n", text)
+                self.assertIn(f"  - {investigate}\n", text)
+                for agent in self.pinned("agents").iterdir():
+                    self.assertNotIn("guardrails:", agent.read_text(), agent.name)
+
+    def test_pinned_plugin_check_flags_drift(self):
+        self.vendor_install()
+        with self.pinned("agents/reviewer.md").open("a") as fh:
+            fh.write(" ")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"sync: .claude/skills/{PINNED}/agents/reviewer.md diverges from the manifest", result.stdout)
+        self.assertEqual(self.run_sync().returncode, 0)  # resync restores the copy
+        self.pinned("agents/extra.md").write_text("x\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"sync: .claude/skills/{PINNED}/agents/extra.md not in manifest", result.stdout)
+        self.assertEqual(self.run_sync().returncode, 0)
+        self.assertFalse(self.pinned("agents/extra.md").exists())
+        script = next((self.repo / ".claude" / "ai-kit" / "hooks").glob("PreToolUse-0-0.sh"))
+        with script.open("a") as fh:
+            fh.write("exit 0\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .claude/ai-kit/hooks/PreToolUse-0-0.sh diverges from the manifest", result.stdout)
+        self.assertEqual(self.run_sync().returncode, 0)
+        data = self.settings()
+        del data["hooks"]["PreToolUse"]
+        self.write_settings(data)
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("hooks: want the kit hooks of .claude/ai-kit/hooks/hooks.json", result.stdout)
+
+    def test_settings_hooks_run_the_kit_hooks_beside_the_projects_own(self):
+        own = {"matcher": "Bash", "hooks": [{"type": "command", "command": "echo own"}]}
+        self.write_settings(dict(self.settings(), hooks={"PreToolUse": [own], "Stop": [own]}))
+        self.vendor_install()
+        first = (self.repo / ".claude" / "settings.json").read_text()
+        self.assertEqual(self.run_sync().returncode, 0)
+        self.assertEqual((self.repo / ".claude" / "settings.json").read_text(), first)  # idempotent, no duplicate
+        hooks = self.settings()["hooks"]
+        self.assertEqual(hooks["Stop"], [own])
+        self.assertEqual(hooks["PreToolUse"][0], own)
+        self.assertEqual(len(hooks["PreToolUse"]), 1 + len(json.loads(
+            (PLUGIN / "hooks" / "hooks.json").read_text())["hooks"]["PreToolUse"]))
+        # the settings command runs the kit hook verbatim: same verdict as the kit command on the same input
+        kit = json.loads((PLUGIN / "hooks" / "hooks.json").read_text())["hooks"]["PreToolUse"]
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo))
+        for command in ("git push --force origin main", "ls"):
+            payload = json.dumps({"cwd": str(self.repo), "tool_name": "Bash", "tool_input": {"command": command}})
+            for group, entry in zip(kit, hooks["PreToolUse"][1:]):
+                want = subprocess.run(["bash", "-c", group["hooks"][0]["command"]], input=payload, cwd=self.repo,
+                                      capture_output=True, text=True, env=env, check=False)
+                got = subprocess.run(["bash", "-c", entry["hooks"][0]["command"]], input=payload, cwd=self.repo,
+                                     capture_output=True, text=True, env=env, check=False)
+                self.assertEqual((got.returncode, got.stdout, got.stderr),
+                                 (want.returncode, want.stdout, want.stderr), command)
+        self.assertNotEqual(subprocess.run(  # the guard still blocks
+            ["bash", "-c", hooks["PreToolUse"][1]["hooks"][0]["command"]], cwd=self.repo, env=env, text=True,
+            input=json.dumps({"cwd": str(self.repo), "tool_input": {"command": "git push --force origin main"}}),
+            capture_output=True, check=False).returncode, 0)
+        # plugins mode takes the kit hooks and the pinned key out again and keeps the project's own
+        (self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").unlink()
+        self.assertEqual(self.run_sync().returncode, 0)
+        data = self.settings()
+        self.assertEqual(data["hooks"], {"PreToolUse": [own], "Stop": [own]})
+        self.assertEqual({k: v for k, v in data["enabledPlugins"].items() if "guardrails" in k},
+                         {"guardrails@ai-kit": True})
+        self.assertFalse((self.repo / ".claude" / "ai-kit").exists())
+        self.assertFalse(self.pinned().exists())
+
+    def test_vendored_sync_drops_retired_kit_plugins(self):  # review of c394007: base drops every other @ai-kit key
+        data = self.settings()
+        data["enabledPlugins"].update({"dev-core@ai-kit": True, "other@market": True})
+        self.write_settings(data)
+        self.vendor_install()
+        enabled = self.settings()["enabledPlugins"]
+        self.assertNotIn("dev-core@ai-kit", enabled)
+        self.assertIs(enabled["other@market"], True)
+        first = (self.repo / ".claude" / "settings.json").read_text()
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        self.assertEqual(self.run_sync().returncode, 0)
+        self.assertEqual((self.repo / ".claude" / "settings.json").read_text(), first)  # stable from the first sync
+
+    def test_a_settings_shape_the_pin_cannot_merge_is_refused(self):  # exit 2 before any write, no traceback
+        good = self.settings()
+        path = self.repo / ".claude" / "settings.json"
+        for extra, message in (({"hooks": {"PreToolUse": {}}}, '"hooks" is not an object of event lists'),
+                               ({"enabledPlugins": []}, '"enabledPlugins" is not an object')):
+            with self.subTest(extra=extra):
+                self.write_settings(dict(good, **extra))
+                before = path.read_text()
+                result = self.run_sync("--vendor-skills")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn(f"sync: {path} {message}; fix it by hand", result.stdout)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertFalse(self.pinned().exists())
+                self.assertFalse((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").exists())
+                self.assertEqual(path.read_text(), before)
+        self.write_settings(dict(good, hooks=["mine"]))  # plugins mode leaves a hooks value it cannot read alone
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.settings()["hooks"], ["mine"])
+
+    def vendored_texts(self):
+        """Every generated text a session reads in the repo: skill copies, rules and the AGENTS.md blocks."""
+        roots = [self.repo / ".claude" / "skills", self.repo / ".claude" / "rules"]
+        files = [f for root in roots for f in root.rglob("*.md")] + list(self.repo.rglob("AGENTS.md"))
+        return {f: f.read_text() for f in files}
+
+    def test_vendored_skills_and_rules_call_the_pinned_tools(self):  # review of daae6fe, B2
+        client = self.repo / "client"  # a subfolder a tool runs from, as test-gates.md has gd_coverage.py run
+        client.mkdir()
+        subprocess.run(["git", "init", "-q", str(self.repo)], check=True)
+        self.vendor_install("--profile", "docs,godot:client,java:server,python:platform")
+        texts = self.vendored_texts()
+        self.assertEqual([str(f) for f, text in texts.items() if HEAD_TOOL in text], [])
+        called = {m.group(1).rstrip(".") for text in texts.values()
+                  for m in re.finditer(re.escape(PINNED_TOOL) + r"([A-Za-z0-9_./-]+)", text)}
+        for rel in ("tools/review_checks.py", "tools/complexity.py", "tools/gd_duplicates.py", "tools/gd_coverage.py",
+                    "tools/gd_mutation.py", "tools/session_audit.py", "ci/validations/spec_trace.py",
+                    "kits/godot/scripts/make_spritesheet.py", "kits/docker/compose.yml"):
+            self.assertIn(rel, called)
+        pinned = self.repo / ".claude" / "ai-kit" / "platforms"
+        for rel in called | {"ci/validations/pr_gates.py"}:  # review_checks.py imports pr_gates
+            self.assertEqual((pinned / rel).read_bytes(), (KIT / "platforms" / rel).read_bytes(), rel)
+        # A consumer's Python writes bytecode beside the pinned tools (review of 3be353c). PYTHONDONTWRITEBYTECODE
+        # would hide it, and so would a default pycache prefix such as Apple's Python 3.9 sets; -X pycache_prefix=
+        # restores the default every Linux CPython has.
+        env = {k: v for k, v in os.environ.items() if k not in ("PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX")}
+        for tool in ("tools/review_checks.py", "tools/gd_mutation.py", "tools/complexity.py"):
+            run = subprocess.run(["bash", "-c", f"python3 -X pycache_prefix= {PINNED_TOOL}{tool} --help"], cwd=client,
+                                 env=env, capture_output=True, text=True, check=False)  # imports resolve
+            self.assertEqual(run.returncode, 0, tool + run.stdout + run.stderr)
+        self.assertTrue(list(pinned.rglob("__pycache__/*.pyc")))  # the run left bytecode in the pin
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        with (pinned / "tools" / "review_checks.py").open("a") as fh:
+            fh.write("# drift\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .claude/ai-kit/platforms/tools/review_checks.py diverges from the manifest", result.stdout)
+
+    def test_plugins_mode_keeps_the_kit_clone_as_the_fallback(self):  # B2: an unsynced or plugins-mode repo
+        result = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        rule = (self.repo / ".claude" / "rules" / "guardrails-code.md").read_text()
+        self.assertIn(HEAD_TOOL + "tools/complexity.py", rule)
+        self.assertNotIn(PINNED_TOOL, "".join(self.vendored_texts().values()))
+
+    def test_every_kit_tool_call_names_a_kit_file(self):  # B2: the pin vendors what the kit text calls
+        refs = {}
+        for root in ("skills", "rules", "agents", "templates"):
+            for path in (PLUGIN / root).rglob("*"):
+                if path.is_file() and HEAD_TOOL.encode() in path.read_bytes():
+                    self.assertEqual(path.suffix, ".md", f"{path} calls a kit tool outside markdown")
+                    for m in re.finditer(re.escape(HEAD_TOOL) + r"([A-Za-z0-9_./-]+)", path.read_text()):
+                        refs.setdefault(m.group(1).rstrip("."), path)
+        self.assertTrue(refs)
+        for rel, path in refs.items():
+            self.assertTrue((KIT / "platforms" / rel).is_file(), f"{path} calls ~/.ai-kit/platforms/{rel}")
+
+    def broken_kit(self):
+        """A kit copy whose hooks.json does not parse, so the pin's write fails."""
+        kit = self.scratch() / "broken-kit"
+        shutil.copytree(KIT, kit, ignore=shutil.ignore_patterns(".git", "evals"))
+        (kit / "plugins" / "guardrails" / "hooks" / "hooks.json").write_text("{")
+        return kit / "platforms" / "tools" / "sync-project.sh"
+
+    def test_a_failed_pin_write_turns_nothing_off(self):  # should-fix 1: the head goes off only after the copy
+        script = self.broken_kit()
+        result = self.run_kit(script, "--vendor-skills")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("in build_kit_dir", result.stderr)  # it failed in the pin's write, after the plain copies
+        plain = self.repo / ".claude" / "skills" / self.kit_skills({"docs"})[0]
+        self.assertTrue((plain / ".agent-rules-kit").is_file())
+        data = self.settings()
+        self.assertIs(data["enabledPlugins"].get("guardrails@ai-kit"), True)
+        self.assertNotIn(f"{PINNED}@skills-dir", data["enabledPlugins"])
+        self.assertNotIn("hooks", data)
+        self.assertFalse(self.pinned().exists())
+        self.assertFalse((self.repo / ".claude" / "ai-kit").exists())
+        self.assertEqual(list((self.repo / ".claude").glob(".kit-pin-*")), [])
+        # a pinned repo keeps its previous pin whole: the copy, the hooks and the head off
+        self.vendor_install()
+        before = {p: p.read_bytes() for p in (self.repo / ".claude").rglob("*") if p.is_file()}
+        self.assertNotEqual(self.run_kit(script).returncode, 0)
+        after = {p: p.read_bytes() for p in (self.repo / ".claude").rglob("*") if p.is_file()}
+        self.assertEqual(after, before)
+
+    def test_a_symlinked_pin_folder_is_refused_and_kept(self):  # should-fix 1: no rmtree through a link
+        for rel in (f"skills/{PINNED}", "ai-kit"):
+            with self.subTest(rel=rel), tempfile.TemporaryDirectory() as other:
+                repo = Path(other) / "repo"
+                (repo / "docs" / "spec").mkdir(parents=True)
+                (repo / "AGENTS.md").write_text("# x\n")
+                target = Path(other) / "target"
+                target.mkdir()
+                (target / ".agent-rules-kit").write_text("marked\n")
+                link = repo / ".claude" / rel
+                link.parent.mkdir(parents=True, exist_ok=True)
+                link.symlink_to(target)
+                result = self.run_sync("--vendor-skills", repo=repo)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(f"{link} is a symbolic link", result.stdout)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertTrue((target / ".agent-rules-kit").is_file())
+                self.assertTrue(link.is_symlink())
+                plugins = self.run_sync(repo=repo)  # plugins mode removes only real marked folders
+                self.assertEqual(plugins.returncode, 0, plugins.stdout + plugins.stderr)
+                self.assertTrue((target / ".agent-rules-kit").is_file())
+
+    def test_check_flags_the_head_plugin_beside_the_pin(self):
+        self.vendor_install()
+        data = self.settings()
+        data["enabledPlugins"]["guardrails@ai-kit"] = True
+        self.write_settings(data)
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("guardrails@ai-kit: want false", result.stdout)
+        self.assertEqual(self.run_sync().returncode, 0)
+        self.write_settings({"enabledPlugins": {"guardrails@ai-kit": True}}, "settings.local.json")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .claude/settings.local.json enables guardrails@ai-kit, which loads the kit head"
+                      " beside the pin", result.stdout)
+        self.write_settings({"enabledPlugins": {f"{PINNED}@skills-dir": False}}, "settings.local.json")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"sync: .claude/settings.local.json turns off {PINNED}@skills-dir", result.stdout)
+
+    def claude_stub(self, plugins):
+        """A claude CLI that prints this plugin list; returns the env that puts it first on PATH."""
+        bin_dir = self.scratch() / "stub-bin"
+        bin_dir.mkdir(exist_ok=True)
+        stub = bin_dir / "claude"
+        stub.write_text("#!/bin/sh\n[ \"$1 $2 $3\" = 'plugin list --json' ] || exit 2\ncat <<'EOF'\n"
+                        + json.dumps(plugins) + "\nEOF\n")
+        stub.chmod(0o755)
+        return {"PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}", "AI_KIT_CLAUDE_PROBE": "1", "CI": ""}
+
+    def test_check_reads_the_active_plugins_from_claude(self):
+        self.vendor_install()
+        head = {"id": "guardrails@ai-kit", "scope": "user", "enabled": False, "version": VERSION}
+        pinned = {"id": f"{PINNED}@skills-dir", "scope": "project", "enabled": True, "version": VERSION}
+        ok = self.run_sync("--check", env=self.claude_stub([head, pinned]))
+        self.assertEqual(ok.returncode, 0, ok.stdout + ok.stderr)
+        self.assertIn(f"sync: claude loads {PINNED}@skills-dir {VERSION} here", ok.stdout)
+        result = self.run_sync("--check", env=self.claude_stub([dict(head, enabled=True), pinned]))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: claude loads guardrails@ai-kit here, the kit head beside the pin", result.stdout)
+        failed = dict(pinned, enabled=False, errors=["Not loaded — the name is already taken"])
+        result = self.run_sync("--check", env=self.claude_stub([head, failed]))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"sync: claude does not load {PINNED}@skills-dir: Not loaded — the name is already taken",
+                      result.stdout)
+        result = self.run_sync("--check", env=self.claude_stub([head, dict(pinned, version="0.0.1")]))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"sync: claude loads {PINNED}@skills-dir 0.0.1, kit version {VERSION}", result.stdout)
+        untrusted = self.run_sync("--check", env=self.claude_stub([head]))  # B1: no pinned plugin listed fails
+        self.assertEqual(untrusted.returncode, 1)
+        self.assertIn(f"sync: claude lists no {PINNED}@skills-dir here: accept the trust dialog at the main checkout"
+                      " root", untrusted.stdout)
+        skipped = self.run_sync("--check", env=dict(self.claude_stub([head]), AI_KIT_CLAUDE_PROBE=""))
+        self.assertEqual(skipped.returncode, 0, skipped.stdout + skipped.stderr)  # the probe is opt-in
+        self.assertNotIn("sync: claude", skipped.stdout)
+
+    def test_pinned_plugin_collision_refusal(self):
+        with tempfile.TemporaryDirectory() as other:
+            repo = Path(other)
+            (repo / "AGENTS.md").write_text("# x\n")
+            (repo / "docs" / "spec").mkdir(parents=True)
+            own = repo / ".claude" / "skills" / PINNED
+            own.mkdir(parents=True)
+            (own / "notes.md").write_text("mine\n")
+            result = self.run_sync("--vendor-skills", repo=repo)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(f"{PINNED} exists and is not generated", result.stdout + result.stderr)
+            self.assertEqual((own / "notes.md").read_text(), "mine\n")
+            self.assertFalse((repo / ".claude" / "settings.json").exists())
+
+    def test_resync_pins_a_vendored_repo_from_before_the_pin(self):  # the KIT-072 migration
+        self.vendor_install()
+        shutil.rmtree(self.pinned())
+        shutil.rmtree(self.repo / ".claude" / "ai-kit")
+        manifest_path = self.repo / ".claude" / "skills" / "KIT_MANIFEST.json"
+        manifest = json.loads(manifest_path.read_text())
+        for key in ("plugin", "kit_dir", "KIT_COMMIT", "copies"):
+            manifest.pop(key)
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        data = self.settings()
+        data["enabledPlugins"] = {"guardrails@ai-kit": True}
+        del data["hooks"]
+        self.write_settings(data)
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"sync: .claude/skills/{PINNED} missing: the kit plugin is not pinned (rerun sync-project.sh)",
+                      result.stdout)
+        self.assertEqual(self.run_sync().returncode, 0)  # a bare resync keeps the vendored mode and pins
+        self.assertTrue(self.pinned(".claude-plugin/plugin.json").is_file())
+        self.assertIs(self.settings()["enabledPlugins"]["guardrails@ai-kit"], False)
+        self.assertEqual(set(self.settings_hooks()), set(self.kit_hooks()))
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
+    def kit_with_fake_spec_lint_file(self):
+        """A kit copy whose kit_files() lists one more spec-lint file, as a later kit change would add one."""
+        kit = self.scratch() / "kit-copy"
+        shutil.copytree(KIT, kit, ignore=shutil.ignore_patterns(".git", "evals"))
+        (kit / "platforms" / "ci" / "schemas" / "fake.schema.json").write_text('{"fake": 1}\n')
+        script = kit / "platforms" / "tools" / "sync-project.sh"
+        anchor = '  echo "$KIT_DIR/platforms/ci/validations/check_spec.py check_spec.py"\n'
+        text = script.read_text()
+        self.assertIn(anchor, text)
+        script.write_text(text.replace(anchor, anchor + '  echo "$KIT_DIR/platforms/ci/schemas/fake.schema.json'
+                                                        ' schemas/fake.schema.json"\n', 1))
+        return script
+
+    def run_kit(self, script, *args):
+        env = dict(os.environ, AI_KIT_CLAUDE_PROBE="0")
+        return subprocess.run(["bash", str(script), *args, str(self.repo)], capture_output=True, text=True,
+                              check=False, env=env)
+
+    def test_pin_records_every_kit_files_copy(self):  # coordinator request: a kit_files() entry added later is pinned
+        script = self.kit_with_fake_spec_lint_file()
+        result = self.run_kit(script, "--vendor-skills")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        manifest = json.loads((self.repo / ".claude" / "skills" / "KIT_MANIFEST.json").read_text())
+        lint = self.repo / ".github" / "spec-lint"
+        copies = {str(p.relative_to(self.repo)) for p in lint.rglob("*")
+                  if p.is_file() and p.name not in ("README.md", "KIT_VERSION")}
+        self.assertIn(".github/spec-lint/schemas/fake.schema.json", copies)
+        self.assertEqual(set(manifest["copies"]), copies)
+        fake = lint / "schemas" / "fake.schema.json"
+        self.assertEqual(self.run_kit(script, "--check").returncode, 0)
+        fake.write_text('{"fake": 2}\n')
+        result = self.run_kit(script, "--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .github/spec-lint/schemas/fake.schema.json diverges from the pin", result.stdout)
+        fake.unlink()
+        result = self.run_kit(script, "--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .github/spec-lint/schemas/fake.schema.json is pinned but missing", result.stdout)
+
+    def test_check_reports_a_kit_files_entry_the_pin_lacks(self):
+        self.vendor_install()  # pinned by the kit as it is
+        script = self.kit_with_fake_spec_lint_file()  # a later kit lists one more file
+        result = self.run_kit(script, "--check")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sync: .github/spec-lint/schemas/fake.schema.json is not in the pin (rerun sync-project.sh)",
+                      result.stdout)
+
+    def test_plugins_mode_keeps_the_marketplace_plugin(self):
+        enabled = self.settings()["enabledPlugins"]
+        self.assertEqual({k: v for k, v in enabled.items() if "guardrails" in k}, {"guardrails@ai-kit": True})
+        self.assertFalse(self.pinned().exists())
+        self.assertFalse((self.repo / ".claude" / "ai-kit").exists())
+        self.assertNotIn("hooks", self.settings())  # the plugin carries the hooks in plugins mode
 
     def test_agents_md_block_says_where_kit_skills_live(self):  # KIT-070: rules point at skill references
         (self.repo / "client").mkdir()
