@@ -4,6 +4,8 @@ import sys
 import unittest
 from pathlib import Path
 
+LAYER = "unit"  # KIT-077 layer (platforms/tools/run_tests.py): in-process: no subprocess, no git
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from pr_gates import command_allowed  # noqa: E402

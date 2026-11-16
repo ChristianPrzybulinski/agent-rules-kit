@@ -10,6 +10,9 @@ import time
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("plugins/guardrails/hooks/**",)
+
 HOOKS = Path(__file__).resolve().parents[3] / "plugins" / "guardrails" / "hooks" / "hooks.json"
 GUARD_HOOK = json.loads(HOOKS.read_text(encoding="utf-8"))["hooks"]["PreToolUse"][0]["hooks"][0]
 GUARD, GUARD_TIMEOUT = GUARD_HOOK["command"], GUARD_HOOK["timeout"]

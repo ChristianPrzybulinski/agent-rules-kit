@@ -1,6 +1,6 @@
 # platforms/ci/ — schemas and validations
 
-`schemas/`: JSON Schema (draft 2020-12) for kit frontmatter and project `docs/spec/` artifacts. `validations/`: scripts run by `platforms/tools/check.sh` and by kit and project CI.
+`schemas/`: JSON Schema (draft 2020-12) for kit frontmatter and project `docs/spec/` artifacts. `validations/`: scripts run by `platforms/tools/check.sh` and by kit and project CI, and the kit's tests, which `platforms/tools/run_tests.py` selects by layer (KIT-077). `fixtures/consumer/`: a small consumer project (a spec at the root, Python code and tests under `tools/`) that the functional layer, `validations/test_consumer_fixture.py` in `.github/workflows/ci-full.yml`, copies, syncs the kit into and checks with its own spec lint, `just verify` and `sync-project.sh --check`.
 
 | Schema | Validates | Target file-name rule |
 |---|---|---|

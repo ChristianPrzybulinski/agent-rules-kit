@@ -11,6 +11,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/ci/validations/check_kit.py", "plugins/guardrails/AGENTS.md", "plugins/guardrails/agents/**",
+          "plugins/guardrails/evals/**")
+
 KIT = Path(__file__).resolve().parents[3]
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
 REVIEWER = "plugins/guardrails/agents/reviewer.md"

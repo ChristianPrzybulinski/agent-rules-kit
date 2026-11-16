@@ -17,6 +17,9 @@ import time
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("plugins/guardrails/hooks/**", "platforms/ci/validations/check_kit.py")
+
 KIT = Path(__file__).resolve().parents[3]
 HOOKS_REL = "plugins/guardrails/hooks/hooks.json"
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
@@ -113,6 +116,8 @@ class InstructionsLoadedHookTest(unittest.TestCase):
     def test_stays_within_budget(self):
         best = min(self.timed() for _ in range(3))
         self.assertLess(best, BUDGET_S)
+
+    test_stays_within_budget.LAYER = "performance"  # KIT-077: a latency budget runs alone (performance.yml)
 
     def timed(self):
         start = time.monotonic()

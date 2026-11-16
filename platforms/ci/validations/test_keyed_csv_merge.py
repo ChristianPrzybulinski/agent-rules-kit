@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "unit"  # KIT-077 layer (platforms/tools/run_tests.py): in-process: no subprocess, no git
+
 KIT = Path(__file__).resolve().parents[3]
 SCRIPT = KIT / "platforms" / "kits" / "godot" / "scripts" / "keyed_csv_merge.py"
 sys.path.insert(0, str(SCRIPT.parent))
@@ -139,6 +141,9 @@ class Parameters(unittest.TestCase):
 
 class Driver(unittest.TestCase):
     """The script as git runs it: `merge.keyed-csv.driver` in the repository config and a `.gitattributes` line."""
+
+    LAYER = "integration"  # starts processes (scripts, git, temp repos)
+    COVERS = ("platforms/kits/godot/scripts/keyed_csv_merge.py",)
 
     CSV = "client/i18n/strings.csv"
 

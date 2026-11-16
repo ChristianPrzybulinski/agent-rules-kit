@@ -19,6 +19,10 @@ import time
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("plugins/guardrails/hooks/**", "platforms/ci/validations/check_kit.py",
+          "platforms/ci/validations/hook_*_cases.json")
+
 KIT = Path(__file__).resolve().parents[3]
 HOOKS_REL = "plugins/guardrails/hooks/hooks.json"
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
@@ -186,6 +190,8 @@ class ContextHooksTest(unittest.TestCase):
                 self.run_hook(command, payload)
                 runs.append(time.monotonic() - start)
             self.assertLess(min(runs), BUDGET_S, f"{name} took {min(runs):.3f} s at best of 3")
+
+    test_latency_budget.LAYER = "performance"  # KIT-077: a latency budget runs alone (performance.yml)
 
 
 class CheckKitCatchesBrokenHooksTest(unittest.TestCase):

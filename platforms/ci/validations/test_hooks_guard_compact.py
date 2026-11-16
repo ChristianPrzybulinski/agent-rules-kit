@@ -11,6 +11,9 @@ import time
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("plugins/guardrails/hooks/**",)
+
 HOOKS = Path(__file__).resolve().parents[3] / "plugins" / "guardrails" / "hooks" / "hooks.json"
 EVENTS = json.loads(HOOKS.read_text(encoding="utf-8"))["hooks"]
 GUARD, POST_EDIT, SESSION_START = (
@@ -230,6 +233,8 @@ class HooksTest(unittest.TestCase):
                     self.run_hook(command, payload)
                     runs.append(time.perf_counter() - start)
                 self.assertLess(min(runs), BUDGET_S, f"{name} hook took {min(runs):.3f} s at best of 3")
+
+    test_each_hook_within_budget.LAYER = "performance"  # KIT-077: a latency budget runs alone (performance.yml)
 
 
 if __name__ == "__main__":

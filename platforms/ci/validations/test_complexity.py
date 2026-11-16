@@ -8,6 +8,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/tools/complexity.py",)
+
 TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "complexity.py"
 JAVA = "src/main/java/com/example/Bank.java"
 GD = "scripts/player.gd"

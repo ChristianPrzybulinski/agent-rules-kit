@@ -10,6 +10,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/kits/just/**", "plugins/guardrails/templates/**", "platforms/kits/github/workflows/**",
+          "platforms/ci/validations/check_kit.py")
+
 KIT = Path(__file__).resolve().parents[3]
 MODULES = KIT / "platforms" / "kits" / "just"
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
@@ -28,10 +32,14 @@ def executable(path, text):
     path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-@unittest.skipIf(JUST is None, "just is not on PATH")
+@unittest.skipIf(JUST is None and not os.environ.get("CI"), "just is not on PATH (CI=1 makes it required)")
 class ModuleTest(unittest.TestCase):
     """Each module copied into a throwaway project as kit.just and imported by the project's justfile, the way
     sync-project.sh leaves it."""
+
+    def setUp(self):
+        if JUST is None:  # KIT-077: the CI jobs that run this layer install the pinned just
+            self.fail("just is not on PATH")
 
     def project(self, profile, justfile="import 'kit.just'\n"):
         tmp = tempfile.TemporaryDirectory()

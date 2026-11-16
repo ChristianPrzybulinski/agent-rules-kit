@@ -1,6 +1,7 @@
 """The gitleaks workflow template (KIT-074): the pinned CLI, and its flags run against a throwaway repository with the
 local gitleaks (redacted finding, .gitleaksignore, the config path input)."""
 import json
+import os
 import re
 import secrets
 import shutil
@@ -8,6 +9,9 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/kits/github/workflows/gitleaks.yml",)
 
 KIT = Path(__file__).resolve().parents[3]
 TEMPLATE = KIT / "platforms" / "kits" / "github" / "workflows" / "gitleaks.yml"
@@ -20,6 +24,8 @@ def pinned():
 
 
 class Template(unittest.TestCase):
+    LAYER = "contract"  # the kit's own files, read in-process
+
     def test_the_cli_is_pinned_by_version_and_sha256(self):
         text = TEMPLATE.read_text(encoding="utf-8")
         version, digest = pinned()
@@ -37,11 +43,13 @@ class Template(unittest.TestCase):
         self.assertIn('args+=(--config "$CONFIG")', text)
 
 
-@unittest.skipIf(GITLEAKS is None, "gitleaks is not on PATH")
+@unittest.skipIf(GITLEAKS is None and not os.environ.get("CI"), "gitleaks is not on PATH (CI=1 makes it required)")
 class Scan(unittest.TestCase):
     """The template's command line on a repository with a fabricated token (built at run time, never in this file)."""
 
     def setUp(self):
+        if GITLEAKS is None:  # KIT-077: the CI jobs that run this layer install the pinned gitleaks
+            self.fail("gitleaks is not on PATH")
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.repo = Path(self.tmp.name)

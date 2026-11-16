@@ -9,6 +9,9 @@ import textwrap
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/ci/validations/spec_trace.py",)
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import spec_trace as trace  # noqa: E402
@@ -599,6 +602,8 @@ CORPUS = os.environ.get("SPEC_TRACE_CORPUS")
 
 class CorpusTest(unittest.TestCase):
     """Run against a real spec directory: SPEC_TRACE_CORPUS=<repo>/docs/spec python3 test_spec_trace.py"""
+
+    LAYER = "functional"  # real behaviour on a real project
 
     @unittest.skipUnless(CORPUS, "SPEC_TRACE_CORPUS is not set")
     def test_corpus_check_and_status_pass(self):

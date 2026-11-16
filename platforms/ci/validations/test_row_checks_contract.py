@@ -11,6 +11,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/ci/validations/row_checks.py", "platforms/ci/validations/pr_gates.py",
+          "platforms/ci/validations/check_spec.py")
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import row_checks as rc  # noqa: E402

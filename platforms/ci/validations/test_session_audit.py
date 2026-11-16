@@ -10,6 +10,9 @@ import time
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/tools/session_audit.py",)
+
 TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "session_audit.py"
 TOKEN = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 GUARD_RM = "PreToolUse:Bash hook error: ai-kit guard: rm -rf is destructive; ask the user to run or confirm it."

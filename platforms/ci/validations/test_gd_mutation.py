@@ -12,6 +12,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/tools/gd_mutation.py",)
+
 TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "gd_mutation.py"
 HAS_GDTOOLKIT = importlib.util.find_spec("gdtoolkit") is not None
 NEEDS_PARSER = unittest.skipUnless(HAS_GDTOOLKIT, "gdtoolkit is not installed (pip install gdtoolkit==4.5.0)")
@@ -37,6 +40,8 @@ def body(*lines, returns="void", args="a: int, b: int, xs: Array"):
 @NEEDS_PARSER
 class OperatorTest(unittest.TestCase):
     """Each of PIT 1.30.0's default operators where GDScript has it; line 2 is the first statement of `f`."""
+
+    LAYER = "unit"  # in-process: no subprocess, no git
 
     def test_comparisons_negate_and_move_the_boundary(self):
         expected = {"<": (">=", "<="), "<=": (">", "<"), ">": ("<=", ">="), ">=": ("<", ">"), "==": ("!=", None),
@@ -672,6 +677,8 @@ def mutant(key, status="killed", cached=False, span=(1, 2)):
 
 class CacheFileTest(unittest.TestCase):
     """The cache file and the function key, without Godot or gdtoolkit."""
+
+    LAYER = "unit"  # in-process: no subprocess, no git
 
     def test_key_ignores_where_the_function_is_and_trailing_blanks_but_not_its_text_or_tests(self):
         hashes = {"res://tests/p_test.gd": "1"}

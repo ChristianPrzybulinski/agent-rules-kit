@@ -8,6 +8,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
+COVERS = ("platforms/tools/gd_duplicates.py",)
+
 TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "gd_duplicates.py"
 HAS_GDTOOLKIT = importlib.util.find_spec("gdtoolkit") is not None
 NEEDS_PARSER = unittest.skipUnless(HAS_GDTOOLKIT, "gdtoolkit is not installed (pip install gdtoolkit==4.5.0)")
