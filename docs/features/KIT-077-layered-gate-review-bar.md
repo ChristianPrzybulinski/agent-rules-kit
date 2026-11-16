@@ -4,12 +4,12 @@ title: "Layered gate: a fast PR gate, a full gate on main and release, and a rev
 status: confirmed
 confirmed: "2026-11-15 (owner, chat of the coordinator session \"Revisão de regras e skills\": \"Sim, aplique\")"
 issue: "#281"
-pr: "#286 (items 5–6), PR_ITEMS (items 1–4)"
+pr: "#286 (items 5–6), #293 (items 1–4)"
 ---
 
 # KIT-077 — Layered gate: a fast PR gate, a full gate on main and release, and a review bar by risk
 
-Status: items 5 and 6 are done (#286, in 13.0.0); items 1–4 are delivered by PR_ITEMS. The record stays `confirmed`
+Status: items 5 and 6 are done (#286, in 13.0.0); items 1–4 are delivered by #293. The record stays `confirmed`
 until its Done when holds on `main`: `ci-full` green there and the median pull request `ci` time measured.
 
 ## Problem and evidence
@@ -58,7 +58,7 @@ so they go into 13.0.0, and items 1–4 (the CI layering) may land after it.
    - `.github/CONTRIBUTING.md` and `.github/PULL_REQUEST_TEMPLATE.md` say the same for this repository.
      `evals.yml` stays dispatch-only, with no Anthropic secret.
 
-## Items 1–4: the layered CI (PR_ITEMS)
+## Items 1–4: the layered CI (#293)
 
 ### Measured before (`0784b81`)
 
@@ -224,5 +224,5 @@ release in History.
 
 - 2026-11-15: confirmed (owner, through the coordinator session); issue #281.
 - 2026-11-16: items 5 and 6 delivered for 13.0.0; items 1–4 follow the release.
-- 2026-11-16: items 1–4 delivered (PR_ITEMS): the layers, the parallel pull request gate, `ci-full`, the release
+- 2026-11-16: items 1–4 delivered (#293): the layers, the parallel pull request gate, `ci-full`, the release
   guard and the converted sync tests; #278 folds in.
