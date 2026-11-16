@@ -18,7 +18,8 @@ TEST_HOME="$ROOT/home"
 RESTRICTED_PATH="/usr/bin:/bin"
 export AI_KIT_NO_CODEX_CLI=1
 # KIT-056: refresh runs session_audit.py, which honors these; keep it on the throwaway homes, never the real state.
-unset XDG_STATE_HOME CODEX_HOME CODEX_SQLITE_HOME
+# KIT-081: refresh.sh and doctor.sh read Claude Code's plugin folder from the last two; keep it in the homes too.
+unset XDG_STATE_HOME CODEX_HOME CODEX_SQLITE_HOME CLAUDE_CONFIG_DIR CLAUDE_CODE_PLUGIN_CACHE_DIR
 
 cleanup() {
   rm -rf "$ROOT"
@@ -386,8 +387,12 @@ case "$*" in
       echo '[]'
     fi
     ;;
-  "plugin marketplace add ChristianPrzybulinski/agent-rules-kit --json")
+  "plugin marketplace add ChristianPrzybulinski/agent-rules-kit#stable --json")
     touch "$state/claude-marketplace"
+    # KIT-081: Claude Code 2.1.287 records the source, ref included, in known_marketplaces.json
+    mkdir -p "$HOME/.claude/plugins"
+    printf '{"ai-kit": {"source": {"source": "github", "repo": "ChristianPrzybulinski/agent-rules-kit", "ref": "stable"}}}\n' \
+      > "$HOME/.claude/plugins/known_marketplaces.json"
     echo '{"name":"ai-kit"}'
     ;;
   "plugin list --json")
@@ -661,15 +666,15 @@ grep -Fq 'reinstalled' "$ROOT/refresh-stub-current.out" && fail "refresh reporte
 grep -Fq 'running doctor.sh' "$ROOT/refresh-stub-current.out" && fail "refresh ran the doctor with no broken kit link"
 grep -Fq '{"ran": 0,' "$ROOT/refresh-stub-current.out" || fail "refresh ran session_audit.py again within 7 days"
 
-# #271: a Codex marketplace that still follows main moves to the release, refresh and doctor alike, and each kit plugin
-# is added again so its cache takes the release's version.
+# #271, KIT-081: a Codex marketplace that still follows main moves to the stable branch, refresh and doctor alike, and
+# each kit plugin is added again so its cache takes the branch's version.
 set_codex_ref_main() {
   python3 - "$STUB_HOME/.codex/config.toml" <<'PY'
 import sys
 from pathlib import Path
 
 config = Path(sys.argv[1])
-config.write_text(config.read_text(encoding="utf-8").replace('ref = "v0.0.0"', 'ref = "main"'), encoding="utf-8")
+config.write_text(config.read_text(encoding="utf-8").replace('ref = "stable"', 'ref = "main"'), encoding="utf-8")
 PY
   grep -Fq 'ref = "main"' "$STUB_HOME/.codex/config.toml" || fail "the stub Codex config has no ai-kit ref to move"
   rm -f "$STUB_STATE/plugins/guardrails"
@@ -681,10 +686,10 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
   cat "$ROOT/refresh-stub-codex-ref.out" >&2
   fail "refresh failed with a Codex marketplace on main"
 fi
-grep -Fq 'refresh: codex marketplace ai-kit moved from main to v0.0.0' "$ROOT/refresh-stub-codex-ref.out" \
-  || fail "refresh did not move the Codex marketplace to the release"
-grep -Fq 'ref = "v0.0.0"' "$STUB_HOME/.codex/config.toml" || fail "refresh left the Codex marketplace off the release"
-[[ -f "$STUB_STATE/plugins/guardrails" ]] || fail "refresh did not add the kit plugin again at the release"
+grep -Fq 'refresh: codex marketplace ai-kit moved from main to stable' "$ROOT/refresh-stub-codex-ref.out" \
+  || fail "refresh did not move the Codex marketplace to the stable branch"
+grep -Fq 'ref = "stable"' "$STUB_HOME/.codex/config.toml" || fail "refresh left the Codex marketplace off the stable branch"
+[[ -f "$STUB_STATE/plugins/guardrails" ]] || fail "refresh did not add the kit plugin again at the stable branch"
 set_codex_ref_main
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
     AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
@@ -692,10 +697,10 @@ if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
   cat "$ROOT/doctor-stub-codex-ref.out" >&2
   fail "doctor failed with a Codex marketplace on main"
 fi
-grep -Fq 'fix: codex marketplace ai-kit moved from main to v0.0.0' "$ROOT/doctor-stub-codex-ref.out" \
-  || fail "doctor did not move the Codex marketplace to the release"
+grep -Fq 'fix: codex marketplace ai-kit moved from main to stable' "$ROOT/doctor-stub-codex-ref.out" \
+  || fail "doctor did not move the Codex marketplace to the stable branch"
 grep -Fq 'fix: codex plugin guardrails@ai-kit installed' "$ROOT/doctor-stub-codex-ref.out" \
-  || fail "doctor did not add the kit plugin again at the release"
+  || fail "doctor did not add the kit plugin again at the stable branch"
 
 # KIT-055: an installed <name>@ai-kit that the kit no longer ships is reported with its remedy.
 touch "$STUB_STATE/claude-plugins/core"

@@ -9,7 +9,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/codex-bin.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/kit-release.sh"
 HEADER="# Global Rules — AI Kit"
 FAILURES=0
-RELEASE_TAG=""  # #271: the newest vX.Y.Z on origin/main, which the clone, Codex and Devin follow
+RELEASE_TAG=""  # #271: the newest vX.Y.Z on origin/main: the clone checks it out, and stable points at it (KIT-081)
 RELEASE_SHA=""
 AUTO_COMPACT_WINDOW=300000
 
@@ -624,13 +624,14 @@ if [[ -f "$lock" ]]; then
   else
     ref="${record%%|*}"
     resolved_sha="${record#*|}"
-    if [[ -z "$RELEASE_TAG" ]]; then
+    if [[ "$ref" != "$KIT_STABLE_BRANCH" ]]; then
+      # Devin keeps the ref of a team plugin in its web settings; no CLI call sets it (#271). KIT-081: the stable
+      # branch, which each release moves, so the ref is set once.
+      fail "devin plugin ref is '$ref', not $KIT_STABLE_BRANCH — set $KIT_STABLE_BRANCH in Customize → Plugins → Plugin settings → Edit manifest"
+    elif [[ -z "$RELEASE_TAG" ]]; then
       fail "cannot check the devin plugin without a release tag"
-    elif [[ "$ref" != "$RELEASE_TAG" ]]; then
-      # Devin keeps the ref of a team plugin in its web settings; no CLI call sets it (#271)
-      fail "devin plugin ref is '$ref', not $RELEASE_TAG — set $RELEASE_TAG in Customize → Plugins → Plugin settings → Edit manifest"
     elif [[ "$resolved_sha" == "$RELEASE_SHA" ]]; then
-      ok "devin plugin at release $RELEASE_TAG"
+      ok "devin plugin follows $KIT_STABLE_BRANCH at release $RELEASE_TAG"
     elif command -v devin >/dev/null 2>&1; then
       if devin plugins update >/dev/null 2>&1 \
           && updated_record="$(devin_plugin_record "$lock" 2>/dev/null)" \
@@ -728,28 +729,26 @@ ok "legacy destinations checked"
 codex="$(codex_bin || true)"
 if [[ -n "$codex" ]]; then
   marketplace_ready=1
-  codex_moved=0  # a new ref re-adds every kit plugin, so its cache takes the release's version
+  codex_moved=0  # a new ref re-adds every kit plugin, so its cache takes the branch's version
   marketplaces="$("$codex" plugin marketplace list 2>/dev/null || true)"
   codex_ref="$(codex_kit_ref)"
-  if [[ -z "$RELEASE_TAG" ]]; then
-    fail "codex marketplace ai-kit not checked: no release tag — run platforms/tools/refresh.sh"
-    marketplace_ready=0
-  elif [[ "$marketplaces" == *"ai-kit"* && "$codex_ref" == "$RELEASE_TAG" ]]; then
-    ok "codex marketplace ai-kit registered at $RELEASE_TAG"
+  if [[ "$marketplaces" == *"ai-kit"* && "$codex_ref" == "$KIT_STABLE_BRANCH" ]]; then
+    ok "codex marketplace ai-kit registered at $KIT_STABLE_BRANCH"
   elif [[ "$marketplaces" == *"ai-kit"* ]]; then
-    # Codex keeps a marketplace's source and ref together, so a new ref is a remove and an add (#271)
+    # Codex keeps a marketplace's source and ref together, so a new ref is a remove and an add (#271); KIT-081: the
+    # stable branch, which each release moves, so the move happens once
     if "$codex" plugin marketplace remove ai-kit >/dev/null 2>&1 \
-        && "$codex" plugin marketplace add "$KIT_REPOSITORY" --ref "$RELEASE_TAG" >/dev/null 2>&1; then
-      fix "codex marketplace ai-kit moved from $codex_ref to $RELEASE_TAG"
+        && "$codex" plugin marketplace add "$KIT_REPOSITORY" --ref "$KIT_STABLE_BRANCH" >/dev/null 2>&1; then
+      fix "codex marketplace ai-kit moved from $codex_ref to $KIT_STABLE_BRANCH"
       codex_moved=1
     else
-      fail "codex marketplace ai-kit follows $codex_ref, not $RELEASE_TAG, and the move failed — run: codex plugin marketplace remove ai-kit && codex plugin marketplace add $KIT_REPOSITORY --ref $RELEASE_TAG"
+      fail "codex marketplace ai-kit follows $codex_ref, not $KIT_STABLE_BRANCH, and the move failed — run: codex plugin marketplace remove ai-kit && codex plugin marketplace add $KIT_REPOSITORY --ref $KIT_STABLE_BRANCH"
       marketplace_ready=0
     fi
-  elif "$codex" plugin marketplace add "$KIT_REPOSITORY" --ref "$RELEASE_TAG" >/dev/null 2>&1; then
-    fix "codex marketplace ai-kit registered at $RELEASE_TAG"
+  elif "$codex" plugin marketplace add "$KIT_REPOSITORY" --ref "$KIT_STABLE_BRANCH" >/dev/null 2>&1; then
+    fix "codex marketplace ai-kit registered at $KIT_STABLE_BRANCH"
   else
-    fail "codex marketplace ai-kit missing and add failed — run: codex plugin marketplace add $KIT_REPOSITORY --ref $RELEASE_TAG"
+    fail "codex marketplace ai-kit missing and add failed — run: codex plugin marketplace add $KIT_REPOSITORY --ref $KIT_STABLE_BRANCH"
     marketplace_ready=0
   fi
 
@@ -815,11 +814,18 @@ if command -v claude >/dev/null 2>&1; then
   claude_marketplace_ready=1
   claude_marketplaces="$(claude plugin marketplace list --json 2>/dev/null || true)"
   if json_contains "$claude_marketplaces" "ai-kit"; then
-    ok "claude marketplace ai-kit registered"
-  elif claude plugin marketplace add ChristianPrzybulinski/agent-rules-kit --json >/dev/null 2>&1; then
-    fix "claude marketplace ai-kit registered"
+    claude_ref="$(claude_kit_ref)"
+    if [[ "$claude_ref" == "$KIT_STABLE_BRANCH" ]]; then
+      ok "claude marketplace ai-kit registered at $KIT_STABLE_BRANCH"
+    else
+      # KIT-081: the move is a remove and an add, and the remove deletes the plugin data, which refresh.sh backs up
+      # first; the doctor only reports it
+      fail "claude marketplace ai-kit follows $claude_ref, not $KIT_STABLE_BRANCH — run: bash $KIT/platforms/tools/refresh.sh"
+    fi
+  elif claude plugin marketplace add "$KIT_REPOSITORY#$KIT_STABLE_BRANCH" --json >/dev/null 2>&1; then
+    fix "claude marketplace ai-kit registered at $KIT_STABLE_BRANCH"
   else
-    fail "claude marketplace ai-kit missing and add failed — run: claude plugin marketplace add ChristianPrzybulinski/agent-rules-kit"
+    fail "claude marketplace ai-kit missing and add failed — run: claude plugin marketplace add $KIT_REPOSITORY#$KIT_STABLE_BRANCH"
     claude_marketplace_ready=0
   fi
 

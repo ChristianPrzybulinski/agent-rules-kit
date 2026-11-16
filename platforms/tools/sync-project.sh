@@ -3,7 +3,8 @@
 # Usage: sync-project.sh [--profile <profile>[,<profile>...]] [--vendor-skills] [--workflow <file>] <repo-dir>
 #                                                          installs/updates .github/spec-lint/ (repos with docs/spec only),
 #                                                          CLAUDE.md (imports AGENTS.md),
-#                                                          .claude/settings.json (ai-kit marketplace +
+#                                                          .claude/settings.json (ai-kit marketplace at
+#                                                          ref stable (KIT-081) +
 #                                                          enabledPlugins guardrails@ai-kit +
 #                                                          includeGitInstructions false) and
 #                                                          .claude/rules/guardrails-<rule>.md (the profile's
@@ -580,7 +581,8 @@ import json, os, sys
 path, profile = sys.argv[1], sys.argv[2]
 pinned = os.environ.get("AI_KIT_PINNED") == "1"  # KIT-072: then pin_check owns enabledPlugins
 want = set() if pinned else {name + "@ai-kit" for name in os.environ.get("AI_KIT_PLUGINS", "").split()}
-market = {"source": {"source": "github", "repo": "ChristianPrzybulinski/agent-rules-kit"}}
+# KIT-081: the user's marketplace follows the stable branch; a project source without that ref conflicts with it
+market = {"source": {"source": "github", "repo": "ChristianPrzybulinski/agent-rules-kit", "ref": "stable"}}
 try:
     with open(path, encoding="utf-8") as fh:
         data = json.load(fh)
@@ -820,7 +822,9 @@ except FileNotFoundError:
 except json.JSONDecodeError:
     print(f"sync: {path} is not valid JSON; fix it by hand"); sys.exit(1)
 markets = data.setdefault("extraKnownMarketplaces", OrderedDict())
-markets["ai-kit"] = OrderedDict(source=OrderedDict(source="github", repo="ChristianPrzybulinski/agent-rules-kit"))
+# KIT-081: the user's marketplace follows the stable branch; a project source without that ref conflicts with it
+markets["ai-kit"] = OrderedDict(source=OrderedDict(source="github", repo="ChristianPrzybulinski/agent-rules-kit",
+                                                   ref="stable"))
 enabled = data.setdefault("enabledPlugins", OrderedDict())
 pinned = os.environ.get("AI_KIT_PINNED") == "1"  # KIT-072: then pin_settings sets them, after the pinned copy
 for key in [k for k in enabled if k.endswith("@ai-kit") and not pinned]:

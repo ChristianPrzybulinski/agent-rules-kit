@@ -13,6 +13,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Changed
 - KIT-076: the `main` ruleset also requires `CodeQL`, the code scanning result for the uploaded analysis, so a new alert in the changed code blocks the merge; the PR template, CONTRIBUTING and the KIT-076 record name six checks.
+- KIT-081 (stage 2a): every install of the kit follows the `stable` branch, which `release.yml` moves to the released commit after publishing the release, fast-forward only, instead of `main` (Claude Code) or a per-release tag (Codex, Devin): `bootstrap.sh` adds Claude Code's marketplace at `#stable` and Codex's with `--ref stable`, so a release arrives through a plain marketplace update; `refresh.sh` moves a marketplace on another ref once (for Claude Code with a backup and restore of the plugin data, the rule-load log included, since the remove deletes it); `doctor.sh` fails while the Claude Code, Codex or Devin ref is not `stable`; `sync-project.sh` declares the project's marketplace source with `"ref": "stable"`.
+
+### Migration
+- KIT-081 (stage 2a): the next `refresh.sh` moves Claude Code's and Codex's `ai-kit` marketplaces to `stable` once, backing up the Claude Code plugin data to `${XDG_STATE_HOME:-~/.local/state}/ai-kit/plugin-data-backup/` and restoring it; set Devin's team plugin ref to `stable` once (Customize → Plugins → Plugin settings → Edit manifest); `sync-project.sh` adds the ref to a project's `.claude/settings.json` on its next run, and `--check` reports it until then.
 
 ## [13.1.0] - 2026-11-16
 
