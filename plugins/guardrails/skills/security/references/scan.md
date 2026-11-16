@@ -28,7 +28,7 @@ A false-positive suppression needs a reason and a review date within 90 days. Fo
 The standard: gitleaks with every value redacted, on two ranges (KIT-074).
 
 - Before a PR, the branch's commits: `gitleaks git --redact --log-opts="origin/main..HEAD"`; a file not yet committed: `gitleaks dir --redact <path>`.
-- In CI, the whole history of the ref: the kit template `platforms/kits/github/workflows/gitleaks.yml`, the CLI pinned by version and sha-256 (`fetch-depth: 0`, `--log-opts=HEAD`), not `gitleaks/gitleaks-action`, which needs a `GITLEAKS_LICENSE` secret in an organization's repository.
+- In CI, the kit's gitleaks action `platforms/ci/actions/gitleaks/action.yml`, pinned by SHA as a step or through the template `platforms/kits/github/workflows/gitleaks.yml` (KIT-084): a pull request's commits (base..head), and on a push or dispatch the whole history of the ref (`fetch-depth: 0`); the CLI pinned by version and sha-256, not `gitleaks/gitleaks-action`, which needs a `GITLEAKS_LICENSE` secret in an organization's repository.
 - Config: `.gitleaks.toml` at the root or the template's `config` input, extending the default rules; each allowlist entry says what it matches and why. A reviewed false positive goes into `.gitleaksignore` as its fingerprint under a comment with the reason; a real secret is never allowlisted.
 - Beyond the rules: `git log -p --all -S 'BEGIN PRIVATE KEY' --oneline | head`.
 

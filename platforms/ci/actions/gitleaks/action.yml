@@ -1,0 +1,55 @@
+# The agent-rules-kit secret scan as a composite action (KIT-084). A project runs it as a step of any job, pinned by SHA:
+#   uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/gitleaks@<40-character SHA>  # vX.Y.Z
+# so the scan stays in the kit and the project keeps one job per run; GitHub calls a reusable workflow across
+# repositories only from a repository's .github/workflows/, so a kit path cannot serve as one. The gitleaks CLI at the
+# version and sha-256 of the kit's own .github/workflows/gitleaks.yml (a test keeps the two equal), not
+# gitleaks/gitleaks-action, which needs a GITLEAKS_LICENSE secret in an organization's repository. The caller checks out
+# with fetch-depth: 0. README.md in this folder lists the input.
+name: agent-rules-kit gitleaks
+description: Scans a pull request's commits, or the whole history, for secrets with the pinned gitleaks CLI, values redacted.
+inputs:
+  config:
+    description: >-
+      gitleaks config, a path in the repository ('' = .gitleaks.toml at the root when present, else the built-in
+      rules). .gitleaksignore at the root (reviewed fingerprints) always applies.
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: install gitleaks (pinned CLI, sha-256 checked)
+      shell: bash
+      env:
+        GITLEAKS_VERSION: 8.30.1
+        GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+      run: |
+        set -euo pipefail
+        wget -q -O "$RUNNER_TEMP/gitleaks.tar.gz" \
+          "https://github.com/gitleaks/gitleaks/releases/download/v$GITLEAKS_VERSION/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+        echo "$GITLEAKS_SHA256  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+        mkdir -p "$RUNNER_TEMP/gitleaks-bin"
+        tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks-bin" gitleaks
+    # A pull request scans its own commits (base..head), so a secret already on the base branch does not fail every
+    # pull request; a push and a dispatch scan the whole history of the ref. A finding fails the step and the log
+    # redacts its value.
+    - name: scan (a pull request's commits, or the whole history; values redacted)
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        set -euo pipefail
+        if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+          if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "::error::gitleaks: the base commit $BASE_SHA is not in the checkout; check it out with fetch-depth: 0"
+            exit 1
+          fi
+          range="$BASE_SHA..$HEAD_SHA"
+        else
+          range=HEAD
+        fi
+        echo "gitleaks range: $range"
+        args=(git --no-banner --redact -v --exit-code 1 "--log-opts=$range")
+        if [ -n "$CONFIG" ]; then args+=(--config "$CONFIG"); fi
+        "$RUNNER_TEMP/gitleaks-bin/gitleaks" "${args[@]}" .
