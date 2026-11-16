@@ -16,7 +16,8 @@ Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty i
   c       a Files entry that matches a `row_checks.tests` code glob needs a test path of that stack
   d WARN  a listed generated neighbour (gates `generated_neighbours`); an exact `row_checks.assets` path
   e       each proof clause runs allowlisted programs only (gates `proof_allowlist`; without it, the refused
-          constructs only), inside its component (`components`, gates `proof_var_depths`)
+          constructs only), under the component rules (`components`: no `..`, no expansion outside a leading anchor,
+          no inline code); a Proof of `evidence:` clauses only fails unless `row_checks.evidence_only` is true
   f WARN  each Depends on token is —, Tn of the table, FEAT-NNN Tn of that FEAT on disk, or #N
   g FAIL  each path a proof clause names is covered by the Files of the row or of a same-FEAT dependency
   h WARN  a message type the Task sends exists as `row_checks.protocol.schemas`/<type>.json
@@ -104,7 +105,7 @@ class Config:
     components: dict = field(default_factory=dict)
     allowlist: object = field(default_factory=_Any)
     runners: dict = field(default_factory=dict)
-    var_depths: dict = field(default_factory=dict)
+    evidence_only: bool = False
     neighbours: tuple = ()
     tests: list = field(default_factory=list)
     assets: dict | None = None
@@ -193,10 +194,6 @@ def checked_gates(gates, rel: str) -> dict:
     runners = gates.get("proof_script_runners", {})
     if not isinstance(runners, dict) or not all(_strings(v) for v in runners.values()):
         raise UsageError(f"{where}: proof_script_runners must map a program to a list of option strings")
-    depths = gates.get("proof_var_depths", {})
-    if not isinstance(depths, dict) or not all(isinstance(v, int) and not isinstance(v, bool) and v >= 0
-                                               for v in depths.values()):
-        raise UsageError(f"{where}: proof_var_depths must map a variable to a whole number of levels (0 or more)")
     return gates
 
 
@@ -229,7 +226,7 @@ def load_config(spec_dir) -> Config:
     if gates.get("proof_allowlist"):
         cfg.allowlist = list(gates["proof_allowlist"])
     cfg.runners = dict(gates.get("proof_script_runners") or {})
-    cfg.var_depths = dict(gates.get("proof_var_depths") or {})
+    cfg.evidence_only = rc.get("evidence_only") is True
     cfg.neighbours = tuple(gates.get("generated_neighbours") or ())
     cfg.tests = [t for t in rc.get("tests") or [] if isinstance(t, dict) and t.get("code") and t.get("tests")]
     cfg.assets = rc.get("assets") or None
@@ -485,7 +482,7 @@ def rule_c(row: Row, cfg: Config | None = None) -> list:
     cfg = cfg or row.cfg
     files = row.normalized_files
     generated = tables(cfg)
-    missing, level = None, LEVELS["c"]
+    missing, level = [], LEVELS["c"]
     for stack in cfg.tests:
         excluded = list(stack.get("exclude") or [])
         for entry in files:
@@ -497,12 +494,14 @@ def rule_c(row: Row, cfg: Config | None = None) -> list:
             tests = fill(stack["tests"], values)
             sample = fill(stack.get("sample") or tests.replace("**", "x").replace("*", "sample"), values)
             if not any(path_matches(e, tests) or path_matches(sample, e) for e in files):
-                missing = tests
+                if tests not in missing:
+                    missing.append(tests)
                 if stack.get("level", "fail") == "fail":
                     level = FAIL
     if not missing:
         return []
-    return [Finding(level, row.feat, row.task_id, "Files", f"adds code but lists no test path ({missing})", "c")]
+    return [Finding(level, row.feat, row.task_id, "Files", f"adds code but lists no test path ({', '.join(missing)})",
+                    "c")]
 
 
 def rule_d(row: Row, cfg: Config | None = None) -> list:
@@ -550,7 +549,7 @@ def rule_e(row: Row, cfg: Config | None = None) -> list:
         any_command = any_command or bool(candidates)
         problem = None
         for cmd in candidates:
-            ok, why = command_allowed(cmd, cfg.allowlist, cwd=cwd, var_depths=cfg.var_depths)
+            ok, why = command_allowed(cmd, cfg.allowlist, cwd=cwd)
             if not ok:
                 problem = why
                 break
@@ -564,7 +563,10 @@ def rule_e(row: Row, cfg: Config | None = None) -> list:
     for n, clause in enumerate(clauses, 1):
         if n in shapes and "manual" in clause.lower() and not any(ok for k, ok in shapes.items() if k != n):
             out.append(f(WARN, f"clause {n} '{short(clause.strip('`'))}' is manual with no automated sibling clause"))
-    if any(not c.startswith("evidence:") for c in clauses) and not any_command:
+    if clauses and all(c.startswith("evidence:") for c in clauses) and not cfg.evidence_only:
+        out.append(f(FAIL, "holds only evidence: clauses: add a runnable proof clause, or set "
+                           "row_checks.evidence_only to true where an approved capture is the whole proof"))
+    elif any(not c.startswith("evidence:") for c in clauses) and not any_command:
         out.append(f(WARN, "has no command-shaped clause (the PR proof block will have to invent one)"))
     if not clauses:
         out.append(f(WARN, "is empty"))

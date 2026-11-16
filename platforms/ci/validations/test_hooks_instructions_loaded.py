@@ -4,9 +4,9 @@ Claude Code fires InstructionsLoaded when an instruction file enters the context
 path_glob_match, with globs and trigger_file_path), runs it asynchronously and ignores its output and exit code (hooks
 reference, 2026-11-15). The hook appends one JSON line per load to $CLAUDE_PLUGIN_DATA/instructions-loaded.jsonl,
 which platforms/tools/skill_usage.py --rules counts; it spends no model tokens, prints nothing, always exits 0, keeps
-only the documented fields (never the transcript path or any file content) and rotates the log past 5 MiB. These tests
-cover the record, malformed input, a missing data directory, the rotation, the budget and that check_kit.py fails when
-the hook breaks."""
+only the documented fields (never the transcript path or any file content) and rotates the log past 5 MiB, holding one
+lock for the rotation and the append (#274). These tests cover the record, malformed input, a missing data directory,
+the rotation, concurrent sessions, the budget and that check_kit.py fails when the hook breaks."""
 import json
 import os
 import shutil
@@ -107,6 +107,26 @@ class InstructionsLoadedHookTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.data / f"{LOG}.1").stat().st_size, 5 * 2**20 + 1)
         self.assertEqual(len(self.lines()), 1)
+
+    def test_concurrent_sessions_lose_no_line_when_one_rotates(self):  # #274
+        """Sixteen hooks released at once on a log past the limit: the rotation and every append hold one lock, so the
+        rotated file keeps every old line and the new log gets one line per hook."""
+        self.data.mkdir()
+        old = [json.dumps({"ts": 0, "n": n}) for n in range(5 * 2**20 // 20)]
+        (self.data / LOG).write_text("\n".join(old) + "\n", encoding="utf-8")
+        env = dict(os.environ, CLAUDE_PLUGIN_DATA=str(self.data))
+        hooks = [subprocess.Popen(["bash", "-c", self.command()], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL, text=True, env=env) for _ in range(16)]
+        time.sleep(1)  # every hook is up and blocked reading stdin
+        payloads = [json.dumps(dict(RULE_LOAD, session_id=f"s{n}")) for n in range(len(hooks))]
+        for hook, payload in zip(hooks, payloads):
+            hook.stdin.write(payload)
+        for hook in hooks:
+            hook.stdin.close()
+        self.assertEqual([hook.wait(timeout=10) for hook in hooks], [0] * len(hooks))
+        rotated = [line for line in (self.data / f"{LOG}.1").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(rotated, old)
+        self.assertEqual(sorted(r["session_id"] for r in self.lines()), sorted(f"s{n}" for n in range(len(hooks))))
 
     def test_an_unwritable_data_directory_fails_open(self):
         self.data.write_text("a file, not a folder\n", encoding="utf-8")

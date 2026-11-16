@@ -457,6 +457,16 @@ class NeedTest(unittest.TestCase):
         self.needs_mode("false")
         self.assert_passes()
 
+    def test_needs_off_reads_need_files_not_the_folder(self):
+        """#288 item 5 (intended): needs-off reads the Markdown files at the top of needs/, not the folder, so a
+        folder that keeps only NEED-nnn-data/ evidence passes, and any Markdown file there is a NEED record."""
+        self.needs_mode("false")
+        (self.spec / "needs" / "NEED-001-data").mkdir(parents=True)
+        (self.spec / "needs" / "NEED-001-data" / "capture.md").write_text("evidence\n")
+        self.assert_passes()
+        (self.spec / "needs" / "README.md").write_text("# NEEDs\n")
+        self.assert_fails("README.md: sdd.needs is false, so the project keeps no NEED files under needs/")
+
     def test_needs_off_refuses_a_need_file(self):
         self.needs_mode("false")
         self.need("NEED-001")
@@ -592,7 +602,7 @@ SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
                 "github": {"repo": None, "pr_repos": [], "aliases": [], "blocked_labels": ["blocked"],
                            "progress_labels": ["status:in-progress"]},
                 "row_checks": {"gates": None, "tests": [], "assets": None, "protocol": None, "artifacts": None,
-                               "visual": None},
+                               "visual": None, "evidence_only": False},
                 "visual_approval": "none", "owner_approvals": ["decision"],
                 "doc_structure": {"enabled": False, "exempt": ".github/doc-structure-exempt.txt",
                                   "headings": ["## What goes here", "## What does not go here"],

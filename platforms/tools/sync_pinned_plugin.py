@@ -21,7 +21,8 @@ A vendored project (sync-project.sh --vendor-skills) pins the whole kit for Clau
   once the folder is trusted. Its manifest name is not guardrails because an installed guardrails@ai-kit keeps that
   name even while disabled; agent skill preloads are renamed to the name that resolves in the project.
 - .claude/ai-kit/platforms/ holds every kit file a skill, rule, agent or template calls as ~/.ai-kit/platforms/<path>,
-  plus the kit modules those Python tools import, so the pinned skills run the pinned tools. rewrite (and write, for
+  plus the kit modules those Python tools import and the schemas the spec tools load, so the pinned skills run the
+  pinned tools. rewrite (and write, for
   the plugin copy) turns each such call in a vendored markdown copy into "$(git rev-parse --show-toplevel)"/
   .claude/ai-kit/platforms/<path>, which resolves from any folder of the checkout in every runtime; a repository in
   plugins mode, or one never synced, keeps ~/.ai-kit/, the kit clone, as the fallback. Calls of ~/.ai-kit/plugins/
@@ -64,7 +65,12 @@ HOOK_MARK = "/" + HOOK_DIR + "/"  # a settings hook command that contains it is 
 PRELOAD = re.compile(r"^(\s*-\s+)" + KIT_PLUGIN + r":([A-Za-z0-9._-]+)\s*$")
 HEAD_TOOLS = "~/.ai-kit/platforms/"  # how the kit text calls a kit tool or template, from the kit clone
 PINNED_TOOLS = '"$(git rev-parse --show-toplevel)"/' + KIT_REL + "/platforms/"  # the same call in a vendored copy
-TOOL_CALL = re.compile(re.escape(HEAD_TOOLS) + r"([A-Za-z0-9_./-]+)")
+# The same call through $HOME or ${HOME} (#282 item 4). It keeps its quoting: a call inside double quotes (an odd
+# count of unescaped `"` before it on its line) takes the bare substitution, which those quotes keep as one word; any
+# other call, `~` included, takes the quoted one above, so a checkout path with a space stays one word.
+HEAD_CALL = re.compile(r"(?:~|\$HOME|\$\{HOME\})/\.ai-kit/platforms/")
+PINNED_BARE = "$(git rev-parse --show-toplevel)/" + KIT_REL + "/platforms/"
+TOOL_CALL = re.compile(HEAD_CALL.pattern + r"([A-Za-z0-9_./-]+)")
 IMPORT_DIRS = ("platforms/tools", "platforms/ci/validations")  # where a called tool's own kit modules live
 
 
@@ -146,7 +152,11 @@ def rename_preloads(text, plain):
 
 
 def pinned_text(text):
-    return text.replace(HEAD_TOOLS, PINNED_TOOLS)
+    def pinned(match):
+        before = text[text.rfind("\n", 0, match.start()) + 1:match.start()]
+        quoted = match.group(0) != HEAD_TOOLS and re.sub(r"\\.", "", before).count('"') % 2
+        return PINNED_BARE if quoted else PINNED_TOOLS
+    return HEAD_CALL.sub(pinned, text)
 
 
 def rewrite(paths):
@@ -156,13 +166,14 @@ def rewrite(paths):
             if md.is_symlink() or not md.is_file():
                 continue
             text = md.read_text(encoding="utf-8")
-            if HEAD_TOOLS in text:
+            if HEAD_CALL.search(text):
                 md.write_text(pinned_text(text), encoding="utf-8")
     return 0
 
 
 def tool_files(kit):
-    """Each kit file the kit text calls through ~/.ai-kit/platforms/, plus the kit modules those tools import."""
+    """Each kit file the kit text calls through ~/.ai-kit/platforms/ (or $HOME/.ai-kit/platforms/), plus the kit modules those tools import and,
+    for a tool of platforms/ci/validations/, the schemas in platforms/ci/schemas/ it loads."""
     plugin = Path(kit, "plugins", KIT_PLUGIN)
     wanted = set()
     for root in ("skills", "rules", "agents", "templates"):
@@ -188,6 +199,9 @@ def tool_files(kit):
                         wanted.add(module)
                         todo.append(module)
                     break
+    if any(rel.startswith("platforms/ci/validations/") for rel in wanted):  # #282: check_spec.py, spec_trace.py
+        schemas = Path(kit, "platforms", "ci", "schemas")  # and row_checks.py read the schemas beside them
+        wanted.update(f"platforms/ci/schemas/{path.name}" for path in schemas.glob("*.json"))
     return sorted(wanted)
 
 

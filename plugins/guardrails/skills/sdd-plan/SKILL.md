@@ -52,7 +52,7 @@ Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs
 
 ## 5. Record decisions
 
-A technical choice with a rejected reasonable alternative that outlives the FEAT (other FEATs or later work rely on it) gets a decision record (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`) with `status: proposed`. A choice that matters only inside this delivery stays in its Plan section, the rejected alternative in one line. A product choice is not made here: it returns to `sdd-clarify`. With several open choices, decide first the one the others depend on, never one whose answer hinges on a choice still open. Do not hide a kit-rule exception in prose—record a blocker or explicit decision.
+A technical choice with a rejected reasonable alternative that outlives the FEAT (other FEATs or later work rely on it) gets a decision record (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`) with `status: proposed`. A choice that matters only inside this delivery stays in its Plan section, the rejected alternative in one line. A product choice is not made here: it returns to `sdd-clarify`. Several open choices form a tree, as the questions of `sdd-clarify` § 2 do: settle only from its frontier, the choice the others depend on first, one choice per question when it needs the owner, and never one whose answer hinges on a choice still open. Do not hide a kit-rule exception in prose—record a blocker or explicit decision.
 
 ## 6. Check restraint and consistency
 

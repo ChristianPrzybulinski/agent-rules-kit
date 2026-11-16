@@ -5,9 +5,12 @@ set -euo pipefail
 KIT="${AI_KIT_DIR:-$HOME/.ai-kit}"
 # shellcheck source=SCRIPTDIR/codex-bin.sh
 source "$(dirname "${BASH_SOURCE[0]}")/codex-bin.sh"
+# shellcheck source=SCRIPTDIR/kit-release.sh
+source "$(dirname "${BASH_SOURCE[0]}")/kit-release.sh"
 HEADER="# Global Rules — AI Kit"
 FAILURES=0
-ORIGIN_SHA=""
+RELEASE_TAG=""  # #271: the newest vX.Y.Z on origin/main, which the clone, Codex and Devin follow
+RELEASE_SHA=""
 AUTO_COMPACT_WINDOW=300000
 
 ok() {
@@ -583,13 +586,6 @@ if [[ ! -d "$KIT/.git" ]]; then
 fi
 ok "kit clone exists"
 
-branch="$(git -C "$KIT" branch --show-current 2>/dev/null || true)"
-if [[ "$branch" == "main" ]]; then
-  ok "kit branch is main"
-else
-  fail "kit branch is '$branch' — run platforms/tools/refresh.sh"
-fi
-
 status="$(git -C "$KIT" status --short 2>/dev/null || true)"
 if [[ -z "$status" ]]; then
   ok "kit working tree clean"
@@ -598,16 +594,17 @@ else
   printf '%s\n' "$status" >&2
 fi
 
-if ORIGIN_SHA="$(git -C "$KIT" rev-parse origin/main 2>/dev/null)"; then
-  head_sha="$(git -C "$KIT" rev-parse HEAD 2>/dev/null || true)"
-  if [[ "$head_sha" == "$ORIGIN_SHA" ]]; then
-    ok "kit HEAD matches origin/main (${ORIGIN_SHA:0:7})"
-  else
-    fail "kit HEAD differs from origin/main — run platforms/tools/refresh.sh"
-  fi
+RELEASE_TAG="$(kit_release_tag "$KIT")"
+if [[ -z "$RELEASE_TAG" ]]; then
+  fail "no vX.Y.Z release tag on origin/main — run platforms/tools/refresh.sh"
 else
-  ORIGIN_SHA=""
-  fail "origin/main is unavailable — run platforms/tools/refresh.sh"
+  RELEASE_SHA="$(git -C "$KIT" rev-parse "$RELEASE_TAG^{commit}")"
+  head_sha="$(git -C "$KIT" rev-parse HEAD 2>/dev/null || true)"
+  if [[ "$head_sha" == "$RELEASE_SHA" ]]; then
+    ok "kit clone at release $RELEASE_TAG (${RELEASE_SHA:0:7})"
+  else
+    fail "kit clone is not at the newest release $RELEASE_TAG — run platforms/tools/refresh.sh"
+  fi
 fi
 
 # 2. Codex always-on
@@ -627,25 +624,23 @@ if [[ -f "$lock" ]]; then
   else
     ref="${record%%|*}"
     resolved_sha="${record#*|}"
-    if [[ "$ref" == "main" || "$ref" == "<absent>" ]]; then
-      ok "devin plugin ref is main"
-    else
-      fail "plugin ref is '$ref' — switch to main in Customize → Plugins → Plugin settings → Edit manifest"
-    fi
-    if [[ -z "$ORIGIN_SHA" ]]; then
-      fail "cannot compare devin plugin sha without origin/main"
-    elif [[ "$resolved_sha" == "$ORIGIN_SHA" ]]; then
-      ok "devin plugin sha matches origin/main"
+    if [[ -z "$RELEASE_TAG" ]]; then
+      fail "cannot check the devin plugin without a release tag"
+    elif [[ "$ref" != "$RELEASE_TAG" ]]; then
+      # Devin keeps the ref of a team plugin in its web settings; no CLI call sets it (#271)
+      fail "devin plugin ref is '$ref', not $RELEASE_TAG — set $RELEASE_TAG in Customize → Plugins → Plugin settings → Edit manifest"
+    elif [[ "$resolved_sha" == "$RELEASE_SHA" ]]; then
+      ok "devin plugin at release $RELEASE_TAG"
     elif command -v devin >/dev/null 2>&1; then
       if devin plugins update >/dev/null 2>&1 \
           && updated_record="$(devin_plugin_record "$lock" 2>/dev/null)" \
-          && [[ "${updated_record#*|}" == "$ORIGIN_SHA" ]]; then
-        fix "devin plugins updated to origin/main"
+          && [[ "${updated_record#*|}" == "$RELEASE_SHA" ]]; then
+        fix "devin plugins updated to $RELEASE_TAG"
       else
-        fail "devin plugin sha differs from origin/main and update failed"
+        fail "devin plugin sha differs from $RELEASE_TAG and update failed"
       fi
     else
-      fail "devin plugin sha differs from origin/main; install devin and run: devin plugins update"
+      fail "devin plugin sha differs from $RELEASE_TAG; install devin and run: devin plugins update"
     fi
   fi
 else
@@ -733,13 +728,28 @@ ok "legacy destinations checked"
 codex="$(codex_bin || true)"
 if [[ -n "$codex" ]]; then
   marketplace_ready=1
+  codex_moved=0  # a new ref re-adds every kit plugin, so its cache takes the release's version
   marketplaces="$("$codex" plugin marketplace list 2>/dev/null || true)"
-  if [[ "$marketplaces" == *"ai-kit"* ]]; then
-    ok "codex marketplace ai-kit registered"
-  elif "$codex" plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref main >/dev/null 2>&1; then
-    fix "codex marketplace ai-kit registered"
+  codex_ref="$(codex_kit_ref)"
+  if [[ -z "$RELEASE_TAG" ]]; then
+    fail "codex marketplace ai-kit not checked: no release tag — run platforms/tools/refresh.sh"
+    marketplace_ready=0
+  elif [[ "$marketplaces" == *"ai-kit"* && "$codex_ref" == "$RELEASE_TAG" ]]; then
+    ok "codex marketplace ai-kit registered at $RELEASE_TAG"
+  elif [[ "$marketplaces" == *"ai-kit"* ]]; then
+    # Codex keeps a marketplace's source and ref together, so a new ref is a remove and an add (#271)
+    if "$codex" plugin marketplace remove ai-kit >/dev/null 2>&1 \
+        && "$codex" plugin marketplace add "$KIT_REPOSITORY" --ref "$RELEASE_TAG" >/dev/null 2>&1; then
+      fix "codex marketplace ai-kit moved from $codex_ref to $RELEASE_TAG"
+      codex_moved=1
+    else
+      fail "codex marketplace ai-kit follows $codex_ref, not $RELEASE_TAG, and the move failed — run: codex plugin marketplace remove ai-kit && codex plugin marketplace add $KIT_REPOSITORY --ref $RELEASE_TAG"
+      marketplace_ready=0
+    fi
+  elif "$codex" plugin marketplace add "$KIT_REPOSITORY" --ref "$RELEASE_TAG" >/dev/null 2>&1; then
+    fix "codex marketplace ai-kit registered at $RELEASE_TAG"
   else
-    fail "codex marketplace ai-kit missing and add failed — run: codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref main"
+    fail "codex marketplace ai-kit missing and add failed — run: codex plugin marketplace add $KIT_REPOSITORY --ref $RELEASE_TAG"
     marketplace_ready=0
   fi
 
@@ -768,7 +778,7 @@ if [[ -n "$codex" ]]; then
   for plugin_name in "${plugin_names[@]:-}"; do
     [[ -n "$plugin_name" ]] || continue
     # A substring match would also accept "<name>@ai-kit  not installed" (KIT-055)
-    if grep -Eq "^[[:space:]]*$plugin_name@ai-kit[[:space:]]+installed" <<<"$plugins"; then
+    if [[ "$codex_moved" -eq 0 ]] && grep -Eq "^[[:space:]]*$plugin_name@ai-kit[[:space:]]+installed" <<<"$plugins"; then
       continue
     fi
     if [[ "$marketplace_ready" -eq 1 ]] && "$codex" plugin add "$plugin_name@ai-kit" >/dev/null 2>&1; then

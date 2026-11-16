@@ -2,9 +2,11 @@
 checked through a whole sync-project.sh run: a project's own justfile and its import line, an edited module, a
 dropped profile and a profile folder that does not exist. sync-project.sh's wiring, the refusals before its first
 write and the generated modules under just itself stay integration tests there."""
+import ast
 import contextlib
 import importlib.util
 import io
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,6 +19,45 @@ _SPEC = importlib.util.spec_from_file_location("sync_just_under_test", KIT / "pl
 sj = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(sj)
 VERSION = "0.0.0"
+
+
+class Recipes(unittest.TestCase):
+    def test_every_recipe_header_form_is_read(self):  # #283 item 8: a default parameter was missed
+        text = "\n".join([
+            "build:", "@quiet:", "test *ARGS:", "check +FILES:", "lint $FLAG:", 'run target="debug":',
+            "pick x='a' y=b:", "verify: lint boot test", "export PRESET OUT:",
+            'x := "a"', 'set shell := ["bash", "-c"]', "alias b := build", 'export X := "1"', "  indented:",
+            "[group('ci')]", "# comment:",
+        ])
+        self.assertEqual(sj.recipes(text), ["build", "quiet", "test", "check", "lint", "run", "pick", "verify",
+                                            "export"])
+
+
+    def test_check_kit_reads_recipes_with_the_same_pattern(self):
+        tree = ast.parse((KIT / "platforms" / "ci" / "validations" / "check_kit.py").read_text(encoding="utf-8"))
+        patterns = [node.value.args[0].value for node in ast.walk(tree) if isinstance(node, ast.Assign)
+                    and [getattr(t, "id", "") for t in node.targets] == ["JUST_RECIPE"]]
+        self.assertEqual(patterns, [sj.RECIPE.pattern])
+
+
+class Backtracking(unittest.TestCase):
+    LAYER = "integration"  # starts a process, so a runaway match ends at the timeout instead of hanging the run
+    COVERS = ("platforms/tools/sync_just.py",)
+
+    def test_a_line_of_quoted_defaults_matches_in_linear_time(self):  # CodeQL py/redos on the #283 pattern
+        script = ("import importlib.util, sys\n"
+                  "spec = importlib.util.spec_from_file_location('sj', sys.argv[1])\n"
+                  "sj = importlib.util.module_from_spec(spec); spec.loader.exec_module(sj)\n"
+                  "line = 'a' + ' A=\"\"' * 40 + ' !'\n"
+                  "print(sj.recipes(line), sj.recipes('a' + ' A=\"\"' * 40 + ':'))\n")
+        try:
+            module = str(KIT / "platforms" / "tools" / "sync_just.py")
+            result = subprocess.run([sys.executable, "-I", "-B", "-c", script, module], capture_output=True, text=True,
+                                    timeout=60)
+        except subprocess.TimeoutExpired:
+            self.fail("a 40-parameter line that is no recipe did not finish in 60 s: the pattern backtracks")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "[] ['a']")
 
 
 class Base(unittest.TestCase):

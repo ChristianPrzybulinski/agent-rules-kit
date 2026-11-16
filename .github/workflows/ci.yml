@@ -7,6 +7,9 @@ name: ci
 # and passes only when each of them passed (it runs even when one failed, so it never reports a skip as a success).
 # The whole integration layer and the functional layer run in ci-full.yml (push to main, nightly, the
 # release commit), the performance layer in performance.yml. Locally: platforms/tools/run_tests.py --help.
+# pull_request keeps its default types, without `edited` (#279): a title or body edit would re-run every required job,
+# and a job skipped on that event would report success; a PR retargeted to main waits for its next push, and red reads
+# the current body whenever it runs.
 on:
   pull_request:
     branches: [main]
@@ -41,10 +44,19 @@ jobs:
         run: |
           sudo apt-get install -y shellcheck
           shellcheck -x platforms/tools/*.sh platforms/kits/*/*.sh platforms/kits/*/scripts/*.sh
-      - name: install Claude Code
+      - name: install Claude Code (pinned, sha-256 checked; the stable channel's 2026-10-26 build; check.sh runs claude plugin validate)
+        env:
+          CLAUDE_CODE_VERSION: 2.1.311
+          CLAUDE_CODE_SHA256: 86dc1fcc69498159eaf15f446613e847010f9036bfbbdffd4c49350be8489ada
         run: |
-          curl -fsSL https://claude.ai/install.sh | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin"
+          wget -q -O "$RUNNER_TEMP/bin/claude" \
+            "https://downloads.claude.ai/claude-code-releases/$CLAUDE_CODE_VERSION/linux-x64/claude"
+          echo "$CLAUDE_CODE_SHA256  $RUNNER_TEMP/bin/claude" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/bin/claude"
+          "$RUNNER_TEMP/bin/claude" --version
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: check kit (check_kit.py with links, gen_index.py --check, claude plugin validate)
         run: platforms/tools/check.sh --links
 
@@ -113,7 +125,10 @@ jobs:
     # reviewer. Part of `ci` (KIT-077, #281): OK, EXEMPT, FLAG and a NONE with a ## Red exception pass, a FAIL fails.
     name: red
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # KIT-077: no green run measured yet; a PR that changes every test module runs them twice
+    timeout-minutes: 25  # 3 × the longest measured green run (460 s, run 43817751313), rounded up to 5 min (#294)
+    permissions:
+      contents: read
+      pull-requests: read  # ci_red.py reads the PR body when it runs, so a re-run sees an edited ## Red (#294)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -142,6 +157,8 @@ jobs:
           tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/bin" gitleaks
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: red check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 -B platforms/tools/ci_red.py
 
   ci:

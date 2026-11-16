@@ -4,6 +4,7 @@ import contextlib
 import importlib.util
 import io
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -55,6 +56,63 @@ class Verdict(unittest.TestCase):
         for code, output in ((1, "red: FAIL\nhead failed (exit 1)"), (2, "red: ERROR — no test ran on base")):
             with self.subTest(code=code):
                 self.assertEqual(ci_red.verdict(code, output, body)[0], 1)
+
+
+class CurrentBody(unittest.TestCase):
+    """#294: the body is read when the job runs, so a `## Red` exception added after the push counts on a re-run;
+    the event payload, which `gh run rerun` replays unchanged, is only the fallback."""
+    PAYLOAD = {"pull_request": {"number": 7, "body": "## Red\n\nnothing yet\n"}}
+    ENV = {"GITHUB_REPOSITORY": "o/kit", "GITHUB_API_URL": "https://api.example", "GITHUB_TOKEN": "t0ken"}
+
+    def test_the_body_comes_from_the_api_at_run_time(self):
+        seen = []
+
+        def fetch(request, timeout):
+            seen.append((request.full_url, request.get_header("Authorization"), timeout))
+            return io.BytesIO(b'{"body": "## Red\\n\\nException: manual: a version bump only"}')
+
+        body, note = ci_red.pr_body(self.PAYLOAD, self.ENV, fetch)
+        self.assertEqual(ci_red.red_exception(body), "Exception: manual: a version bump only")
+        self.assertEqual(note, "")
+        self.assertEqual(seen, [("https://api.example/repos/o/kit/pulls/7", "Bearer t0ken", 30)])
+
+    def test_an_api_failure_falls_back_to_the_event_body_with_a_notice(self):
+        def fetch(request, timeout):
+            raise OSError("network down")
+
+        body, note = ci_red.pr_body(self.PAYLOAD, self.ENV, fetch)
+        self.assertEqual(body, "## Red\n\nnothing yet\n")
+        self.assertTrue(note.startswith("::notice title=red::"), note)
+        self.assertIn("network down", note)
+        self.assertNotIn("t0ken", note)
+
+    def test_without_a_repository_or_number_the_event_body_is_used(self):
+        body, note = ci_red.pr_body({"pull_request": {"body": "x"}}, {}, None)
+        self.assertEqual((body, note), ("x", ""))
+
+
+class ChildEnvironment(unittest.TestCase):
+    def test_the_pr_tests_run_without_the_job_tokens(self):
+        tokens = {"GITHUB_TOKEN": "t0ken", "ACTIONS_RUNTIME_TOKEN": "rt", "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "it"}
+        calls = []
+
+        def run(cmd, **kwargs):
+            calls.append(kwargs)
+            return mock.Mock(returncode=0, stdout="red: OK\n", stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            event = Path(tmp) / "event.json"
+            event.write_text('{"pull_request": {"body": "x"}}', encoding="utf-8")
+            env = {"GITHUB_EVENT_NAME": "pull_request", "GITHUB_EVENT_PATH": str(event), "PATH": "/usr/bin", **tokens}
+            with mock.patch.dict(os.environ, env, clear=True), \
+                    mock.patch.object(ci_red, "git", return_value="m b h"), \
+                    mock.patch.object(ci_red.subprocess, "run", side_effect=run), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(ci_red.main(), 0)
+        child = calls[0].get("env")
+        self.assertIsNotNone(child, "red must get an explicit environment, not the job's")
+        self.assertFalse(set(tokens) & set(child), child)
+        self.assertEqual(child.get("PATH"), "/usr/bin")
 
 
 class NoPullRequest(unittest.TestCase):

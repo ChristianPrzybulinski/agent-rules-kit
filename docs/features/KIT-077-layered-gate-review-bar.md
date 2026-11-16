@@ -159,6 +159,8 @@ the bash 3 test. [FACT] The required `ci` job took a median of 771 s over the la
    `platforms/tools/run_tests.py` selects by layer and runs the tests in parallel worker processes (a unit or contract
    class per chunk, any slower test alone), keeps unittest's report lines and lists the skips by reason;
    `check.sh --tests` calls it, so CI and a local run share the entry (#278).
+   [FACT] Measured on macOS, Python 3.12: the whole suite in 327 s on 8 workers at load average 10–12, 196 s of it the
+   whole `smoke.sh` (the unit and contract layers, 146 tests, in about 1 s); moved here from CONTRIBUTING (#291).
 2. **The pull request gate.** `ci.yml` runs `static`, `unit` (unit and contract), `integration (1)` to `(3)` (the
    integration classes the change reaches, `--changed-from HEAD^1`) and `red` in parallel; the required `ci` job needs
    all of them, runs `if: always()` and passes only when each passed. `red` (`platforms/tools/ci_red.py`) records
@@ -219,6 +221,18 @@ the whole integration layer and `red` ran every module on base and head):
   ends with `red`, at about 6 min; a pull request that changes few test modules runs a shorter `red`.
 - Skips: 59, down from 87. They are 54 gdtoolkit, 4 Godot and 1 bash 3.2. The 21 `just` and 6 `gitleaks` skips are
   gone, and the corpus test is functional, so it no longer runs in a pull request job.
+
+After the merge (#294, KIT-080):
+
+- `ci-full` ran green on each push to `main` since #293: runs 43818735237 (`cf98ead`), 43820974443 (`160405d`) and
+  43821553749 (`453648d`). `performance` had not run yet (it runs nightly and on demand); its first run, dispatched
+  on `453648d`, ran 3 tests in 1.1 s, green (run 43848407372).
+- `red` took 349 s (run 43816019580), 460 s (43817751313), 60 s (43820680714) and 8 s (43821419139) on green pull
+  request runs, so its timeout is 25 min: 3 × 460 s, rounded up to 5 minutes, as KIT-076 sets the others.
+- [FACT] Median PR `ci` time, from the first job's start to the end of the `ci` job, over the five completed
+  pull request runs since #293 (#281's Done-when, #294 item 5): 1m59s. Runs 43820680714 1m07s, 43821082870
+  1m59s (failed), 43821419139 0m58s, 43874812514 6m29s and 43876497868 4m56s; the last two are PR #301, whose
+  `red` job ran 114 changed tests on base and head.
 
 Pending: the median over five pull request runs, which needs runs of smaller changes.
 

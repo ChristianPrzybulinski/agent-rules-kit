@@ -108,6 +108,9 @@ RULE_MARKER_PREFIX='<!-- agent-rules-kit: generated from '
 # says the same once per folder.
 # shellcheck disable=SC2016  # literal Markdown backticks
 RULE_LOCATION='Kit files this rule names: skill `<skill>`, reference `<file>` is `.claude/skills/<skill>/references/<file>` when this repository vendors the skill, else `~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>`.'
+# Vendored mode (KIT-072): a skill not copied plain is in the pinned plugin, so the line names the pin, not the kit head (#282).
+# shellcheck disable=SC2016  # literal Markdown backticks
+RULE_LOCATION_PINNED='Kit files this rule names: skill `<skill>`, reference `<file>` is `.claude/skills/<skill>/references/<file>` when this repository vendors the skill plain, else `.claude/skills/guardrails-pinned/skills/<skill>/references/<file>`.'
 version="$(cat "$KIT_DIR/VERSION")"
 
 if [[ -n "$WORKFLOW" && ( "$WORKFLOW" == */* || "$WORKFLOW" == .* ) ]]; then
@@ -206,7 +209,7 @@ render_rule() { # $1 = kit rule file, $2 = output path: frontmatter (first --- t
       separators=$((separators + 1))
       if [[ "$separators" -eq 2 ]]; then
         printf '%s\n' "<!-- agent-rules-kit: generated from ${src#"$KIT_DIR"/} by platforms/tools/sync-project.sh; kit $(cat "$KIT_DIR/VERSION"); do not edit -->"
-        printf '%s\n' "$RULE_LOCATION"
+        if [[ "${VENDOR:-0}" == 1 ]]; then printf '%s\n' "$RULE_LOCATION_PINNED"; else printf '%s\n' "$RULE_LOCATION"; fi
       fi
     fi
   done < "$src" > "$out"
@@ -360,7 +363,8 @@ skill_dirs() { # prints "<plugin> <name>" for every kit skill the map gives to a
 # Obsolete kit paths (layouts 1.x to 11.x). A consumer line that must keep one
 # (historical citation) appends the marker "<!-- kit-path-ok -->".
 # .claude/ is skipped: generated kit copies there are verified by their own
-# manifest and repo-owned content under .claude/ is not a kit citation.
+# manifest and repo-owned content under .claude/ is not a kit citation. legacy/, docs/sessions/ and every
+# CHANGELOG.md are history: an old entry names the paths and skills that were current then (#299).
 STALE_KIT_PATHS='agents/skills/|agents/rules/|agents/knowledge/|rules/godot/|rules/java/|rules/git/|kits/java-maven/|kits/github/|platforms/install/|knowledge/|processes/sdd/|plugins/ai-kit/|plugins/core/|plugins/sdd/|plugins/dev/|plugins/architect-|plugins/all/|plugins/dev-|plugins/extras/|plugins/infra-|plugins/process-loop/|plugins/quality-'
 STALE_OPT_OUT='<!-- kit-path-ok -->'
 
@@ -369,7 +373,7 @@ scan_stale_kit_paths() { # $1 = repo dir; prints one line per stale citation; re
   hits="$(grep -rnE --include='*.md' --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.claude \
       "(^|[^/A-Za-z0-9_.-])($STALE_KIT_PATHS)" "$1" 2>/dev/null \
     | sed "s|^${1%/}/||" \
-    | grep -vE '^([^:]*/)?(legacy|docs/sessions)/' \
+    | grep -vE '^([^:]*/)?((legacy|docs/sessions)/|CHANGELOG\.md:)' \
     | grep -vF -- "$STALE_OPT_OUT" || true)"
   [[ -n "$hits" ]] || return 0
   printf '%s\n' "$hits" | sed 's|^|sync: stale kit path: |'
@@ -409,7 +413,7 @@ forms = [
 ]
 pattern = re.compile("|".join(f"(?:{form})" for form in forms))
 skip_dirs = {".git", "node_modules", ".claude"}
-excluded = re.compile(r"^([^/]*/)*(legacy|docs/sessions)/")
+excluded = re.compile(r"^([^/]*/)*((legacy|docs/sessions)/|CHANGELOG\.md$)")
 for top, dirs, files in os.walk(root):
     dirs[:] = sorted(d for d in dirs if d not in skip_dirs)
     for name in sorted(files):

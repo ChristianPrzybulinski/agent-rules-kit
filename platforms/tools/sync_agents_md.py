@@ -26,6 +26,8 @@ BEGIN = "<!-- agent-rules-kit: path rules begin"
 END = "<!-- agent-rules-kit: path rules end -->"
 RULE_MARKER = re.compile(r"^<!-- agent-rules-kit: generated from (\S+) ")
 RULE_LOCATION = "Kit files this rule names:"  # sync-project.sh's line under the marker; the block intro says it once
+HEAD_HOME = "`~/.ai-kit/plugins/guardrails/skills/<skill>/`"  # plugins mode: the kit clone
+PINNED_HOME = "`.claude/skills/guardrails-pinned/skills/<skill>/`"  # vendored mode (AI_KIT_PINNED=1): the pin (#282)
 WILDCARD = re.compile(r"[*?\[{]")
 SKIP_DIRS = {".git", ".claude", ".godot", "node_modules", "target", "build", "dist", ".venv", "venv", "__pycache__"}
 
@@ -85,8 +87,8 @@ def expected_blocks(repo, version, rules_dir):
                  "## Path rules",
                  "",
                  "Generated for agents that load no rule by path; Claude Code loads the same rules from `.claude/rules/`. A kit"
-                 " skill or reference a rule names is in `.claude/skills/<skill>/` when this repository vendors it, else in"
-                 " `~/.ai-kit/plugins/guardrails/skills/<skill>/`."]
+                 " skill or reference a rule names is in `.claude/skills/<skill>/` when this repository vendors it, else in "
+                 + (PINNED_HOME if os.environ.get("AI_KIT_PINNED") == "1" else HEAD_HOME) + "."]
         for name, listed, body in sorted(rules):
             parts += ["", f"### `{name}`: " + ", ".join(f"`{glob}`" for glob in listed), "", body]
         parts += ["", END]

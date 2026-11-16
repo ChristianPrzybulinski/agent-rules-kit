@@ -66,14 +66,20 @@
 
 ## `evals/`
 
+- `code-rule-one-decision-one-place`
 - `git-squash-body`
 - `git-trigger-commit-this`
+- `godot-rule-boot-exit-code`
 - `investigate-trigger-slow-job`
+- `java-rule-constructor-injection`
+- `protocol-rule-required-field-bumps-version`
 - `review-claimed-proof-not-rerun`
 - `review-trigger-can-i-merge`
+- `sdd-intake-trigger-new-idea`
 - `security-trigger-download-endpoint`
 - `session-closeout-no-rerun`
 - `session-trigger-handoff`
+- `tests-rule-empty-return-passes`
 
 ## `hooks/`
 

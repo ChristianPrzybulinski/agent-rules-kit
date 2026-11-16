@@ -55,8 +55,15 @@ class MergeKeys(unittest.TestCase):
         row = 'a.key,"Sign in, now","Entrar, já"  '
         self.assertEqual(merge("", "", csv_text(row)), (csv_text(row), []))
 
-    def test_blank_lines_are_dropped(self):
+    def test_blank_lines_are_dropped(self):  # stratics#4545 item 4: a blank record has no key to place it by
         self.assertEqual(merge("", "", HEADER + "\na.key,A,A\n\n"), (csv_text("a.key,A,A"), []))
+        self.assertEqual(merge("", "", HEADER + "a.key,A,A"), (csv_text("a.key,A,A"), []))  # a line ending is added
+
+    def test_an_inch_mark_in_an_unquoted_field_is_part_of_it(self):  # #283 item 3: the csv module splits the records
+        row = 'a.key,5" screen,5" tela'
+        base = csv_text("a.key,A,A", "b.key,B,B")
+        self.assertEqual(merge(base, csv_text(row, "b.key,B,B"), csv_text("a.key,A,A", "b.key,B2,B2")),
+                         (csv_text(row, "b.key,B2,B2"), []))
 
 
 class Conflicts(unittest.TestCase):
@@ -73,6 +80,11 @@ class Conflicts(unittest.TestCase):
         merged, conflicts = merge(base, csv_text("a.key,X,X"), HEADER)
         self.assertEqual(conflicts, ["a.key"])
         self.assertEqual(merged, HEADER + "<<<<<<< ours\na.key,X,X\n=======\n>>>>>>> theirs\n")
+
+    def test_a_key_twice_only_in_the_base_is_no_conflict(self):  # #283 item 4: the rule needs ours and theirs to agree
+        base = csv_text("a.key,A,A", "a.key,A0,A0")
+        self.assertEqual(merge(base, csv_text("a.key,A,A"), csv_text("a.key,A,A")), (csv_text("a.key,A,A"), []))
+        self.assertEqual(merge(base, csv_text("a.key,A,A"), csv_text("a.key,A2,A2"))[1], ["a.key"])
 
     def test_a_key_twice_on_one_side_is_a_conflict(self):
         base = csv_text("a.key,A,A")
@@ -131,8 +143,13 @@ class Parameters(unittest.TestCase):
         self.assertEqual((merged, conflicts), (csv_text("a.key,A,A", "b.key,B2,B2").replace("\n", "\r\n"), []))
 
     def test_an_unbalanced_quote_is_a_parse_error(self):
-        with self.assertRaises(ValueError):
-            merge("", "", csv_text('a.key,"open,A'))
+        for text in (csv_text('a.key,"open,A'), csv_text("a.key,A,A", 'b.key,"open,B', "c.key,C,C")):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                merge("", "", text)
+
+    def test_text_after_a_closing_quote_is_kept_as_the_csv_module_reads_it(self):
+        row = 'a.key,"A"x,A'
+        self.assertEqual(merge("", "", csv_text(row)), (csv_text(row), []))
 
     def test_a_row_without_the_key_column_is_a_parse_error(self):
         with self.assertRaises(ValueError):
@@ -238,19 +255,28 @@ class Driver(unittest.TestCase):
         self.assertIn("keyed_csv_merge: client/i18n/strings.csv:", result.stdout + result.stderr)
         self.assertIn("<<<<<<<", self.read())
 
-    def test_a_stray_quote_merges_the_whole_file_as_text_and_warns(self):
-        """#283 item 3 (KIT-079), the documented fallback: the record split reads every `"` as a quote, so an inch
-        mark in an unquoted field leaves the side unparsable; the warning says the keyed merge is off and how to
-        write the mark so it parses."""
+    def test_an_inch_mark_merges_by_key(self):
+        """#283 item 3, the full fix: the csv module splits the records, so an inch mark in an unquoted field is
+        part of it and the file still merges by key (KIT-079 merged it as text, with a warning)."""
         files = {"base": csv_text("a.key,A,A", "b.key,B,B"), "ours": csv_text('a.key,5" screen,A', "b.key,B,B"),
                  "theirs": csv_text("a.key,A,A", "b.key,B2,B2")}
         for name, text in files.items():
             (self.repo / name).write_text(text, encoding="utf-8")
         result = subprocess.run([sys.executable, "-B", str(SCRIPT), "--path", self.CSV,
                                  *(str(self.repo / name) for name in files)], capture_output=True, text=True)
+        self.assertEqual((result.returncode, result.stderr), (0, ""))
+        self.assertEqual((self.repo / "ours").read_text(encoding="utf-8"),
+                         csv_text('a.key,5" screen,A', "b.key,B2,B2"))
+
+    def test_a_quote_left_open_merges_the_whole_file_as_text_and_warns(self):
+        files = {"base": csv_text("a.key,A,A"), "ours": csv_text('a.key,"A,A'), "theirs": csv_text("a.key,A2,A2")}
+        for name, text in files.items():
+            (self.repo / name).write_text(text, encoding="utf-8")
+        result = subprocess.run([sys.executable, "-B", str(SCRIPT), "--path", self.CSV,
+                                 *(str(self.repo / name) for name in files)], capture_output=True, text=True)
         self.assertIn(f"keyed_csv_merge: {self.CSV}: a quoted field is not closed; warning: the whole file merges as "
                       "text, not by key", result.stderr)
-        self.assertIn('"5"" screen"', result.stderr)
+        self.assertIn("double each quote inside one", result.stderr)
 
     def test_a_usage_error_exits_2(self):
         result = subprocess.run([sys.executable, "-B", str(SCRIPT), "only-one-file"], capture_output=True, text=True)

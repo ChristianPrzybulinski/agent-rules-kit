@@ -81,9 +81,6 @@ _CONFIG_SHAPES = {
     "proof_allowlist": (_strings, "a list of strings"),
     "proof_script_runners": (lambda v: isinstance(v, dict) and all(_strings(o) for o in v.values()),
                              "an object mapping a program to a list of option strings"),
-    "proof_var_depths": (lambda v: isinstance(v, dict) and all(isinstance(d, int) and not isinstance(d, bool)
-                                                               and d >= 0 for d in v.values()),
-                         "an object mapping a variable to a whole number of levels (0 or more)"),
     "expected_red_checks": (lambda v: isinstance(v, dict) and all(
         isinstance(checks, dict) and all(isinstance(rule, dict) for rule in checks.values()) for checks in v.values()),
         "an object mapping a repository to {check name: {until_issue_closed, why}}"),
@@ -293,18 +290,26 @@ def _mask_quotes(cmd: str) -> str:
     return "".join(out)
 
 
-_DOTDOT = re.compile(r"(?:^|[/=~])\.\.(?:/|$)")
-_PROOF_VAR = re.compile(r"^\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))")
-_GLUED_SHORT = re.compile(r"^-[A-Za-z](?=.)")
 _ANCHOR_NAME = re.compile(r"\{[A-Za-z_]\w*\}|[A-Za-z_]\w*")
 _PLAIN, _DOUBLE, _SINGLE, _ESCAPED = "plain", "double", "single", "escaped"
-UNPREDICTABLE = "expansion the proof check cannot predict: quote it or name the path"
+DOTDOT = "a `..` path step, refused in a component's proof: name the path from the folder the proof runs in"
+UNPREDICTABLE = "shell expansion outside a leading $NAME, ${NAME} or ~/ anchor: quote it or name the path"
+INLINE_CODE = "an interpreter given inline code: put the code in a script file and run that"
+# Interpreter (its name without a version suffix) -> the option letters and long options that hand it inline code.
+_INLINE = {"python": ("c", ()), "bash": ("c", ()), "sh": ("c", ()), "zsh": ("c", ()), "dash": ("c", ()),
+           "ksh": ("c", ()), "node": ("ep", ("--eval", "--print")), "perl": ("eE", ()), "ruby": ("e", ()),
+           "env": ("S", ("--split-string",))}
+# Interpreters whose own options end at the first other word (the script, or the module after `-m`, which gets every
+# later word) or at `--`: (short options that take a value, the rest of their cluster or the next word; long options
+# that take the next word; the letter after which the next word is the module).
+_OPTIONS_END = {"python": ("WX", ("--check-hash-based-pycs",), "m"), "bash": ("oO", (), ""), "sh": ("o", (), ""),
+                "zsh": ("o", (), ""), "dash": ("o", (), ""), "ksh": ("o", (), "")}
 
 
 def _shell_words(text: str) -> list:
     """The words of one simple command as lists of (quoting, char): `plain` (unquoted), `double` (inside "..."),
     `single` (inside '...') or `escaped` (after a backslash). Unquoted blanks and operators end a word; an unclosed
-    quote raises ValueError. shlex drops the quoting, which the sandbox needs to know what bash expands."""
+    quote raises ValueError. shlex drops the quoting, which the component rules need to know what bash expands."""
     words, word, started, i, n = [], [], False, 0, len(text)
     while i < n:
         ch = text[i]
@@ -344,57 +349,49 @@ def _shell_words(text: str) -> list:
     return words
 
 
-def _anchor_end(word: list, i: int):
-    """The index after a `$NAME` or `${NAME}` anchor at `word[i]`, written in one quoting, when it ends the word or a
-    `/` follows it; else None (`${NAME:-x}`, `${NAME%/}`, `$NAMEx...`, `$1`, `$'...'`)."""
-    kind, j, run = word[i][0], i + 1, []
+def _anchor_end(word: list) -> int | None:
+    """The index after a leading `$NAME`, `${NAME}` or `~` anchor, written in one quoting, when it ends the word or a
+    `/` follows it; 0 when the word starts with no `$` or unquoted `~`; None for any other leading `$` or `~`
+    (`${NAME:-x}`, `$NAMEx`, `$1`, `$'...'`, `~user`, `~+`)."""
+    if not word:
+        return 0
+    kind, ch = word[0]
+    if ch == "~" and kind == _PLAIN:
+        return 1 if len(word) == 1 or word[1][1] == "/" else None
+    if ch != "$" or kind not in (_PLAIN, _DOUBLE):
+        return 0
+    run, j = [], 1
     while j < len(word) and word[j][0] == kind:
         run.append(word[j][1])
         j += 1
     m = _ANCHOR_NAME.match("".join(run))
-    if not m:
-        return None
-    end = i + 1 + m.end()
-    return end if end == len(word) or word[end][1] == "/" else None
+    end = 1 + m.end() if m else None
+    return end if end is not None and (end == len(word) or word[end][1] == "/") else None
 
 
-def _unpredictable(word: list) -> bool:
-    """Whether bash may expand `word` into a path the sandbox cannot read from its text. Single-quoted and escaped
-    characters are literal. In unquoted or double-quoted text the only expansion accepted is an anchor at the start of
-    the word or of an `--opt=` value: `$NAME`, `${NAME}` or `~` followed by `/` or the end. Refused: any other `$`
-    (`$'...'`, `$"..."`, `${NAME:-x}`, `$1`), a tilde form other than home (`~user`, `~+`) or after `=...:`, an unquoted
-    brace pair
-    holding a `,` or `..` (brace expansion), and an unquoted `*`, `?` or `[` in a path component that starts with `.`
-    or `[`, the only components that can match `.` or `..`."""
-    starts = {0}
-    eq = next((i for i, (kind, ch) in enumerate(word) if kind == _PLAIN and ch == "="), None)
-    if eq is not None:
-        starts.add(eq + 1)
-    anchored, i = set(), 0
-    while i < len(word):
-        kind, ch = word[i]
+def _expands(word: list) -> bool:
+    """Whether bash may expand `word` beyond its leading anchor (`_anchor_end`). Single-quoted and escaped characters
+    are literal. Refused after the anchor: a `$` outside single quotes; an unquoted `~` that starts the word or follows
+    `=` or `:`; an unquoted `{` with an unquoted `}` after it, other than an empty `{}`; an unquoted `*`, `?` or `[` in
+    a path component that starts with `.`, the only kind that can match `.` or `..` (a bracket never matches a leading
+    dot)."""
+    start = _anchor_end(word)
+    if start is None:
+        return True
+    rest = word[start:]
+    for i, (kind, ch) in enumerate(rest):
         if ch == "$" and kind in (_PLAIN, _DOUBLE):
-            end = _anchor_end(word, i) if i in starts else None
-            if end is None:
-                return True
-            anchored.update(range(i, end))
-            i = end
-            continue
-        if ch == "~" and kind == _PLAIN and i in starts and i + 1 < len(word) and word[i + 1][1] != "/":
             return True
-        if ch == "~" and kind == _PLAIN and eq is not None and i > eq and word[i - 1] == (_PLAIN, ":"):
-            return True  # bash expands `~` after `:` in an assignment-shaped argument (`A=x:~/..`)
-        i += 1
-    plain = [ch for i, (kind, ch) in enumerate(word) if kind == _PLAIN and i not in anchored]
-    for n, ch in enumerate(plain):
-        if ch == "{" and "}" in plain[n + 1:]:
-            inner = "".join(plain[n + 1:n + 1 + plain[n + 1:].index("}")])
-            if "," in inner or ".." in inner:
-                return True
+        if kind != _PLAIN:
+            continue
+        if ch == "~" and (start + i == 0 or (i and rest[i - 1] in ((_PLAIN, "="), (_PLAIN, ":")))):
+            return True
+        if ch == "{" and (_PLAIN, "}") in rest[i + 2:]:
+            return True
     first, glob = None, False
     for kind, ch in word + [(_PLAIN, "/")]:
         if ch == "/":
-            if glob and first in (".", "["):
+            if glob and first == ".":
                 return True
             first, glob = None, False
             continue
@@ -403,51 +400,64 @@ def _unpredictable(word: list) -> bool:
     return False
 
 
-def _outside_sandbox(token: str, cwd: str, var_depths: dict) -> bool:
-    """`token` reads outside what a proof sandbox run in the repository folder `cwd` grants: a `..` that climbs out
-    of `cwd` (or any `..` in an absolute path), or one anchored on `$VAR`/`~` that climbs above the depth
-    `var_depths` grants that variable (`~` is `HOME`); a variable `var_depths` does not name may not climb at all.
-    A value glued to an option is judged by these same rules: the `--file=../x` value, and every suffix of a
-    short-option cluster (`-rf../x` -> `f../x`, `../x`). `token` is a word `_unpredictable` accepted, so its text is
-    what bash passes on."""
-    if "=" in token.split("/", 1)[0]:
-        return _outside_sandbox(token.split("=", 1)[1], cwd, var_depths)
-    if _GLUED_SHORT.match(token):
-        return any(_outside_sandbox(token[k:], cwd, var_depths) for k in range(2, len(token)))
-    if not _DOTDOT.search(token):
-        return False
-    var = _PROOF_VAR.match(token)
-    if var or token.startswith("~"):
-        if var:
-            depth, rest = var_depths.get(var.group(1) or var.group(2)), token[var.end():]
-        else:
-            depth, rest = (var_depths.get("HOME"), token[1:]) if token.startswith("~/") else (None, "")
-        if depth is None:
+def _dotdot(text: str) -> bool:
+    """Whether `text` holds a `..` path step: a run of exactly two dots, unless a letter or digit stands on both sides
+    (a revision range `A..B`). The quoting does not matter: `grep -f '../x'` reads outside as much as `cat ../x`."""
+    for m in re.finditer(r"\.+", text):
+        if len(m.group()) != 2:
+            continue
+        before, after = text[m.start() - 1:m.start()], text[m.end():m.end() + 1]
+        if not all(c.isascii() and c.isalnum() for c in (before, after) if c) or not (before and after):
             return True
-        for part in rest.split("/"):
-            if part == "..":
-                depth -= 1
-                if depth < 0:
-                    return True
-            elif part and part != ".":
-                depth += 1
+    return False
+
+
+def _inline_code(words: list) -> bool:
+    """Whether the program (words[0]) is an interpreter of `_INLINE` and a later word hands it inline code: one of
+    its long options (alone or with `=value`) or a short-option cluster holding one of its letters (`-c`, `-Ic`).
+    For the interpreters of `_OPTIONS_END` the scan stops where their own options end, so `python3 -m pytest -c
+    pytest.ini` and `bash tools/run.sh -c` pass; the others are scanned to the end."""
+    name = re.sub(r"[\d.]+$", "", posixpath.basename("".join(ch for _, ch in words[0])))
+    letters, long_options = _INLINE.get(name, ("", ()))
+    if name not in _OPTIONS_END:
+        for word in words[1:]:
+            text = "".join(ch for _, ch in word)
+            if any(text == o or text.startswith(o + "=") for o in long_options):
+                return True
+            if re.fullmatch(r"-[A-Za-z]+", text) and any(letter in text[1:] for letter in letters):
+                return True
         return False
-    if token.startswith("/"):
-        return True
-    resolved = posixpath.normpath(posixpath.join(cwd, token))
-    return resolved == ".." or resolved.startswith("../") or (
-        cwd != "." and not (resolved == cwd or resolved.startswith(cwd + "/")))
+    valued, valued_long, module = _OPTIONS_END[name]
+    rest = iter(words[1:])
+    for word in rest:
+        text = "".join(ch for _, ch in word)
+        if text == "--" or not re.match(r"[-+].", text):
+            return False  # the script (or `--`): later words are its arguments
+        if text.startswith("--"):
+            if text in valued_long:
+                next(rest, None)
+            continue
+        for index, letter in enumerate(text[1:], 1):
+            if text[0] == "-" and letter in letters:
+                return True
+            if module and letter == module:
+                return False  # `-m <module>`: later words are the module's arguments
+            if letter in valued:
+                if index == len(text) - 1:
+                    next(rest, None)
+                break  # the rest of the cluster, or the next word, is this option's value
+    return False
 
 
-def command_allowed(cmd: str, allowlist, cwd: str | None = None,
-                    var_depths: dict | None = None) -> tuple[bool, str]:
+def command_allowed(cmd: str, allowlist, cwd: str | None = None) -> tuple[bool, str]:
     """A proof/close_when command may only chain allowlisted programs; no subshells, files or network tools.
 
     `$(` and backticks are refused even inside quotes: bash expands them inside double quotes. `! git diff` without
     `--quiet` or `--exit-code` is refused: `git diff` exits 0 whether or not it prints, so the negation never passes.
-    With `cwd` (KIT-073), the repository folder the command runs in (`.` for the root, `server` for a component),
-    a word whose expansion cannot be predicted is refused (`_unpredictable`), and so is an operand that reads outside
-    the folder; `var_depths` grants `$VAR/..` reads (see `_outside_sandbox`)."""
+    With `cwd` (KIT-073; the component's folder, `.` for the root) three more rules hold (KIT-080): no interpreter
+    given inline code (`_inline_code`), no shell expansion outside a leading anchor (`_expands`) and no `..` path step
+    (`_dotdot`). They are hygiene, not isolation: an allowlisted program can still read any file, and an absolute or
+    anchored path still reads outside the component."""
     if _FORBIDDEN.search(cmd):
         return False, "forbidden construct"
     rest = _SAFE_REDIRECT.sub(lambda m: " " * len(m.group()), _mask_quotes(cmd))
@@ -477,13 +487,16 @@ def command_allowed(cmd: str, allowlist, cwd: str | None = None,
                 words = _shell_words(segment)
             except ValueError:
                 return False, "unbalanced quotes"
+            while words and words[0] == [(_PLAIN, "!")]:
+                words = words[1:]
+            if _inline_code(words):
+                return False, f"{tokens[0]}: {INLINE_CODE}"
             for word in words:
                 text = "".join(ch for _, ch in word)
-                if _unpredictable(word):
+                if _expands(word):
                     return False, f"{text}: {UNPREDICTABLE}"
-                if _outside_sandbox(text, cwd, var_depths or {}):
-                    return False, (f"{text} escapes the proof sandbox's granted paths — run the read from the "
-                                   "folder that owns it, or through a granted variable")
+                if _dotdot(text):
+                    return False, f"{text}: {DOTDOT}"
     return True, ""
 
 

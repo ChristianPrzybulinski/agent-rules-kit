@@ -17,7 +17,9 @@ every listed id must exist with the right kind, a refined or delivered NEED name
 lists only delivered FEATs, or, for a decision NEED with no FEAT, an approved decision. A REQ that no FEAT implements
 yet must be listed by an open NEED, not a delivered, rejected, merged, routed or parked one (REQs are written before
 the FEAT that delivers them). With `sdd.needs: false` the project keeps no NEED file (rule needs-off) and every REQ
-needs a FEAT, the rule before KIT-066: clarify's REQs land in the change that creates their FEAT.
+needs a FEAT, the rule before KIT-066: clarify's REQs land in the change that creates their FEAT. The rule reads the
+Markdown files at the top of needs/, each one a NEED record, not the folder (#288, intended): an empty needs/ folder,
+or one that keeps only NEED-nnn-data/ evidence, passes.
 
 A FEAT at `validated` or `delivered` carries the History line of the step that moved it (KIT-069, rule
 feature-closure), written by spec_trace.py: `sdd-review: validated`, then `sdd-release: delivered` or, under

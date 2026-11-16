@@ -73,6 +73,8 @@ git -C "$SOURCE" add -A
 # Git >= 2.4x starts `git maintenance run --auto --detach` after a commit; it packs the fixture's loose objects
 # while bootstrap.sh clones the fixture, and the clone fails mid-copy (KIT-003)
 git -C "$SOURCE" -c maintenance.auto=false -c gc.auto=0 -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "test fixture"
+# #271: the user install follows the newest vX.Y.Z on origin/main, so the fixture is a release
+git -C "$SOURCE" tag v0.0.0
 
 bootstrap_output="$ROOT/bootstrap.out"
 if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" \
@@ -81,6 +83,9 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" \
   cat "$bootstrap_output" >&2
   fail "bootstrap failed"
 fi
+
+grep -Fq 'fix: kit clone at release v0.0.0' "$bootstrap_output" || fail "bootstrap did not check out the release"
+git -C "$TEST_HOME/.ai-kit" symbolic-ref -q HEAD >/dev/null && fail "bootstrap left the clone on a branch, not the release"
 
 agents_link="$TEST_HOME/.codex/AGENTS.md"
 [[ -L "$agents_link" ]] || fail "Codex AGENTS.md is not a symlink"
@@ -125,6 +130,7 @@ if ! env HOME="$TEST_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$TEST_HOME/.ai-ki
   cat "$ROOT/doctor-initial.out" >&2
   fail "doctor failed after bootstrap"
 fi
+grep -Fq 'ok: kit clone at release v0.0.0' "$ROOT/doctor-initial.out" || fail "doctor did not report the release"
 
 if [[ "$MODE" == --main ]]; then
   printf 'smoke: main path OK (bootstrap, Codex AGENTS.md link and its repoints, doctor)\n'
@@ -294,9 +300,35 @@ case "$*" in
       done
     fi
     ;;
-  "plugin marketplace add "*)
+  "plugin marketplace add "*" --ref "*)
     touch "$state/marketplace"
+    python3 - "$HOME/.codex/config.toml" "$6" <<'PY'
+import sys
+from pathlib import Path
+
+config = Path(sys.argv[1])
+config.parent.mkdir(parents=True, exist_ok=True)
+text = config.read_text(encoding="utf-8") if config.is_file() else ""
+config.write_text(text + f'\n[marketplaces.ai-kit]\nsource_type = "git"\nref = "{sys.argv[2]}"\n', encoding="utf-8")
+PY
     echo "Added marketplace ai-kit"
+    ;;
+  "plugin marketplace remove ai-kit")
+    rm -f "$state/marketplace"
+    python3 - "$HOME/.codex/config.toml" <<'PY'
+import sys
+from pathlib import Path
+
+config = Path(sys.argv[1])
+kept, skipping = [], False
+for line in config.read_text(encoding="utf-8").splitlines():
+    if line.startswith("["):
+        skipping = line.strip() == "[marketplaces.ai-kit]"
+    if not skipping:
+        kept.append(line)
+config.write_text("\n".join(kept) + "\n", encoding="utf-8")
+PY
+    echo "Removed marketplace ai-kit"
     ;;
   "plugin add "*@ai-kit)
     mkdir -p "$state/plugins"
@@ -629,6 +661,42 @@ grep -Fq 'reinstalled' "$ROOT/refresh-stub-current.out" && fail "refresh reporte
 grep -Fq 'running doctor.sh' "$ROOT/refresh-stub-current.out" && fail "refresh ran the doctor with no broken kit link"
 grep -Fq '{"ran": 0,' "$ROOT/refresh-stub-current.out" || fail "refresh ran session_audit.py again within 7 days"
 
+# #271: a Codex marketplace that still follows main moves to the release, refresh and doctor alike, and each kit plugin
+# is added again so its cache takes the release's version.
+set_codex_ref_main() {
+  python3 - "$STUB_HOME/.codex/config.toml" <<'PY'
+import sys
+from pathlib import Path
+
+config = Path(sys.argv[1])
+config.write_text(config.read_text(encoding="utf-8").replace('ref = "v0.0.0"', 'ref = "main"'), encoding="utf-8")
+PY
+  grep -Fq 'ref = "main"' "$STUB_HOME/.codex/config.toml" || fail "the stub Codex config has no ai-kit ref to move"
+  rm -f "$STUB_STATE/plugins/guardrails"
+}
+set_codex_ref_main
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" \
+    "$STUB_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-stub-codex-ref.out" 2>&1; then
+  cat "$ROOT/refresh-stub-codex-ref.out" >&2
+  fail "refresh failed with a Codex marketplace on main"
+fi
+grep -Fq 'refresh: codex marketplace ai-kit moved from main to v0.0.0' "$ROOT/refresh-stub-codex-ref.out" \
+  || fail "refresh did not move the Codex marketplace to the release"
+grep -Fq 'ref = "v0.0.0"' "$STUB_HOME/.codex/config.toml" || fail "refresh left the Codex marketplace off the release"
+[[ -f "$STUB_STATE/plugins/guardrails" ]] || fail "refresh did not add the kit plugin again at the release"
+set_codex_ref_main
+if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
+    AI_KIT_DIR="$STUB_HOME/.ai-kit" STUB_STATE_DIR="$STUB_STATE" STUB_EXPOSED=43 \
+    "$STUB_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-stub-codex-ref.out" 2>&1; then
+  cat "$ROOT/doctor-stub-codex-ref.out" >&2
+  fail "doctor failed with a Codex marketplace on main"
+fi
+grep -Fq 'fix: codex marketplace ai-kit moved from main to v0.0.0' "$ROOT/doctor-stub-codex-ref.out" \
+  || fail "doctor did not move the Codex marketplace to the release"
+grep -Fq 'fix: codex plugin guardrails@ai-kit installed' "$ROOT/doctor-stub-codex-ref.out" \
+  || fail "doctor did not add the kit plugin again at the release"
+
 # KIT-055: an installed <name>@ai-kit that the kit no longer ships is reported with its remedy.
 touch "$STUB_STATE/claude-plugins/core"
 if ! env HOME="$STUB_HOME" PATH="$stub_path" AI_KIT_NO_CODEX_CLI=0 \
@@ -698,6 +766,7 @@ printf 'smoke: pulled refresh.sh ran\n'
 EOF
 git -C "$ROOT/reexec-origin" -c maintenance.auto=false -c gc.auto=0 -c user.name=smoke \
   -c user.email=smoke@example.invalid commit -qam "smoke: change refresh.sh"
+git -C "$ROOT/reexec-origin" tag v0.0.1
 for run in changed current; do
   if ! env HOME="$REEXEC_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$REEXEC_HOME/.ai-kit" \
       "$REEXEC_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-reexec-$run.out" 2>&1; then
@@ -707,10 +776,49 @@ for run in changed current; do
   [[ "$(grep -c 'smoke: pulled refresh.sh ran' "$ROOT/refresh-reexec-$run.out")" == 1 ]] \
     || fail "the pulled refresh.sh did not run exactly once ($run)"
 done
-[[ "$(grep -c 'refresh: the pull changed refresh.sh; running the new version' "$ROOT/refresh-reexec-changed.out")" == 1 ]] \
+[[ "$(grep -c 'refresh: the release changed refresh.sh; running the new version' "$ROOT/refresh-reexec-changed.out")" == 1 ]] \
   || fail "refresh did not hand over to the pulled refresh.sh"
 grep -Fq 'running the new version' "$ROOT/refresh-reexec-current.out" \
   && fail "refresh handed over although the pull did not change refresh.sh"
+
+# #271: a kit merge without a release changes nothing on the machine; the next tag moves the clone; a clone that
+# follows main past the newest release is drift that doctor reports.
+RELEASE_HOME="$ROOT/release-home"
+git clone "$SOURCE" "$ROOT/release-origin" >/dev/null 2>&1
+git clone "$ROOT/release-origin" "$RELEASE_HOME/.ai-kit" >/dev/null 2>&1
+release_commit() {
+  printf '%s\n' "$1" >> "$ROOT/release-origin/README.md"
+  git -C "$ROOT/release-origin" -c maintenance.auto=false -c gc.auto=0 -c user.name=smoke \
+    -c user.email=smoke@example.invalid commit -qam "smoke: $1"
+}
+release_refresh() {
+  if ! env HOME="$RELEASE_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$RELEASE_HOME/.ai-kit" \
+      "$RELEASE_HOME/.ai-kit/platforms/tools/refresh.sh" >"$ROOT/refresh-release-$1.out" 2>&1; then
+    cat "$ROOT/refresh-release-$1.out" >&2
+    fail "refresh failed ($1)"
+  fi
+}
+release_commit "merge without a release"
+release_refresh unreleased
+[[ "$(git -C "$RELEASE_HOME/.ai-kit" rev-parse HEAD)" == "$(git -C "$ROOT/release-origin" rev-parse 'v0.0.0^{commit}')" ]] \
+  || fail "refresh moved the clone to an unreleased commit"
+grep -Eq '^refresh: [0-9a-f]+ [0-9-]+ v0\.0\.0$' "$ROOT/refresh-release-unreleased.out" \
+  || fail "refresh did not report the release it follows"
+env HOME="$RELEASE_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$RELEASE_HOME/.ai-kit" \
+  "$RELEASE_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-release-unreleased.out" 2>&1 || true
+grep -Fq 'ok: kit clone at release v0.0.0' "$ROOT/doctor-release-unreleased.out" \
+  || fail "doctor did not accept the release behind an unreleased merge"
+git -C "$ROOT/release-origin" tag v0.0.1
+release_refresh released
+[[ "$(git -C "$RELEASE_HOME/.ai-kit" rev-parse HEAD)" == "$(git -C "$ROOT/release-origin" rev-parse 'v0.0.1^{commit}')" ]] \
+  || fail "refresh did not move the clone to the new release"
+release_commit "merge after the release"
+git -C "$RELEASE_HOME/.ai-kit" fetch -q origin
+git -C "$RELEASE_HOME/.ai-kit" checkout -q --detach origin/main
+env HOME="$RELEASE_HOME" PATH="$RESTRICTED_PATH" AI_KIT_DIR="$RELEASE_HOME/.ai-kit" \
+  "$RELEASE_HOME/.ai-kit/platforms/tools/doctor.sh" >"$ROOT/doctor-release-ahead.out" 2>&1 || true
+grep -Fq 'FAIL: kit clone is not at the newest release v0.0.1 — run platforms/tools/refresh.sh' \
+  "$ROOT/doctor-release-ahead.out" || fail "doctor did not report a clone past the newest release"
 
 FOREIGN_LINK_HOME="$ROOT/foreign-link-home"
 mkdir -p "$FOREIGN_LINK_HOME/.codex"

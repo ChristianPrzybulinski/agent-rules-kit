@@ -12,7 +12,9 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
       command}) give each stack its command: `{tests}` (paths relative to cwd), `{res}` (`res://` paths) and
       `{classes}` (stems, comma-joined) fill in the tests, and a prefix in the braces repeats per item (`{-a res}`);
       tests no entry covers run with --run. A run where no test ran (exit 126/127, or a stack's no-test line) is an
-      ERROR, exit 2, never a verdict. --junit reads the run's JUnit XML reports (surefire, gdUnit, pytest).
+      ERROR, exit 2, never a verdict. --junit reads the run's JUnit XML reports (surefire, gdUnit, pytest); without
+      them the unittest or pytest text is read. A case naming no test file of the run, such as another runner's report
+      quoted in a message, is skipped, and a reported failure is an assertion whatever its message quotes.
   review_checks.py scope --base B --head H --files GLOB ... [--body PR.md] [--gates gates.json]
       Changed paths outside the task's Files cell. `## Files widened` may add existing test paths only, and none of
       them may change an assertion line (the falsifier: an assertion changed to pass is a stop).
@@ -22,22 +24,37 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
   review_checks.py feat-proofs --feat FEAT.md [--rows Tn ...] [--run --allow CMD ... | --gates gates.json] [--cwd DIR]
       Every command in the FEAT task table's Proof cells, run literally (sdd-review § 2); superseded and cancelled
       rows skipped.
-  review_checks.py dod   --base B --head H [--review REVIEW.md]
+  review_checks.py dod   --base B --head H [--review REVIEW.md] [--gates gates.json]
       Added lines matching a grep-able DoD line of the project REVIEW.md (`<!-- grep: REGEX -->`, or
-      `<!-- grep tests: REGEX -->` for test files only), and test files whose assertion lines dropped (a deleted
-      test file counts, and so does one moved out of the test globs; a rename inside them does not).
+      `<!-- grep tests: REGEX -->` for test files only; in a test file a match wholly inside a string literal is
+      fixture data and does not count), and test files whose assertion lines dropped (a deleted test file counts, and
+      so does one moved out of the test globs or, with --gates, out of every `red` glob; a rename inside both does
+      not).
 
 Rules files inside the repository (--gates, --review, --patterns) are read only from git, as --base has them (`git show B:path`),
-never from the checkout, so a PR cannot loosen its own rules; only the part of the path in front of the repository is
-resolved, so no link the head commits can move the path. A file outside the repository is read from disk. Every run
-is its own process group, which a timeout, Ctrl-C, SIGTERM or SIGHUP kills whole. Diffs are read as bytes split only
-on newlines, one trailing CR dropped per line, with fixed a/ and b/ prefixes, raw file names and `--text --no-textconv
---no-ext-diff`; the tests cover a `-diff` or `binary` attribute in the head or base, a quote, tab, space or non-ASCII
-character in a file name, a CR, FF or U+2028 inside an added line, a rule anchored at `$` on a CRLF line, and a
-reviewer's diff.noprefix or prefix config. Files read whole (REVIEW.md, a moved test) split on CRLF, CR or LF. A rules
-file or config the tool cannot read or use (a base that is not a commit, bad JSON, not an object, a regex that does not
-compile, a value whose type crashes the check) exits 2, never the finding code 1; a wrong type that still iterates is
-not caught (#252).
+never from the checkout, so a PR cannot loosen its own rules by editing, deleting or relinking the file. feat-proofs
+without --base reads them from HEAD, on purpose: it runs on main after the merge, where HEAD is the trusted ref and no
+PR head exists; on a PR checkout pass --base. Only the part of the path in front of the repository is resolved (an
+alias folder counts); from the repository root on, the path stays lexical, so no link the head commits, on the file or
+a folder above it, can move it. A working folder inside a linked one is already resolved, so run the tool from the
+repository root. A path that names a folder is a usage error (exit 2). A file outside the repository is read from
+disk. Every run is its own process group, which a timeout, Ctrl-C, SIGTERM or SIGHUP kills whole.
+
+Diffs are read as bytes split only on newlines, one trailing CR dropped per line (so a rule anchored at `$` matches a
+CRLF line), with fixed a/ and b/ prefixes, raw file names and `--text --no-textconv --no-ext-diff`, so a `-diff` or
+`binary` attribute in the head's or base's .gitattributes, an unusual file name, a line separator inside an added line
+or the reviewer's diff-prefix config hides no line; the tests cover a `-diff` or `binary` attribute in the head or
+base, a quote, tab, space or non-ASCII character in a file name, a CR, FF or U+2028 inside an added line, a rule
+anchored at `$` on a CRLF line, and a reviewer's diff.noprefix or prefix config. So dod does not see a line-ending CR:
+a project that needs a rule about CRs enforces line endings with .gitattributes `text` and `eol` rules. Files read
+whole (REVIEW.md, a moved test) split on CRLF, CR or LF.
+
+A rules file or config the tool cannot read or use (a base that is not a commit, as in a shallow clone, bad JSON, not
+an object, a regex that does not compile, a value of the wrong type, even one that still iterates, such as a string
+where a list belongs, named by its key: `pr_gates.config_errors` checks each known key, #252) exits 2, never the
+finding code 1, and so do a copy of the tool without pr_gates.py and a --timeout below 1. A failure the PR's own
+content causes (a path too long for the file system, a PR test under a path that is a file on base) is a finding
+naming the path.
 
 A proof re-run first checks that every path the command names exists, `res://` against Godot's `--path` (a moved
 file is a stale proof, not a failure of the code), then fails a run whose output matches its stack's failure pattern
@@ -818,11 +835,59 @@ def dod_lines(text: str) -> list[tuple[str, str, bool, re.Pattern]]:
     return found
 
 
+_QUOTES = ('"""', "'''", '"', "'", "`")
+
+
+def string_spans(text: str) -> list[list[bool]]:
+    """Per line of `text` (split on LF, as git numbers lines), one flag per character: True inside a string literal.
+    A literal opens with a triple, double or single quote or a backtick and closes with the same quote; a backslash
+    escapes the next character. A one-quote literal (not a backtick) closes on its own line: one still open at the
+    line's end was no literal (a Rust lifetime `'a`, a regex `/"/`), so its characters stay code and the scan resumes
+    after that quote. Outside a literal, `#` or `//` starts a comment to the line's end, so a quote there opens
+    nothing. Python, GDScript, Java (text blocks) and JavaScript quote alike (#277)."""
+    source = text + "\n"  # the last line ends like the others
+    flags, quote, i, n, opened = [False] * len(source), None, 0, len(source), 0
+    while i < n:
+        if quote is None:
+            if source[i] == "#" or source.startswith("//", i):
+                while i < n and source[i] != "\n":
+                    i += 1
+                continue
+            quote = next((q for q in _QUOTES if source.startswith(q, i)), None)
+            opened = i
+            i += len(quote) if quote else 1
+        elif source[i] == "\\":
+            flags[i:i + 2] = [True] * len(flags[i:i + 2])
+            i += 2
+        elif source.startswith(quote, i):
+            i, quote = i + len(quote), None
+        elif source[i] in "\r\n" and len(quote) == 1 and quote != "`":
+            flags[opened:i] = [False] * (i - opened)
+            i, quote = opened + 1, None
+        else:
+            flags[i] = True
+            i += 1
+    out, start = [], 0
+    for line in text.split("\n"):
+        out.append(flags[start:start + len(line)])
+        start += len(line) + 1
+    return out
+
+
+def outside_strings(pattern: re.Pattern, text: str, inside: list[bool] | None) -> bool:
+    """Whether `pattern` matches `text` with at least one character outside a string literal (`inside`: the line's
+    flags from string_spans, None for a file that is no test)."""
+    for m in pattern.finditer(text):
+        if inside is None or m.start() == m.end() or not all(inside[m.start():m.end()]):
+            return True
+    return False
+
+
 def dod(args) -> int:
     repo, out = args.repo, Findings("dod")
     text = rules_text(args, args.base, args.review) if args.review else None
     rules = dod_lines(text) if text else []
-    counts = {}
+    counts, spans = {}, {}
     for path, line, text in added_lines(repo, args.base, args.head):
         test = matches(path, TEST_GLOBS)
         hits = sum(1 for part in text.split("\r") if ASSERTION.search(part)) if test else 0  # a CR-only file is one
@@ -830,8 +895,15 @@ def dod(args) -> int:
             counts.setdefault(path, [0, 0])[0 if line else 1] += hits
         if line is None:
             continue
+        inside = None
+        if test and rules:  # a match wholly inside a test file's string literal is fixture data (#277)
+            if path not in spans:
+                head = git(repo, "show", f"{args.head}:{path}")
+                spans[path] = string_spans("\n".join(x[:-1] if x.endswith("\r") else x for x in head.split("\n")))
+            lines = spans[path]
+            inside = lines[line - 1] if 0 < line <= len(lines) and len(lines[line - 1]) == len(text) else None
         for section, rule, tests_only, pattern in rules:
-            if (test or not tests_only) and pattern.search(text):
+            if (test or not tests_only) and outside_strings(pattern, text, inside):
                 out.add(f"{section}: {path}:{line}: {text.strip()} — {rule}")
     fork = git(repo, "merge-base", args.base, args.head).strip()  # where the renames and the diff start
     # A test its runner no longer collects keeps no assertion: the runners' discovery patterns are the gates `red`

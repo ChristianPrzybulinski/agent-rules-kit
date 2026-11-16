@@ -62,11 +62,11 @@ Existing Customize entries need no source change; Reindex to pick up the new lay
 Bootstrap registers the marketplace and every plugin:
 
 ```bash
-codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref main
+codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref "$(git -C ~/.ai-kit describe --tags --abbrev=0)"   # the release tag bootstrap checked out
 codex plugin add guardrails@ai-kit   # repeat per plugin, or let bootstrap/doctor iterate them
 ```
 
-The root marketplace catalog lists `guardrails`; `~/.codex/AGENTS.md` links to `~/.ai-kit/plugins/guardrails/AGENTS.md`. While [openai/codex#22078](https://github.com/openai/codex/issues/22078) remains open, doctor maintains fallback skill symlinks to `~/.ai-kit/plugins/*/skills/` and removes them once plugin skills are exposed. Codex keeps entries for retired plugin names (KIT-038, `dev` and `sdd` since KIT-047, `core` since KIT-055) in `~/.codex/config.toml`; `doctor.sh` removes each one the kit no longer ships with `codex plugin remove <name>@ai-kit`.
+The marketplace follows the newest release tag, as the `~/.ai-kit` clone does (below); `refresh.sh` and `doctor.sh` move it to each new release (a remove and an add, since Codex keeps a marketplace's source and ref together). The root marketplace catalog lists `guardrails`; `~/.codex/AGENTS.md` links to `~/.ai-kit/plugins/guardrails/AGENTS.md`. While [openai/codex#22078](https://github.com/openai/codex/issues/22078) remains open, doctor maintains fallback skill symlinks to `~/.ai-kit/plugins/*/skills/` and removes them once plugin skills are exposed. Codex keeps entries for retired plugin names (KIT-038, `dev` and `sdd` since KIT-047, `core` since KIT-055) in `~/.codex/config.toml`; `doctor.sh` removes each one the kit no longer ships with `codex plugin remove <name>@ai-kit`.
 
 `bootstrap.sh`, `refresh.sh` and `doctor.sh` find the Codex CLI through `platforms/tools/codex-bin.sh`: `$CODEX_BIN` when set, then `codex` on `PATH`, then the CLI bundled in ChatGPT.app or Codex.app, then `~/.cache/codex-runtimes`. A `CODEX_BIN` that is not executable is reported and no other CLI is used. Run `platforms/tools/codex-bin.sh` to see which CLI the kit uses.
 
@@ -84,7 +84,7 @@ A repository in plugins mode enables only `guardrails@ai-kit` in `.claude/settin
 
 ## Refresh and diagnosis
 
-On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours. `platforms/tools/doctor.sh` repairs clone, plugin and symlink state, warns when a Claude plugin cache differs from the kit (`refresh.sh` reinstalls it, KIT-013), and sets Claude Code's `autoCompactWindow` to the number `300000` when `~/.claude/settings.json` has none or holds the `"200k"` an older doctor wrote (KIT-010). When its last run is 7 or more days old, `refresh.sh` also runs `platforms/tools/session_audit.py`, the weekly cross-session audit pre-filter that skill `session` reads in `audit` mode; it prints counts only, and `AI_KIT_SESSION_AUDIT=0` turns it off (KIT-056). Nothing refreshes at agent session start.
+On macOS, launchd runs `platforms/tools/refresh.sh` at login and every six hours. The user install follows the newest `vX.Y.Z` tag on `origin/main`, not `main` (#271): `refresh.sh` fetches the tags and checks the clone out detached at that release, so the always-on `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` links, the Codex marketplace ref and the kit tools change only with a release, and a kit merge waits for its tag. `platforms/tools/doctor.sh` fails when the clone, the Codex marketplace ref or Devin's plugin ref is not at that release, and repairs clone, plugin and symlink state, warns when a Claude plugin cache differs from the kit (`refresh.sh` reinstalls it, KIT-013), and sets Claude Code's `autoCompactWindow` to the number `300000` when `~/.claude/settings.json` has none or holds the `"200k"` an older doctor wrote (KIT-010). When its last run is 7 or more days old, `refresh.sh` also runs `platforms/tools/session_audit.py`, the weekly cross-session audit pre-filter that skill `session` reads in `audit` mode; it prints counts only, and `AI_KIT_SESSION_AUDIT=0` turns it off (KIT-056). Nothing refreshes at agent session start.
 
 ## Maintainers
 

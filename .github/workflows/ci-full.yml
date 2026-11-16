@@ -81,9 +81,18 @@ jobs:
           mkdir -p "$RUNNER_TEMP/bin"
           tar -xzf "$RUNNER_TEMP/just.tar.gz" -C "$RUNNER_TEMP/bin" just
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-      - name: install Claude Code (smoke.sh ran with it in the old ci job)
+      - name: install Claude Code (pinned, sha-256 checked; the stable channel's 2026-10-26 build; smoke.sh runs claude plugin validate)
+        env:
+          CLAUDE_CODE_VERSION: 2.1.311
+          CLAUDE_CODE_SHA256: 86dc1fcc69498159eaf15f446613e847010f9036bfbbdffd4c49350be8489ada
         run: |
-          curl -fsSL https://claude.ai/install.sh | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin"
+          wget -q -O "$RUNNER_TEMP/bin/claude" \
+            "https://downloads.claude.ai/claude-code-releases/$CLAUDE_CODE_VERSION/linux-x64/claude"
+          echo "$CLAUDE_CODE_SHA256  $RUNNER_TEMP/bin/claude" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/bin/claude"
+          "$RUNNER_TEMP/bin/claude" --version
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: the functional layer
         run: python3 -B platforms/tools/run_tests.py --layer functional --durations 10

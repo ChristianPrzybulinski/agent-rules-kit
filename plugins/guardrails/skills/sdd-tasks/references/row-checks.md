@@ -33,7 +33,7 @@ Each row passes every check below before its table goes to the spec PR; a row th
 ## Proof
 
 - **Executable proof.** Every proof line runs unattended in CI or the review gates as a deterministic command. A manual check (UI, mail capture) is labelled as such and paired with an automated one.
-- **Proof wording.** A proof line contains none of the words the project's gates refuse; the item's `Notes` names the project's allowlist location, never a hard-coded list.
+- **Proof wording.** A proof line contains none of the words the project's gates refuse; the item's `Notes` names the project's allowlist location, never a hard-coded list. Under a component (rule e) it also holds no `..` path step (any `..` but a revision range `A..B` between letters or digits, quoted or not), no shell expansion outside a leading `$NAME`, `${NAME}` or `~/` anchor (a `$`, `~`, `{…}` other than `{}`, or a glob in a name that starts with `.`), and no interpreter given inline code (`python3 -c`, `sh -c`, `node -e`, `perl -e`, `ruby -e`, `env -S`). These rules are hygiene, not isolation: an allowlisted program, an absolute path or an anchored one still reads outside the component; only a sandbox that runs the line could stop that.
 
 ## Automated rules
 
@@ -43,7 +43,7 @@ Each row passes every check below before its table goes to the spec PR; a row th
 | b | FAIL | each Files entry starts at a top-level path or a component name, and the row stays in one component (a contract row that owns the protocol folder only warns) | `components` |
 | c | FAIL (WARN for a stack with `level: warn`) | a code path needs a test path of its stack | `row_checks.tests` |
 | d | WARN | a listed generated neighbour; an exact asset path where a `**` glob of its folder belongs | gates `generated_neighbours`, `row_checks.assets` |
-| e | FAIL (WARN for a manual clause with no automated sibling, or no command at all) | each proof clause runs allowlisted programs only, inside its component (`pr_gates.py` `command_allowed`, the PR gate's own code) | gates `proof_allowlist`; `proof_var_depths` (the `..` a variable may climb, `HOME` for `~`; any other `..` out of the component fails); `components` |
+| e | FAIL (WARN for a manual clause with no automated sibling, or no command at all) | each proof clause runs allowlisted programs only, under the component rules of § Proof (`pr_gates.py` `command_allowed`, the PR gate's own code); a Proof of `evidence:` clauses only fails unless `row_checks.evidence_only` is `true` | gates `proof_allowlist`; `components`; `row_checks.evidence_only` |
 | f | WARN | each Depends on token is `—`, a row of the table, `FEAT-nnn Tn` on disk or `#N` | — |
 | g | FAIL | each path a proof clause names is in Files of the row or of a same-FEAT dependency | — |
 | h | WARN | each message type the Task sends has its schema | `row_checks.protocol.schemas` |

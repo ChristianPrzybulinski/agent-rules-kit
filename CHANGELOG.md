@@ -4,6 +4,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- KIT-080 (#280): rule e's component check is three short rules (no `..` path step, no shell expansion outside a leading `$NAME`, `${NAME}` or `~/` anchor, no interpreter given inline code, read only up to the script or `-m` module for Python and the shells), documented as hygiene, not isolation; `proof_var_depths` is no longer read.
+- KIT-080 (#271): the user install follows the newest `vX.Y.Z` release tag, not `main`: the clone, the always-on `AGENTS.md` links and the Codex marketplace ref move with each release, and `doctor.sh` fails when the clone, the Codex ref or Devin's ref is off it.
+- KIT-080 (#287, #276, #245, #291, #298): review text (`PARTIAL` defined, `review_rounds` a ceiling, no reviewer run beyond the recorded-result rule), `sdd-plan` settles decisions from the frontier, `AGENTS.md` loads `sdd-intake` for a new idea in a spec repository, the godot rule leaves `*.translation` to the project, and the docs are compacted.
+
+### Added
+- KIT-080 (#275, #245): five `rule` eval cases for the behaviors KIT-070 moved into path rules and an `sdd-intake` trigger case, written and not run.
+
+### Fixed
+- KIT-080 (#270, #269, #266): rule e fails a Proof of `evidence:` clauses only unless `row_checks.evidence_only` is `true`; rule c names every missing stack; the docs say rule j reads `visual_approval`.
+- KIT-080 (#265, #267, #268, #282): `spec_trace.py check` honours `check_spec.py`'s baseline; `sync-status` exits 2 when `gh` fails and maps rows through the `Item` cell; the pin carries the schemas its spec tools load.
+- KIT-080 (#277, #288): `review_checks.py dod` ignores a match inside a string literal of a test file (a quote left open on its line opens none); the `needs-off` and FEAT-template texts match the code.
+- KIT-080 (#279, #294, #283): the workflow tests catch `write-all`, unlisted job writes, `.yaml` files and piped installs; Claude Code installs by version and sha-256; `red` reads the PR body when it runs and runs the PR's tests without the job's tokens; the CI templates import once and run the doc-structure check.
+- KIT-080 (#299, #282): `sync-project.sh --check` skips every `CHANGELOG.md`; in vendored mode the location lines name the pinned plugin, and `$HOME/.ai-kit/platforms/` calls are pinned too, quoted unless they sit inside double quotes.
+- KIT-080 (#283, stratics#4545): the keyed-CSV driver splits records with the csv module, so an inch mark merges by key; `sync_just.py` and `check_kit.py` read a recipe with a default parameter.
+- KIT-080 (#274): the `InstructionsLoaded` hook rotates and appends under one lock, so concurrent sessions lose no line.
+
+### Migration
+- KIT-080 (#280): under a component, a row proof with `..`, a glob in a dot-name, a variable inside a word (`--file=$HOME/x`, `grep -f$HOME/x`; a word that opens with `$NAME`, `${NAME}` or `~/` stays allowed) or inline interpreter code now fails rule e; name the path from the component's folder, and set `row_checks.evidence_only: true` where evidence-only rows are intended.
+- KIT-080 (#271): the next `refresh.sh` moves `~/.ai-kit` and the Codex marketplace to the newest release tag; set that tag as the ref of Devin's team plugin (Customize → Plugins → Plugin settings → Edit manifest). Detail: `docs/features/KIT-080-issue-bundle-13-1.md`.
+
 ## [13.0.1] - 2026-11-16
 
 ### Changed

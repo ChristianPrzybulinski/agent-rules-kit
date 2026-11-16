@@ -26,7 +26,7 @@ sdd:
   components: {}
   spec_index: false
   github: {repo: null, pr_repos: [], aliases: [], blocked_labels: [blocked], progress_labels: ["status:in-progress"]}
-  row_checks: {gates: null, tests: [], assets: null, protocol: null, artifacts: null, visual: null}
+  row_checks: {gates: null, tests: [], assets: null, protocol: null, artifacts: null, visual: null, evidence_only: false}
   visual_approval: none
   owner_approvals: [decision]
   doc_structure:

@@ -101,15 +101,34 @@ class RuleJ(Base):
 
 
 class RuleE(Base):
-    def test_an_evidence_clause_is_neither_prose_nor_a_command(self):
-        self.assertEqual(rc.rule_e(self.row(EVIDENCE_LOGIN), self.cfg), [])
+    def test_an_evidence_clause_beside_a_command_is_neither_prose_nor_a_command(self):
         self.assertEqual(rc.rule_e(self.row("`godot --path . --headless --quit`; " + EVIDENCE_LOGIN), self.cfg), [])
+
+    def test_a_proof_of_evidence_clauses_only_fails_with_rule_j_on_or_off(self):
+        """#270: such a row has no runnable proof, and with visual_approval none rule j never looks at it."""
+        off = rc.load_config(make_repo(self.root, spec_md=SPEC_MD.replace("visual_approval: owner",
+                                                                           "visual_approval: none"), rows=[]))
+        for cfg in (self.cfg, off):
+            got = rc.rule_e(self.row(f"{EVIDENCE_LOGIN}; evidence: motion `walk`"), cfg)
+            self.assertEqual([(f.rule, f.level) for f in got], [("e", "FAIL")])
+            self.assertIn("only evidence: clauses", got[0].message)
+            self.assertIn("row_checks.evidence_only", got[0].message)
+
+
+class EvidenceOnlyAllowed(Base):
+    spec_md = SPEC_MD.replace("  row_checks:\n", "  row_checks:\n    evidence_only: true\n")
+
+    def test_the_parameter_lets_an_evidence_only_proof_pass(self):
+        self.assertTrue(self.cfg.evidence_only)
+        self.assertEqual(rc.rule_e(self.row(EVIDENCE_LOGIN), self.cfg), [])
+        got = rc.rule_e(self.row("reviewed by a human"), self.cfg)
+        self.assertEqual([(f.rule, f.level) for f in got], [("e", "WARN")])
 
 
 class CatalogCli(Base):
     def write_feat(self):
-        line = row_line("T1", "Client HUD", "`frontend/features/ui/hud/**`, `frontend/tests/hud/**`", EVIDENCE_LOGIN,
-                        "—", "todo")
+        line = row_line("T1", "Client HUD", "`frontend/features/ui/hud/**`, `frontend/tests/hud/**`",
+                        f"`godot --path . --headless --quit`; {EVIDENCE_LOGIN}", "—", "todo")
         (self.spec / "features" / "FEAT-901.md").write_text(f"# FEAT-901\n\n## Tasks\n\n{HEADER}\n{line}\n",
                                                             encoding="utf-8")
 
