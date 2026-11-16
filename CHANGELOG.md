@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Removed
+- `platforms/kits/review-loop/config.example.json` and `verdict.schema.json`: the loop lives in `dev-game-studio/review-loop`, whose own schema and generic example config replace them (the kit's schema lacked the `base_sha` that the loop's `stratics-verdict/v1` schema requires); the folder README now points to that repository.
+
 ### Changed
 - KIT-076: the `main` ruleset also requires `CodeQL`, the code scanning result for the uploaded analysis, so a new alert in the changed code blocks the merge; the PR template, CONTRIBUTING and the KIT-076 record name six checks.
 
