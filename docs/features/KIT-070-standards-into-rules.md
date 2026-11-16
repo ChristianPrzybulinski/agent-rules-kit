@@ -104,7 +104,7 @@ gdUnit4 test; `server/` Java 25 Maven with `InventoryService` and its JUnit 5 te
 skill or rule), synced by kit 13.1.0 with `sync-project.sh --vendor-skills --profile godot:client,java:server`. Each
 prompt ran twice on a fresh copy with `codex exec --json -s workspace-write --disable plugins` (Codex CLI 0.164.0,
 model `gpt-6-astra` at reasoning effort high, from `~/.codex/config.toml`), without `--ephemeral`: the 20 rollouts are
-kept in the owner's `~/.codex/sessions/2026/11/16/` (threads `01a1e4d1-9226…` to `01a1e4d9-216e…`). Same counting
+kept in the owner's `~/.codex/sessions/2026/11/16/` (threads `01a1e4d1-9225…` to `01a1e4d9-216e…`). Same counting
 rule; a listing such as `rg --files` is no read.
 
 [FACT] Result (2026-11-16, 20 runs, all exit 0): Godot 10 of 10 and testing 10 of 10 opened the rule block or a
