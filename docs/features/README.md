@@ -101,6 +101,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-077-layered-gate-review-bar.md`](KIT-077-layered-gate-review-bar.md) | layered gate, review bar by risk | confirmed | #281 | #286, #293 |
 | [`KIT-078-docs-consistency.md`](KIT-078-docs-consistency.md) | 13.0.0 docs consistency | done | #290 | #292 |
 | [`KIT-079-correctness-fixes.md`](KIT-079-correctness-fixes.md) | 13.0.x correctness fixes | done | #295 | #296 |
-| [`KIT-080-issue-bundle-13-1.md`](KIT-080-issue-bundle-13-1.md) | 13.1.0 issue bundle | confirmed | #300 |  |
+| [`KIT-080-issue-bundle-13-1.md`](KIT-080-issue-bundle-13-1.md) | 13.1.0 issue bundle | done | #300 | #301 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

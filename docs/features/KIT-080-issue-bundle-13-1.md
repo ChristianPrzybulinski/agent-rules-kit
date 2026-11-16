@@ -1,7 +1,7 @@
 ---
 id: KIT-080
 title: "13.1.0 issue bundle: proof hygiene rule, release-tag install, sync, CI, merge driver and text follow-ups"
-status: confirmed
+status: done
 confirmed: "2026-11-16 (owner, the bundle brief: \"close the 22 open issues and release 13.1.0\")"
 issue: "#300"
 pr: "#301"
@@ -79,6 +79,8 @@ changed modules' tests, `check_kit.py`, `gen_index.py --check`, shellcheck, acti
 - #241: the consumer part needs the loop children's transcripts and waits for the loop's import into
   `dev-game-studio/review-loop` (Stratics T197 #4482).
 - #273: after the release, once `~/.ai-kit` is at the new tag.
+- #299, its last clause: Stratics' `sync-project.sh --check` exits 0 after its re-pin to 13.1.0 with no Stratics change;
+  the re-pin is the coordinator's, so #299 stays open until that run.
 - #271, Claude Code in plugins mode: its marketplace takes a ref (`owner/repo#tag`, [FACT] 2.1.287 in a throwaway
   `HOME`), but a second add with another ref is refused while the first source is declared, and
   `claude plugin marketplace remove` uninstalls the plugin and deletes its data, the rule-load log included. Plugins
@@ -91,3 +93,4 @@ changed modules' tests, `check_kit.py`, `gen_index.py --check`, shellcheck, acti
 ## History
 
 - 2026-11-16: confirmed (owner, bundle brief); implemented on `chore/issue-bundle-13.1`.
+- 2026-11-16: done in PR #301 after one independent review round; the items above stay open in their issues.
