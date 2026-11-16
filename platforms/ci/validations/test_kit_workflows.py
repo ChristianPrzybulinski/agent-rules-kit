@@ -410,6 +410,26 @@ class LayeredGate(unittest.TestCase):
         self.assertEqual(job["steps"][guard]["env"]["SHA"], "${{ github.sha }}")
 
 
+@unittest.skipIf(yaml is None, "pyyaml is not installed (CI=1 makes it required)")
+class StableBranch(unittest.TestCase):
+    """KIT-081: every install follows the `stable` branch, which release.yml moves to the released commit as its last
+    step, after the release exists, through the API and fast-forward only: a non-fast-forward fails the step."""
+
+    def test_the_release_moves_stable_last_and_never_forces_it(self):
+        job = load("release.yml")["jobs"]["release"]
+        names = [step.get("name", "") for step in job["steps"]]
+        move = [i for i, step in enumerate(job["steps"]) if "refs/heads/stable" in step.get("run", "")]
+        self.assertEqual(move, [len(job["steps"]) - 1], "release.yml does not move stable in its last step")
+        self.assertGreater(move[0], names.index("gh release create"))
+        step = job["steps"][move[0]]
+        self.assertEqual(step["run"].strip(),
+                         'gh api -X PATCH "repos/$REPO/git/refs/heads/stable" -f sha="$SHA" -F force=false')
+        self.assertEqual(step["env"], {"GH_TOKEN": "${{ github.token }}", "REPO": "${{ github.repository }}",
+                                       "SHA": "${{ github.sha }}"})
+        self.assertIs(job["steps"][0]["with"]["persist-credentials"], False)  # the API call needs no git credential
+        self.assertEqual(job["permissions"], {"contents": "write", "actions": "read"})
+
+
 def scan_step():
     return next((s for s in steps(load("gitleaks.yml")) if s.get("name", "").startswith("scan")), None)
 

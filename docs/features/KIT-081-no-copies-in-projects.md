@@ -65,14 +65,45 @@ migration line for consumer projects:
 The starter files a new project needs (`.gitignore`, `.gdlintrc`, the PR template) are the project's own: a skill writes
 them once from the kit templates when it sets the project up; no sync script copies them.
 
+**Stage 2a, the prerequisite of stage 2: every install follows `stable`.** `release.yml` moves the `stable` branch to
+the released commit as its last step, after `gh release create`, through the API and fast-forward only (`gh api -X PATCH
+repos/<repo>/git/refs/heads/stable -f sha=<commit> -F force=false`). `bootstrap.sh` adds Claude Code's marketplace as
+`ChristianPrzybulinski/agent-rules-kit#stable` and Codex's with `--ref stable`; `kit-release.sh` holds the branch name
+(`KIT_STABLE_BRANCH`) and reads Claude Code's ref (`claude_kit_ref`, from `known_marketplaces.json`). `refresh.sh` moves
+each marketplace that follows another ref once: Codex by a remove and an add (as #271 did per tag), Claude Code by
+copying each kit plugin's data folder to `${XDG_STATE_HOME:-~/.local/state}/ai-kit/plugin-data-backup/<UTC time>/`,
+`claude plugin marketplace remove ai-kit --scope user`, an add at `#stable`, `claude plugin install <plugin>@ai-kit
+--scope user` and a restore (a file the reinstall wrote stays; a `.jsonl` both hold keeps the backup's lines first,
+under the hook's lock); the backup stays, and a failure names the commands left. From then on a release arrives through
+`claude plugin marketplace update` and `codex plugin marketplace upgrade`. `doctor.sh` fails while Claude Code's or
+Codex's marketplace or Devin's team plugin follows another ref; it moves Codex itself and, for Claude Code, names
+`refresh.sh`, which backs the data up first. `sync-project.sh` writes the project's `extraKnownMarketplaces.ai-kit`
+source with `"ref": "stable"`, and `--check` reports one without it. The `--scope user` on the remove is this stage's
+own: without a scope Claude Code 2.1.287 removes the declaration "from every scope" (`claude plugin marketplace remove
+--help`), so a run inside a repository could edit that project's tracked `.claude/settings.json` (`[HYPOTHESIS]`,
+not probed).
+
 Open before stage 2 and 3 (each `[HYPOTHESIS]` until checked against the installed version or its docs):
 
 - A Claude Code plugin cannot ship path-scoped rules (stage 3 rests on it).
 - Codex has no way to receive a path rule without a file in the project (stage 3 keeps the `AGENTS.md` block for Codex
   if so).
 - No consumer needs a kit version other than the machine's for longer than a release cycle (stage 2 rests on it).
-- A marketplace declared `owner/repo#stable` updates to the branch's new commit on `claude plugin marketplace update`
-  and `codex plugin marketplace upgrade` (the stage 2 prerequisite rests on it).
+- ~~A marketplace declared `owner/repo#stable` updates to the branch's new commit on `claude plugin marketplace update`
+  and `codex plugin marketplace upgrade` (the stage 2 prerequisite rests on it).~~ Checked on 2026-11-16, below.
+
+[FACT] Probe in a throwaway `HOME` (2026-11-16, Claude Code 2.1.287 and the Codex CLI on the owner's Mac):
+`claude plugin marketplace add "ChristianPrzybulinski/agent-rules-kit#<branch>"` and `codex plugin marketplace add
+ChristianPrzybulinski/agent-rules-kit --ref <branch>` both clone the branch; after a new commit was pushed to it,
+`claude plugin marketplace update ai-kit` and `codex plugin marketplace upgrade ai-kit` both moved to that commit. A
+branch ref follows its branch; a tag ref would need a remove and an add per release.
+
+[FACT] Claude Code 2.1.287 in a throwaway `HOME` and `CLAUDE_CONFIG_DIR` (2026-11-16): the add at `#stable` records
+`{"source": "github", "repo": ..., "ref": "stable"}` in `plugins/known_marketplaces.json` and in the user
+`settings.json` `extraKnownMarketplaces`; `claude plugin marketplace remove ai-kit --scope user` reports "Also
+uninstalled 1 plugin" and deletes `plugins/data/guardrails-ai-kit/`; the add and install that follow put
+`guardrails@ai-kit` back at `5a4924e` (`stable`, = `v13.1.0`) without creating the data folder; with
+`CLAUDE_CODE_PLUGIN_CACHE_DIR` set, `known_marketplaces.json` is written there instead.
 
 What proves the change wrong: a consumer that must stay on an older kit release while the machine moves on, or a
 hook-delivered rule followed less often than the path rule (measured as in KIT-070).
@@ -90,3 +121,6 @@ stage 1.
   wrote starter files into a project).
 - 2026-11-16: the owner chose stage 2 first, and agreed on the `stable` branch as its prerequisite; the CI side of stage 1
   waits for a best-practices review (vendored copy, pinned reference or agent-only check).
+- 2026-11-16: stage 2a (every install follows `stable`, above) implemented on `feat/kit-081-stable`; the `stable`
+  branch exists at `5a4924e` (= `v13.1.0`). Each machine moves once on its next `refresh.sh`; Devin's team plugin ref
+  is set to `stable` by hand once.

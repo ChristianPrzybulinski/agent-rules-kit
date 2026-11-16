@@ -94,7 +94,6 @@ if [[ ! -e "$KIT" ]]; then
 elif [[ ! -d "$KIT" ]]; then
   fail "$KIT exists and is not a directory"
 fi
-tag="$(kit_release_tag "$KIT")"
 
 ensure_agents_link
 
@@ -119,8 +118,9 @@ if [[ -n "$codex" ]]; then
   marketplaces="$("$codex" plugin marketplace list 2>/dev/null || true)"
   if [[ "$marketplaces" == *"ai-kit"* ]]; then
     printf 'ok: codex marketplace ai-kit registered\n'
-  elif [[ -n "$tag" ]] && "$codex" plugin marketplace add "$REPOSITORY" --ref "$tag" >/dev/null 2>&1; then
-    printf 'fix: codex marketplace ai-kit registered\n'
+  elif "$codex" plugin marketplace add "$REPOSITORY" --ref "$KIT_STABLE_BRANCH" >/dev/null 2>&1; then
+    # KIT-081: the stable branch, which each release moves; refresh.sh then only upgrades the marketplace
+    printf 'fix: codex marketplace ai-kit registered at %s\n' "$KIT_STABLE_BRANCH"
   else
     warn "codex marketplace ai-kit registration failed; retry after authentication"
   fi
@@ -144,8 +144,9 @@ if command -v claude >/dev/null 2>&1; then
   claude_marketplaces="$(claude plugin marketplace list --json 2>/dev/null || true)"
   if json_contains "$claude_marketplaces" "ai-kit"; then
     printf 'ok: claude marketplace ai-kit registered\n'
-  elif claude plugin marketplace add "$REPOSITORY" --json >/dev/null 2>&1; then
-    printf 'fix: claude marketplace ai-kit registered\n'
+  elif claude plugin marketplace add "$REPOSITORY#$KIT_STABLE_BRANCH" --json >/dev/null 2>&1; then
+    # KIT-081: Claude Code keeps the ref with the source and has no command that changes it, so it is set here once
+    printf 'fix: claude marketplace ai-kit registered at %s\n' "$KIT_STABLE_BRANCH"
   else
     warn "claude marketplace ai-kit registration failed; retry after authentication"
   fi

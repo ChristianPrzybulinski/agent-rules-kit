@@ -40,3 +40,10 @@ jobs:
         run: gh release create "$GITHUB_REF_NAME" --notes-file notes.md --title "$GITHUB_REF_NAME"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # KIT-081: every install follows the stable branch; force=false refuses a move that is not a fast-forward
+      - name: Move stable to the released commit (KIT-081), fast-forward only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: gh api -X PATCH "repos/$REPO/git/refs/heads/stable" -f sha="$SHA" -F force=false

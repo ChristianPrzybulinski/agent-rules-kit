@@ -148,7 +148,8 @@ class SyncProjectCheckTest(unittest.TestCase):
         data = json.loads(settings.read_text())
         self.assertEqual(data["extraKnownMarketplaces"]["ai-kit"],
                          {"source": {"source": "github",
-                                     "repo": "ChristianPrzybulinski/agent-rules-kit"}})
+                                     "repo": "ChristianPrzybulinski/agent-rules-kit",
+                                     "ref": "stable"}})  # KIT-081: the user's marketplace is ...#stable too
         ai_kit = {k for k in data["enabledPlugins"] if k.endswith("@ai-kit")}
         self.assertEqual(ai_kit, {"guardrails@ai-kit"})
         self.assertTrue(all(data["enabledPlugins"][k] is True for k in ai_kit))
@@ -157,6 +158,23 @@ class SyncProjectCheckTest(unittest.TestCase):
         second = self.run_sync()
         self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
         self.assertEqual(before, (claude.read_bytes(), settings.read_bytes()))
+
+    def test_marketplace_source_without_the_stable_ref_diverges_and_a_sync_adds_it(self):  # KIT-081
+        # A project source without the ref conflicts with the user's ...#stable marketplace in Claude Code.
+        settings = self.repo / ".claude" / "settings.json"
+        data = json.loads(settings.read_text())
+        data["extraKnownMarketplaces"]["ai-kit"] = {"source": {"source": "github",
+                                                              "repo": "ChristianPrzybulinski/agent-rules-kit"}}
+        settings.write_text(json.dumps(data, indent=2) + "\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("sync: .claude/settings.json diverges for profile docs (marketplace: ai-kit)", result.stdout)
+        resync = self.run_sync()
+        self.assertEqual(resync.returncode, 0, resync.stdout + resync.stderr)
+        self.assertEqual(json.loads(settings.read_text())["extraKnownMarketplaces"]["ai-kit"]["source"]["ref"],
+                         "stable")
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
 
     def test_spec_lint_copies_the_task_schema(self):  # KIT-068: tracker none keeps docs/spec/tasks/
         copied = self.repo / ".github" / "spec-lint" / "schemas" / "task.schema.json"
