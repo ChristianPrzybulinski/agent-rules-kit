@@ -67,6 +67,10 @@ to the CLI for that reason).
    text merge (`git merge-file`) when a side does not parse. `sync-project.sh` vendors it into
    `.github/merge-drivers/` for a godot profile and prints the one-time `git config merge.keyed-csv.*` step; it never
    writes git config. A clone without the driver merges the file as text, so the conflict shows (checked).
+5. KIT-072's pin (`--vendor-skills`) records the vendored driver (a byte copy of its kit source) and each generated
+   `kit.just`/`kit-<profile>.just` (the file the sync wrote, listed by `sync_just.py list`) in `KIT_MANIFEST.json`
+   `copies`, so `--check` reports a copy changed after the sync as `diverges from the pin`; bytecode beside the
+   driver stays out (requested by the KIT-072 review).
 
 ## Proof
 
@@ -90,3 +94,5 @@ to the CLI for that reason).
 ## History
 
 - 2026-11-15: confirmed (owner, through the SDD review session); issue #258.
+- 2026-11-16: merged `main` with KIT-070, KIT-072, KIT-073 and KIT-076; the standards text moved to KIT-070's homes,
+  the gitleaks template pinned for KIT-076's `workflow-lint`, the driver and modules added to KIT-072's pin.

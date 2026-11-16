@@ -148,9 +148,16 @@ merge_driver_marked() { # the vendored driver names the kit; a file without the 
 # KIT-072: the pin, in one block so merges stay mechanical; platforms/tools/sync_pinned_plugin.py does the work.
 pin_sources() { # prints "src repo-path" for every copy the sync vendors outside .claude/skills: each file kit_files
   # lists, under .github/spec-lint/, so a file a later kit adds to kit_files is pinned and checked with the rest
-  [[ -d "$REPO/docs/spec" ]] || return 0
   local src rel
-  kit_files | while read -r src rel; do echo "$src .github/spec-lint/$rel"; done
+  if [[ -d "$REPO/docs/spec" ]]; then
+    kit_files | while read -r src rel; do echo "$src .github/spec-lint/$rel"; done
+  fi
+  # KIT-074: the keyed-CSV merge driver, a byte copy of its kit source, and each generated just module. A module is
+  # rendered (a marked header, or an aggregate of several profiles), so its source is the file the sync wrote, which
+  # pin_record reads after the write; sync_just.py check compares its content with the kit.
+  if merge_driver_wanted; then echo "$MERGE_DRIVER_SRC $MERGE_DRIVER_REL"; fi
+  python3 "$KIT_DIR/platforms/tools/sync_just.py" list "$REPO" - "$PROFILE" |
+    while read -r rel; do echo "$REPO/$rel $rel"; done
 }
 pin_preflight() { python3 "$PIN_TOOL" preflight "$REPO"; }
 pin_write() { python3 "$PIN_TOOL" write "$REPO" "$KIT_DIR" "$version" "$@"; } # "$@": the skills copied as plain skills

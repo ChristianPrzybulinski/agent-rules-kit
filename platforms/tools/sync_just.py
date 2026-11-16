@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes or checks the generated just modules of a project (KIT-074). Called by sync-project.sh.
 
-Usage: sync_just.py preflight|write|check <repo> <kit-version> <profile-list>
+Usage: sync_just.py preflight|write|check|list <repo> <kit-version> <profile-list>
 
 <profile-list> is sync-project.sh's normalized list (docs,godot:client,java:server). Each profile folder gets
 `kit.just`, generated from platforms/kits/just/<profile>.just and marked on its first line. A folder with several
@@ -14,7 +14,8 @@ exist gets no module, and nothing here creates one.
 preflight refuses, before the sync's first write, a module path that holds a file without the marker or a symbolic
 link, and a profile folder reached through a symbolic link. write writes the modules that differ, creates the starter
 justfiles and removes marked modules no profile needs any more. check prints one "sync: ..." line per difference and
-exits 1. The walk for stale modules skips SKIP_DIRS and nested checkouts, as sync_agents_md.py does.
+exits 1. list prints the path of each module the profiles want, one per line, for the KIT-072 pin (sync-project.sh
+pin_sources). The walk for stale modules skips SKIP_DIRS and nested checkouts, as sync_agents_md.py does.
 """
 import os
 import re
@@ -116,8 +117,8 @@ def justfiles(directory):
 
 
 def main():
-    if len(sys.argv) != 5 or sys.argv[1] not in ("preflight", "write", "check"):
-        sys.exit("usage: sync_just.py preflight|write|check <repo> <kit-version> <profile-list>")
+    if len(sys.argv) != 5 or sys.argv[1] not in ("preflight", "write", "check", "list"):
+        sys.exit("usage: sync_just.py preflight|write|check|list <repo> <kit-version> <profile-list>")
     mode, repo, version, profiles = sys.argv[1], Path(sys.argv[2]), sys.argv[3], sys.argv[4]
     real_repo = repo.resolve()
     folders = {}
@@ -127,11 +128,14 @@ def main():
         if path.is_symlink() or (path.is_dir() and path.resolve() != real_repo / folder):
             problems.append(f"sync: {folder} goes through a symbolic link; the sync writes no kit.just there")
         elif not path.is_dir():
-            if mode != "write":
+            if mode in ("preflight", "check"):
                 print(f"sync: warning: {folder}/ does not exist; no kit.just written there", file=sys.stderr)
         else:
             folders[folder] = names
     files = expected(folders, version)
+    if mode == "list":
+        print("\n".join(sorted(files)))
+        return
     for name in files:
         path = repo / name
         if path.is_symlink():
