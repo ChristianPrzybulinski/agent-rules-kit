@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from collections import OrderedDict
@@ -22,6 +23,7 @@ SCRIPT = Path(__file__).resolve().parent.parent.parent / "tools" / "sync-project
 KIT = SCRIPT.parents[2]
 VERSION = (KIT / "VERSION").read_text(encoding="utf-8").strip()
 MAP = KIT / "platforms" / "tools" / "sync-profiles.txt"  # KIT-047: one plugin, the map picks the copies
+UNVENDOR = KIT / "platforms" / "tools" / "sync_unvendor.py"
 PLUGIN = KIT / "plugins" / "guardrails"
 PINNED = "guardrails-pinned"  # KIT-072's pinned copy of the plugin, which KIT-081 stage 2b removes from a project
 HEAD_TOOL = "~/.ai-kit/platforms/"  # B2: a kit tool or template the skills and rules call from the kit clone
@@ -858,6 +860,41 @@ def rule_bullet(name):
     """The first always/never bullet of the kit rule, a line its AGENTS.md block must carry."""
     body = (KIT / "plugins" / "guardrails" / "rules" / f"{name}.md").read_text().split("\n---\n", 1)[1]
     return next(line for line in body.splitlines() if line.startswith("- "))
+
+
+class UnvendorSettingsTest(unittest.TestCase):
+    """KIT-083: sync_unvendor.py remove writes .claude/settings.json only when it takes the pinned key or a pinned hook
+    out of it, so a repository whose only leftover is a folder keeps its settings file byte for byte."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.repo = Path(tmp.name)
+        copy = self.repo / ".claude" / "skills" / "investigate"
+        copy.mkdir(parents=True)
+        (copy / ".agent-rules-kit").write_text("plugins/guardrails/skills/investigate kit 13.1.0 generated\n")
+        self.settings = self.repo / ".claude" / "settings.json"
+
+    def remove(self):
+        return subprocess.run([sys.executable, str(UNVENDOR), "remove", str(self.repo)], capture_output=True,
+                              text=True, check=False)
+
+    def test_settings_without_kit_state_are_not_rewritten(self):
+        text = '{"enabledPlugins":{"guardrails@ai-kit":true},"permissions":{"allow":["Bash(ls)"]}}'  # not indent=2
+        self.settings.write_text(text, encoding="utf-8")
+        result = self.remove()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout, "sync: removed .claude/skills/investigate: a vendored kit skill copy"
+                                        " (KIT-081 stage 2b)\n")
+        self.assertEqual(self.settings.read_text(encoding="utf-8"), text)
+
+    def test_settings_with_the_pinned_key_lose_only_that_key(self):
+        self.settings.write_text('{"enabledPlugins":{"guardrails-pinned@skills-dir":true,"guardrails@ai-kit":true}}',
+                                 encoding="utf-8")
+        result = self.remove()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.settings.read_text(encoding="utf-8"),
+                         '{\n  "enabledPlugins": {\n    "guardrails@ai-kit": true\n  }\n}\n')
 
 
 if __name__ == "__main__":

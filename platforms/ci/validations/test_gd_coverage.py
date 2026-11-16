@@ -1,5 +1,4 @@
 """gd_coverage.py: probes, report and runner of GDScript coverage, with a stub Godot and, when present, the real one."""
-import functools
 import importlib.util
 import json
 import os
@@ -12,10 +11,11 @@ import unittest
 from pathlib import Path
 
 LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
-COVERS = ("platforms/tools/gd_coverage.py",)
+COVERS = ("platforms/tools/gd_coverage.py", "platforms/ci/validations/needs_parser.py")
 
 TOOL = Path(__file__).resolve().parent.parent.parent / "tools" / "gd_coverage.py"
-HAS_GDTOOLKIT = importlib.util.find_spec("gdtoolkit") is not None
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from needs_parser import HAS_GDTOOLKIT, NEEDS_PARSER  # noqa: E402  (KIT-083: one CI=1 gdtoolkit switch)
 GODOT = os.environ.get("GODOT") or shutil.which("godot")
 GDUNIT4 = os.environ.get("KIT_GDUNIT4", "")  # an addons/gdUnit4 folder, e.g. from a Godot project's git archive
 NEEDS_GODOT = unittest.skipUnless(HAS_GDTOOLKIT and GODOT and Path(GDUNIT4, "bin", "GdUnitCmdTool.gd").is_file(),
@@ -24,19 +24,6 @@ sys.path.insert(0, str(TOOL.parent))
 spec = importlib.util.spec_from_file_location("gd_coverage", TOOL)
 gd_coverage = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gd_coverage)
-
-
-def NEEDS_PARSER(test):  # noqa: N802 (a decorator named like the skip decorators it replaces)
-    """A test that parses GDScript skips without gdtoolkit, except under CI=1: the CI jobs that run it install the
-    pinned gdtoolkit (KIT-082), so there a missing one fails the test, as a missing just or gitleaks does."""
-    if HAS_GDTOOLKIT:
-        return test
-    if not os.environ.get("CI"):
-        return unittest.skip("gdtoolkit is not installed (pip install gdtoolkit==4.5.0; CI=1 makes it required)")(test)
-
-    def missing(self, *args, **kwargs):
-        self.fail("gdtoolkit is not installed (CI=1 makes it required: pip install gdtoolkit==4.5.0)")
-    return functools.wraps(test)(missing)
 
 
 SOURCE = """@tool

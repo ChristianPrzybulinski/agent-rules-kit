@@ -94,4 +94,4 @@ Changes follow [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md): where each 
 
 ## License
 
-[MIT](LICENSE). A vendored third-party skill keeps its own license, recorded in `platforms/kits/third-party/skills.lock` and shipped in the skill folder; none is vendored since KIT-070 removed `grilling`.
+[MIT](LICENSE). The kit vendors no third-party skill: KIT-070 removed `grilling`, the last one, and KIT-083 the vendoring tool and its lock.

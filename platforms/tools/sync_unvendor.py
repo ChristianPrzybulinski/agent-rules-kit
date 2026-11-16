@@ -19,7 +19,8 @@ Only a real folder (not a symbolic link) with the marker is the kit's. An unmark
 read, replaced or deleted, and nothing is read through a symbolic .claude or .claude/skills folder.
 
 remove deletes that state, printing one "sync: removed ..." line per removal, and keeps the project's own hooks and
-keys; a folder the manifest or the pin names that is not the kit's is kept with a "sync: kept ..." line.
+keys; it writes .claude/settings.json only when it takes a key or a hook out of it (KIT-083). A folder the manifest or
+the pin names that is not the kit's is kept with a "sync: kept ..." line.
 sync-project.sh runs it after it has turned guardrails@ai-kit on and written the profile list into CLAUDE.md, so a
 failure leaves the plugin on and the profile recorded. check prints one "sync: ..." line per leftover and the fix,
 and exits 1 when there is one.
@@ -174,9 +175,11 @@ def remove(repo):
         return 1
     data = load_settings(repo)
     if data is not None:
+        changed = False  # the file is written only when a key or hook leaves it (KIT-083)
         enabled = data.get("enabledPlugins")
         if isinstance(enabled, dict) and PINNED_ID in enabled:
             del enabled[PINNED_ID]
+            changed = True
             print(f"sync: removed .claude/settings.json enabledPlugins {PINNED_ID}: the pinned plugin's switch (KIT-081 stage 2b)")
         hooks = data.get("hooks")
         count = kit_handler_count(hooks) if isinstance(hooks, dict) else 0
@@ -186,12 +189,12 @@ def remove(repo):
                 data["hooks"] = rest
             else:
                 del data["hooks"]
+            changed = True
             print(f"sync: removed .claude/settings.json hooks that run {KIT_DIR}/hooks/: {count} pinned kit hook"
                   f" handler{'' if count == 1 else 's'} (KIT-081 stage 2b); the plugin runs the kit hooks")
-        path = Path(repo, ".claude", "settings.json")
-        text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-        if path.read_text(encoding="utf-8") != text:
-            path.write_text(text, encoding="utf-8")
+        if changed:
+            path = Path(repo, ".claude", "settings.json")
+            path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     skills = Path(repo, ".claude", "skills")
     if real_dir(skills) and not any(skills.iterdir()):
         skills.rmdir()  # the vendored sync created it; an empty folder is not tracked anyway

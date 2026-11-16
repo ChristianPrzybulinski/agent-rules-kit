@@ -17,8 +17,9 @@ validators' byte caches) and then each folder left empty, with one "sync: remove
 line that still names .github/spec-lint/.
 
 check prints one "sync: ..." line per problem and exits 1: a generated copy left; a workflow line that names
-.github/spec-lint/ (file:line and the fix); with --spec, no workflow that runs the spec tools (with --workflow, the
-named one must).
+.github/spec-lint/ (file:line and the fix), where an entry of an on: paths or paths-ignore filter is named a stale
+trigger and a trailing comment names nothing (KIT-083); with --spec, no workflow that runs the spec tools (with
+--workflow, the named one must).
 
 workflow writes .github/workflows/spec-lint.yml (or the --workflow name) from the kit template, the action pinned to
 this kit's commit (git rev-parse HEAD) with `# v<VERSION>`, when no workflow runs the spec tools and the file does
@@ -47,6 +48,8 @@ CACHE = re.compile(r"^__pycache__/(%s)\.[\w.-]+\.pyc$" % "|".join(VALIDATORS))
 PIN = re.compile(r"(uses:\s*" + re.escape(ACTION) + r"@)[0-9a-f]{40}(?:[ \t]+#[ \t]*v\S*)?")
 RUNS = re.compile(re.escape(ACTION) + r"@|\bAI_KIT_DIR\b.*\bcheck_spec\.py\b")
 NAMES_COPY = re.compile(re.escape(COPY) + r"(?![\w.-])")
+ON_KEY = re.compile(r"""^["']?on["']?\s*:""")
+FILTER_KEY = re.compile(r"^\s*paths(?:-ignore)?\s*:(.*)$")
 GUIDE = "platforms/kits/github/README.md"
 RUNS_WHAT = "the spec-tools action, or check_spec.py from $AI_KIT_DIR"
 
@@ -95,13 +98,53 @@ def workflows(repo):
     return [path for path in sorted(folder.iterdir()) if path.suffix in (".yml", ".yaml") and path.is_file()]
 
 
+def without_comment(line):
+    """The line up to its comment: a # at the start or after a space or tab, outside quotes, which starts a comment in
+    YAML and in the shell of a run block (KIT-083)."""
+    quote = None
+    for index, char in enumerate(line):
+        if quote:
+            if char == quote:
+                quote = None
+        elif char in "'\"":
+            quote = char
+        elif char == "#" and (index == 0 or line[index - 1] in " \t"):
+            return line[:index].rstrip()
+    return line
+
+
 def code_lines(path):
-    """(number, line) for each line of a workflow that is not a comment."""
+    """(number, line) for each line of a workflow that is not a comment, without its trailing comment."""
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return []
-    return [(number, line) for number, line in enumerate(text.splitlines(), 1) if not line.lstrip().startswith("#")]
+    return [(number, without_comment(line)) for number, line in enumerate(text.splitlines(), 1)
+            if not line.lstrip().startswith("#")]
+
+
+def filter_entries(lines):
+    """The numbers of the lines that hold an entry of a paths or paths-ignore filter under the top-level on: key: the
+    key's own line when it lists them inline, and each following line indented deeper, or a '- ' item at the key's
+    indent (KIT-083)."""
+    found, in_on, key_indent = set(), False, None
+    for number, line in lines:
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent == 0:
+            in_on, key_indent = bool(ON_KEY.match(line)), None
+            continue
+        match = FILTER_KEY.match(line) if in_on else None
+        if match:
+            key_indent = indent
+            if match.group(1).strip():
+                found.add(number)
+        elif key_indent is not None and (indent > key_indent or (indent == key_indent and line.lstrip()[:2] == "- ")):
+            found.add(number)
+        else:
+            key_indent = None
+    return found
 
 
 def runs_spec_tools(path):
@@ -109,9 +152,22 @@ def runs_spec_tools(path):
 
 
 def copy_callers(repo):
-    """'.github/workflows/<file>:<line>' for each workflow line that names .github/spec-lint/."""
-    return ["%s:%d" % (path.relative_to(repo).as_posix(), number)
-            for path in workflows(repo) for number, line in code_lines(path) if NAMES_COPY.search(line)]
+    """('.github/workflows/<file>:<line>', is a paths filter entry) for each workflow line that names .github/spec-lint/
+    outside a comment."""
+    found = []
+    for path in workflows(repo):
+        lines = code_lines(path)
+        triggers = filter_entries(lines)
+        found += [("%s:%d" % (path.relative_to(repo).as_posix(), number), number in triggers)
+                  for number, line in lines if NAMES_COPY.search(line)]
+    return found
+
+
+def caller_problem(caller, trigger):
+    if trigger:
+        return ("%s names %s/ in a paths filter, a stale trigger: the kit no longer writes that folder; remove the entry"
+                % (caller, COPY))
+    return "%s names %s/, which the kit no longer writes; %s" % (caller, COPY, caller_fix())
 
 
 def caller_fix():
@@ -134,9 +190,8 @@ def remove(repo):
                 os.rmdir(top)
         print("sync: removed the generated %s/ (%d kit files): the spec tools run from the kit (KIT-081 stage 1)"
               % (COPY, removed))
-    for caller in copy_callers(repo):
-        print("sync: warning: %s names %s/, which the kit no longer writes; %s" % (caller, COPY, caller_fix()),
-              file=sys.stderr)
+    for caller, trigger in copy_callers(repo):
+        print("sync: warning: " + caller_problem(caller, trigger), file=sys.stderr)
     return 0
 
 
@@ -146,8 +201,8 @@ def check(repo, spec, name):
     if folder is not None and generated(folder):
         problems.append("sync: %s/ is the generated copy KIT-081 stage 1 retired; rerun sync-project.sh %s, which "
                         "removes it" % (COPY, repo))
-    for caller in copy_callers(repo):
-        problems.append("sync: %s names %s/, which the kit no longer writes; %s" % (caller, COPY, caller_fix()))
+    for caller, trigger in copy_callers(repo):
+        problems.append("sync: " + caller_problem(caller, trigger))
     if spec:
         if name:
             path = Path(repo, ".github", "workflows", name)
