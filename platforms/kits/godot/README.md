@@ -5,7 +5,6 @@ Base for Godot 4 2D projects.
 | File | Use |
 |---|---|
 | `.gitignore` | copy to the project root |
-| `editor_settings_hints.md` | factual editor/project settings (pixel-art) |
 | `gdlintrc` | copy to the project root as `.gdlintrc` (gdlint overrides only) |
 | `requirements-gdtoolkit.txt` | copy to the project root; `pip install -r requirements-gdtoolkit.txt` gives `gdformat`/`gdlint` 4.5.0 |
 | `scripts/keyed_csv_merge.py` | git merge driver for a keyed translation CSV (KIT-074), in place of `merge=union`, which kept a branch's stale row beside the other side's edited row of the same key and reported no conflict. `sync-project.sh` vendors it into `.github/merge-drivers/` for a godot profile; § Keyed-CSV merge driver |

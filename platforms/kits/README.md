@@ -4,11 +4,10 @@ Scope: configuration and infra templates a project copies (not read by the agent
 
 | Kit | Contents | When to use |
 |---|---|---|
-| `devin/` | `environment.{godot,java,docs}.yaml`, `snapshot-checklist.md`, `playbooks/` (`implement-issue`, `fix-round`, `devin-review-autofix`) | Devin Cloud snapshot + environment; review-loop children |
-| `docker/` | PostgreSQL + Mailpit compose (an optional Valkey service commented out), multi-stage Dockerfile.java, init SQL, .env.example | project local infra |
+| `docker/` | PostgreSQL + Mailpit compose (an optional Valkey service commented out), init SQL, .env.example | project local infra |
 | `git-lfs/` | ready `.gitattributes` | before the first binary in the repo |
-| `github/` | workflows (spec-lint, gitleaks CLI, pr-contract, ci-java, ci-godot), PR template, CODEOWNERS, labels + sync, dependabot, root REVIEW.md | every new repo |
-| `godot/` | Godot `.gitignore`, editor hints, the keyed-CSV merge driver `keyed_csv_merge.py` | Godot project |
+| `github/` | workflows (spec-lint, gitleaks CLI, pr-contract, ci-java, ci-godot), PR template, labels + sync, root REVIEW.md | every new repo |
+| `godot/` | Godot `.gitignore`, the keyed-CSV merge driver `keyed_csv_merge.py` | Godot project |
 | `java-maven/` | parent pom with gates, toolchains, suppressions, `.java-version` | Java/Maven project |
 | `just/` | one `just` module per profile (`godot`, `java`, `python`, `docs`) with the standard recipes `test`, `verify`, `fmt`, `lint` and `run` where it fits; `sync-project.sh` writes the profile's module as `kit.just` in each profile folder (KIT-074) | every project; the AGENTS and CI templates call these recipes |
 | `launchd/` | six-hour AI Kit refresh agent for macOS | installed by `platforms/tools/bootstrap.sh` |

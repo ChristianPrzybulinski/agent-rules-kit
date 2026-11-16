@@ -6,6 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Removed
 - `platforms/kits/godot/scripts/make_spritesheet.py`: a game-art tool no project used (Stratics never called it); the `sdd-implement` assets reference keeps the rule it served (a reproducible script with its command and hashes recorded, `hframes`/`vframes` and the pivot in the batch manifest), and a vendored project's pin drops it on its next sync.
+- Unused `platforms/kits/` templates (owner decision after a usage review): `devin/` (the Devin Cloud environments, snapshot checklist and playbooks), `docker/Dockerfile.java` and `.dockerignore`, `github/CODEOWNERS` and `github/dependabot.yml`, and `godot/editor_settings_hints.md`, whose pixel-snap and stretch settings join the `Nearest` line of the `sdd-plan` Godot `performance-budget.md` reference. The Java parent POM, its suppressions and toolchains example, and the Compose `.env.example` stay: `java.just` and the Compose file depend on them.
 
 ### Changed
 - KIT-076: the `main` ruleset also requires `CodeQL`, the code scanning result for the uploaded analysis, so a new alert in the changed code blocks the merge; the PR template, CONTRIBUTING and the KIT-076 record name six checks.

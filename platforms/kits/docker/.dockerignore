@@ -1,8 +1,0 @@
-.git
-target
-**/target
-.idea
-*.iml
-.env
-build
-.godot
