@@ -10,8 +10,6 @@ CI, PR and label governance templates for GitHub Actions.
 | `PULL_REQUEST_TEMPLATE.md` | `.github/PULL_REQUEST_TEMPLATE.md` |
 | `REVIEW.md` | `REVIEW.md` at the repository root (read by hosted Claude Code Review; also the checklist for any reviewer) |
 | `ISSUE_TEMPLATE/task.md` | `.github/ISSUE_TEMPLATE/task.md` (one issue per task row or bundle, filled verbatim by the `sdd-tasks` cut) |
-| `CODEOWNERS` | `.github/CODEOWNERS` (edit the user) |
-| `dependabot.yml` | `.github/dependabot.yml` |
 | `labels.json` | reference for `scripts/labels-sync.sh` |
 | `scripts/labels-sync.sh` | run from anywhere inside the repo: `bash platforms/kits/github/scripts/labels-sync.sh` |
 

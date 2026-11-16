@@ -123,15 +123,6 @@ The command regenerates `plugins/<plugin>/skills/<name>/` and its `VENDOR.md`, w
 - Locally: `claude plugin eval plugins --case '<name>' --runs 1 --ablation none --no-publish --trust-plugin --output-dir "${TMPDIR:-/tmp}/kit-evals"` (add `--scaffold --allow-tools Bash Edit Write` for cases with a fixture). The target is `plugins`, because a `plugins:` entry loads only from inside the target directory; a case `plugins:` entry outside it fails the case load with "outside the containment root" (KIT-041). `--output-dir` keeps the aggregate result out of `plugins/evals/results/`, which `check_kit.py` would read as a plugin without a manifest. The evals workflow runs only cases tagged `ready`, with a pinned model and judge.
 - Before a local run, `claude auth status` must exit 0 (`"loggedIn": true`). Logged out, every case stops before any model turn: the command exits 2 in about a second and the result reads `casesPassed: 0` and `overallScore: 0`, like a skill that fails every grader; only `partialReason: "auth_failed"` and the arm's `error` ("Not logged in · Please run /login") say that nothing ran. A `--scaffold` case also stops, with exit 1, when `~/.docker` holds a symbolic link (Docker Desktop's `~/.docker/bin`), which the Bash sandbox cannot exclude. Record such a case as unverified with that line, never as a failing skill, and rerun it after `claude auth login`.
 
-## KPIs
-
-`platforms/tools/kpi.py <ledger.csv>` prints one line per review-loop batch. The loop's `note` column carries space-separated tokens on `kind=review` rows: `verdict=<approved|flagged|needs-product|needs-human>`, `findings=<n>`, `spec=<n>` (findings owned by `spec`); without them only rounds per PR is available.
-
-- first-pass approval >= 60% (39% on the 33 PRs a consumer project's loop reviewed up to 2026-10-05)
-- spec-owned findings <= 25%
-
-After every kit rule change compare two batches, one before and one after, on these numbers: if they do not move, the hypothesis that contradictions cost review rounds is refuted.
-
 ## After merging to main
 
 - Devin Cloud needs no manual refresh; it fetches `main` for each session.

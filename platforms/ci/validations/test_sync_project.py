@@ -827,7 +827,7 @@ class SyncProjectCheckTest(unittest.TestCase):
                   for m in re.finditer(re.escape(PINNED_TOOL) + r"([A-Za-z0-9_./-]+)", text)}
         for rel in ("tools/review_checks.py", "tools/complexity.py", "tools/gd_duplicates.py", "tools/gd_coverage.py",
                     "tools/gd_mutation.py", "tools/session_audit.py", "ci/validations/spec_trace.py",
-                    "kits/godot/scripts/make_spritesheet.py", "kits/docker/compose.yml"):
+                    "kits/docker/compose.yml"):
             self.assertIn(rel, called)
         pinned = self.repo / ".claude" / "ai-kit" / "platforms"
         for rel in called | {"ci/validations/pr_gates.py"}:  # review_checks.py imports pr_gates
