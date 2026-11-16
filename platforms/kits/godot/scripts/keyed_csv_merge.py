@@ -13,16 +13,19 @@ file into .github/merge-drivers/ and prints the step while it is missing):
 and one `.gitattributes` line per file or glob:  `client/i18n/*.csv merge=keyed-csv`. Add `--key-column N` to the
 driver for a key outside column 1. In a clone without the driver git merges the file as text, so a conflict shows.
 
-The rule. Record 1 is the header; every other non-blank record is one row, kept byte for byte, whose key is its
-field N (1-based, parsed as CSV, so a quoted key may hold a comma and a quoted value may span lines). For each key,
-with b, o, t its rows in the base, ours and theirs (or none): o == t gives o; o == b gives t; t == b gives o; anything
-else is a conflict. A key twice on one side is a conflict, and so are two different headers. Order: when every side
-is sorted by key, the result is sorted; otherwise it keeps our order and places each of their new keys after the key
-before it on their side. Line ending: ours (CRLF and LF rows compare equal). A conflict is written in place with git's
-markers (ours, then theirs) and exits 1; an input that does not parse is merged as text by `git merge-file`, with a
-warning. The record split reads every `"` as a quote, wherever it stands, so a `"` inside an unquoted field (an inch
-mark: `5" screen`) leaves the file unparsable and the whole file merges as text; write that field quoted with the
-mark doubled (`"5"" screen"`) to keep the keyed merge.
+The rule. The csv module splits the records (Excel dialect, so a quote opens a quoted field only at the field's
+start: an inch mark inside an unquoted field, `5" screen`, is part of it). Record 1 is the header; every other
+record is one row, kept byte for byte, whose key is its field N (1-based, so a quoted key may hold a comma and a
+quoted value may span lines). A blank record has no key, so the merge has no place for it: the result drops every
+blank line and ends with a line ending. For each key, with b, o, t its rows in the base, ours and theirs (or none):
+o == t gives o; o == b gives t; t == b gives o; anything else is a conflict. A key twice on ours or theirs is a
+conflict, and so are two different headers; a key twice only in the base is not, since neither side then equals the
+base and the rule needs ours and theirs to agree. Order: when every side is sorted by key, the result is sorted;
+otherwise it keeps our order and places each of their new keys after the key before it on their side. Line ending:
+ours (CRLF and LF rows compare equal). A conflict is written in place with git's markers (ours, then theirs) and exits
+1. An input that does not parse (a quoted field left open at the end, a row without column N) is merged as text by
+`git merge-file`, with a warning; text after a closing quote (`"a"b`) parses as the csv module reads it, and the row
+keeps its bytes.
 
 Usage: keyed_csv_merge.py [--key-column N] [--marker-size N] [--path P] BASE OURS THEIRS
 Writes the result to OURS. Exit 0 clean, 1 conflicts, 2 usage error.
@@ -31,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import subprocess
 import sys
 from pathlib import Path
@@ -39,21 +43,25 @@ HEADER = "(header)"  # the conflict label of two different headers
 
 
 def records(text: str) -> list[str]:
-    """The CSV records of text, each without its line ending; a newline inside quotes stays in its record."""
+    """The CSV records of text as the csv module splits them, each the raw text it read without its line ending; a
+    newline inside quotes stays in its record. Raises ValueError on a quoted field left open at the end."""
+    read: list[str] = []
+
+    def lines():
+        for line in io.StringIO(text, newline=""):
+            read.append(line)
+            yield line
+
     out: list[str] = []
-    start = 0
-    quoted = False
-    for i, char in enumerate(text):
-        if char == '"':
-            quoted = not quoted
-        elif char == "\n" and not quoted:
-            out.append(text[start:i])
-            start = i + 1
-    if quoted:
+    raw = ""
+    for _ in csv.reader(lines()):  # the reader asks for a line only while its record is open
+        raw = "".join(read)
+        read.clear()
+        out.append(raw[:-2] if raw.endswith("\r\n") else raw[:-1] if raw.endswith(("\n", "\r")) else raw)
+    # The reader ends an open quoted field at the end of the data without a word; a record after it would join it.
+    if raw and len(list(csv.reader(io.StringIO(raw + "\nZ", newline="")))) == 1:
         raise ValueError("a quoted field is not closed")
-    if start < len(text):
-        out.append(text[start:])
-    return [r[:-1] if r.endswith("\r") else r for r in out]
+    return out
 
 
 def key_of(record: str, column: int) -> str:
@@ -168,8 +176,7 @@ def main(argv: list[str] | None = None) -> int:
         text, conflicts = merge(*texts, key_column=args.key_column, marker_size=args.marker_size)
     except (OSError, UnicodeDecodeError, ValueError, csv.Error) as err:
         print(f"keyed_csv_merge: {args.path or args.ours}: {err}; warning: the whole file merges as text, not by key "
-              '(a " counts as a quote wherever it stands: quote a field that holds one and double it, "5"" screen")',
-              file=sys.stderr)
+              '(close each quoted field and double each quote inside one)', file=sys.stderr)
         return text_merge(*paths, args.marker_size)
     paths[1].write_bytes(text.encode("utf-8"))
     if conflicts:

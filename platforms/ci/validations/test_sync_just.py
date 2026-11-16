@@ -19,6 +19,18 @@ _SPEC.loader.exec_module(sj)
 VERSION = "0.0.0"
 
 
+class Recipes(unittest.TestCase):
+    def test_every_recipe_header_form_is_read(self):  # #283 item 8: a default parameter was missed
+        text = "\n".join([
+            "build:", "@quiet:", "test *ARGS:", "check +FILES:", "lint $FLAG:", 'run target="debug":',
+            "pick x='a' y=b:", "verify: lint boot test", "export PRESET OUT:",
+            'x := "a"', 'set shell := ["bash", "-c"]', "alias b := build", 'export X := "1"', "  indented:",
+            "[group('ci')]", "# comment:",
+        ])
+        self.assertEqual(sj.recipes(text), ["build", "quiet", "test", "check", "lint", "run", "pick", "verify",
+                                            "export"])
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()

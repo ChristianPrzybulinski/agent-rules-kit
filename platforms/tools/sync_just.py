@@ -28,7 +28,8 @@ MODULES = KIT / "platforms" / "kits" / "just"
 MARKER = "# agent-rules-kit: generated "
 SHARED = ("fmt", "lint", "test", "verify")
 SKIP_DIRS = {".git", ".claude", ".godot", "node_modules", "target", "build", "dist", ".venv", "venv", "__pycache__"}
-RECIPE = re.compile(r"^@?([A-Za-z_][A-Za-z0-9_-]*)(?:[ \t][^:=]*)?:(?![=:])")
+# A parameter may be variadic (+, *), exported ($) or have a default (x="a", #283); `x := 1` is no recipe.
+RECIPE = re.compile(r"^@?([A-Za-z_][A-Za-z0-9_-]*)(?:[ \t]+[+*$]?[A-Za-z_][A-Za-z0-9_-]*(?:=(?:\"[^\"]*\"|'[^']*'|[^\s:]+))?)*[ \t]*:(?![=:])")
 IMPORT = re.compile(r"^\s*import\??\s+(['\"])kit\.just\1\s*(#.*)?$", re.M)
 STARTER = """# This folder's recipes for just (https://just.systems). The kit's recipes come from kit.just, which
 # agent-rules-kit's platforms/tools/sync-project.sh writes; add this folder's own recipes below the import.

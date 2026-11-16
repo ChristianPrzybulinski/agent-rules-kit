@@ -304,6 +304,12 @@ class TemplatesNameKitRecipes(unittest.TestCase):
         self.assertIn("ci-godot.yml: names just recipe 'tests', which platforms/kits/just/godot.just does not define",
                       result.stderr)
 
+    def test_a_recipe_with_a_default_parameter_is_defined(self):  # #283 item 8
+        self.edit("platforms/kits/just/godot.just", "\nboot: import\n", '\nboot scene="res://main.tscn": import\n')
+        result = self.check()
+        self.assertNotIn("names just recipe 'boot'", result.stdout + result.stderr)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_a_template_without_the_gate_recipes_fails(self):
         self.edit("plugins/guardrails/templates/project-agents-godot-2d.md", "just test", "godot test", count=-1)
         result = self.check()

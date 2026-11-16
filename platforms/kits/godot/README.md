@@ -32,4 +32,4 @@ Each row of a Godot translation CSV is merged by its key: a key edited on one si
    git config merge.keyed-csv.driver "python3 .github/merge-drivers/keyed_csv_merge.py --marker-size %L --path %P %O %A %B"
    ```
 
-   Add `--key-column N` before `--marker-size` when the key is not in column 1. A clone without the driver merges the file as text, so a conflict still shows. So does the driver, with a warning, when a side does not parse: it reads every `"` as a quote, so write a field that holds an inch mark quoted with the mark doubled (`"5"" screen"`, not `5" screen`).
+   Add `--key-column N` before `--marker-size` when the key is not in column 1. A clone without the driver merges the file as text, so a conflict still shows. So does the driver, with a warning, when a side does not parse as CSV (a quoted field left open at the end); the csv module splits the records, so an inch mark inside an unquoted field (`5" screen`) parses. A blank line has no key, so the merged file drops it.
