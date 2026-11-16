@@ -4,7 +4,7 @@ title: "13.0.x correctness fixes from the 13.0.0 reviews"
 status: done
 confirmed: "2026-11-16 (coordinator session \"Revisão de regras e skills\", under the owner's overnight autonomy: \"seja autônomo com toda liberdade e finalize o que falta\")"
 issue: "#295"
-pr: ""
+pr: "#296"
 ---
 
 # KIT-079 — 13.0.x correctness fixes from the 13.0.0 reviews
