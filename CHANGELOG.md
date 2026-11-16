@@ -5,7 +5,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Fixed
+- KIT-083: `sync_unvendor.py remove` writes `.claude/settings.json` only when it takes the pinned key or a pinned hook out of it; run on its own, it reformatted a settings file it did not change.
+- KIT-083: `sync-project.sh --check` no longer reports a workflow line whose only mention of `.github/spec-lint/` is a trailing comment, and names an entry of an `on:` `paths` or `paths-ignore` filter that does as a stale trigger to remove, instead of telling it to run the spec tools through the action.
+- KIT-083: the spec-tools action's `Baseline only shrinks` step says why it compares nothing: no base input, a base commit missing from the checkout (a warning: `fetch-depth: 0` fetches it), or no `docs/spec/baseline.json` at the base.
 - The `spec-lint.yml`, `pr-contract.yml`, `ci-godot.yml` and `ci-java.yml` templates pin the spec-tools action at v14.0.0 (`776d6ce`) instead of v13.1.0 (`5a4924e`), which predates the action, so a workflow copied from them failed at its `uses:` line. A test keeps every pin in the templates on one release no older than 14.0.0.
+
+### Removed
+- KIT-083: the shipped tool `platforms/tools/vendor.sh`, with `platforms/kits/third-party/` (`skills.lock` and its README), `platforms/ci/schemas/skills-lock.schema.json`, `check_kit.py`'s lock check and the CONTRIBUTING section `## Third-party skills`: the lock held no entry since KIT-070 removed `grilling`, so the tool had nothing to vendor.
+- KIT-083: the `skills/` lines of `platforms/tools/sync-profiles.txt`, which chose the vendored copies KIT-081 stage 2b removed; `check_kit.py` now requires one line per rule and fails on a skill line.
+
+### Changed
+- KIT-083: the spec-tools action fails when the runner already holds a `~/.ai-kit` at another commit than the action's (the `HEAD` of its checkout, else the SHA the caller pins, `github.action_ref`), or at an unknown one, instead of warning while a justfile imported that other kit; the same commit passes with a notice.
+- KIT-083: the `CI=1` gdtoolkit switch of the GDScript tool tests lives in one helper, `platforms/ci/validations/needs_parser.py`, with its own unit test, instead of three copies.
 
 ## [14.0.0] - 2026-11-16
 
