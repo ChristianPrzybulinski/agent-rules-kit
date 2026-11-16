@@ -1,5 +1,5 @@
 ---
-description: Always/never constraints for art brought into a Godot project; the batch manifest, transforms and sprite-sheet tool are in the sdd-implement assets reference.
+description: Always/never constraints for art brought into a Godot project; the batch manifest and transforms are in the sdd-implement assets reference.
 trigger: glob
 globs:
   - "**/assets/**"
@@ -9,7 +9,7 @@ paths:
   - "**/*.png"
 ---
 
-Always/never for sprites, tilesets and maps brought into a Godot project. The batch manifest fields, the stages, the sprite-sheet tool and the recovery report: skill `sdd-implement`, reference `assets.md`.
+Always/never for sprites, tilesets and maps brought into a Godot project. The batch manifest fields, the stages and the recovery report: skill `sdd-implement`, reference `assets.md`.
 
 - Never: change an original; keep it read-only and record each source's path, SHA-256 and license; stop on a hash mismatch instead of choosing between divergent copies.
 - Always: read `.gitattributes`, known archive gaps and the `git-lfs-and-binaries` reference in skill `git` before producing a binary.

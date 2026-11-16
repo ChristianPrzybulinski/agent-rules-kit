@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Removed
+- `platforms/kits/godot/scripts/make_spritesheet.py`: a game-art tool no project used (Stratics never called it); the `sdd-implement` assets reference keeps the rule it served (a reproducible script with its command and hashes recorded, `hframes`/`vframes` and the pivot in the batch manifest), and a vendored project's pin drops it on its next sync.
+
 ### Changed
 - KIT-076: the `main` ruleset also requires `CodeQL`, the code scanning result for the uploaded analysis, so a new alert in the changed code blocks the merge; the PR template, CONTRIBUTING and the KIT-076 record name six checks.
 
