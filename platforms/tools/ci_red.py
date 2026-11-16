@@ -85,6 +85,15 @@ def pr_body(payload: dict, env, fetch=urllib.request.urlopen) -> tuple[str | Non
                           f"({type(error).__name__}: {str(error)[:120]})")
 
 
+CHILD_SECRETS = ("GITHUB_TOKEN", "ACTIONS_RUNTIME_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL")
+
+
+def child_env(env) -> dict[str, str]:
+    """The environment for `review_checks.py red`, which runs the PR's own tests: the job's tokens stay with this
+    script, which needs one only to read the PR body."""
+    return {key: value for key, value in env.items() if key not in CHILD_SECRETS}
+
+
 def git(*args: str) -> str:
     return subprocess.run(["git", *args], cwd=KIT, capture_output=True, text=True, check=True).stdout.strip()
 
@@ -107,7 +116,7 @@ def main() -> int:
     command = f"python3 -B {shlex.quote(str(RUNNER))} --start {TESTS} {{tests}}"
     result = subprocess.run([sys.executable, "-B", str(REVIEW_CHECKS), "red", "--base", base, "--head", head,
                              "--tests", f"{TESTS}/test_*.py", "--run", command, "--timeout", "1200"],
-                            cwd=KIT, capture_output=True, text=True, errors="replace")
+                            cwd=KIT, env=child_env(os.environ), capture_output=True, text=True, errors="replace")
     output = result.stdout + result.stderr
     print(output, end="")
     code, annotation = verdict(result.returncode, output, body)

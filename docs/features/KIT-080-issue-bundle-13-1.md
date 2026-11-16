@@ -27,10 +27,10 @@ One PR closes those that can close inside the kit; the rest stay open with what 
    #288 item 5, the `needs-off` narrowing to NEED files, is intended and documented.
 4. CI (#279, #294, #283 items 6, 7): `test_kit_workflows.py` catches `write-all`, an unlisted job write, a `.yaml`
    workflow and a piped download; Claude Code installs as 2.1.311 by sha-256; `red` reads the PR body through the API
-   (`pull-requests: read`) and times out at 25 min (3 × 460 s, run 43817751313); `VERSION` and the root manifests run
-   the whole integration layer; `ci-godot.yml` runs `just --no-deps test`; `spec-lint.yml` runs the vendored
-   `check_docs_structure.py`. `pull_request` keeps its default types without `edited` (#279): an edit would re-run every
-   required job, and `red` reads the current body when it runs.
+   (`pull-requests: read`), runs the PR's tests without the job's tokens, and times out at 25 min (3 × 460 s, run
+   43817751313); `VERSION` and the root manifests run the whole integration layer; `ci-godot.yml` runs `just --no-deps
+   test`; `spec-lint.yml` runs the vendored `check_docs_structure.py`. `pull_request` keeps its default types without
+   `edited` (#279): an edit would re-run every required job, and `red` reads the current body when it runs.
 5. Sync (#271, #299, #282 items 1, 4): see § Release-tag install; the `--check` scans skip `CHANGELOG.md`; in vendored
    mode the location lines name `.claude/skills/guardrails-pinned/skills/<skill>/`; `$HOME/.ai-kit/platforms/` calls are
    pinned and rewritten without inner quotes.
@@ -79,6 +79,11 @@ changed modules' tests, `check_kit.py`, `gen_index.py --check`, shellcheck, acti
 - #241: the consumer part needs the loop children's transcripts and waits for the loop's import into
   `dev-game-studio/review-loop` (Stratics T197 #4482).
 - #273: after the release, once `~/.ai-kit` is at the new tag.
+- #271, Claude Code in plugins mode: its marketplace takes a ref (`owner/repo#tag`, [FACT] 2.1.287 in a throwaway
+  `HOME`), but a second add with another ref is refused while the first source is declared, and
+  `claude plugin marketplace remove` uninstalls the plugin and deletes its data, the rule-load log included. Plugins
+  mode stays on `main` until a ref change without that loss exists; until then a plugins-mode session can read the
+  release's always-on file beside the head's skills.
 - #275 and #245: the cases are written; each stays open until a first eval run records its score (#245 asks for
   the trigger case's pass rate over 5 runs next to `origin/main`).
 - Owner decision, optional: the repository setting `sha_pinning_required` (#279), recorded in `OWNER-TODO.md`.

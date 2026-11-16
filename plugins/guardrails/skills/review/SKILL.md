@@ -44,7 +44,7 @@ A `record` step reads the result recorded for the exact pushed head (CI checks, 
 
 ## 2. Hold the evidence rules
 
-- Judge the pushed head: its diff, read against the criteria, and the results recorded for it; local uncommitted state never counts. The reviewer runs the gates and proofs only when no result exists for that head, then once, on a clean checkout. Beyond that it runs nothing (reading with `grep` or `git show` is not a run), except a targeted probe at a security boundary where untrusted input enters (`references/delivery-steps.md`).
+- Judge the pushed head, never local state: its diff against the criteria and the results recorded for it (`references/delivery-steps.md` § Recorded results: reuse, the clean-checkout fallback, the security probe); reading with `grep` or `git show` is not a run.
 - An author's or worker's report is a claim until a recorded result naming the commit backs it; a claim nothing backs is re-run once on a clean checkout, and one that the record or that run contradicts makes the verdict `NOT READY`.
 - A proof must be able to fail: a gate that passes on empty input proves nothing. A dropped test count against the base, a deleted or skipped test or a loosened assertion the PR does not name is a weakened check (agent `reviewer` step 4).
 - An approval binds to the head it reviewed, never to a later one; an acceptance no reviewer gave is never recorded.

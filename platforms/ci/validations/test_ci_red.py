@@ -4,6 +4,7 @@ import contextlib
 import importlib.util
 import io
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -88,6 +89,30 @@ class CurrentBody(unittest.TestCase):
     def test_without_a_repository_or_number_the_event_body_is_used(self):
         body, note = ci_red.pr_body({"pull_request": {"body": "x"}}, {}, None)
         self.assertEqual((body, note), ("x", ""))
+
+
+class ChildEnvironment(unittest.TestCase):
+    def test_the_pr_tests_run_without_the_job_tokens(self):
+        tokens = {"GITHUB_TOKEN": "t0ken", "ACTIONS_RUNTIME_TOKEN": "rt", "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "it"}
+        calls = []
+
+        def run(cmd, **kwargs):
+            calls.append(kwargs)
+            return mock.Mock(returncode=0, stdout="red: OK\n", stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            event = Path(tmp) / "event.json"
+            event.write_text('{"pull_request": {"body": "x"}}', encoding="utf-8")
+            env = {"GITHUB_EVENT_NAME": "pull_request", "GITHUB_EVENT_PATH": str(event), "PATH": "/usr/bin", **tokens}
+            with mock.patch.dict(os.environ, env, clear=True), \
+                    mock.patch.object(ci_red, "git", return_value="m b h"), \
+                    mock.patch.object(ci_red.subprocess, "run", side_effect=run), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(ci_red.main(), 0)
+        child = calls[0].get("env")
+        self.assertIsNotNone(child, "red must get an explicit environment, not the job's")
+        self.assertFalse(set(tokens) & set(child), child)
+        self.assertEqual(child.get("PATH"), "/usr/bin")
 
 
 class NoPullRequest(unittest.TestCase):

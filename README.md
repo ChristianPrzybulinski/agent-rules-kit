@@ -62,7 +62,7 @@ Existing Customize entries need no source change; Reindex to pick up the new lay
 Bootstrap registers the marketplace and every plugin:
 
 ```bash
-codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref v13.1.0   # the newest release tag
+codex plugin marketplace add ChristianPrzybulinski/agent-rules-kit --ref "$(git -C ~/.ai-kit describe --tags --abbrev=0)"   # the release tag bootstrap checked out
 codex plugin add guardrails@ai-kit   # repeat per plugin, or let bootstrap/doctor iterate them
 ```
 
