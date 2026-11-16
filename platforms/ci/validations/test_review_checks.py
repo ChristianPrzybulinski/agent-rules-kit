@@ -1303,6 +1303,15 @@ class DodTest(ToolCase):
         self.assertIn("tests/test_sub.py:7", out)
         self.assertEqual(out.count("No focused or skipped test"), 1, out)
 
+    def test_a_quote_left_open_on_its_line_hides_no_skip(self):
+        """A Rust lifetime or a regex quote opens no literal, so a focus later on its line is still found."""
+        lines = "\nconst re = /\"/; it.only(later)\nfn f<'a>() { x.only(y) }\n"
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB + lines})
+        code, out = self.dod(head)
+        self.assertEqual(code, 1, out)
+        found = [line for line in out.splitlines() if "tests/test_sub.py:" in line]
+        self.assertEqual(len(found), 2, out)
+
     def test_tests_marker_ignores_production_files(self):
         head = self.repo.commit("sub", **{"calc.py": CALC_SUB + "\nNOTE = 'x.only(y)'\n"})
         code, out = self.dod(head)

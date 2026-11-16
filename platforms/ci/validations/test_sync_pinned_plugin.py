@@ -25,7 +25,10 @@ class ToolCall(unittest.TestCase):
         cases = {
             "python3 ~/.ai-kit/platforms/tools/x.py": f'python3 "{TOP}"/.claude/ai-kit/platforms/tools/x.py',
             'python3 "$HOME/.ai-kit/platforms/tools/x.py" a': f'python3 "{TOP}/.claude/ai-kit/platforms/tools/x.py" a',
-            "python3 ${HOME}/.ai-kit/platforms/tools/x.py": f"python3 {TOP}/.claude/ai-kit/platforms/tools/x.py",
+            "python3 ${HOME}/.ai-kit/platforms/tools/x.py": f'python3 "{TOP}"/.claude/ai-kit/platforms/tools/x.py',
+            "python3 $HOME/.ai-kit/platforms/tools/x.py": f'python3 "{TOP}"/.claude/ai-kit/platforms/tools/x.py',
+            'echo "a" $HOME/.ai-kit/platforms/x': f'echo "a" "{TOP}"/.claude/ai-kit/platforms/x',
+            'echo "a \\" b ${HOME}/.ai-kit/platforms/x"': f'echo "a \\" b {TOP}/.claude/ai-kit/platforms/x"',
         }
         for text, want in cases.items():
             with self.subTest(text=text):

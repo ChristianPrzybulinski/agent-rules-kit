@@ -15,9 +15,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Fixed
 - KIT-080 (#270, #269, #266): rule e fails a Proof of `evidence:` clauses only unless `row_checks.evidence_only` is `true`; rule c names every missing stack; the docs say rule j reads `visual_approval`.
 - KIT-080 (#265, #267, #268, #282): `spec_trace.py check` honours `check_spec.py`'s baseline; `sync-status` exits 2 when `gh` fails and maps rows through the `Item` cell; the pin carries the schemas its spec tools load.
-- KIT-080 (#277, #288): `review_checks.py dod` ignores a match inside a string literal of a test file; the `needs-off` and FEAT-template texts match the code.
+- KIT-080 (#277, #288): `review_checks.py dod` ignores a match inside a string literal of a test file (a quote left open on its line opens none); the `needs-off` and FEAT-template texts match the code.
 - KIT-080 (#279, #294, #283): the workflow tests catch `write-all`, unlisted job writes, `.yaml` files and piped installs; Claude Code installs by version and sha-256; `red` reads the PR body when it runs and runs the PR's tests without the job's tokens; the CI templates import once and run the doc-structure check.
-- KIT-080 (#299, #282): `sync-project.sh --check` skips every `CHANGELOG.md`; in vendored mode the location lines name the pinned plugin, and `$HOME/.ai-kit/platforms/` calls are pinned too.
+- KIT-080 (#299, #282): `sync-project.sh --check` skips every `CHANGELOG.md`; in vendored mode the location lines name the pinned plugin, and `$HOME/.ai-kit/platforms/` calls are pinned too, quoted unless they sit inside double quotes.
 - KIT-080 (#283, stratics#4545): the keyed-CSV driver splits records with the csv module, so an inch mark merges by key; `sync_just.py` and `check_kit.py` read a recipe with a default parameter.
 - KIT-080 (#274): the `InstructionsLoaded` hook rotates and appends under one lock, so concurrent sessions lose no line.
 

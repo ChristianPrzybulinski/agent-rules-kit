@@ -65,9 +65,9 @@ HOOK_MARK = "/" + HOOK_DIR + "/"  # a settings hook command that contains it is 
 PRELOAD = re.compile(r"^(\s*-\s+)" + KIT_PLUGIN + r":([A-Za-z0-9._-]+)\s*$")
 HEAD_TOOLS = "~/.ai-kit/platforms/"  # how the kit text calls a kit tool or template, from the kit clone
 PINNED_TOOLS = '"$(git rev-parse --show-toplevel)"/' + KIT_REL + "/platforms/"  # the same call in a vendored copy
-# The same call through $HOME or ${HOME} (#282 item 4). It keeps its quoting: `~` never sits inside quotes, so it takes
-# the quoted substitution above; $HOME may sit inside double quotes, so it takes the bare one, which a double-quoted
-# call keeps as one word.
+# The same call through $HOME or ${HOME} (#282 item 4). It keeps its quoting: a call inside double quotes (an odd
+# count of unescaped `"` before it on its line) takes the bare substitution, which those quotes keep as one word; any
+# other call, `~` included, takes the quoted one above, so a checkout path with a space stays one word.
 HEAD_CALL = re.compile(r"(?:~|\$HOME|\$\{HOME\})/\.ai-kit/platforms/")
 PINNED_BARE = "$(git rev-parse --show-toplevel)/" + KIT_REL + "/platforms/"
 TOOL_CALL = re.compile(HEAD_CALL.pattern + r"([A-Za-z0-9_./-]+)")
@@ -152,7 +152,11 @@ def rename_preloads(text, plain):
 
 
 def pinned_text(text):
-    return HEAD_CALL.sub(lambda match: PINNED_TOOLS if match.group(0) == HEAD_TOOLS else PINNED_BARE, text)
+    def pinned(match):
+        before = text[text.rfind("\n", 0, match.start()) + 1:match.start()]
+        quoted = match.group(0) != HEAD_TOOLS and re.sub(r"\\.", "", before).count('"') % 2
+        return PINNED_BARE if quoted else PINNED_TOOLS
+    return HEAD_CALL.sub(pinned, text)
 
 
 def rewrite(paths):

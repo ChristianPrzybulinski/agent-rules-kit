@@ -841,25 +841,29 @@ _QUOTES = ('"""', "'''", '"', "'", "`")
 def string_spans(text: str) -> list[list[bool]]:
     """Per line of `text` (split on LF, as git numbers lines), one flag per character: True inside a string literal.
     A literal opens with a triple, double or single quote or a backtick and closes with the same quote; a backslash
-    escapes the next character; a one-quote literal also ends at its line's end. Outside a literal, `#` or `//` starts
-    a comment to the line's end, so a quote there opens nothing. Python, GDScript, Java (text blocks) and JavaScript
-    quote alike (#277)."""
-    flags, quote, i, n = [False] * len(text), None, 0, len(text)
+    escapes the next character. A one-quote literal (not a backtick) closes on its own line: one still open at the
+    line's end was no literal (a Rust lifetime `'a`, a regex `/"/`), so its characters stay code and the scan resumes
+    after that quote. Outside a literal, `#` or `//` starts a comment to the line's end, so a quote there opens
+    nothing. Python, GDScript, Java (text blocks) and JavaScript quote alike (#277)."""
+    source = text + "\n"  # the last line ends like the others
+    flags, quote, i, n, opened = [False] * len(source), None, 0, len(source), 0
     while i < n:
         if quote is None:
-            if text[i] == "#" or text.startswith("//", i):
-                while i < n and text[i] != "\n":
+            if source[i] == "#" or source.startswith("//", i):
+                while i < n and source[i] != "\n":
                     i += 1
                 continue
-            quote = next((q for q in _QUOTES if text.startswith(q, i)), None)
+            quote = next((q for q in _QUOTES if source.startswith(q, i)), None)
+            opened = i
             i += len(quote) if quote else 1
-        elif text[i] == "\\":
+        elif source[i] == "\\":
             flags[i:i + 2] = [True] * len(flags[i:i + 2])
             i += 2
-        elif text.startswith(quote, i):
+        elif source.startswith(quote, i):
             i, quote = i + len(quote), None
-        elif text[i] in "\r\n" and len(quote) == 1 and quote != "`":
-            i, quote = i + 1, None
+        elif source[i] in "\r\n" and len(quote) == 1 and quote != "`":
+            flags[opened:i] = [False] * (i - opened)
+            i, quote = opened + 1, None
         else:
             flags[i] = True
             i += 1
