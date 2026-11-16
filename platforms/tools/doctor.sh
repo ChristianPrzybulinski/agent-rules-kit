@@ -379,77 +379,40 @@ for name in sorted(scopes):
 PY
 }
 
-# KIT-072: a project that vendors kit copies (.claude/skills/KIT_MANIFEST.json) pins the kit only while its settings
-# turn guardrails@ai-kit, which follows the kit head, off. Reads the project-scope installs Claude Code records and
-# prints one "ok <text>" line for the pinned projects and one "warn <text>" line for those that still load the head.
-claude_pinned_projects() {
+# KIT-081 stage 2b: the vendored mode (KIT-072) is gone, and a project uses guardrails@ai-kit. Reads the projects
+# Claude Code records an @ai-kit install for and prints one "warn <text>" line for those that still hold vendored kit
+# state (the copies, the pin or its settings entries, as platforms/tools/sync_unvendor.py finds them), which
+# sync-project.sh removes.
+claude_vendored_projects() {
   local plugins_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}"
-  python3 - "$plugins_root/installed_plugins.json" "${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json" <<'PY'
+  python3 - "$plugins_root/installed_plugins.json" "$(dirname "${BASH_SOURCE[0]}")" <<'PY'
 import json
 import os
-import subprocess
 import sys
 
-def load(path):
-    try:
-        with open(path, encoding="utf-8") as handle:
-            data = json.load(handle)
-    except (OSError, ValueError):
-        return {}
-    return data if isinstance(data, dict) else {}
+sys.path.insert(0, sys.argv[2])
+from sync_unvendor import leftovers  # noqa: E402
 
-records = load(sys.argv[1]).get("plugins")
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        records = json.load(handle).get("plugins")
+except (OSError, ValueError, AttributeError):
+    records = None
 projects = set()
 for plugin_id, entries in (records.items() if isinstance(records, dict) else []):
     if not str(plugin_id).endswith("@ai-kit") or not isinstance(entries, list):
         continue
     for entry in entries:
         path = entry.get("projectPath") if isinstance(entry, dict) else None
-        if isinstance(path, str) and os.path.isfile(os.path.join(path, ".claude", "skills", "KIT_MANIFEST.json")):
+        if isinstance(path, str) and os.path.isdir(path):
             projects.add(path)
-def trust_root(path):
-    """Where Claude Code records trust for the folder: the main checkout root, or the folder itself outside git."""
-    try:
-        common = subprocess.run(["git", "-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                                capture_output=True, text=True, check=True).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        return os.path.realpath(path)
-    return os.path.realpath(os.path.dirname(common) if os.path.basename(common) == ".git" else path)
-
-
-projects_trust = load(sys.argv[2]).get("projects")  # keys compared as real paths: /var and /private/var are one folder
-trusted = {os.path.realpath(key): value for key, value in projects_trust.items()} \
-    if isinstance(projects_trust, dict) else {}
-pinned, leaks, untrusted = 0, [], set()
-for path in sorted(projects):
-    state = None  # the project file wins over the user file, the local file over both
-    for name in ("settings.json", "settings.local.json"):
-        enabled = load(os.path.join(path, ".claude", name)).get("enabledPlugins")
-        if isinstance(enabled, dict) and isinstance(enabled.get("guardrails@ai-kit"), bool):
-            state = enabled["guardrails@ai-kit"]
-    if state is False and os.path.isdir(os.path.join(path, ".claude", "skills", "guardrails-pinned")):
-        pinned += 1
-        root = trust_root(path)  # the pinned skills and agents load only in a trusted folder; the kit hooks always run
-        entry = trusted.get(root)
-        if not (isinstance(entry, dict) and entry.get("hasTrustDialogAccepted") is True):
-            untrusted.add(root)
-    else:
-        leaks.append(path)
-if pinned:
-    print(f"ok claude: {pinned} vendored project{'' if pinned == 1 else 's'} {'pins its' if pinned == 1 else 'pin their'}"
-          " kit version (guardrails@ai-kit off)")
-if leaks:
-    shown = ", ".join(leaks[:3]) + (f" (+{len(leaks) - 3} more)" if len(leaks) > 3 else "")
-    one = len(leaks) == 1
-    print(f"warn claude: {len(leaks)} project{'' if one else 's'} {'vendors' if one else 'vendor'} kit copies but"
-          f" {'loads' if one else 'load'} guardrails@ai-kit, the kit head, beside them: {shown}"
-          " — run platforms/tools/sync-project.sh there (KIT-072)")
-if untrusted:
-    roots = sorted(untrusted)
-    shown = ", ".join(roots[:3]) + (f" (+{len(roots) - 3} more)" if len(roots) > 3 else "")
-    print(f"warn claude: {len(roots)} pinned checkout root{'' if len(roots) == 1 else 's'} not trusted: {shown}"
-          " — its kit hooks run, but the pinned skills and agents load only after you start claude there and"
-          " accept the trust dialog (KIT-072)")
+vendored = [path for path in sorted(projects) if leftovers(path)]
+if vendored:
+    one = len(vendored) == 1
+    shown = ", ".join(vendored[:3]) + (f" (+{len(vendored) - 3} more)" if len(vendored) > 3 else "")
+    command = f"platforms/tools/sync-project.sh {vendored[0]}" if one else "platforms/tools/sync-project.sh <repo> in each"
+    print(f"warn claude: {len(vendored)} checkout{'' if one else 's'} still {'holds' if one else 'hold'} the vendored"
+          f" kit state KIT-081 stage 2b removed: {shown} — run {command} once")
 PY
 }
 
@@ -865,12 +828,11 @@ if command -v claude >/dev/null 2>&1; then
     [[ -n "$plugin_name" ]] || continue
     warn "claude plugin $plugin_name@ai-kit is no longer in the kit (scope: $plugin_scopes) — user scope: claude plugin uninstall $plugin_name@ai-kit; project scope: run platforms/tools/sync-project.sh in that repository"
   done < <(claude_retired_plugins "$claude_plugins" $(kit_plugin_names .claude-plugin))
-  while IFS= read -r pin_line; do
-    case "$pin_line" in
-      "ok "*) ok "${pin_line#ok }" ;;
-      "warn "*) warn "${pin_line#warn }" ;;
+  while IFS= read -r vendored_line; do
+    case "$vendored_line" in
+      "warn "*) warn "${vendored_line#warn }" ;;
     esac
-  done < <(claude_pinned_projects)
+  done < <(claude_vendored_projects)
   ensure_claude_links
   ensure_claude_auto_compact
 

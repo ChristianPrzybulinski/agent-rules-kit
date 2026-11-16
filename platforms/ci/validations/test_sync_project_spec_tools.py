@@ -10,7 +10,7 @@ from pathlib import Path
 
 LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
 COVERS = ("platforms/tools/sync-project.sh", "platforms/tools/sync_agents_md.py", "platforms/tools/sync_just.py",
-          "platforms/tools/sync_pinned_plugin.py", "platforms/tools/sync-profiles.txt", "plugins/guardrails/**",
+          "platforms/tools/sync_unvendor.py", "platforms/tools/sync-profiles.txt", "plugins/guardrails/**",
           "platforms/kits/just/**", "platforms/kits/github/workflows/spec-lint.yml",
           "platforms/kits/godot/scripts/**", "platforms/ci/validations/check_spec.py",
           "platforms/ci/validations/row_checks.py", "platforms/ci/validations/pr_gates.py",
