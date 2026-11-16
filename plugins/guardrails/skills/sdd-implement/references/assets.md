@@ -1,5 +1,5 @@
 ---
-description: "Godot asset import: manifest fields, stages, approved transforms, the sprite-sheet tool and the report. Load when importing art."
+description: "Godot asset import: manifest fields, stages, approved transforms and the report. Load when importing art."
 kind: detail
 ---
 
@@ -31,7 +31,7 @@ Track `origin_path, origin_sha256, origin_group, origin_index, name, aliases, wi
 - Put only the batch the FEAT needs under `res://`; do not copy the archive.
 - Configure pixel-art filtering and mipmaps at project import level.
 - Generate atlases, tilesets or `SpriteFrames` with a reproducible script and record its command and hashes.
-- Sprite sheets from exported frames: `python3 ~/.ai-kit/platforms/kits/godot/scripts/make_spritesheet.py <frames-dir> <output.png>` writes the sheet and `<output.png>.manifest.json` (frames, size, order, sha256); record `hframes`/`vframes` and the pivot in the batch manifest.
+- A sprite sheet built from exported frames follows the line above (a reproducible script, its command and the hashes recorded); record `hframes`/`vframes` and the pivot in the batch manifest.
 
 ## 5. Verify and report
 

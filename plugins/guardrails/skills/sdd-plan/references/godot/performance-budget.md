@@ -18,6 +18,6 @@ The budget is a project parameter set, not an engine fact. Declare it before the
 - Measure before optimizing with the `Performance` monitors and the debugger Monitors tab; name the monitor used in the PR.
 - Pool objects only after a measured allocation cost; no speculative pooling.
 - One generated `TileMapLayer` per map layer, not per tile (4.3 floor in `../../../sdd-implement/references/godot/godot-4-versions.md`).
-- `Nearest` texture filtering for pixel art, set once in `project.godot`, not per sprite.
+- `Nearest` texture filtering for pixel art, set once in `project.godot`, not per sprite; with it `rendering/2d/snap/snap_2d_transforms_to_pixel` and `snap_2d_vertices_to_pixel` on, and `display/window/stretch/mode = canvas_items` with `aspect = keep` for a fixed base resolution.
 - Texture atlases or sprite sheets over many small textures.
 - `_physics_process` for simulation, `_process` for visuals; no per-frame `get_node`, string formatting or `load()` - preload or cache instead.

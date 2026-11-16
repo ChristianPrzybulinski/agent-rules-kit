@@ -5,7 +5,6 @@
 | Schema | Validates | Target file-name rule |
 |---|---|---|
 | `agent.schema.json` | shared Devin/Claude profiles under `plugins/*/agents/` | lowercase and Claude tool lists map 1:1 |
-| `knowledge.schema.json` | legacy knowledge-note frontmatter retained for compatibility | `verified` (date) + `sources` (URLs) required |
 | `rule.schema.json` | `plugins/*/rules/*.md` | `trigger` is `glob`, `model_decision`, or `manual` |
 | `skill.schema.json` | `plugins/*/skills/<name>/SKILL.md` (non-vendor) | `name` = folder; `triggers`; allowed tools |
 | `skills-lock.schema.json` | lines of `platforms/kits/third-party/skills.lock` | 40-hex `sha` |
