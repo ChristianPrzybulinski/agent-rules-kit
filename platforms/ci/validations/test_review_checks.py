@@ -1321,5 +1321,183 @@ class DodTest(ToolCase):
         self.assertIn("assertion", out)
 
 
+
+# --------------------------------------------------------------------------- KIT-075: the #246 review follow-ups
+
+
+def renamed_commit(repo, old, new, message, **files):
+    """Commit `old` moved to `new` (content kept), plus `files`."""
+    target = repo.root / new
+    target.parent.mkdir(parents=True, exist_ok=True)
+    (repo.root / old).rename(target)
+    return repo.commit(message, **files)
+
+
+class DodDiscoveryTest(StubCase):
+    """#248: a test renamed out of its runner's discovery pattern (the gates `red` globs) keeps no assertion, even
+    when the new name stays inside the broad test globs (`tests/**`)."""
+
+    def dod(self, head, gates=None):
+        review = Path(self.tmp.name) / "REVIEW.md"
+        review.write_text(REVIEW, encoding="utf-8")
+        gates = gates or self.gates({"red": [{"glob": "tests/test_*.py", "command": RUN}]})
+        return self.run_tool("dod", "--base", self.base, "--head", head, "--review", str(review), "--gates", gates)
+
+    def test_a_rename_the_runner_no_longer_collects_drops_its_assertions(self):
+        head = renamed_commit(self.repo, "tests/test_add.py", "tests/test_add.py.off", "park the test")
+        code, out = self.dod(head)
+        self.assertEqual(code, 1, out)
+        self.assertIn("tests/test_add.py: 2 assertion lines removed", out)
+
+    def test_a_rename_that_stays_discoverable_drops_nothing(self):
+        head = renamed_commit(self.repo, "tests/test_add.py", "tests/unit/test_add.py", "move the test")
+        code, out = self.dod(head, self.gates({"red": [{"glob": "tests/**/test_*.py", "command": RUN}]}))
+        self.assertEqual(code, 0, out)
+        self.assertIn("no assertion dropped", out)
+
+
+class FeatProofsHeadTest(ToolCase):
+    """#249, the decision kept: `feat-proofs` runs on `main` after the merge, where HEAD is the trusted ref, so an
+    in-repo --gates without --base is read as HEAD has it, never from the checkout."""
+
+    def test_an_in_repo_gates_file_is_read_as_head_has_it(self):
+        self.repo.commit("rules", **{"gates.json": json.dumps({"proof_allowlist": ["python3"]}), "calc.py": CALC_SUB})
+        self.repo.write("gates.json", json.dumps({"proof_allowlist": ["grep"]}))  # an uncommitted edit
+        feat = Path(self.tmp.name) / "FEAT-001.md"
+        feat.write_text(FEAT_PROOFS, encoding="utf-8")
+        code, out = self.run_tool("feat-proofs", "--feat", str(feat), "--rows", "T1", "--run",
+                                  "--gates", str(self.repo.root / "gates.json"), "--cwd", str(self.repo.root))
+        self.assertEqual(code, 0, out)
+        self.assertIn("exit 0", out)
+
+
+class FeatRowSeparatorTest(ToolCase):
+    """#250: only "\n" ends a task row, so FF, NEL or U+2028 inside a cell keeps the row and its proof runs."""
+
+    def test_a_row_holding_an_extra_separator_still_runs_its_proof(self):
+        for sep in ("\x0c", "\x85", " "):
+            with self.subTest(sep=repr(sep)):
+                feat = Path(self.tmp.name) / "FEAT-001.md"
+                row = f'| T1 | adds{sep}sub | `calc.py` | `python3 -c "import sys; sys.exit(1)"` | done |\n'
+                feat.write_text(FEAT_PROOFS.split("| T1 |")[0] + row, encoding="utf-8")
+                code, out = self.run_tool("feat-proofs", "--feat", str(feat), "--run", "--allow", "python3",
+                                          "--cwd", str(self.repo.root))
+                self.assertEqual(code, 1, out)
+                self.assertIn("T1: ", out)
+                self.assertIn("exit 1", out)
+
+
+class BodyLineEndingTest(ToolCase):
+    """#251: a PR body splits only on CommonMark line endings, so U+2028 cannot start a `## Files widened` heading
+    GitHub does not render."""
+
+    def test_a_heading_after_a_unicode_separator_widens_nothing(self):
+        head = self.repo.commit("touch", **{"calc.py": CALC_SUB, "tests__test_add.py": TEST_ADD + "\n# touched\n"})
+        for sep in (" ", "\x85", "\x0c"):
+            with self.subTest(sep=repr(sep)):
+                body = Path(self.tmp.name) / "body.md"
+                body.write_text(f"## Notes{sep}## Files widened\n\n- `tests/test_add.py`: imports calc\n",
+                                encoding="utf-8")
+                code, out = self.run_tool("scope", "--base", self.base, "--head", head, "--files", "calc.py",
+                                          "--body", str(body))
+                self.assertEqual(code, 1, out)
+                self.assertIn("tests/test_add.py is outside Files", out)
+
+
+class ConfigTypeTest(ToolCase):
+    """#252: a gates value of the wrong type that is still iterable (a string where a list belongs) exits 2 naming
+    the key, instead of being read per character."""
+    CASES = {  # case: gates JSON at base, how the command reads it, the key the message names
+        "protected_paths-label-a-string": ({"protected_paths": {"core": "protected/**"}}, "scope", "protected_paths"),
+        "generated_neighbours-a-string": ({"generated_neighbours": ".uid"}, "scope", "generated_neighbours"),
+        "proof_allowlist-a-string": ({"proof_allowlist": "python3"}, "proof", "proof_allowlist"),
+        "red-glob-a-list": ({"red": [{"glob": ["tests/**"], "command": "true"}]}, "red", "red"),
+        "red-cwd-a-number": ({"red": [{"glob": "tests/**", "command": "true", "cwd": 5}]}, "red", "red"),
+    }
+
+    def test_a_wrong_but_iterable_value_exits_2_naming_its_key(self):
+        body = Path(self.tmp.name) / "body.md"
+        body.write_text(BODY.format(proof="python3 -c \"print('ok')\"", session="019a2b3c-4d5e"), encoding="utf-8")
+        for name, (data, how, key) in self.CASES.items():
+            with self.subTest(case=name):
+                self.repo = Repo(Path(self.tmp.name) / name)
+                base = self.repo.commit("base", **{"calc.py": CALC, "tests__test_add.py": TEST_ADD,
+                                                   "gates.json": json.dumps(data)})
+                head = self.repo.commit("head", **{"calc.py": CALC_SUB, "tests__test_add.py": TEST_ADD
+                                                   + "        self.assertEqual(calc.add(1, 1), 2)\n"})
+                path, root = str(self.repo.root / "gates.json"), str(self.repo.root)
+                argv = {"scope": ["scope", "--base", base, "--head", head, "--files", "calc.py", "--gates", path],
+                        "red": ["red", "--base", base, "--head", head, "--gates", path, "--run", "true"],
+                        "proof": ["proof", "--body", str(body), "--run", "--gates", path, "--base", base,
+                                  "--cwd", root]}[how]
+                code, out = self.run_tool(*argv)
+                self.assertEqual(code, 2, out)
+                self.assertIn(key, out)
+                self.assertNotIn("Traceback", out)
+
+
+class PrInputFindingTest(StubCase):
+    """#253: a failure the PR's own content causes is a finding naming the path (exit 1), not a crash (exit 2)."""
+
+    def test_a_proof_path_too_long_for_the_file_system_is_a_finding(self):
+        body = Path(self.tmp.name) / "body.md"
+        long_path = f"tests/{'a' * 300}/check.py"
+        body.write_text(BODY.format(proof=f"python3 {long_path}", session="019a2b3c-4d5e"), encoding="utf-8")
+        code, out = self.run_tool("proof", "--body", str(body), "--run", "--allow", "python3",
+                                  "--cwd", str(self.repo.root))
+        self.assertEqual(code, 1, out)
+        self.assertIn(long_path, out)
+        self.assertNotIn("Traceback", out)
+
+    def test_a_pr_test_under_a_path_that_is_a_file_on_base_is_a_finding(self):
+        base = self.repo.commit("fixture file", **{"tests__fixtures": "data\n"})
+        (self.repo.root / "tests" / "fixtures").unlink()
+        head = self.repo.commit("fixture folder", **{"calc.py": CALC_SUB, "tests__fixtures__test_sub.py": TEST_SUB})
+        code, out = self.run_tool("red", "--base", base, "--head", head, "--run", RUN)
+        self.assertEqual(code, 1, out)
+        self.assertIn("tests/fixtures/test_sub.py", out)
+        self.assertNotIn("Traceback", out)
+        self.assertEqual(self.worktrees(), 1)
+
+
+class DodCrOnlyTest(ToolCase):
+    """#254: a CR-only test file is one diff line, so its assertions are counted per CR line."""
+
+    def test_an_assertion_dropped_from_a_cr_only_test_file_is_reported(self):
+        cr = TEST_ADD.replace("\n", "\r")
+        base = self.repo.commit("cr test", **{"tests__test_cr.py": cr})
+        head = self.repo.commit("loosen", **{"tests__test_cr.py": cr.replace(
+            "        self.assertEqual(calc.add(0, 0), 0)\r", "")})
+        review = Path(self.tmp.name) / "REVIEW.md"
+        review.write_text(REVIEW, encoding="utf-8")
+        code, out = self.run_tool("dod", "--base", base, "--head", head, "--review", str(review))
+        self.assertEqual(code, 1, out)
+        self.assertIn("tests/test_cr.py: 2 assertion lines removed, 1 added", out)
+
+
+class StartupErrorTest(ToolCase):
+    """#255: a broken install and a non-positive --timeout are usage errors (exit 2), never the finding code 1."""
+
+    def test_a_copy_without_pr_gates_exits_2(self):
+        lone = Path(self.tmp.name) / "lone" / "tools"
+        lone.mkdir(parents=True)
+        shutil.copy(TOOL, lone / "review_checks.py")
+        done = subprocess.run([sys.executable, "-I", "-B", str(lone / "review_checks.py"), "--repo",
+                               str(self.repo.root), "dod", "--base", self.base, "--head", self.base],
+                              capture_output=True, text=True, timeout=60, cwd=str(lone))
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertIn("pr_gates", done.stderr)
+        self.assertNotIn("Traceback", done.stderr)
+
+    def test_a_timeout_below_one_second_is_a_usage_error(self):
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        for value in ("0", "-5"):
+            with self.subTest(timeout=value):
+                code, out = self.run_tool("red", "--base", self.base, "--head", head, "--run", RUN,
+                                          "--timeout", value)
+                self.assertEqual(code, 2, out)
+                self.assertIn("--timeout", out)
+
+
 if __name__ == "__main__":
     unittest.main()

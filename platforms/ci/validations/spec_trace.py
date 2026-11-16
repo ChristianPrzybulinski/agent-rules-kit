@@ -622,13 +622,21 @@ def open_rows(feat):
     return [f"{tid} {state}" for tid, state in feat["task_status"].items() if state not in ROW_CLOSED]
 
 
+ROW_STARTED = ("doing", "done")  # a row whose work has begun (KIT-068 states): it moves the FEAT to in-progress
+
+
+def started_rows(feat):
+    """`Tn state` for each row whose work has begun."""
+    return [f"{tid} {state}" for tid, state in feat["task_status"].items() if state in ROW_STARTED]
+
+
 def derived_status(feat):
-    """Return the status the task rows imply (in-progress at most), or the current one when they imply none. A
-    validated FEAT with an open row (a refused release filed one) goes back to in-progress, so sdd-review runs again."""
-    states = list(feat["task_status"].values())
+    """Return the status the task rows imply (in-progress at most), or the current one when they imply none: a
+    `doing` or `done` row means the work has begun. A validated FEAT with an open row (a refused release filed one)
+    goes back to in-progress, so sdd-review runs again."""
     if feat["status"] == "validated" and open_rows(feat):
         return "in-progress"
-    if feat["status"] in STATUS_FROZEN or "done" not in states:
+    if feat["status"] in STATUS_FROZEN or not started_rows(feat):
         return feat["status"]
     return "in-progress"
 
@@ -682,6 +690,9 @@ def rewrite_status(spec, today):
         if feat["status"] == "validated":
             append_history(feat["path"], f"- {today} status: validated -> in-progress (reopened: "
                                          f"{', '.join(open_rows(feat))})")
+        else:
+            append_history(feat["path"], f"- {today} status: {feat['status']} -> in-progress "
+                                         f"({', '.join(started_rows(feat))})")
         changed.append(f"{fid}: {feat['status']} -> {new}")
     return changed
 

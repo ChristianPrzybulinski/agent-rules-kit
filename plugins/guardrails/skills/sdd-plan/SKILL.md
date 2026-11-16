@@ -19,7 +19,7 @@ The technical refinement: cuts a refined NEED into deliveries, creates one FEAT 
 
 ## 1. Confirm readiness
 
-Require a NEED with `status: refined` whose REQs are `approved`. Read the actual modules/files plus repository rules; do not infer structure from the desired design.
+Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs: false` (no NEED file), the request `sdd-specify` decided and the approved REQs `sdd-clarify` wrote, which land in this change, and Problem / value holds what the NEED would: the Request quote, the Triage block, the desired outcome, the Situations, scope and constraints. Read the actual modules/files plus repository rules; do not infer structure from the desired design.
 
 ## 2. Cut the NEED into deliveries
 
