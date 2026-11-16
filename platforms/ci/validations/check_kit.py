@@ -1448,7 +1448,7 @@ else:
 # kit.just, so a command has one definition: each `just <recipe>` they name must exist in the module of their profile,
 # an AGENTS template names `just test` and `just verify`, and every pinned just download in the templates is the same.
 JUST_MODULES = KIT / "platforms" / "kits" / "just"
-JUST_RECIPE = re.compile(r"^@?([A-Za-z_][A-Za-z0-9_-]*)(?:[ \t]+[+*$]?[A-Za-z_][A-Za-z0-9_-]*(?:=(?:\"[^\"]*\"|'[^']*'|[^\s:]+))?)*[ \t]*:(?![=:])")  # sync_just.py RECIPE
+JUST_RECIPE = re.compile(r"^@?([A-Za-z_][A-Za-z0-9_-]*)(?:[ \t]+[+*$]?[A-Za-z_][A-Za-z0-9_-]*(?:=(?:\"[^\"]*\"|'[^']*'|[^\s:\"']+))?)*[ \t]*:(?![=:])")  # sync_just.py RECIPE
 JUST_CALL = re.compile(r"(?:^|[\s`;&|(])just (?:--[a-z][a-z-]* +)*(?!-)([A-Za-z_][A-Za-z0-9_-]*)")  # `just --no-deps x`
 TEMPLATE_PROFILES = [(PLUGINS_ROOT / KIT_PLUGIN / "templates" / "project-agents-godot-2d.md", "godot"),
                      (PLUGINS_ROOT / KIT_PLUGIN / "templates" / "project-agents-java-spring.md", "java"),
