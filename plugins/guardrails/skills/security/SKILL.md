@@ -27,7 +27,7 @@ Release gates, the secret incident and the review of a sensitive change (§1–�
 
 - Read credentials only from environment variables or a keychain; version `.env.example` placeholders and ignore `.env`.
 - Never place a password, token or key in source, YAML, logs, command output or chat.
-- On exposure, stop the current work, warn first, rotate during this session, then run `gitleaks detect` on history and search sibling credentials.
+- On exposure, stop the current work, warn first, rotate during this session, then scan the whole history (`references/scan.md` § 3) and search sibling credentials.
 
 ## 3. Review each sensitive change
 

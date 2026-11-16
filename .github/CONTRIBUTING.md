@@ -34,7 +34,7 @@ This section is for people outside the project; the rest of the file is the proc
 
 - The repository root holds no agent-facing content. A root `AGENTS.md` is refused: the root is the Devin meta-plugin, so it would load in every Devin session on top of `plugins/guardrails/AGENTS.md`.
 - `.devin-plugin/plugin.json` requires every plugin and lists none as optional.
-- Every directory under `plugins/` is a plugin with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json` and a generated `INDEX.md`; no other `INDEX.md` exists in the repository.
+- Every directory under `plugins/` is a plugin with `.devin-plugin/plugin.json`, `.claude-plugin/plugin.json`, `plugin.json` and a generated `INDEX.md`; no other `INDEX.md` exists in this repository. The rule is the kit repository's own: a consumer project that enables `check_docs_structure.py` keeps an `INDEX.md` in each `done/` folder (KIT-074).
 - `plugins/guardrails/` is the only plugin with `AGENTS.md` or `hooks/`.
 - Plugin names are unique, and every referenced skill or agent is reachable through the dependency graph.
 - `VERSION`, the meta-plugin manifest and every Devin, Codex and Claude manifest agree.
@@ -78,7 +78,7 @@ globs:
 
 `globs` must be a YAML sequence: Devin rejects a comma-separated string (`YAML parse error: globs: invalid type: string ..., expected a sequence`).
 
-A folder gets a `README.md` only when its files need explanation; shape it with [`docs/templates/kit-readme.md`](../docs/templates/kit-readme.md). Outside the generated plugin indexes there is no `INDEX.md` (KIT-042). The `kit-*` templates shape kit content, so they live in `docs/templates/`, outside every plugin.
+A folder gets a `README.md` only when its files need explanation; shape it with [`docs/templates/kit-readme.md`](../docs/templates/kit-readme.md). Outside the generated plugin indexes this repository has no `INDEX.md` (KIT-042). The `kit-*` templates shape kit content, so they live in `docs/templates/`, outside every plugin.
 
 A subagent skill sets Devin `subagent: true` or a shared `agent: <profile>`, plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/<plugin>/agents/` of a plugin reachable through the dependency graph.
 

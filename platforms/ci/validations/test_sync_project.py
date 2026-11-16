@@ -1088,7 +1088,8 @@ class SyncProjectCheckTest(unittest.TestCase):
         copies = {str(p.relative_to(self.repo)) for p in lint.rglob("*")
                   if p.is_file() and p.name not in ("README.md", "KIT_VERSION")}
         self.assertIn(".github/spec-lint/schemas/fake.schema.json", copies)
-        self.assertEqual(set(manifest["copies"]), copies)
+        # KIT-074: the docs profile also gets a generated just module at the root, pinned beside the spec-lint copies
+        self.assertEqual(set(manifest["copies"]), copies | {"kit.just"})
         fake = lint / "schemas" / "fake.schema.json"
         self.assertEqual(self.run_kit(script, "--check").returncode, 0)
         fake.write_text('{"fake": 2}\n')

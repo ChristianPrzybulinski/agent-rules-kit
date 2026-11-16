@@ -95,6 +95,7 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-071-guaranteed-skill-use.md`](KIT-071-guaranteed-skill-use.md) | confirmed | #233 | #235 |
 | [`KIT-072-kit-version-pin.md`](KIT-072-kit-version-pin.md) | confirmed | #257 | #260 |
 | [`KIT-073-spec-tools.md`](KIT-073-spec-tools.md) | confirmed | #259 | #262 |
+| [`KIT-074-dev-standards.md`](KIT-074-dev-standards.md) | confirmed | #258 | #263 |
 | [`KIT-076-ci-on-pull-requests.md`](KIT-076-ci-on-pull-requests.md) | confirmed | #264 | #272 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

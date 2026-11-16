@@ -26,13 +26,15 @@ src/test/java       # mirrors main
 
 ## Commands
 
+The recipes come from `kit.just`, which agent-rules-kit's `sync-project.sh` writes from the kit's java module; this folder's `justfile` imports it and adds the project's own recipes. Each runs the Maven wrapper (`just --show <recipe>`); CI runs the same recipes (the kit `ci-java.yml`).
+
 ```bash
-./mvnw spring-boot:run                    # run locally
-./mvnw test                               # unit
-./mvnw -Dtest=SomeTest test               # one test
-./mvnw verify                             # unit + integration
-./mvnw spotless:apply                     # format
-./mvnw spotless:check verify              # gate before commit/PR
+just run                           # run locally (spring-boot:run)
+just test                          # unit
+just test -Dtest=SomeTest          # one test
+just verify                        # spotless:check verify: unit + integration and the pom gates, the gate before commit/PR
+just fmt                           # format (spotless:apply)
+just lint                          # format check only
 ```
 
 ## Patterns (condition → action)
@@ -64,7 +66,7 @@ public final class CreateOrder {
 
 1. `git switch -c feat/<short-name>` from `main`.
 2. Conventional Commits.
-3. Before pushing: `./mvnw spotless:check verify` green.
+3. Before pushing: `just verify` green.
 4. `gh pr create` with: 1-line summary, what you tested, `Closes #N`.
 
 ## Boundaries

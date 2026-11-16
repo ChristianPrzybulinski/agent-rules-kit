@@ -542,6 +542,11 @@ SDD_FULL = """sdd:
     godot: [client]
   visual_approval: owner
   owner_approvals: [decision, approved-dec-change, protocol-version, in-game-evidence]
+  doc_structure:
+    enabled: true
+    exempt: docs/doc-structure-exempt.txt
+    headings: ["## Scope", "## Out of scope"]
+    done_index: false
 """
 
 SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
@@ -555,7 +560,10 @@ SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
                            "progress_labels": ["status:in-progress"]},
                 "row_checks": {"gates": None, "tests": [], "assets": None, "protocol": None, "artifacts": None,
                                "visual": None},
-                "visual_approval": "none", "owner_approvals": ["decision"]}
+                "visual_approval": "none", "owner_approvals": ["decision"],
+                "doc_structure": {"enabled": False, "exempt": ".github/doc-structure-exempt.txt",
+                                  "headings": ["## What goes here", "## What does not go here"],
+                                  "done_index": True}}
 
 
 class SddParamsTest(unittest.TestCase):

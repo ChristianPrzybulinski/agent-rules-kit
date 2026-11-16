@@ -25,13 +25,17 @@ res://
 
 ## Commands
 
+The recipes come from `kit.just`, which agent-rules-kit's `sync-project.sh` writes from the kit's godot module; this folder's `justfile` imports it and adds the project's own recipes. `just --show <recipe>` prints a recipe's commands; CI runs the same recipes (the kit `ci-godot.yml`).
+
 ```bash
-godot --path . --editor                         # open editor
-godot --headless --path . --import                                # import assets, build the script-class cache (CI)
-! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'   # boot proof: --quit exits 0 after a script error
-godot --path . --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode   # run gdUnit4 (default)
-godot --path . --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit             # run GUT (alternative); delete the runner not used
-godot --path . --headless --export-release "[preset]" build/[name]   # export
+just editor                        # open the editor
+just import                        # import assets, build the script-class cache (a fresh checkout needs it)
+just boot                          # boot proof: --quit exits 0 after a script error, so the log decides
+just test                          # gdUnit4 suite (GODOT_TEST_RUNNER=gut for GUT); a missing runner or zero tests fails
+just lint                          # gdformat --check + gdlint (addons/ and .godot/ left out)
+just fmt                           # gdformat
+just verify                        # lint + boot + test: the gate before a commit or PR
+just export "[preset]" build/[name]   # export
 ```
 
 ## Patterns (condition → action)
@@ -96,11 +100,11 @@ Never mix the two models in one entity; presentation never changes the authorita
 - `.tscn`/`.tres` are text: review the diff; UID conflicts → reimport, do not hand-edit.
 - Commit `.godot/` **never**; commit `*.import` **always**.
 - Conventional Commits; PR with a GIF/screenshot when the change is visual.
-- CI runs the suite headless and fails when the runner is missing or zero tests execute; never skip tests to get a green run (see the kit `ci-godot.yml`).
+- CI runs `just boot`, `just test` and `just lint` headless and fails when the runner is missing or zero tests execute; never skip tests to get a green run (see the kit `ci-godot.yml`).
 
 ## Boundaries
 
-- Always: run the two boot-proof commands from Commands after touching assets or scripts; test a scene in isolation (F6) before the whole stage.
+- Always: `just boot` after touching assets or scripts, `just verify` before a commit or PR; test a scene in isolation (F6) before the whole stage.
 - Ask first: change `project.godot` (renderer, physics, input map); add an addon; change the save format.
 - Never: mix the two movement models in one entity, or let presentation change the authoritative position; `get_parent()` for game logic; editing `.godot/`.
 

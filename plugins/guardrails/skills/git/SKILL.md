@@ -51,7 +51,7 @@ Run `git status` and identify the branch/remote. Distinguish connectivity failur
 
 ## 7. Create the PR
 
-Run required local gates, then use `gh pr create`. The body states what changed, why, the tradeoffs, regressions or follow-ups it leaves and whether a revert fully undoes it, the exact test commands/results with what each proves (`Not tested:` for what none covers), and linked issues (`Closes #n`/`Refs: FEAT-nnn`). Every file in `git diff --stat origin/main...HEAD` is explained by a commit of this branch.
+Run required local gates, the branch's secret scan among them (`../security/references/scan.md` § 3), then use `gh pr create`. The body states what changed, why, the tradeoffs, regressions or follow-ups it leaves and whether a revert fully undoes it, the exact test commands/results with what each proves (`Not tested:` for what none covers), and linked issues (`Closes #n`/`Refs: FEAT-nnn`). Every file in `git diff --stat origin/main...HEAD` is explained by a commit of this branch.
 
 Then wait for the PR checks (`gh pr checks <n> --watch`) and report each check's name and conclusion in the PR, a failing one first. Local gates do not replace CI-only gates such as dependency or secret scans, so the PR is not done while a check is red.
 
