@@ -12,7 +12,7 @@ Version: [`VERSION`](VERSION) · History: [`CHANGELOG.md`](CHANGELOG.md) · Cont
 
 | Path | Purpose |
 |---|---|
-| [`plugins/guardrails/`](plugins/guardrails/INDEX.md) | the kit's only plugin: always-on rules (`AGENTS.md`), hooks; path rules for code, tests, Godot, Java, Python, migrations, protocol, assets, Docker, spec and JSON; `reviewer` and `researcher` profiles; session, parallelize, review, git, security, investigate and Docker-host skills; the `sdd-*` pipeline and journeys, whose plan and implement steps carry the architecture, data, contract, coding, test and stack references (KIT-070); project and spec templates |
+| [`plugins/guardrails/`](plugins/guardrails/INDEX.md) | the kit's only plugin: always-on rules (`AGENTS.md`), hooks; path rules for code, tests, Godot, Java, Python, migrations, protocol, assets, Docker, spec and JSON; `reviewer` and `researcher` profiles; session, parallelize, review, git, security, investigate and Docker-host skills; the `sdd-*` pipeline, whose plan and implement steps carry the architecture, data, contract, coding, test and stack references (KIT-070); project and spec templates |
 | [`platforms/`](platforms/) | machine tools ([`tools/`](platforms/tools/README.md)), validators and schemas ([`ci/`](platforms/ci/README.md)), files projects copy ([`kits/`](platforms/kits/README.md)) |
 | [`docs/`](docs/) | [`design.md`](docs/design.md) (principles and context costs), [`projects.md`](docs/projects.md) (what a consumer repository carries), [`features/`](docs/features/README.md) (KIT records) |
 | `.devin-plugin/`, `.claude-plugin/`, `.agents/plugins/` | the content-free Devin meta-plugin, which requires `guardrails`, and the Claude Code and Codex marketplace catalogs |

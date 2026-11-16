@@ -5,10 +5,11 @@ status: confirmed
 confirmed: "2026-11-15 (owner, chat of the coordinator session \"Revisão de regras e skills\": \"Sim, aplique\")"
 issue: "#281"
 pr: "#286 (items 5–6)"
-delivered: "items 5–6 delivered; 1–4 after 13.0.0"
 ---
 
 # KIT-077 — Layered gate: a fast PR gate, a full gate on main and release, and a review bar by risk
+
+Status: items 5 and 6 are done (#286, in 13.0.0); items 1–4 stay open until after 13.0.0, so the record stays `confirmed`.
 
 ## Problem and evidence
 
