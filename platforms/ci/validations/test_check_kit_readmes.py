@@ -1,6 +1,7 @@
 """check_kit.py on a throwaway copy: root files, optional folder READMEs and INDEX.md placement (KIT-042),
 links that leave the plugin and skill descriptions without 'Not for' (KIT-052), shell scripts the bash on
-PATH cannot parse (KIT-060), and a sync profile map line that names a skill or misses a rule (KIT-083)."""
+PATH cannot parse (KIT-060), a sync profile map line that names a skill or misses a rule (KIT-083), and the
+kit's own .ai-kit.yaml missing or failing profile.py resolve (KIT-087 P1b)."""
 import re
 import shutil
 import subprocess
@@ -10,11 +11,13 @@ import unittest
 from pathlib import Path
 
 LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
-COVERS = ("platforms/ci/validations/check_kit.py",)
+COVERS = ("platforms/ci/validations/check_kit.py", ".ai-kit.yaml", "platforms/tools/profile.py",
+          "platforms/ci/schemas/profile.schema.json")
 
 KIT = Path(__file__).resolve().parents[3]
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
 DOCTOR = "platforms/tools/doctor.sh"
+PROFILE = ".ai-kit.yaml"  # the kit's own project profile (KIT-087 P1b)
 PROFILE_MAP = "plugins/guardrails/hooks/sync-profiles.txt"  # KIT-081 stage 3: next to the rules
 SESSION = "plugins/guardrails/skills/session/SKILL.md"
 # A synthetic description with its 'Use when' and without 'Not for', so the test keys on no wording of the real one.
@@ -106,6 +109,31 @@ class CheckKitReadmesTest(unittest.TestCase):
         self.assertIn(".github/CONTRIBUTING.md: layout: required path missing", output)
         self.assertIn(f"{PROFILE_MAP}: 'skills/session' is not a rule of plugins/guardrails", output)
         self.assertIn(f"{PROFILE_MAP}: no line for rules/spec.md; every kit rule needs one", output)
+
+    def test_the_kits_own_profile_fails_when_it_does_not_resolve_or_is_missing(self):
+        """KIT-087 P1b: check_kit.py resolves the kit's own .ai-kit.yaml through profile.py; an unknown key and a
+        value outside the schema fail it on one FAIL line naming the file, and so does a missing file. The real
+        kit passing is the static job's check.sh run (.github/workflows/ci.yml)."""
+        profile = self.kit / PROFILE
+        text = profile.read_text(encoding="utf-8")
+        self.assertIn("\nci:\n  trigger: auto\n", text)
+        # One run for both breaks, each reported by the resolver: an unknown key and a value outside the schema.
+        profile.write_text(text.replace("  trigger: auto\n", "  trigger: sometimes\n") + "not_a_section: 1\n",
+                           encoding="utf-8")
+        result = self.check()
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 1, output)
+        lines = [line for line in output.splitlines() if line.startswith("FAIL: ")]
+        self.assertEqual(len(lines), 1, output)
+        self.assertTrue(lines[0].startswith("FAIL: .ai-kit.yaml: profile.py resolve exit 1: "), output)
+        self.assertIn("not_a_section is not a known key", lines[0])
+        self.assertIn("sometimes", lines[0])
+        profile.unlink()
+        result = self.check()
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 1, output)
+        self.assertEqual([line for line in output.splitlines() if line.startswith("FAIL: ")],
+                         ["FAIL: .ai-kit.yaml: missing: the kit carries its own project profile (KIT-087 P1b)"], output)
 
     @unittest.skipUnless(bash_major() == 3, "the trap is specific to bash 3.x, the macOS /bin/bash")
     def test_an_odd_apostrophe_in_a_heredoc_inside_command_substitution_fails_under_bash_3(self):

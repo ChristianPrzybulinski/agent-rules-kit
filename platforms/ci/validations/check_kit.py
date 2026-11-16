@@ -1533,6 +1533,19 @@ for workflow in sorted((KIT / "platforms" / "kits" / "github" / "workflows").glo
 if len(just_pins) > 1:
     fail("platforms/kits/github/workflows", f"pin different just downloads: {sorted(just_pins)}")
 
+# --- 15. The kit's own profile (KIT-087 P1b) ---
+# The kit carries its own .ai-kit.yaml and resolves it the way a project's is resolved, so a kit release cannot ship a
+# schema or resolver its own profile breaks. It must exist and resolve with no note: the kit keeps no legacy home.
+KIT_PROFILE = KIT / ".ai-kit.yaml"
+if not KIT_PROFILE.is_file():
+    fail(".ai-kit.yaml", "missing: the kit carries its own project profile (KIT-087 P1b)")
+else:
+    resolved = subprocess.run([sys.executable, "-B", str(KIT / "platforms" / "tools" / "profile.py"), "resolve",
+                               "--json", str(KIT)], capture_output=True, text=True, check=False)
+    notes = [line.removeprefix("FAIL: ") for line in resolved.stderr.splitlines() if line.strip()]
+    if resolved.returncode != 0 or notes:
+        fail(".ai-kit.yaml", f"profile.py resolve exit {resolved.returncode}: {'; '.join(notes) or 'no message'}")
+
 
 print(f"check: {'OK' if not failures else 'failed'} ({counts['plugins']} plugins, {counts['skills']} skills, "
       f"{counts['rules']} rules, {counts['templates']} templates, "
