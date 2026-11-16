@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [14.0.0] - 2026-11-16
+
 ### Removed
 - `platforms/kits/review-loop/config.example.json` and `verdict.schema.json`: the loop lives in `dev-game-studio/review-loop`, whose own schema and generic example config replace them (the kit's schema lacked the `base_sha` that the loop's `stratics-verdict/v1` schema requires); the folder README now points to that repository.
 - `platforms/kits/godot/scripts/make_spritesheet.py`: a game-art tool no project used (Stratics never called it); the `sdd-implement` assets reference keeps the rule it served (a reproducible script with its command and hashes recorded, `hframes`/`vframes` and the pivot in the batch manifest), and a vendored project's pin drops it on its next sync.
