@@ -229,6 +229,10 @@ After the merge (#294, KIT-080):
   on `453648d`, ran 3 tests in 1.1 s, green (run 43848407372).
 - `red` took 349 s (run 43816019580), 460 s (43817751313), 60 s (43820680714) and 8 s (43821419139) on green pull
   request runs, so its timeout is 25 min: 3 × 460 s, rounded up to 5 minutes, as KIT-076 sets the others.
+- [FACT] Median PR `ci` time, from the first job's start to the end of the `ci` job, over the five completed
+  pull request runs since #293 (#281's Done-when, #294 item 5): 1m59s. Runs 43820680714 1m07s, 43821082870
+  1m59s (failed), 43821419139 0m58s, 43874812514 6m29s and 43876497868 4m56s; the last two are PR #301, whose
+  `red` job ran 114 changed tests on base and head.
 
 Pending: the median over five pull request runs, which needs runs of smaller changes.
 
