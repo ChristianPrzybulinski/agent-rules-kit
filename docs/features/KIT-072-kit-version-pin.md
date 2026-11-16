@@ -126,3 +126,5 @@ twice, and `sync-project.sh --check` with the live CLI passes.
   copies call them there.
 - 2026-11-15: review of `3be353c`: running a pinned tool writes `__pycache__/*.pyc` beside it, which `--check` then
   reported as not in the manifest; the pin scan skips bytecode.
+- 2026-11-16: superseded by KIT-081 stage 2b: the plugin follows the `stable` branch, so the vendored mode and the pin
+  are removed and `sync-project.sh` migrates a pinned project back to `guardrails@ai-kit`.

@@ -9,7 +9,6 @@ import os
 import sys
 import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
 
 LAYER = "unit"  # KIT-077 layer (platforms/tools/run_tests.py): in-process: no subprocess, no git
@@ -30,7 +29,7 @@ paths:
 ---
 <!-- agent-rules-kit: generated from plugins/guardrails/rules/{name}.md by platforms/tools/sync-project.sh; kit \
 {version}; do not edit -->
-Kit files this rule names: skill `<skill>` is `.claude/skills/<skill>/` when vendored.
+Kit files this rule names: skill `<skill>` is `~/.ai-kit/plugins/guardrails/skills/<skill>/`.
 
 - Always follow the {name} rule.
 """
@@ -85,16 +84,10 @@ class Base(unittest.TestCase):
 
 
 class Location(Base):
-    def test_the_intro_names_the_kit_clone_in_plugins_mode(self):
-        with mock.patch.dict(os.environ, {"AI_KIT_PINNED": "0"}):
-            self.assertIn(sam.HEAD_HOME, self.block())
-        self.assertIn("`~/.ai-kit/plugins/guardrails/skills/<skill>/`", sam.HEAD_HOME)
-
-    def test_the_intro_names_the_pin_in_vendored_mode(self):  # #282 item 1
-        with mock.patch.dict(os.environ, {"AI_KIT_PINNED": "1"}):
-            block = self.block()
-        self.assertIn("`.claude/skills/guardrails-pinned/skills/<skill>/`", block)
-        self.assertNotIn("~/.ai-kit/plugins/", block)
+    def test_the_intro_names_the_kit_clone(self):  # KIT-081 stage 2b: no project copy to name
+        block = self.block()
+        self.assertIn("A kit skill or reference a rule names is in `~/.ai-kit/plugins/guardrails/skills/<skill>/`.", block)
+        self.assertNotIn(".claude/skills/", block)
 
 
 class LineEndings(Base):
