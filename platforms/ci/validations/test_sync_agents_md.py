@@ -9,6 +9,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 LAYER = "unit"  # KIT-077 layer (platforms/tools/run_tests.py): in-process: no subprocess, no git
@@ -81,6 +82,19 @@ class Base(unittest.TestCase):
 
     def text(self, rel):
         return (self.repo / rel).read_text(encoding="utf-8")
+
+
+class Location(Base):
+    def test_the_intro_names_the_kit_clone_in_plugins_mode(self):
+        with mock.patch.dict(os.environ, {"AI_KIT_PINNED": "0"}):
+            self.assertIn(sam.HEAD_HOME, self.block())
+        self.assertIn("`~/.ai-kit/plugins/guardrails/skills/<skill>/`", sam.HEAD_HOME)
+
+    def test_the_intro_names_the_pin_in_vendored_mode(self):  # #282 item 1
+        with mock.patch.dict(os.environ, {"AI_KIT_PINNED": "1"}):
+            block = self.block()
+        self.assertIn("`.claude/skills/guardrails-pinned/skills/<skill>/`", block)
+        self.assertNotIn("~/.ai-kit/plugins/", block)
 
 
 class LineEndings(Base):

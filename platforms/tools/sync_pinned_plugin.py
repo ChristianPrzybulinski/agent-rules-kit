@@ -65,7 +65,12 @@ HOOK_MARK = "/" + HOOK_DIR + "/"  # a settings hook command that contains it is 
 PRELOAD = re.compile(r"^(\s*-\s+)" + KIT_PLUGIN + r":([A-Za-z0-9._-]+)\s*$")
 HEAD_TOOLS = "~/.ai-kit/platforms/"  # how the kit text calls a kit tool or template, from the kit clone
 PINNED_TOOLS = '"$(git rev-parse --show-toplevel)"/' + KIT_REL + "/platforms/"  # the same call in a vendored copy
-TOOL_CALL = re.compile(re.escape(HEAD_TOOLS) + r"([A-Za-z0-9_./-]+)")
+# The same call through $HOME or ${HOME} (#282 item 4). It keeps its quoting: `~` never sits inside quotes, so it takes
+# the quoted substitution above; $HOME may sit inside double quotes, so it takes the bare one, which a double-quoted
+# call keeps as one word.
+HEAD_CALL = re.compile(r"(?:~|\$HOME|\$\{HOME\})/\.ai-kit/platforms/")
+PINNED_BARE = "$(git rev-parse --show-toplevel)/" + KIT_REL + "/platforms/"
+TOOL_CALL = re.compile(HEAD_CALL.pattern + r"([A-Za-z0-9_./-]+)")
 IMPORT_DIRS = ("platforms/tools", "platforms/ci/validations")  # where a called tool's own kit modules live
 
 
@@ -147,7 +152,7 @@ def rename_preloads(text, plain):
 
 
 def pinned_text(text):
-    return text.replace(HEAD_TOOLS, PINNED_TOOLS)
+    return HEAD_CALL.sub(lambda match: PINNED_TOOLS if match.group(0) == HEAD_TOOLS else PINNED_BARE, text)
 
 
 def rewrite(paths):
@@ -157,13 +162,13 @@ def rewrite(paths):
             if md.is_symlink() or not md.is_file():
                 continue
             text = md.read_text(encoding="utf-8")
-            if HEAD_TOOLS in text:
+            if HEAD_CALL.search(text):
                 md.write_text(pinned_text(text), encoding="utf-8")
     return 0
 
 
 def tool_files(kit):
-    """Each kit file the kit text calls through ~/.ai-kit/platforms/, plus the kit modules those tools import and,
+    """Each kit file the kit text calls through ~/.ai-kit/platforms/ (or $HOME/.ai-kit/platforms/), plus the kit modules those tools import and,
     for a tool of platforms/ci/validations/, the schemas in platforms/ci/schemas/ it loads."""
     plugin = Path(kit, "plugins", KIT_PLUGIN)
     wanted = set()

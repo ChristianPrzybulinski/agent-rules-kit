@@ -80,6 +80,19 @@ class SyncProjectCheckTest(unittest.TestCase):
         result = self.run_sync("--check")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_a_changelog_is_history_for_both_scans(self):  # #299
+        line = STALE + "; the `testing` skill\n"
+        for rel in ("CHANGELOG.md", "server/CHANGELOG.md"):
+            self.write_md(rel, "# Changelog\n\n" + line)
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.write_md("docs/x.md", line)
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("stale kit path: docs/x.md:1:", result.stdout)
+        self.assertIn("removed kit skill: docs/x.md:1:", result.stdout)
+        self.assertNotIn("CHANGELOG.md", result.stdout)
+
     def test_exclusion_matches_path_only(self):
         self.write_md("docs/x.md", "moved out of docs/legacy/ into agents/skills/\n")
         result = self.run_sync("--check")
@@ -834,11 +847,26 @@ class SyncProjectCheckTest(unittest.TestCase):
         check = self.run_sync("--check")
         self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
 
+    def test_the_location_line_names_the_pin_in_vendored_mode(self):  # #282 item 1
+        """A skill not copied plain lives in the pinned plugin, so the rule and the AGENTS.md block point there."""
+        self.vendor_install("--profile", "docs,godot:client")
+        rule = (self.repo / ".claude" / "rules" / "guardrails-code.md").read_text()
+        block = (self.repo / "AGENTS.md").read_text()
+        for text in (rule, block):
+            self.assertIn(".claude/skills/guardrails-pinned/skills/<skill>/", text)
+            self.assertNotIn("~/.ai-kit/plugins/guardrails/skills/<skill>/", text)
+        self.assertIn(".claude/skills/<skill>/references/<file>` when this repository vendors the skill plain", rule)
+        self.assertTrue((self.repo / ".claude" / "skills" / PINNED / "skills" / "review" / "references").is_dir())
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+
     def test_plugins_mode_keeps_the_kit_clone_as_the_fallback(self):  # B2: an unsynced or plugins-mode repo
         result = self.run_sync("--profile", "docs,godot:client")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rule = (self.repo / ".claude" / "rules" / "guardrails-code.md").read_text()
         self.assertIn(HEAD_TOOL + "tools/complexity.py", rule)
+        self.assertIn("~/.ai-kit/plugins/guardrails/skills/<skill>/references/<file>", rule)
+        self.assertNotIn("guardrails-pinned", rule + (self.repo / "AGENTS.md").read_text())
         self.assertNotIn(PINNED_TOOL, "".join(self.vendored_texts().values()))
 
     def test_every_kit_tool_call_names_a_kit_file(self):  # B2: the pin vendors what the kit text calls
