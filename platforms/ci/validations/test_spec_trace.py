@@ -1,6 +1,7 @@
 """spec_trace tests: journey link checks, FEAT<->REQ symmetry, matrix staleness and PR impact."""
 import contextlib
 import io
+import json
 import os
 import subprocess
 import sys
@@ -242,6 +243,45 @@ AMEND_JOURNEY = JOURNEY.split("| Step |")[0] + """\
 
 OPEN_NEED = ("proposed", "triaged", "specified", "refined")
 SETTLED_NEED = ("delivered", "rejected", "merged", "routed", "parked")
+
+
+class BaselineTest(unittest.TestCase):
+    """#265: `check` holds the one-sided FEAT<->REQ links check_spec.py's baseline holds, and fails a new one, so the
+    two tools agree on the same spec."""
+    COVERS = ("platforms/ci/validations/spec_trace.py", "platforms/ci/validations/check_spec.py")
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.spec = Path(tmp.name) / "repo" / "docs" / "spec"
+        write(self.spec, "features/FEAT-001.md", FEAT.format(fid="FEAT-001", reqs="REQ-F-001"))
+        write(self.spec, "features/FEAT-002.md", FEAT.format(fid="FEAT-002", reqs="REQ-F-001"))
+        write(self.spec, "requirements/functional/REQ-F-001.md", REQ.format(rid="REQ-F-001", feats="FEAT-001"))
+        write(self.spec, "baseline.json", json.dumps({"rules": {"link-one-sided": {"FEAT-002": 1}}}))
+
+    def both(self):
+        lint = subprocess.run([sys.executable, str(HERE / "check_spec.py"), str(self.spec), str(HERE.parent / "schemas")],
+                              capture_output=True, text=True, check=False)
+        return lint.returncode, trace.check(trace.load(self.spec))
+
+    def test_a_baselined_one_sided_link_passes_both_tools(self):
+        code, errs = self.both()
+        self.assertEqual(code, 0)
+        self.assertEqual(errs, [])
+
+    def test_a_new_one_sided_link_fails_both_tools(self):
+        write(self.spec, "features/FEAT-003.md", FEAT.format(fid="FEAT-003", reqs="REQ-F-001"))
+        code, errs = self.both()
+        self.assertEqual(code, 1)
+        self.assertEqual(errs, ["FEAT-003 lists REQ-F-001 in requirements, but REQ-F-001 does not list FEAT-003 in "
+                                "features"])
+
+    def test_more_findings_than_the_baseline_holds_all_fail(self):
+        write(self.spec, "requirements/functional/REQ-F-002.md", REQ.format(rid="REQ-F-002", feats=""))
+        write(self.spec, "features/FEAT-002.md", FEAT.format(fid="FEAT-002", reqs="REQ-F-001, REQ-F-002"))
+        code, errs = self.both()
+        self.assertEqual(code, 1)
+        self.assertEqual(len(errs), 2, errs)
 
 
 class PendingStepTest(unittest.TestCase):

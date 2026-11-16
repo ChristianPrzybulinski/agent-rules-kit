@@ -59,8 +59,10 @@ folder, since its row may write the test; any other path must match a file.
 
 sync-status (KIT-073) reads `sdd.github`: the backlog repository (default: the origin remote), the other
 repositories whose PRs close its issues, its earlier names, and the blocked and progress labels. It lists
-every issue and every PR once per repository through `gh api` (no per-issue request). An issue titled
-`[FEAT-nnn Tn]` or `[FEAT-nnn T1+T2]` belongs to those rows; a member issue closed as not planned that a
+every issue and every PR once per repository through `gh api` (no per-issue request). A row's `Item` cell (KIT-068:
+`#N`, or `OWNER/NAME#N` of the backlog or an earlier name) names its issue and wins over any title, so a renamed issue
+keeps its row; a row without one falls back to the issues titled `[FEAT-nnn Tn]` or `[FEAT-nnn T1+T2]`. A `gh` failure
+or a missing backlog repository exits 2, like a refused `sdd` block (KIT-080). A member issue closed as not planned that a
 bundle names in its title (`— bundled with FEAT-nnn Tn #N`) follows the bundle. A row is `done` once a
 merged PR closes its issue; a closed issue then keeps the row (a warning) or, closed as not planned, makes it
 `cancelled` (a `done` row stays), whatever labels it still carries; an open one is `blocked` with a blocked
@@ -200,6 +202,19 @@ def status_column(body):
     return None
 
 
+def task_items(body):
+    """{Tn: Item cell} of the task table (KIT-068), {} when it has no `Item` column."""
+    for line in body.splitlines():
+        if line.startswith("| ID |"):
+            header = row_cells(line)
+            if "Item" not in header:
+                return {}
+            column = header.index("Item")
+            return {tid: cells[column] for tid, row in task_rows(body).items()
+                    if len(cells := row_cells(row)) > column}
+    return {}
+
+
 def task_statuses(body):
     column = status_column(body)
     if column is None:
@@ -254,7 +269,7 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
         if data and data.get("id"):
             spec.feats[data["id"]] = {"path": path, "requirements": data.get("requirements") or [],
                                       "tasks": task_rows(body), "status": data.get("status"),
-                                      "task_status": task_statuses(body),
+                                      "task_status": task_statuses(body), "task_item": task_items(body),
                                       "title": data.get("title", data["id"])}
     for path in sorted((spec_dir / "requirements").rglob("REQ-*.md")):
         data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
@@ -486,17 +501,38 @@ def component_path_error(spec: Spec, step: Step, path: str):
     return error
 
 
+def baseline_held(spec_dir: Path, rule: str) -> dict:
+    """{artifact: n} that check_spec.py's baseline.json holds for `rule`; {} without the file or for an entry
+    check_spec.py refuses (it fails such a file itself)."""
+    try:
+        keys = json.loads((spec_dir / check_spec.BASELINE).read_text(encoding="utf-8"))["rules"][rule]
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+    if not isinstance(keys, dict):
+        return {}
+    return {k: n for k, n in keys.items() if isinstance(n, int) and not isinstance(n, bool) and n >= 1}
+
+
 def symmetry_errors(spec):
-    errors = []
+    """The FEAT<->REQ links written on one side only, minus those check_spec.py's baseline holds under
+    `link-one-sided` (#265): each finding is keyed by the artifact that lists the other, as check_spec.py keys it,
+    and an artifact's findings are held while their count is at most the baseline's."""
+    found = []
     for fid, feat in spec.feats.items():
         for rid in feat["requirements"]:
             if rid in spec.reqs and fid not in spec.reqs[rid]["features"]:
-                errors.append(f"{fid} lists {rid} in requirements, but {rid} does not list {fid} in features")
+                found.append((check_spec.artifact_key(feat["path"]),
+                              f"{fid} lists {rid} in requirements, but {rid} does not list {fid} in features"))
     for rid, req in spec.reqs.items():
         for fid in req["features"]:
             if fid in spec.feats and rid not in spec.feats[fid]["requirements"]:
-                errors.append(f"{rid} lists {fid} in features, but {fid} does not list {rid} in requirements")
-    return errors
+                found.append((check_spec.artifact_key(req["path"]),
+                              f"{rid} lists {fid} in features, but {fid} does not list {rid} in requirements"))
+    held = baseline_held(spec.spec_dir, "link-one-sided")
+    counts = {}
+    for key, _ in found:
+        counts[key] = counts.get(key, 0) + 1
+    return [message for key, message in found if not (held.get(key) and counts[key] <= held[key])]
 
 
 def tests_of(steps):
@@ -1109,11 +1145,18 @@ def run_gh(*args):
     return subprocess.run(["gh", "api", *args], capture_output=True, text=True)
 
 
+class SyncError(RuntimeError):
+    """sync-status cannot run: a `gh` call failed or no backlog repository is known. main() exits 2 (#267)."""
+
+
 def gh_json(query, gh=run_gh):
     res = gh(query)
     if res.returncode != 0:
-        raise SystemExit(f"gh api {query} failed: {res.stderr.strip()}")
-    return json.loads(res.stdout)
+        raise SyncError(f"gh api {query} failed: {res.stderr.strip()}")
+    try:
+        return json.loads(res.stdout)
+    except ValueError as error:
+        raise SyncError(f"gh api {query} returned no JSON: {error}")
 
 
 def gh_paged(query, gh=run_gh):
@@ -1177,15 +1220,13 @@ def bundle_redirects(issues: list) -> dict:
 
 
 def task_issues(repo, gh=run_gh):
-    """`{'FEAT-NNN Tn': [{number, state, reason, labels}, ...]}`: the backlog issues of each row (a fix round may keep
-    the title, so a row can have several)."""
-    found = {}
+    """(`{'FEAT-NNN Tn': [record, ...]}` by issue title, `{number: record}` for every issue), each record
+    {number, state, reason, labels[, bundle]}: a fix round may keep the title, so a row can have several issues; a
+    row's Item cell reads the second map."""
+    found, by_number = {}, {}
     items = [i for i in gh_paged(f"repos/{repo}/issues?state=all", gh) if "pull_request" not in i]
     redirects = bundle_redirects(items)
     for item in items:
-        m = ISSUE_TITLE.match(item.get("title") or "")
-        if not m:
-            continue
         primary = redirects.get(item["number"])
         effective = primary or item
         record = {"number": item["number"], "state": effective["state"],
@@ -1193,9 +1234,21 @@ def task_issues(repo, gh=run_gh):
                   "labels": [lb["name"] for lb in effective.get("labels") or []]}
         if primary:
             record["bundle"] = primary["number"]
-        for tid in m.group(2).split("+"):
-            found.setdefault(f"{m.group(1)} {tid}", []).append(record)
-    return found
+        by_number[item["number"]] = record
+        m = ISSUE_TITLE.match(item.get("title") or "")
+        if m:
+            for tid in m.group(2).split("+"):
+                found.setdefault(f"{m.group(1)} {tid}", []).append(record)
+    return found, by_number
+
+
+def item_issue(cell, settings):
+    """The backlog issue number a row's Item cell names (`#N`, or `OWNER/NAME#N` of the backlog repository or one of
+    its earlier names), else None (`—`, a TASK file, another repository)."""
+    m = re.fullmatch(r"([\w.-]+/[\w.-]+)?#(\d+)", (cell or "").strip())
+    if not m or (m.group(1) and m.group(1) not in {settings["repo"], *settings["aliases"]}):
+        return None
+    return int(m.group(2))
 
 
 def merge_issues(group):
@@ -1261,18 +1314,18 @@ def sync_status(spec, settings, write, today, gh=run_gh):
     """Each row's Status and each FEAT's status from GitHub; with `write`, written to the files."""
     repo = settings["repo"]
     if not repo:
-        raise SystemExit("sync-status: no backlog repository: set sdd.github.repo, pass --backlog or add an origin "
-                         "remote on GitHub")
+        raise SyncError("no backlog repository: set sdd.github.repo, pass --backlog or add an origin remote on GitHub")
     with ThreadPoolExecutor(max_workers=2) as pool:
         issues_job = pool.submit(task_issues, repo, gh)
         closing = closing_prs(settings, gh)
-        issues = issues_job.result()
+        issues, by_number = issues_job.result()
     lines, changed = [], {}
     for fid in sorted(spec.feats, key=natural_key):
         feat = spec.feats[fid]
         for tid in sorted(feat["task_status"], key=natural_key):
             key = f"{fid} {tid}"
-            group = issues.get(key, [])
+            number = item_issue(feat.get("task_item", {}).get(tid), settings)
+            group = [by_number[number]] if number in by_number else issues.get(key, [])
             if len(group) > 1:
                 lines.append(f"WARN {key}: task issues " + ", ".join(f"#{i['number']}" for i in group)
                              + " — evidence merged")
@@ -1525,7 +1578,11 @@ def main(argv=None):
             print(f"FAIL: sync-status reads GitHub issues, and sdd.tracker is {spec.params.get('tracker')}: task "
                   "status lives in the TASK files", file=sys.stderr)
             return 2
-        return sync_status(spec, github_settings(spec.spec_dir, args.backlog), args.write, today)
+        try:
+            return sync_status(spec, github_settings(spec.spec_dir, args.backlog), args.write, today)
+        except SyncError as error:
+            print(f"FAIL: sync-status: {error}", file=sys.stderr)
+            return 2
     if args.command == "checklist":
         if not args.journeys:
             return report(["checklist needs one or more journey ids (J-NN)"], "")

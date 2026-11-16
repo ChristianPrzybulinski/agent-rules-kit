@@ -9,6 +9,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Fixed
 - KIT-080 (#270, #269, #266): rule e fails a Proof of `evidence:` clauses only, unless the new `row_checks.evidence_only` is `true`; rule c names every stack whose tests are missing; `sdd-parameters.md` and the schema say that rule j reads `visual_approval`.
+- KIT-080 (#265, #267, #268): `spec_trace.py check` holds the one-sided FEAT↔REQ links that `check_spec.py`'s `baseline.json` holds and fails a new one, as `check_spec.py` does; `sync-status` exits 2 with a stderr message when `gh` fails or no backlog repository is known, and maps a row to its issue through the KIT-068 `Item` cell before the issue title.
 
 ### Migration
 - KIT-080: under a component, a row proof with `..` (also `$VAR/..`, the old `proof_var_depths` grant), a glob in a dot-name or `python3 -c` now fails rule e: name the path from the component's folder. A project whose evidence-only rows are intended sets `row_checks.evidence_only: true`.

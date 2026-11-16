@@ -7,6 +7,7 @@ sdd-tasks/references/task-issue.md § States; the FEAT status stops at in-progre
 import contextlib
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -487,9 +488,41 @@ class SyncStatusTest(unittest.TestCase):
     def test_a_failing_gh_call_stops_with_its_error(self):
         def gh(query):
             return subprocess.CompletedProcess(["gh"], 1, "", "HTTP 401: Bad credentials")
-        with self.assertRaises(SystemExit) as stop:
+        with self.assertRaises(trace.SyncError) as stop:
             self.run_sync(gh)
         self.assertIn("HTTP 401", str(stop.exception))
+
+    def item_rows(self, *rows):
+        """FEAT-001 with (Tn, Status, Item) rows."""
+        lines = "\n".join(ROW11.format(tid=tid, task="task", status=status).replace("| 0 | — |", f"| 0 | {item} |")
+                          for tid, status, item in rows)
+        self.path1.write_text(textwrap.dedent(FEAT11.format(fid="FEAT-001", title="First fixture", status="planned",
+                                                            rows=lines)), encoding="utf-8")
+
+    def test_the_item_cell_names_the_issue_even_after_a_rename(self):
+        """#268: the KIT-068 Item cell is the mapping; the title is only the fallback."""
+        self.item_rows(("T1", "todo", "#11"), ("T2", "todo", f"{OLD}#12"), ("T3", "todo", "—"))
+        issues = [issue(11, "Renamed: no row prefix any more", "closed"), issue(12, "Also renamed", "closed"),
+                  issue(13, "[FEAT-001 T3] Third", "closed")]
+        pulls = {(REPO, 20): pull(body=f"Closes {REPO}#11"), (REPO, 21): pull(body=f"Closes {REPO}#12"),
+                 (REPO, 22): pull(body=f"Closes {REPO}#13")}
+        code, output = self.run_sync(self.routes(issues, pulls))
+        self.assertEqual(code, 0, output)
+        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2", "T3")], ["done", "done", "done"])
+
+    def test_the_item_cell_wins_over_an_issue_whose_title_names_the_row(self):
+        self.item_rows(("T1", "todo", "#11"))
+        issues = [issue(11, "[FEAT-001 T1] Current", "open", labels=["blocked"]), issue(14, "[FEAT-001 T1] Old")]
+        _, output = self.run_sync(self.routes(issues, {(REPO, 20): pull("open", False, f"Closes {REPO}#14")}))
+        self.assertEqual(self.status("FEAT-001", "T1"), "blocked")
+        self.assertNotIn("evidence merged", output)
+
+    def test_an_item_of_another_repository_or_a_task_file_falls_back_to_the_title(self):
+        self.item_rows(("T1", "todo", "other/repo#11"), ("T2", "todo", "TASK-007"))
+        issues = [issue(11, "Not this one", "closed"), issue(15, "[FEAT-001 T1] First", labels=["blocked"]),
+                  issue(16, "[FEAT-001 T2] Second", labels=["blocked"])]
+        self.run_sync(self.routes(issues, {(REPO, 20): pull(body=f"Closes {REPO}#11")}))
+        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2")], ["blocked", "blocked"])
 
 
 class SettingsTest(unittest.TestCase):
@@ -506,6 +539,34 @@ class SettingsTest(unittest.TestCase):
             code, _, err = self.run_main("sync-status", str(spec))
         self.assertEqual(code, 2)
         self.assertIn("sdd.tracker is none", err)
+
+    def fake_gh(self, root, stderr="HTTP 401: Bad credentials"):
+        """A `gh` on PATH that fails every call, as `run_gh` meets it (#267)."""
+        stub = root / "bin" / "gh"
+        stub.parent.mkdir()
+        stub.write_text(f"#!/bin/sh\necho '{stderr}' >&2\nexit 1\n", encoding="utf-8")
+        stub.chmod(0o755)
+        old = os.environ["PATH"]
+        os.environ["PATH"] = f"{stub.parent}{os.pathsep}{old}"
+        self.addCleanup(os.environ.__setitem__, "PATH", old)
+
+    def test_a_failing_gh_exits_2_with_its_message_on_stderr(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root, "docs/spec/spec.md", SPEC_MD)
+            self.fake_gh(root)
+            code, out, err = self.run_main("sync-status", str(root / "docs/spec"))
+        self.assertEqual(code, 2, out + err)
+        self.assertIn("FAIL: sync-status: gh api", err)
+        self.assertIn("HTTP 401: Bad credentials", err)
+
+    def test_no_backlog_repository_exits_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root, "docs/spec/spec.md", SPEC_MD.replace(f"repo: {REPO}, ", ""))
+            code, _, err = self.run_main("sync-status", str(root / "docs/spec"))
+        self.assertEqual(code, 2)
+        self.assertIn("no backlog repository", err)
 
     def test_the_repository_defaults_to_the_origin_remote(self):
         with tempfile.TemporaryDirectory() as tmp:
