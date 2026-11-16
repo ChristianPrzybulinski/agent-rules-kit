@@ -1,5 +1,5 @@
 """pr_gates.command_allowed (KIT-073): the one proof-command predicate the PR gates, review_checks.py and
-row_checks.py share — allowlist, refused constructs, the `! git diff` trap and the optional working-directory sandbox."""
+row_checks.py share — allowlist, refused constructs, the `! git diff` trap and the component rules (KIT-080)."""
 import sys
 import unittest
 from pathlib import Path
@@ -11,7 +11,6 @@ sys.path.insert(0, str(HERE))
 from pr_gates import command_allowed  # noqa: E402
 
 ALLOW = ["python3", "grep", "git", "test", "godot", "./mvnw", "!"]
-DEPTHS = {"PROTOCOL_DIR": 1, "HOME": 1, "TMPDIR": 1, "JAVA_HOME": 0}
 
 
 class Allowlist(unittest.TestCase):
@@ -41,108 +40,86 @@ class Allowlist(unittest.TestCase):
         self.assertTrue(command_allowed("test -f /etc/hosts", ALLOW)[0])
 
 
+DOTDOT = "a `..` path step"
+EXPANSION = "shell expansion outside a leading $NAME, ${NAME} or ~/ anchor"
+INLINE = "inline code"
+
+
 class Sandbox(unittest.TestCase):
-    def test_a_component_may_not_read_outside_its_folder(self):
-        ok, why = command_allowed("python3 ../tools/x.py", ALLOW, cwd="server")
-        self.assertFalse(ok)
-        self.assertIn("../tools/x.py escapes the proof sandbox's granted paths", why)
-        self.assertTrue(command_allowed("test -f src/../pom.xml", ALLOW, cwd="server")[0])
+    """KIT-080 (#280, option a): with `cwd` the check is three short rules, hygiene and not isolation: no `..` path step,
+    no shell expansion outside a leading `$NAME`, `${NAME}` or `~/` anchor, no interpreter given inline code."""
 
-    def test_the_root_may_not_climb_out_of_the_checkout(self):
-        self.assertFalse(command_allowed("test -f ../outside.md", ALLOW, cwd=".")[0])
-        self.assertFalse(command_allowed("test -f /etc/../etc/hosts", ALLOW, cwd=".")[0])
-        self.assertFalse(command_allowed("grep -q x --file=../x", ALLOW, cwd=".")[0])
-        self.assertTrue(command_allowed("test -f docs/../README.md", ALLOW, cwd=".")[0])
-
-    def test_granted_variables_climb_within_their_depth(self):
-        self.assertTrue(command_allowed('python3 "$PROTOCOL_DIR/../gen.py"', ALLOW, cwd="server", var_depths=DEPTHS)[0])
-        self.assertFalse(command_allowed('python3 "$PROTOCOL_DIR/../../x.py"', ALLOW, cwd="server",
-                                         var_depths=DEPTHS)[0])
-        self.assertFalse(command_allowed('test -f "${JAVA_HOME}/../x"', ALLOW, cwd=".", var_depths=DEPTHS)[0])
-        self.assertTrue(command_allowed("test -f ~/../me/x", ALLOW, cwd=".", var_depths=DEPTHS)[0])
-        self.assertFalse(command_allowed("test -f ~/../../x", ALLOW, cwd=".", var_depths=DEPTHS)[0])
-
-    def test_a_short_option_glued_to_its_value_is_judged_by_the_value(self):
-        """Review finding 3: `-C..` hid its `..` from the sandbox."""
-        for cmd in ("git -C.. log", "git -C../client log", "grep -f../secret x"):
-            with self.subTest(cmd=cmd):
-                ok, why = command_allowed(cmd, ALLOW, cwd="server")
-                self.assertFalse(ok)
-                self.assertIn("escapes the proof sandbox", why)
-        self.assertFalse(command_allowed("git -C.. log", ALLOW, cwd=".")[0])
-        self.assertFalse(command_allowed("grep -f$HOME/../x y", ALLOW, cwd=".")[0])
-        self.assertTrue(command_allowed("git -Csrc log", ALLOW, cwd="server")[0])
-        self.assertTrue(command_allowed("grep -rn x src", ALLOW, cwd="server")[0])
-
-    def test_a_value_after_equals_is_judged_by_the_variable_rule(self):
-        """Review finding 3: `--file=$HOME/../x` was resolved as a relative path and passed."""
-        self.assertFalse(command_allowed("grep -q x --file=$HOME/../x", ALLOW, cwd=".")[0])
-        self.assertFalse(command_allowed('grep -q x --file="$OTHER/../x"', ALLOW, cwd=".", var_depths=DEPTHS)[0])
-        self.assertFalse(command_allowed("grep -q x --file=$HOME/../../x", ALLOW, cwd=".", var_depths=DEPTHS)[0])
-        self.assertTrue(command_allowed("grep -q x --file=$HOME/../me/x", ALLOW, cwd=".", var_depths=DEPTHS)[0])
-        self.assertTrue(command_allowed("grep -q x --file=$HOME/x", ALLOW, cwd=".")[0])
-
-    def test_an_ungranted_variable_may_not_climb(self):
-        self.assertFalse(command_allowed('test -f "$OTHER/../x"', ALLOW, cwd=".", var_depths=DEPTHS)[0])
-        self.assertFalse(command_allowed("test -f ~/../x", ALLOW, cwd=".")[0])
-        self.assertTrue(command_allowed('test -f "$OTHER/x"', ALLOW, cwd=".")[0])
-
-
-
-EXPANSION = "expansion the proof check cannot predict: quote it or name the path"
-
-
-class UnpredictableExpansions(unittest.TestCase):
-    """Review B3, second round: bash has more ways to make `..` than a list of spellings holds, so under the sandbox a
-    word is judged only when its expansion is predictable: single-quoted text is literal; in unquoted or double-quoted
-    text only a leading `$NAME`, `${NAME}` or `~/` anchor followed by `/` or the end is accepted."""
-
-    def refused(self, cmd, why, depths=None):
-        ok, message = command_allowed(cmd, ALLOW, cwd="server", var_depths=depths)
+    def refused(self, cmd, why, cwd="server"):
+        ok, message = command_allowed(cmd, ALLOW, cwd=cwd)
         self.assertFalse(ok, cmd)
         self.assertIn(why, message, cmd)
 
-    def test_a_bundled_short_option_cluster_is_judged_at_every_suffix(self):
-        self.refused("grep -rf../client/secret src", "escapes the proof sandbox")
+    def passes(self, cmd, cwd="server"):
+        self.assertEqual(command_allowed(cmd, ALLOW, cwd=cwd), (True, ""), cmd)
 
-    def test_ansi_c_and_locale_quoting_are_refused(self):
-        self.refused("grep -q x $'..'/client/secret", EXPANSION)
-        self.refused('git -C $".." log', EXPANSION)
+    def test_any_dotdot_step_is_refused_quoted_or_not(self):
+        for cmd in ("python3 ../tools/x.py", "test -f src/../pom.xml", "test -f /etc/../etc/hosts",
+                    "grep -q x --file=../x", "git -C.. log", "grep -rf../client/secret src", "git show HEAD:../x",
+                    'python3 "$PROTOCOL_DIR/../gen.py"', "test -f ~/../me/x", "grep -q x -f '../client/secret'",
+                    "grep -q '..' src/a.txt", "grep -q x a/.."):
+            with self.subTest(cmd=cmd):
+                self.refused(cmd, DOTDOT)
+        self.refused("test -f ../outside.md", DOTDOT, cwd=".")
+        self.refused("test -f docs/../README.md", DOTDOT, cwd=".")
 
-    def test_brace_expansion_is_refused(self):
-        self.refused("grep -q x {..,.}/client/secret", EXPANSION)
-        self.refused("git -C ..{,} log", EXPANSION)
-        self.refused("grep -q x src/{a..c}.txt", EXPANSION)
+    def test_a_revision_range_between_letters_or_digits_is_no_dotdot_step(self):
+        for cmd in ("git diff --quiet origin/main..HEAD", "git log --oneline HEAD~3..HEAD", "grep -q 'a..b' src/a.txt",
+                    "grep -q '\\.\\./' src/a.txt", "test -f .../x"):
+            with self.subTest(cmd=cmd):
+                self.passes(cmd)
 
-    def test_parameter_operators_are_refused_even_for_a_granted_variable(self):
-        self.refused("test -f ${HOME:-}/../x", EXPANSION, DEPTHS)
-        self.refused("test -f ${HOME%/}/../x", EXPANSION, DEPTHS)
-        self.refused('test -f "$HOME$OTHER"/x', EXPANSION, DEPTHS)
-        self.refused("grep -f$HOME/x y", EXPANSION, DEPTHS)
-
-    def test_tilde_forms_other_than_home_are_refused(self):
-        self.refused("test -f ~+/x", EXPANSION, DEPTHS)
-        self.refused("test -f ~root/x", EXPANSION, DEPTHS)
-        self.refused("grep -q x A=x:~/../y", EXPANSION, DEPTHS)  # bash expands `~` after `:` in `NAME=...`
-
-    def test_a_glob_that_could_match_dot_or_dotdot_is_refused(self):
-        for cmd in ("grep -r x .*", "grep -q x .?/client/secret", "grep -r x .[.]/client", "grep -r x src/[.]*/x"):
+    def test_shell_expansion_is_refused_outside_a_leading_anchor(self):
+        for cmd in ("grep -q x $'..'/client/secret", 'git -C $".." log', "test -f ${HOME:-}/x", "test -f ${HOME%/}/x",
+                    'test -f "$HOME$OTHER"/x', "grep -f$HOME/x y", "grep -q x --file=$HOME/x", "test -f ~+/x",
+                    "test -f ~root/x", "grep -q x A=x:~/y", "grep -q x --file=~/x", "git -C ..{,} log",
+                    "grep -q x {..,.}/client/secret",
+                    "grep -q x src/{a..c}.txt", "grep -q x src/{a,b}.txt", "grep -r x .*", "grep -q x .?/client/secret",
+                    "grep -r x .[.]/client", "grep -r x src/.[a-z]*/x"):
             with self.subTest(cmd=cmd):
                 self.refused(cmd, EXPANSION)
 
-    def test_predictable_words_still_pass(self):
-        for cmd in ("grep -qE '^v[0-9]+$|a{1,2}|.*|$HOME|${X:-y}' src/a.txt", "grep -q 'a..b' src/a.txt",
-                    "grep -q '\\.\\./' src/a.txt", 'grep -q "two words" src/a.txt', "grep -r x src/*.java",
-                    "test -f .gitignore", "grep -q x src/{}", 'test -f "$PROTOCOL_DIR/gen.py"',
-                    "test -f ${PROTOCOL_DIR}/../gen.py", "test -f ~/x", "grep -q x --file=$HOME/../me/x"):
+    def test_nested_braces_no_longer_hide_their_comma(self):
+        """#280 known gap: the old check read only up to the first `}`, so `{{},.}.` reached `../client`."""
+        for cmd in ("grep -s SECRET {{},.}./client/secret", "grep -s SECRET {{x},.}./client/secret",
+                    "grep -s SECRET .{{},.}/client", "grep -s SECRET {{},..}/client",
+                    "grep -s SECRET {{a},{b},.}./client"):
             with self.subTest(cmd=cmd):
-                self.assertEqual(command_allowed(cmd, ALLOW, cwd="server", var_depths=DEPTHS), (True, ""), cmd)
+                self.refused(cmd, EXPANSION)
 
-    def test_a_quoted_dotdot_component_is_still_a_path(self):
-        """Quoting stops expansion, not the read: `grep -f '../x'` reads outside, and a word cannot be told from a
-        pattern, so a whole `..` component is judged however it is quoted (`'a..b'` above is no component)."""
-        self.refused("grep -q x -f '../client/secret'", "escapes the proof sandbox")
-        self.refused("grep -q '..' src/a.txt", "escapes the proof sandbox")
+    def test_an_interpreter_given_inline_code_is_refused(self):
+        """#280 known gap: an allowlisted interpreter reads anything, so inline code is refused whatever it holds."""
+        allow = ALLOW + ["bash", "sh", "env", "node", "perl", "ruby", "python3.12"]
+        for cmd in ('python3 -c "print(open(chr(46)*2 + chr(47) + chr(120)).read())"', "python3 -Ic 'print(1)'",
+                    "python3.12 -c 'print(1)'", "bash -c 'cat x'", "sh -ec 'cat x'", "env -S 'cat x'",
+                    "env --split-string='cat x'", "node -e 'require(1)'", "node --print=1", "perl -ne 'print' x",
+                    "ruby -e 'p 1'"):
+            with self.subTest(cmd=cmd):
+                ok, message = command_allowed(cmd, allow, cwd="server")
+                self.assertFalse(ok, cmd)
+                self.assertIn(INLINE, message, cmd)
+        for cmd in ("python3 -m unittest discover -s tests -p 'test_*.py'", "python3 tools/check.py --check",
+                    "bash tools/run.sh"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(command_allowed(cmd, allow, cwd="server"), (True, ""), cmd)
+
+    def test_predictable_words_still_pass(self):
+        for cmd in ("grep -qE '^v[0-9]+$|a{1,2}|.*|$HOME|${X:-y}' src/a.txt", 'grep -q "two words" src/a.txt',
+                    "grep -r x src/*.java", "grep -q x src/[ab].txt", "./mvnw -q test -Dtest=Trade*Test",
+                    "test -f .gitignore", "grep -q x src/{}", 'test -f "$PROTOCOL_DIR/gen.py"',
+                    "test -f ${PROTOCOL_DIR}/gen.py", "test -f ~/x", "test -f ~", "git diff --quiet HEAD~1",
+                    "git -Csrc log", "grep -rn x src", "test -f /etc/hosts"):
+            with self.subTest(cmd=cmd):
+                self.passes(cmd)
+
+    def test_the_rules_hold_only_under_a_component(self):
+        for cmd in ("python3 ../tools/x.py", "python3 -c 'print(1)'", "grep -r x .*"):
+            with self.subTest(cmd=cmd):
+                self.assertTrue(command_allowed(cmd, ALLOW)[0], cmd)
 
 
 if __name__ == "__main__":

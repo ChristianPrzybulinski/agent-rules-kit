@@ -53,7 +53,6 @@ sdd:
 GATES = {"owner": "org", "backlog_repo": "docs",
          "proof_allowlist": ["./mvnw", "godot", "python3", "grep", "git", "test", "!", "jq", "docker"],
          "proof_script_runners": {"godot": ["-s", "--script"]},
-         "proof_var_depths": {"PROTOCOL_DIR": 1, "HOME": 1, "TMPDIR": 1},
          "generated_neighbours": [".uid", ".import", ".translation"]}
 
 ARTIFACTS = [{"pattern": "*.translation", "dec": "DEC-010", "policy": "committed with its source"},
@@ -313,19 +312,27 @@ class Components(Base):
                 with self.subTest(path=path, suffix=suffix):
                     got = rc.rule_e(self.row(path, proof=f"`{command}`{suffix}"), self.cfg)
                     self.assertEqual([(f.rule, f.level) for f in got], [("e", "FAIL")])
-                    self.assertIn("escapes the proof sandbox's granted paths", got[0].message)
+                    self.assertIn("a `..` path step", got[0].message)
 
     def test_component_local_proofs_pass(self):
-        for path, proof in (("server/pom.xml", "`test -f src/../pom.xml`"),
-                            ("client/project.godot", "`git grep -q 'setting' 'app/../project.godot'`")):
-            with self.subTest(path=path):
+        for path, proof in (("server/pom.xml", "`test -f pom.xml`"),
+                            ("client/project.godot", "`git grep -q 'setting' 'project.godot'`"),
+                            ("server/pom.xml", '`python3 "$PROTOCOL_DIR/gen.py" --check`')):
+            with self.subTest(path=path, proof=proof):
                 self.assertEqual(rc.rule_e(self.row(path, proof=proof), self.cfg), [])
 
-    def test_granted_variable_may_climb_within_its_depth(self):
-        ok = self.row("server/pom.xml", proof='`python3 "$PROTOCOL_DIR/../tools/gen.py" --check`')
-        self.assertEqual(rc.rule_e(ok, self.cfg), [])
-        bad = self.row("server/pom.xml", proof='`python3 "$PROTOCOL_DIR/../../x.py"`')
-        self.assertEqual([(f.rule, f.level) for f in rc.rule_e(bad, self.cfg)], [("e", "FAIL")])
+    def test_a_dotdot_step_fails_even_inside_the_component_or_after_a_variable(self):
+        """KIT-080 (#280): no `..` at all, so `src/../pom.xml` and the old proof_var_depths grants fail too."""
+        for proof in ("`test -f src/../pom.xml`", '`python3 "$PROTOCOL_DIR/../tools/gen.py" --check`'):
+            with self.subTest(proof=proof):
+                got = rc.rule_e(self.row("server/pom.xml", proof=proof), self.cfg)
+                self.assertEqual([(f.rule, f.level) for f in got], [("e", "FAIL")])
+                self.assertIn("a `..` path step", got[0].message)
+
+    def test_an_interpreter_with_inline_code_fails_under_a_component(self):
+        got = rc.rule_e(self.row("server/pom.xml", proof="`python3 -c \"print(open('x').read())\"`"), self.cfg)
+        self.assertEqual([(f.rule, f.level) for f in got], [("e", "FAIL")])
+        self.assertIn("inline code", got[0].message)
 
     def test_root_row_with_root_proof_paths_passes(self):
         subject = self.row("tools/check/check.py", ".gitattributes",
@@ -336,7 +343,7 @@ class Components(Base):
     def test_root_proof_cannot_escape_the_checkout(self):
         got = rc.rule_e(self.row("README.md", proof="`test -f ../outside.md`"), self.cfg)
         self.assertEqual([(f.rule, f.level) for f in got], [("e", "FAIL")])
-        self.assertIn("../outside.md escapes the proof sandbox's granted paths", got[0].message)
+        self.assertIn("../outside.md: a `..` path step", got[0].message)
 
     def test_spanning_row_keeps_the_other_proof_checks(self):
         paths = ("server/pom.xml", "README.md")
@@ -353,6 +360,14 @@ class Components(Base):
                                             "project/tools/new/tests/**"), self.cfg), [])
         self.assertEqual(rc.rule_c(self.row("tools/new/new.py", paths[0]), self.cfg)[0].level, "FAIL")
         self.assertIn("tools/new/tests/**", rc.rule_c(self.row("tools/new/new.py"), self.cfg)[0].message)
+
+    def test_rule_c_names_every_stack_whose_tests_are_missing(self):
+        """#269: the message named only the last stack, while any fail-level stack sets the level."""
+        got = rc.rule_c(self.row("server/src/main/java/A.java", "client/features/world/player.gd", "tools/new/new.py"),
+                        self.cfg)
+        self.assertEqual([(f.rule, f.level) for f in got], [("c", "FAIL")])
+        for tests in ("server/src/test/**", "client/tests/**", "tools/new/tests/**"):
+            self.assertIn(tests, got[0].message)
 
     def test_a_covering_glob_counts_as_a_test_path(self):
         self.assertEqual(rc.rule_c(self.row("server/src/**/*.java"), self.cfg), [])
@@ -475,9 +490,12 @@ class ConfigShapes(Base):
         self.write_json("tools/artifact-policies.json", ARTIFACTS[0])
         self.assert_usage_error("a list")
 
-    def test_a_proof_var_depth_that_is_not_an_integer_is_a_usage_error(self):
+    def test_a_gates_file_that_still_holds_proof_var_depths_loads(self):
+        """KIT-080: the key is no longer read; a config written for 13.0 keeps working, and its `..` grants fail."""
         self.write_json("tools/gates.json", dict(GATES, proof_var_depths={"HOME": "1"}))
-        self.assert_usage_error("proof_var_depths")
+        code, out, err = run("check", "--spec", str(self.spec), "FEAT-900")
+        self.assertEqual(code, 1, out + err)
+        self.assertNotIn("proof_var_depths", err)
 
     def test_a_gates_file_that_is_not_an_object_is_a_usage_error(self):
         self.write_json("tools/gates.json", [])
@@ -485,8 +503,7 @@ class ConfigShapes(Base):
 
     def test_other_gate_keys_of_the_wrong_shape_are_usage_errors(self):
         for key, value in (("proof_allowlist", "python3"), ("proof_allowlist", [3]), ("generated_neighbours", ".uid"),
-                           ("proof_script_runners", ["godot"]), ("proof_script_runners", {"godot": "-s"}),
-                           ("proof_var_depths", {"HOME": True}), ("proof_var_depths", {"HOME": -1})):
+                           ("proof_script_runners", ["godot"]), ("proof_script_runners", {"godot": "-s"})):
             with self.subTest(key=key, value=value):
                 self.write_json("tools/gates.json", dict(GATES, **{key: value}))
                 self.assert_usage_error(key)

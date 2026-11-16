@@ -4,6 +4,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- KIT-080 (#280, option a): rule e's component check is three short rules: no `..` path step (a revision range `A..B` still passes), no shell expansion outside a leading `$NAME`, `${NAME}` or `~/` anchor, and no interpreter given inline code. `row-checks.md` states that this is hygiene, not isolation; `proof_var_depths` is no longer read.
+
+### Fixed
+- KIT-080 (#270, #269, #266): rule e fails a Proof of `evidence:` clauses only, unless the new `row_checks.evidence_only` is `true`; rule c names every stack whose tests are missing; `sdd-parameters.md` and the schema say that rule j reads `visual_approval`.
+
+### Migration
+- KIT-080: under a component, a row proof with `..` (also `$VAR/..`, the old `proof_var_depths` grant), a glob in a dot-name or `python3 -c` now fails rule e: name the path from the component's folder. A project whose evidence-only rows are intended sets `row_checks.evidence_only: true`.
+
 ## [13.0.1] - 2026-11-16
 
 ### Changed

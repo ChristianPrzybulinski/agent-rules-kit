@@ -52,7 +52,6 @@ class ConfigTypes(unittest.TestCase):
         "generated_neighbours": ".uid",
         "proof_allowlist": "python3",
         "proof_script_runners": {"python3": "-m"},
-        "proof_var_depths": {"HOME": "1"},
         "expected_red_checks": {"docs": ["ci"]},
         "red": [{"glob": "tests/**", "command": ["true"]}],
     }
@@ -60,7 +59,8 @@ class ConfigTypes(unittest.TestCase):
     def test_a_valid_config_has_no_error(self):
         full = {**GOOD, "review_context": "org/review", "protected_paths": {"core": ["protected/**"]},
                 "generated_neighbours": [".uid"], "proof_allowlist": ["python3"],
-                "proof_script_runners": {"python3": ["-m"]}, "proof_var_depths": {"HOME": 1},
+                "proof_script_runners": {"python3": ["-m"]},
+                "proof_var_depths": {"HOME": "1"},  # read by 13.0, ignored since KIT-080: any value loads
                 "expected_red_checks": {"docs": {"ci": {"until_issue_closed": 7, "why": "known"}}},
                 "red": [{"glob": "tests/**", "command": "python3 -m unittest {tests}", "cwd": "."}]}
         self.assertEqual(pr_gates.config_errors(full, required=pr_gates.REQUIRED_KEYS), [])

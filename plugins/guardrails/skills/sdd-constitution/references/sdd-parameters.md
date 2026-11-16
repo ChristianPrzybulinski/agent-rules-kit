@@ -22,7 +22,7 @@ A default is the kit's behavior before the key existed, except `max_chain` and `
 | `pr_unit` | `task`, `feat` | `task` | `sdd-implement`: one PR per task row or per FEAT |
 | `task_minutes` | integer ≥ 1 | `30` | `sdd-tasks`: a row's upper size |
 | `row_check` | command or `null` | `null` (the kit's `row_checks.py check FEAT-nnn`, KIT-073) | `sdd-tasks`: runs on the rows before their spec PR; exit 0 required |
-| `row_checks` | map: `gates` (the PR-gates JSON), `tests`, `assets`, `protocol`, `artifacts`, `visual` | each `null` or `[]`: its rule off | `row_checks.py`: the inputs of rules c, d, e, h, i, j and k (`sdd-tasks/references/row-checks.md`) |
+| `row_checks` | map: `gates` (the PR-gates JSON), `tests`, `assets`, `protocol`, `artifacts`, `visual`, `evidence_only` (`true` lets a Proof of `evidence:` clauses only pass) | each `null` or `[]`: its rule off; `evidence_only: false` | `row_checks.py`: the inputs of rules c, d, e, h, i, j and k (`sdd-tasks/references/row-checks.md`) |
 | `components` | map: component name → its folder, `.` for the root | `{}` (one component) | `row_checks.py` (a row stays in one component; a Files entry may start with a name), `spec_trace.py` (journey test paths) |
 | `spec_index` | `true`, `false` | `false` | `spec_trace.py check`: every REQ and journey file has a `spec.md` row, and every row's link resolves |
 | `github` | map: `repo` (`null` = the origin remote), `pr_repos`, `aliases` (earlier names PR bodies cite), `blocked_labels`, `progress_labels` | `{repo: null, pr_repos: [], aliases: [], blocked_labels: [blocked], progress_labels: [status:in-progress]}` | `spec_trace.py sync-status` (`tracker: github`): where task issues and closing PRs live, which labels mean `blocked` or `doing` |
@@ -35,7 +35,7 @@ A default is the kit's behavior before the key existed, except `max_chain` and `
 | `protected_paths` | map: rooted path or glob → label | `{}` | `sdd-tasks` cut (the item gets the label), `review`: a change there needs the label |
 | `bundle` | map: `rows` ≥ 1, `points` ≥ 1, `high_rows` ≥ 0 | `{rows: 1, points: 3, high_rows: 1}` | `sdd-tasks` cut: new rows of one repository sharing a Files path in one item; `rows: 1` = one item per row |
 | `rule_paths` | map: kit rule name → folders, `.` for the whole repository | `{}` (the `--profile` folders) | `sync-project.sh`: the rule's globs and its `AGENTS.md` block |
-| `visual_approval` | `owner`, `reviewer`, `none` | `none` | `review`: who approves a screen or motion change's captures against its REQ's mock before the merge |
+| `visual_approval` | `owner`, `reviewer`, `none` | `none` | `review`: who approves a screen or motion change's captures against its REQ's mock before the merge; `row_checks.py` rule j, which is off unless it is `owner` or `reviewer` |
 | `owner_approvals` | list of change kinds, kebab-case | `[decision]` | `review` and an orchestrator under owner-review autonomy: kinds only the owner approves, such as `approved-dec-change`, `protocol-version`, `in-game-evidence` |
 | `doc_structure` | map: `enabled` (`true`, `false`), `exempt` (a path in the repository), `headings` (list of `##` to `######` headings), `done_index` (`true`, `false`) | `{enabled: false, exempt: .github/doc-structure-exempt.txt, headings: ["## What goes here", "## What does not go here"], done_index: true}` | `sync-project.sh` (vendors `check_docs_structure.py` into `.github/spec-lint/` while enabled, removes it when off), `check_docs_structure.py`, the `docs.just` `lint` recipe (KIT-074) |
 
