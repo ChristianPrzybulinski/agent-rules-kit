@@ -4,7 +4,7 @@ title: "13.0.0 docs consistency: one review-bar home, boot proof, Migration head
 status: done
 confirmed: "2026-11-16 (coordinator session \"Revisão de regras e skills\", under the owner's overnight autonomy: \"seja autônomo com toda liberdade e finalize o que falta\")"
 issue: "#290"
-pr: ""
+pr: "#292"
 ---
 
 # KIT-078 — 13.0.0 docs consistency: one review-bar home, boot proof, Migration heading, record statuses

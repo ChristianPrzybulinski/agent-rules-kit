@@ -99,6 +99,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-075-followups.md`](KIT-075-followups.md) | done | #284 | #285 |
 | [`KIT-076-ci-on-pull-requests.md`](KIT-076-ci-on-pull-requests.md) | done | #264 | #272 |
 | [`KIT-077-layered-gate-review-bar.md`](KIT-077-layered-gate-review-bar.md) | confirmed | #281 | #286 |
-| [`KIT-078-docs-consistency.md`](KIT-078-docs-consistency.md) | done | #290 | |
+| [`KIT-078-docs-consistency.md`](KIT-078-docs-consistency.md) | done | #290 | #292 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
