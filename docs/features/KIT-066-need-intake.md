@@ -1,7 +1,7 @@
 ---
 id: KIT-066
 title: "One entry and a functional front chain: NEED → REQs → FEAT (intake, specify, clarify, plan)"
-status: confirmed
+status: done
 confirmed: "2026-11-14 (owner, chat of the SDD review session: \"Aprovo, escrever\" for the NEED-nnn draft; \"aprovo sua ideia. importante os templates e escopos bem definido\" for the front chain; \"ok, aprovo\" for sdd-check as a tool)"
 issue: "#231"
 pr: "#232"

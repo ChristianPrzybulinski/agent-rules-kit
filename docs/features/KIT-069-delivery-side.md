@@ -1,7 +1,7 @@
 ---
 id: KIT-069
 title: "The delivery side of the SDD flow: implement modes and task cycle, review steps backed by scripts, sdd-review closes a FEAT, sdd-release delivers it"
-status: confirmed
+status: done
 confirmed: "2026-11-14 (owner, chat of the SDD review session: \"concordo\" for the acceptance, review and release design; \"Aprovo todos\" for the six further adjustments; \"orquestre a implementação de tudo que passamos\" and \"Já libero todos os merges. Faça tudo com autonomia pra entregar\" for this run)"
 issue: "#242"
 pr: "#246"

@@ -69,12 +69,12 @@ One round per PR. A finding blocks only for one of four reasons, which it names:
 
 - (a) an unmet acceptance criterion;
 - (b) broken existing behavior: a failing test, a reproduced regression, or a weakened check the PR does not name (§ 2);
-- (c) a security gap where untrusted input enters;
+- (c) a security gap where untrusted input enters, or a secret or personal data exposed in code or logs;
 - (d) a rule lost in a migration.
 
 - Everything else (an edge case of a hygiene check, a nit, wording, a missing extra test) goes to one follow-up issue the verdict links, never to another round. Do not chase new spellings of an input a static check cannot fully model: simplify the check to a short documented rule, or run the thing in a real sandbox.
 - A blocker has an owner (`spec`, `apply`, `judgment`) and a `close_when`. A fix delta that is small and adds no mechanism is verified by the coordinator (the red check plus a targeted probe), with no new round; a delta that adds a mechanism gets one round on the delta only.
 - An ambiguous criterion is a spec gap; route it to `sdd-clarify` rather than guessing.
-- After `review_rounds` (`sdd:` parameter, default 3) rounds that end `NOT READY` on the same criterion, stop: hand the owner the criterion, each attempt and the failing excerpt.
+- `review_rounds` (`sdd:` parameter, default 3) is the escalation cap for a PR whose fix delta adds a new mechanism: after that many rounds that end `NOT READY` on the same criterion, stop and hand the owner the criterion, each attempt and the failing excerpt.
 
 Done when: every criterion has observed code, proof and documentation status, every step of the tier has its recorded result, script output or judgment, every blocker names its reason (a)–(d), the rest sits in one follow-up issue, and the verdict follows the rules above (other modes: the reference's own Done line).

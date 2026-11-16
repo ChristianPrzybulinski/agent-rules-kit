@@ -7,7 +7,7 @@ Facts and commands for writing and testing GDScript in a Godot 4 2D client. The 
 1. Before writing GDScript, read `gdscript-4-pitfalls.md`; when unsure of an API, open its class page before the call.
 2. Before committing a scene or script, read `scenes-and-generated-files.md` for `*.uid`, `*.import` and `.tscn` conflicts.
 3. A game rule: build it as `testable-game-logic.md` says and run the suite: gdUnit4 by default, `godot --headless --path . -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests -c --ignoreHeadlessMode`; GUT only when the project `AGENTS.md` says so, `-s addons/gut/gut_cmdln.gd -gdir=res://tests -ginclude_subdirs -gexit`. A run that executes zero tests is a failure.
-4. Boot proof: `godot --headless --path . --import` (imports every resource, builds the script-class cache; `--headless` is required without a GPU), then `! godot --headless --path . --quit 2>&1 | grep -Eq 'SCRIPT ERROR|Parser Error'`: `--quit` exits 0 after a script error, so a match is the failure. Report the literal output of both and of the test run.
+4. Boot proof: the command and pattern of rule `godot.md` (`just boot`, or the import then the `--quit` log grep); the import builds every resource and the script-class cache, and `--headless` is required without a GPU. Report the literal output of both and of the test run.
 5. Lint: `gdformat --check` and `gdlint` over every `.gd` outside `addons/` (config `.gdlintrc` from the kit; CI job `lint` in `ci-godot.yml`).
 6. Engine or CI version questions: `godot-4-versions.md`.
 

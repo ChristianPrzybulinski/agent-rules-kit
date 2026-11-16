@@ -1,7 +1,7 @@
 ---
 id: KIT-067
 title: "A project sets its process in an sdd: block; the constitution writes it with the glossary, areas and REVIEW.md; each folder's AGENTS.md carries its rules"
-status: confirmed
+status: done
 confirmed: "2026-11-14 (owner, chat of the SDD review session: \"aprovo\" for the split and order of KIT-066 to KIT-071, \"aprovo e pode começar em paralelo\" to start this change beside KIT-071; \"Aprovo todos\" for the consumer exceptions that add visual_approval and owner_approvals)"
 issue: "#234"
 pr: "#236"
