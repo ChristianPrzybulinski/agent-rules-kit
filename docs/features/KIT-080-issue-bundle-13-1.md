@@ -4,7 +4,7 @@ title: "13.1.0 issue bundle: proof hygiene rule, release-tag install, sync, CI, 
 status: confirmed
 confirmed: "2026-11-16 (owner, the bundle brief: \"close the 22 open issues and release 13.1.0\")"
 issue: "#300"
-pr: ""
+pr: "#301"
 ---
 
 # KIT-080 — 13.1.0 issue bundle
