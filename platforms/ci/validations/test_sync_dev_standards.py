@@ -121,7 +121,7 @@ class JustModules(Base):
         if JUST:
             result = self.summary(".")
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(set(result.stdout.split()), {"lint", "own", "verify"})
+            self.assertEqual(set(result.stdout.split()), {"changelog", "lint", "own", "verify"})  # KIT-084: changelog
 
     def test_a_symlinked_profile_folder_refuses_the_sync(self):
         outside = tempfile.TemporaryDirectory()

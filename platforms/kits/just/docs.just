@@ -20,3 +20,15 @@ lint:
 
 # the gate before a commit or PR
 verify: lint
+
+# move the changelog.d fragments into CHANGELOG.md → ## [Unreleased] (KIT-084); `just changelog --check` writes nothing
+changelog *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "$(git rev-parse --show-toplevel)"
+    tool="${AI_KIT_DIR:-$HOME/.ai-kit}/platforms/ci/validations/changelog_fragments.py"
+    if [ ! -f "$tool" ]; then
+      echo "changelog: no agent-rules-kit changelog tool in ${AI_KIT_DIR:-$HOME/.ai-kit}; set AI_KIT_DIR to a kit with KIT-084 or run its platforms/tools/bootstrap.sh" >&2
+      exit 1
+    fi
+    "{{python}}" -B "$tool" --repo-dir . {{ARGS}}

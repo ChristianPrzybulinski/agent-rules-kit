@@ -15,3 +15,9 @@ updates:
     directory: /platforms/ci/actions/spec-tools
     schedule:
       interval: weekly
+  # The gitleaks action projects pin by SHA (KIT-084): no action today (the CLI is pinned by version and sha-256 in its
+  # install step), so a `uses:` it gains is watched from the start.
+  - package-ecosystem: github-actions
+    directory: /platforms/ci/actions/gitleaks
+    schedule:
+      interval: weekly

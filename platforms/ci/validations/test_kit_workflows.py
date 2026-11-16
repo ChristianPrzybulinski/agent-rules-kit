@@ -234,11 +234,12 @@ class EveryWorkflow(unittest.TestCase):
                             self.assertRegex(step["env"]["CLAUDE_CODE_SHA256"], r"^[0-9a-f]{64}$")
                             self.assertIn("sha256sum -c -", step["run"])
 
-    def test_dependabot_updates_the_actions_of_both_folders_and_the_spec_tools_action(self):
+    def test_dependabot_updates_the_actions_of_both_folders_and_the_kit_actions(self):
         config = yaml.safe_load((KIT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
         directories = {u.get("directory") for u in config["updates"] if u["package-ecosystem"] == "github-actions"}
         self.assertEqual(directories, {"/", "/platforms/kits/github/workflows",
-                                       "/platforms/ci/actions/spec-tools"})  # KIT-081: projects pin the action
+                                       "/platforms/ci/actions/spec-tools",  # KIT-081: projects pin the action
+                                       "/platforms/ci/actions/gitleaks"})  # KIT-084: and this one
 
     def test_the_check_names_are_stable_and_never_skipped(self):
         for name, expected in CONTEXTS.items():
@@ -404,12 +405,14 @@ class LayeredGate(unittest.TestCase):
         self.assertEqual(found, 4)  # ci-godot import-and-test and lint, ci-java build and dependency-check
 
     def test_the_templates_pin_one_kit_release_that_has_the_spec_tools_action(self):
-        """Every spec-tools pin in the templates names the same commit, as `<40-hex SHA>  # vX.Y.Z`, of a release no
-        older than 14.0.0, the first that ships the action: a project whose workflow pins 13.1.0 (5a4924e) fails at
-        that `uses:` line, since the commit has no platforms/ci/actions/spec-tools/action.yml."""
-        pins = {line.split("spec-tools@", 1)[1].strip()
+        """Every kit action pin in the templates (spec-tools, and gitleaks since KIT-084) names the same commit, as
+        `<40-hex SHA>  # vX.Y.Z`, of a release no older than 14.0.0, the first that ships the spec-tools action: a
+        project whose workflow pins 13.1.0 (5a4924e) fails at that `uses:` line, since the commit has no
+        platforms/ci/actions/spec-tools/action.yml."""
+        kit_action = re.compile(r"/platforms/ci/actions/[\w-]+@")
+        pins = {kit_action.split(line, 1)[1].strip()
                 for path in sorted(TEMPLATES.glob("*.yml"))
-                for line in path.read_text(encoding="utf-8").splitlines() if "/platforms/ci/actions/spec-tools@" in line}
+                for line in path.read_text(encoding="utf-8").splitlines() if kit_action.search(line)}
         self.assertEqual(len(pins), 1, pins)
         match = re.fullmatch(r"[0-9a-f]{40}  # v(\d+)\.(\d+)\.(\d+)", pins.pop())
         self.assertIsNotNone(match)

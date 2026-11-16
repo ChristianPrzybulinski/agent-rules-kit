@@ -1,12 +1,17 @@
 name: gitleaks
 
-# Secret scan with the gitleaks CLI at a pinned version and sha-256 (KIT-074): the whole history of the checked-out
-# ref, a finding fails the job and the log redacts its value. The CLI, not gitleaks/gitleaks-action: in an
-# organization's repository the action needs a GITLEAKS_LICENSE secret (a key from gitleaks.io) and exits 1 before
-# scanning without one. Config: the `config` input (a path in the repository), else .gitleaks.toml at the root when
-# present, else gitleaks' built-in rules; .gitleaksignore at the root (reviewed fingerprints) always applies.
+# Secret scan with the agent-rules-kit gitleaks action (KIT-084): the gitleaks CLI at a pinned version and sha-256
+# (KIT-074), from the kit commit pinned below, so the scan's logic and its pin stay in the kit and the project keeps one
+# job per run. A pull request scans its own commits (base..head); a push and a dispatch scan the whole history of the
+# checked-out ref. A finding fails the job and the log redacts its value. Config: the `config` input (a path in the
+# repository), else .gitleaks.toml at the root when present, else gitleaks' built-in rules; .gitleaksignore at the root
+# (reviewed fingerprints) always applies. The action, not gitleaks/gitleaks-action: in an organization's repository that
+# action needs a GITLEAKS_LICENSE secret and exits 1 before scanning without one.
 # Copy to .github/workflows/ and keep the triggers your CI policy allows, or call it from another workflow
-# (`uses: ./.github/workflows/gitleaks.yml` with `config:`). The local scan before a PR is agent-rules-kit's
+# (`uses: ./.github/workflows/gitleaks.yml` with `config:`), or add the action as a step of an existing job. The action
+# ships after 14.0.0: until the pin below names a release that has it, the scan step fails at its `uses:` line; the
+# kit's Dependabot moves the pin, and a project's Dependabot or Renovate keeps it current (agent-rules-kit
+# platforms/kits/github/README.md). The local scan before a PR is agent-rules-kit's
 # plugins/guardrails/skills/security/references/scan.md: `gitleaks git --redact --log-opts="origin/main..HEAD"`.
 
 on:
@@ -35,19 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          fetch-depth: 0  # the whole history, not only the tip
+          fetch-depth: 0  # the whole history, and a pull request's base commit
           persist-credentials: false
-      - name: gitleaks (pinned CLI, sha-256 checked; whole history; values redacted)
-        env:
-          GITLEAKS_VERSION: 8.30.1
-          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
-          CONFIG: ${{ inputs.config }}
-        run: |
-          set -euo pipefail
-          wget -q -O "$RUNNER_TEMP/gitleaks.tar.gz" \
-            "https://github.com/gitleaks/gitleaks/releases/download/v$GITLEAKS_VERSION/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          echo "$GITLEAKS_SHA256  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
-          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
-          args=(git --no-banner --redact -v --exit-code 1 --log-opts=HEAD)
-          if [ -n "$CONFIG" ]; then args+=(--config "$CONFIG"); fi
-          "$RUNNER_TEMP/gitleaks" "${args[@]}" .
+      - name: gitleaks (the kit's action; pinned CLI, sha-256 checked; values redacted)
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/gitleaks@776d6ce381f89bfc12b4ca17f2b35577346ef37a  # v14.0.0
+        with:
+          config: ${{ inputs.config }}

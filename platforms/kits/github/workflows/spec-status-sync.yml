@@ -1,0 +1,104 @@
+name: spec-status-sync
+
+# Reconciles docs/spec with GitHub (agent-rules-kit KIT-084), for a spec whose `sdd.tracker` is `github`: the kit's
+# `spec_trace.py sync-status --write`, from the kit commit the spec-tools action pins (KIT-081: no copy in the project),
+# derives each task row's Status cell from its task issue and the merged pull requests that close it, each FEAT's
+# status from its rows, regenerates traceability.md and refreshes spec.md (agent-rules-kit platforms/ci/README.md). It
+# then opens or refreshes one pull request, the only writer of those cells; the workflow never merges it.
+#
+# Idempotent: the branch is rebuilt from the dispatched ref on every run and an open pull request is reused. When every
+# cell already follows GitHub nothing changes and no pull request opens.
+#
+# Token: the repository secret PR_BOT_TOKEN reads the task issues and pull requests of the repositories `sdd.github`
+# names, pushes the branch and opens the pull request, because GitHub starts no workflow for a pull request the job's
+# own GITHUB_TOKEN opens, so its required checks would never run. Its minimal permissions are in agent-rules-kit
+# platforms/kits/github/README.md. The checkout keeps no credential.
+#
+# Manual dispatch only (Actions > spec-status-sync > Run workflow). To run it on a schedule too, add under `on:`
+#   schedule:
+#     - cron: '0 6 * * *'  # daily 06:00 UTC; GitHub disables a public repository's schedule after 60 idle days
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-status-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25  # KIT-076: 3 × the longest measured green run of a consumer's sync (441 s), rounded up to 5 min
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false  # the last step pushes with PR_BOT_TOKEN
+      # Python 3.12 with pyyaml, and AI_KIT_DIR: the kit at the pinned commit, whose spec_trace.py the next step runs
+      - name: The kit's spec tools at the pinned commit (spec_trace.py)
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@776d6ce381f89bfc12b4ca17f2b35577346ef37a  # v14.0.0
+        with:
+          checks: none
+      - name: Derive the status cells from GitHub (spec_trace.py sync-status --write)
+        id: tool
+        env:
+          GH_TOKEN: ${{ secrets.PR_BOT_TOKEN }}  # gh api reads the task issues and the pull requests that close them
+        run: |
+          set -euo pipefail
+          python3 "$AI_KIT_DIR/platforms/ci/validations/spec_trace.py" sync-status --write | tee "$RUNNER_TEMP/sync.txt"
+          if [ -n "$(git status --porcelain -- docs/spec)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "nothing to sync"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Open or refresh the pull request (only when the tool changed something)
+        if: steps.tool.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PR_BOT_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          BASE: ${{ github.ref_name }}
+          BRANCH: chore/spec-sync-status
+        run: |
+          set -euo pipefail
+          title="chore(spec): sync status from GitHub"
+          {
+            cat <<'EOF'
+          ## What
+
+          The kit's `spec_trace.py sync-status --write` (agent-rules-kit, at the commit the `spec-status-sync` workflow
+          pins) reconciled `docs/spec/` with GitHub: each task row's `Status` cell follows its task issue and the merged
+          pull requests that close it, each FEAT's `status` follows its rows, `traceability.md` is regenerated, and the
+          `spec.md` index and its `sync-status` and `sync-counts` blocks are refreshed. No other file changes.
+
+          ## Why
+
+          Status cells are derived, never edited by hand: this pull request is their only writer. A cell it gets wrong is
+          a GitHub data problem: fix the issue or the pull request that closes it, then run the workflow again.
+
+          ## How I tested
+
+          ```text
+          EOF
+            cat "$RUNNER_TEMP/sync.txt"
+            printf '```\n'
+          } > "$RUNNER_TEMP/body.md"
+          git config user.name spec-status-sync
+          git config user.email spec-status-sync@users.noreply.github.com
+          git checkout -q -B "$BRANCH"
+          git add -A -- docs/spec
+          git commit -q -m "$title"
+          # The token reaches git through this helper only: never a command line, a URL or .git/config. The single
+          # quotes are meant: $1 and $GH_TOKEN expand in the shell git starts for the helper.
+          # shellcheck disable=SC2016
+          git -c credential.helper= \
+            -c 'credential.helper=!f() { if [ "$1" = get ]; then printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; fi; }; f' \
+            push -q --force origin "HEAD:refs/heads/$BRANCH"
+          pr="$(gh pr list --head "$BRANCH" --base "$BASE" --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$pr" ]; then
+            gh pr create --head "$BRANCH" --base "$BASE" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr edit "$pr" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi
