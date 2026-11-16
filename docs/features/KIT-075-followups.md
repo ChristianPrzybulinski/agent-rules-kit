@@ -4,7 +4,7 @@ title: "sdd.needs: false runs the front chain without NEED files, a doing row mo
 status: confirmed
 confirmed: "2026-11-16 (coordinator under the owner's full autonomy for the night, chat of the rules-and-skills review session: the 13.0.0 follow-ups #237, #247, #248-#255)"
 issue: "#284"
-pr: ""
+pr: "#285"
 ---
 
 # KIT-075 — sdd.needs: false runs the front chain without NEED files, a doing row moves the FEAT, and review_checks and pr_gates close the #246 review gaps
