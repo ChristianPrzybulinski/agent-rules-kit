@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- KIT-076: the `main` ruleset also requires `CodeQL`, the code scanning result for the uploaded analysis, so a new alert in the changed code blocks the merge; the PR template, CONTRIBUTING and the KIT-076 record name six checks.
+
 ## [13.1.0] - 2026-11-16
 
 ### Changed

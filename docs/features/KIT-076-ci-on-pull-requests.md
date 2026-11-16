@@ -149,7 +149,8 @@ The owner widened this record on 2026-11-15 (chat, relayed by the coordinator, "
 
 ### Required check contexts
 
-The ruleset requires these five contexts, all reported by the GitHub Actions app (integration id 15368):
+The ruleset requires these five contexts, all reported by the GitHub Actions app (integration id 15368), and since
+2026-11-16 a sixth, `CodeQL`, which GitHub Advanced Security (integration id 57789) reports from the uploaded analysis:
 
 | Context | Workflow | Job |
 |---|---|---|
@@ -158,13 +159,14 @@ The ruleset requires these five contexts, all reported by the GitHub Actions app
 | `gitleaks` | `.github/workflows/gitleaks.yml` | `scan` |
 | `codeql (python)` | `.github/workflows/codeql.yml` | `analyze`, matrix `python` |
 | `codeql (actions)` | `.github/workflows/codeql.yml` | `analyze`, matrix `actions` |
+| `CodeQL` | code scanning, from `codeql.yml`'s upload | none: GitHub's result for the analysis |
 
 A job's `name` is its context, so renaming one leaves the ruleset waiting forever for the old name.
 `test_kit_workflows.py` fails on such a rename. The merge flow:
 
 1. The independent review returns READY on the head.
 2. The coordinator arms auto-merge.
-3. GitHub merges once the five checks pass on that head.
+3. GitHub merges once the six checks pass on that head.
 
 Coordinator steps after the merge, none of them in this PR:
 
@@ -240,3 +242,6 @@ Not tested:
 - 2026-11-15: confirmed (owner, chat, relayed by the coordinator: "Revisão + CI verde"). Issue #264.
 - 2026-11-15: implemented in #272; the runner proof is above.
 - 2026-11-15: widened by the owner ("Sim, inclua", relayed by the coordinator): the five Actions practices above.
+- 2026-11-16: `CodeQL` (code scanning results) became required (owner, chat: "Yes, make it required"). On #301's
+  head `5699123` the five Actions checks were green while `CodeQL` failed on two new high `py/redos` alerts, which
+  the ruleset did not block.
