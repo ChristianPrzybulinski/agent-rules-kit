@@ -42,7 +42,7 @@ Put each answer where it belongs (REQ, NEED, glossary), never in an answers sect
 ## 3. Record and check
 
 - Fill the NEED's Refinement table (one row per Situation: what it became and why) and its `requirements`, `journeys`, `processes` and `decisions` fields.
-- Run the project spec validator, `CHECK_SPEC` (and `TRACE check` when journeys or processes exist; it accepts a step's `—` while an open NEED lists its journey or process), then `sdd-check NEED-nnn` (functional scope). A critical or high finding goes back to the step that owns it.
+- Run the project spec validator, `CHECK_SPEC` (and `TRACE check` when journeys or processes exist; it accepts a step's `—` while an open NEED lists its journey or process), then `sdd-check NEED-nnn` (functional scope, with `TRACE similar` for C20 and C22). A critical or high finding goes back to the step that owns it.
 
 ## 4. Close
 
