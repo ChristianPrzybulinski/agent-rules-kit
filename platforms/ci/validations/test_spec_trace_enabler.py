@@ -440,8 +440,8 @@ class MigrationsFromProfileTest(EnablerCase):
 
 
 class SpecFileErrorTest(EnablerCase):
-    """#356 item 1: a spec file that cannot be read (bad YAML, not UTF-8, frontmatter that is no mapping) is one
-    `FAIL:` line that names it and exit 2, never a traceback or the exit 1 of a finding."""
+    """#356 item 1: a spec file that cannot be read (bad YAML, not UTF-8) is one `FAIL:` line that names it and exit 1,
+    never a traceback; a frontmatter that is no mapping stays what it was: a finding, or a record skipped."""
 
     def assert_unreadable(self, rel, data, *argv):
         path = self.root / rel
@@ -449,7 +449,7 @@ class SpecFileErrorTest(EnablerCase):
         path.write_bytes(data)
         for args in (argv or (["check", str(self.spec)], ["enablers", str(self.spec)])):
             code, out, err = run(list(args))
-            self.assertEqual(code, 2, out + err)
+            self.assertEqual(code, 1, out + err)
             self.assertIn(f"FAIL: {rel}: ", err)
             self.assertNotIn("Traceback", err)
 
@@ -465,8 +465,19 @@ class SpecFileErrorTest(EnablerCase):
     def test_non_utf8_feat(self):
         self.assert_unreadable("docs/spec/features/FEAT-001.md", b"---\nid: FEAT-001\n---\n\xff\n")
 
-    def test_frontmatter_that_is_no_mapping(self):
-        self.assert_unreadable("docs/spec/features/FEAT-001.md", b"---\n- FEAT-001\n---\n")
+    def test_feat_frontmatter_that_is_no_mapping_is_skipped(self):
+        (self.spec / "features/FEAT-001.md").write_text("---\n- FEAT-001\n---\n", encoding="utf-8")
+        code, out, err = run(["check", str(self.spec)])
+        self.assertEqual(code, 1, out + err)
+        self.assertNotIn("Traceback", err)
+        self.assertNotIn("FEAT-001", trace.load(self.spec).feats)
+
+    def test_enabler_frontmatter_that_is_no_mapping_stays_a_finding(self):
+        self.enabler("---\n- ENB-001\n---\n")
+        code, out, err = run(["check", str(self.spec)])
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("ENB-001-battle.md: frontmatter missing, not closed by --- or not a mapping", err)
+        self.assertNotIn("Traceback", err)
 
     def test_non_utf8_decision(self):
         self.assert_unreadable("docs/spec/decisions/DEC-001-server-battle.md", b"---\nid: DEC-001\n---\n\xff\n")

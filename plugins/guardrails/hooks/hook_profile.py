@@ -10,8 +10,9 @@ The hooks hard-coded `docs/spec/` and took every `.gd` file as Godot; they now r
   the same view as pyyaml, at about a third of the start-up) and a timeout.
 - Cache: one file per session, $CLAUDE_PLUGIN_DATA/profile/<session_id>.json, maps the project root to the view and
   its key: the modification time and size of the root's `.ai-kit.yaml` and `CLAUDE.md` (the legacy home of
-  `stacks`) and of the resolver itself. A changed key resolves again; a failed resolution is cached as no view, so a
-  broken profile costs one run per change, not one per tool call. A session's first file prunes the files older than
+  `stacks`) and of the resolver itself. A changed key resolves again; a failed resolution, a timeout included, is
+  cached as no view, so a broken profile costs one run per change, not one per tool call, and a slow first resolve
+  leaves the session without a view until one of those files changes. A cached view of another shape resolves again. A session's first file prunes the files older than
   PRUNE_DAYS. Without CLAUDE_PLUGIN_DATA every call resolves.
 - Failure: `view` returns None on any error (no resolver, a refused profile, a timeout, an unwritable cache), and the
   caller keeps its pre-profile behaviour. A hook never blocks on the profile.
@@ -65,6 +66,11 @@ def stamp(path):
     return [info.st_mtime_ns, info.st_size]
 
 
+def valid(data):
+    """True when `data` has the view's shape: a dict with a str `spec_root` and a dict `stacks`."""
+    return isinstance(data, dict) and isinstance(data.get("spec_root"), str) and isinstance(data.get("stacks"), dict)
+
+
 def resolve(tool, root):
     """{'spec_root': str, 'stacks': dict} from the resolver, or None when it fails or prints something else."""
     try:
@@ -73,8 +79,7 @@ def resolve(tool, root):
         data = json.loads(result.stdout) if result.returncode == 0 else None
     except (OSError, ValueError, subprocess.SubprocessError):
         return None
-    if not isinstance(data, dict) or not isinstance(data.get("spec_root"), str) \
-            or not isinstance(data.get("stacks"), dict):
+    if not valid(data):
         return None
     return {"spec_root": data["spec_root"], "stacks": data["stacks"]}
 
@@ -109,8 +114,8 @@ def view(root, env, session=None):
             entries = None
         entries = entries if isinstance(entries, dict) else {}
         entry = entries.get(root)
-        if isinstance(entry, dict) and entry.get("key") == key:
-            return entry.get("view")
+        if isinstance(entry, dict) and entry.get("key") == key and (entry.get("view") is None or valid(entry["view"])):
+            return entry.get("view")  # a cached view of another shape (a corrupt file) resolves again, #352
         found = resolve(tool, root)
         entries[root] = {"key": key, "view": found}
         cache.parent.mkdir(parents=True, exist_ok=True)

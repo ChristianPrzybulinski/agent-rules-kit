@@ -25,9 +25,11 @@ PLUGIN = KIT / "plugins" / "guardrails"
 HOOKS = json.loads((PLUGIN / "hooks" / "hooks.json").read_text(encoding="utf-8"))
 VERSION = (KIT / "VERSION").read_text(encoding="utf-8").strip()
 HELPER = PLUGIN / "hooks" / "hook_profile.py"
-STUB = """import json, os, sys
+STUB = """import json, os, sys, time
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs"), "a") as handle:
     handle.write(sys.argv[-1] + "\\n")
+if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "slow")):
+    time.sleep(5)
 view = os.path.join(os.path.dirname(os.path.abspath(__file__)), "view.json")
 if not os.path.exists(view):
     sys.exit(1)
@@ -118,6 +120,36 @@ class HelperTest(Stubbed):
         self.assertIsNone(self.hp.view(str(self.project), dict(self.env, CLAUDE_PLUGIN_DATA="/dev/null/x"), "s1"))
         self.assertIsNone(self.hp.view(str(self.project), self.env, {"not": "a session"}) and None)
 
+    def test_a_cached_view_of_the_wrong_shape_resolves_again(self):
+        """#352: a corrupt cache entry gives a view the hooks can read, never a non-dict that crashes them."""
+        self.set_view("specs", {"client": "godot"})
+        want = {"spec_root": "specs", "stacks": {"client": "godot"}}
+        cache = self.data / "profile" / "s1.json"
+        self.hp.view(str(self.project), self.env, "s1")
+        for bad in ("x", 1, [1], {"spec_root": 1, "stacks": {}}, {"spec_root": "specs", "stacks": []}, {}):
+            with self.subTest(bad=bad):
+                entries = json.loads(cache.read_text(encoding="utf-8"))
+                entries[str(self.project)]["view"] = bad
+                cache.write_text(json.dumps(entries), encoding="utf-8")
+                before = self.runs()
+                self.assertEqual(self.hp.view(str(self.project), self.env, "s1"), want)
+                self.assertEqual(self.runs(), before + 1, "the bad entry is resolved again and replaced")
+                self.assertEqual(self.hp.view(str(self.project), self.env, "s1"), want)
+                self.assertEqual(self.runs(), before + 1)
+
+    def test_a_timeout_is_cached_as_no_view_until_a_stamp_changes(self):
+        """#352: a slow first resolve sticks for the session until a profile file changes (hooks README)."""
+        self.set_view("specs")
+        slow = self.kit / "platforms" / "tools" / "slow"
+        slow.touch()
+        self.hp.TIMEOUT_S = 0.3
+        self.assertIsNone(self.hp.view(str(self.project), self.env, "s1"))
+        slow.unlink()
+        self.assertIsNone(self.hp.view(str(self.project), self.env, "s1"), "no view until a stamp changes")
+        self.assertEqual(self.runs(), 1)
+        (self.project / ".ai-kit.yaml").write_text("x-touch: 1\n", encoding="utf-8")
+        self.assertEqual(self.hp.view(str(self.project), self.env, "s1")["spec_root"], "specs")
+
     def test_the_resolver_order_is_ai_kit_dir_then_the_plugins_kit(self):
         self.assertEqual(self.hp.resolver(self.env), self.kit / "platforms" / "tools" / "profile.py")
         shutil.rmtree(self.kit)
@@ -197,6 +229,18 @@ class LintHookTest(Stubbed):
                 self.assertIn("stub check_spec.py on docs/spec", spec.stderr)
                 gd = self.edit("tools/fixture.gd", **env)
                 self.assertEqual(gd.returncode, 2, gd.stderr)
+
+    def test_a_corrupt_cached_view_never_crashes_the_hook(self):
+        """#352: a non-dict view in the session cache made the hook exit 1; it now resolves again."""
+        self.set_view("specs")
+        self.assertEqual(self.edit("specs/a.md").returncode, 2)
+        cache = self.data / "profile" / "s1.json"
+        entries = json.loads(cache.read_text(encoding="utf-8"))
+        entries[str(self.project)]["view"] = "x"
+        cache.write_text(json.dumps(entries), encoding="utf-8")
+        result = self.edit("specs/a.md")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("stub check_spec.py on specs", result.stderr)
 
     def test_an_empty_stacks_map_lints_every_gd_file(self):
         self.set_view()

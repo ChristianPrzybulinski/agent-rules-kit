@@ -64,7 +64,8 @@ updated: "YYYY-MM-DD"
     prerequisite (contracts, assets, tooling no actor sees). A first header cell `Step` marks a step table.
   - `Rules` cites REQ ids only, never rule values or free text: the rule text stays in its REQ.
   - `Implemented by` cites `FEAT-nnn Tn` task rows only, as they exist on main; rows of several FEATs may serve one
-    process.
+    process. In a `kind: tech` process, a main or alternative step a person runs, with no FEAT behind it, holds `—`
+    for good when its `Proven by` is a `manual: <check>` alone.
   - A main or alternative step may hold a literal `—` in `Implemented by` and `Proven by` while an open NEED lists
     this process in `processes`, and its listed FEATs have not yet all delivered every REQ it lists.
   - `Proven by` holds `FEAT-nnn Tn` test tasks, backticked paths rooted at a clone name and an optional trailing
