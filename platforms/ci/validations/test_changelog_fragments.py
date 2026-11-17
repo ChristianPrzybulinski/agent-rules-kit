@@ -208,6 +208,20 @@ class ParseFragment(unittest.TestCase):
         self.assertEqual(fragments.parse_fragment("\n  \n"), ([], ["1: no `- ` bullet"]))
 
 
+# Python 3.9 has no sys.stdlib_module_names (3.10+), and the kit's local runs use the macOS /usr/bin/python3 3.9
+# (#325). There the check uses these standard-library modules, a subset of 3.10's list (the test below proves it on
+# 3.10+); a module the tool starts to import that is missing here fails on 3.9 until it is added, never the reverse.
+STDLIB_FALLBACK = frozenset((
+    "__future__", "abc", "argparse", "ast", "base64", "collections", "contextlib", "copy", "csv", "dataclasses",
+    "datetime", "difflib", "enum", "errno", "fnmatch", "functools", "glob", "hashlib", "importlib", "io", "itertools",
+    "json", "logging", "math", "operator", "os", "pathlib", "re", "shlex", "shutil", "string", "subprocess", "sys",
+    "tempfile", "textwrap", "time", "typing", "unicodedata", "urllib"))
+
+
+def stdlib_names():
+    return frozenset(getattr(sys, "stdlib_module_names", STDLIB_FALLBACK))
+
+
 class StdlibOnly(unittest.TestCase):
     """A project's CI runs the tool from $AI_KIT_DIR with the Python the spec-tools action sets up."""
 
@@ -215,7 +229,11 @@ class StdlibOnly(unittest.TestCase):
         tree = ast.parse(TOOL.read_text(encoding="utf-8"))
         names = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
         names |= {n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
-        self.assertLessEqual(names, set(sys.stdlib_module_names))
+        self.assertLessEqual(names, stdlib_names())
+
+    @unittest.skipUnless(hasattr(sys, "stdlib_module_names"), "needs Python 3.10+ to compare the fallback with")
+    def test_the_3_9_fallback_names_only_standard_modules(self):
+        self.assertLessEqual(STDLIB_FALLBACK, frozenset(sys.stdlib_module_names))
 
 
 class CommandLine(Folder):

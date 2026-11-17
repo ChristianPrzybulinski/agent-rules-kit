@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/profile.schema.json",
   "title": "The project profile, .ai-kit.yaml at the git top level (KIT-087)",
-  "description": "Project-owned parameters that only the kit reads: its skills, hooks, sync-project.sh and the spec-tools action, through platforms/tools/profile.py. Every key has a default and one reader phase (x-read-by: session, sdd, implement, review, delivery, security). Unknown keys fail; x-<name> keys, at the top level or directly in a section, are the project's and the kit ignores them.",
+  "description": "Project-owned parameters that only the kit reads: its skills, hooks, sync-project.sh and the spec-tools action, through platforms/tools/profile.py. Every key has a default and one reader phase (x-read-by: session, sdd, implement, review, delivery, security). A key the project does not set takes the value its project.kind preset gives (project.kind x-presets), else its default (KIT-088). Unknown keys fail; x-<name> keys, at the top level or directly in a section, are the project's and the kit ignores them.",
   "type": "object",
   "additionalProperties": false,
   "patternProperties": {
@@ -20,6 +20,83 @@
       "pattern": "^>=[0-9]+(\\.[0-9]+){0,2}$",
       "default": null,
       "x-read-by": "session"
+    },
+    "project": {
+      "description": "What kind of project this is (KIT-088); only the resolver reads it",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "kind": {
+          "description": "A preset of defaults that no skill reads: a key the project does not set (in .ai-kit.yaml or its legacy home) takes the value x-presets gives for this kind, else its schema default. business: every schema default; game: the four game vision sections, the Assets Plan section, greybox and polish passes, playtest acceptance, owner visual approval; tooling: the FEAT-only flow of a tool repository (no NEED, no REQ, no task table, one PR per FEAT, a record for a big change only, Tests and Risks Plan sections, manual release)",
+          "enum": [
+            "business",
+            "game",
+            "tooling"
+          ],
+          "default": "business",
+          "x-read-by": "session",
+          "x-presets": {
+            "business": {},
+            "game": {
+              "sdd": {
+                "vision_sections": [
+                  "Pillars",
+                  "Core loop",
+                  "Direction",
+                  "References"
+                ],
+                "plan_sections": [
+                  "Design",
+                  "Contract",
+                  "Data",
+                  "UI",
+                  "Assets",
+                  "Flag",
+                  "Tests",
+                  "Observability",
+                  "Risks",
+                  "Dependencies"
+                ],
+                "passes": [
+                  "greybox",
+                  "polish"
+                ],
+                "acceptance": "playtest"
+              },
+              "evidence": {
+                "visual_approval": "owner"
+              }
+            },
+            "tooling": {
+              "sdd": {
+                "flow": "feat-only",
+                "needs": false,
+                "task_table": false,
+                "record_when": "big-change",
+                "pr_unit": "feat",
+                "plan_sections": [
+                  "Tests",
+                  "Risks"
+                ],
+                "release": "manual"
+              }
+            }
+          }
+        }
+      },
+      "x-read-by": "session"
+    },
+    "spec_root": {
+      "description": "The folder that holds the SDD spec (spec.md, needs/, features/, journeys/ ...), relative to the git top level (KIT-088); the resolver reads the legacy sdd: block from <spec_root>/spec.md",
+      "type": "string",
+      "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]*[^\\s/]$",
+      "default": "docs/spec",
+      "x-read-by": "sdd"
     },
     "stacks": {
       "description": "Folder ('.' for the root) -> its stack, or a list of stacks; replaces the profile list of the CLAUDE.md sync marker",
@@ -53,7 +130,7 @@
       "x-read-by": "session"
     },
     "sdd": {
-      "description": "The SDD process parameters (KIT-067): the 23 keys of the legacy sdd: block in docs/spec/spec.md, plus task_cut and decision_folding (KIT-086); sdd-constitution/references/sdd-parameters.md names each reader",
+      "description": "The SDD process parameters (KIT-067): the 23 keys of the legacy sdd: block in <spec_root>/spec.md, plus task_cut and decision_folding (KIT-086) and the profile-only keys vision_sections, passes, acceptance, flow, task_table, record_when and id_prefix (KIT-088); sdd-constitution/references/sdd-parameters.md names each reader",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -91,6 +168,7 @@
               "Contract",
               "Data",
               "UI",
+              "Assets",
               "Flag",
               "Tests",
               "Observability",
@@ -629,13 +707,13 @@
               "x-read-by": "sdd"
             },
             "longest_chain_max_complexity": {
-              "description": "Highest Complexity a row on a FEAT's longest Depends on chain may carry; High = no limit",
+              "description": "Highest Complexity a row on a FEAT's longest Depends on chain may carry; default Med, the kit's rule before the key (waves-and-models.md); High = no limit",
               "enum": [
                 "Low",
                 "Med",
                 "High"
               ],
-              "default": "High",
+              "default": "Med",
               "x-read-by": "sdd"
             }
           },
@@ -651,6 +729,79 @@
               "type": "string",
               "minLength": 1,
               "default": "→ folded into",
+              "x-read-by": "sdd"
+            }
+          },
+          "x-read-by": "sdd"
+        },
+        "vision_sections": {
+          "description": "The optional spec.md sections this project writes besides the template's own (Vision, First-delivery scope, Out of scope, Glossary, Architecture), by heading text, e.g. Pillars, Core loop, Direction, References; [] = none; read by sdd-constitution",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^#\\s](.*\\S)?$"
+          },
+          "default": [],
+          "x-read-by": "sdd"
+        },
+        "passes": {
+          "description": "The passes a new mechanic's FEAT is planned in, in this order: greybox (playable, placeholder art), then polish, cut after the greybox playtest; [] = one pass; read by sdd-plan, sdd-tasks, sdd-review",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "greybox",
+              "polish"
+            ]
+          },
+          "default": [],
+          "x-read-by": "sdd"
+        },
+        "acceptance": {
+          "description": "What accepts a delivered FEAT: captures (the captures visual_approval names, the step before this key) or playtest (a playtest record the owner signs); read by sdd-review, sdd-release",
+          "enum": [
+            "captures",
+            "playtest"
+          ],
+          "default": "captures",
+          "x-read-by": "sdd"
+        },
+        "flow": {
+          "description": "full: NEED, REQ, FEAT and task rows; feat-only: a FEAT holds its rules in its acceptance criteria, sdd-clarify is skipped and a FEAT needs no REQ (KIT-100); read by sdd-clarify, sdd-check, sdd-plan, sdd-review",
+          "enum": [
+            "full",
+            "feat-only"
+          ],
+          "default": "full",
+          "x-read-by": "sdd"
+        },
+        "task_table": {
+          "description": "false: a FEAT carries no ## Tasks table and is itself the item (one issue, one PR); read by sdd-tasks",
+          "type": "boolean",
+          "default": true,
+          "x-read-by": "sdd"
+        },
+        "record_when": {
+          "description": "always: every change gets its FEAT; big-change: only a big change does, and any other change needs only its changelog line and its PR body's why; read by sdd-plan",
+          "enum": [
+            "always",
+            "big-change"
+          ],
+          "default": "always",
+          "x-read-by": "sdd"
+        },
+        "id_prefix": {
+          "description": "The id prefix of a spec artifact kind (KIT-088)",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "feature": {
+              "description": "The FEAT id prefix, e.g. KIT for KIT-NNN records; read by sdd-plan, check_spec.py, spec_trace.py",
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9]*$",
+              "default": "FEAT",
               "x-read-by": "sdd"
             }
           },
@@ -1217,6 +1368,28 @@
           "type": "integer",
           "minimum": 1,
           "default": 25,
+          "x-read-by": "delivery"
+        }
+      },
+      "x-read-by": "delivery"
+    },
+    "release": {
+      "description": "How the project names its releases (KIT-088)",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {
+          "description": "Project-private key: the kit accepts and ignores it (KIT-087)"
+        }
+      },
+      "properties": {
+        "versioning": {
+          "description": "semver: MAJOR.MINOR.PATCH releases; milestone: releases named by the project's milestones (KIT-096); read by sdd-release",
+          "enum": [
+            "semver",
+            "milestone"
+          ],
+          "default": "semver",
           "x-read-by": "delivery"
         }
       },
