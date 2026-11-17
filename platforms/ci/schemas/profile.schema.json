@@ -747,7 +747,7 @@
           "x-read-by": "sdd"
         },
         "passes": {
-          "description": "The passes a new mechanic's FEAT is planned in, in this order: greybox (playable, placeholder art), then polish, cut after the greybox playtest; [] = one pass; read by sdd-plan, sdd-tasks, sdd-review",
+          "description": "The passes a new mechanic's FEAT is planned in, in this order: greybox (playable, placeholder art), then polish, cut after the greybox playtest; [] = one pass; read by sdd-plan, sdd-tasks, sdd-review, sdd-check C16, and review and row_checks.py rule j, which exempt a greybox block's rows from visual approval (KIT-094)",
           "type": "array",
           "uniqueItems": true,
           "items": {

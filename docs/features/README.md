@@ -115,6 +115,7 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-091-process-skills.md`](KIT-091-process-skills.md) | skills that write and check processes (C12, C14, C26, Q12) | in-progress | #332 | |
 | [`KIT-092-process-verify-skills.md`](KIT-092-process-verify-skills.md) | skills that use and verify processes | in-progress | #333 | |
 | [`KIT-093-plan-assets.md`](KIT-093-plan-assets.md) | Assets Plan section and sdd-check C15 | in-progress | #334 | |
+| [`KIT-094-greybox-polish-passes.md`](KIT-094-greybox-polish-passes.md) | greybox and polish passes as version blocks, owner playtest gate, sdd-check C16 | in-progress | #335 | |
 | [`KIT-095-enabler-artifact.md`](KIT-095-enabler-artifact.md) | enabler artifact ENB-nnn per bounded context and its catalog tools | done | #337 | #355 |
 | [`KIT-098-pattern-reference.md`](KIT-098-pattern-reference.md) | our pattern: SysML links, DDD, Backstage export, SAFe | in-progress | #340 | |
 

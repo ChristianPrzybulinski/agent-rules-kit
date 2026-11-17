@@ -15,7 +15,7 @@ allowed-tools:
 
 # SDD 4 — Plan
 
-The technical refinement: cuts a refined NEED into deliveries, creates one FEAT per delivery and plans it. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-feature.md`. It resolves the project profile first (`../session/references/project-profile.md`) and reads `spec_root` and the `sdd` parameters `plan_sections`, `max_feat_tasks` (`../sdd-constitution/references/sdd-parameters.md`) and `decision_folding`.
+The technical refinement: cuts a refined NEED into deliveries, creates one FEAT per delivery and plans it. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-feature.md`. It resolves the project profile first (`../session/references/project-profile.md`) and reads `spec_root` and the `sdd` parameters `plan_sections`, `max_feat_tasks` (`../sdd-constitution/references/sdd-parameters.md`), `passes` and `decision_folding`.
 
 ## 1. Confirm readiness
 
@@ -34,6 +34,7 @@ Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs
 - Problem / value: one line and the NEED id; the NEED keeps the full problem, Situations and scope. Scope lists the REQs delivered.
 - Acceptance criteria are technical (contract, unit, integration, e2e); each cites in `Proves` the REQ ids it proves, and every REQ in Scope is proved by at least one criterion. The REQs' examples and counterexamples are the functional criteria; do not restate them.
 - `enablers` (only with `docs/spec/enablers/`): the ENBs this delivery creates or changes; `kind: enabler` marks a FEAT that changes ENBs and delivers no REQ-F.
+- Passes (`sdd.passes: [greybox, polish]`; `[]`, the default, plans one pass; KIT-094): a NEED that adds a new mechanic (never a content route) is planned as two version blocks of one FEAT, `### <version> greybox` then `### <version> polish` (`### 0.3 greybox`, `### 0.3 polish`). The greybox block delivers the rules, Design, Contract and the Data tunables with placeholder art; it owns no Plan § Assets row and no feel value (a tunable's final value). The polish block owns § Assets and the feel values inside each tunable's range, amends no rule, and is written only after the owner's playtest line (`../sdd-review/references/playtest.md`). A rule change goes to `sdd-clarify`; a broken split is `sdd-check` C16.
 - Add the FEAT to the NEED's `features` and a History line.
 
 ## 4. Write the Plan sections

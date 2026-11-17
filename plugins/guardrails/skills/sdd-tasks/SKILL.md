@@ -13,11 +13,11 @@ allowed-tools:
 
 # SDD 5 — Tasks
 
-Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Resolve the project profile first (`../session/references/project-profile.md`) and read `spec_root` and the `sdd` parameters `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`), `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token.
+Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Resolve the project profile first (`../session/references/project-profile.md`) and read `spec_root` and the `sdd` parameters `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`), `passes`, `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token.
 
 ## 1. Gate
 
-Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`sdd-plan` § 4); a resync also runs on `in-progress`. Anything else goes back to `sdd-plan`.
+Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`sdd-plan` § 4); a resync also runs on `in-progress`. Anything else goes back to `sdd-plan`. Under `sdd.passes` (KIT-094), a polish block's rows are written and cut only once the FEAT's History holds its greybox block's playtest line with outcome `go` (`../sdd-review/references/playtest.md`); without it the polish waits. A greybox block's rows need no `evidence:` clause (`references/row-checks.md` rule j).
 
 ## 2. Size each row
 
