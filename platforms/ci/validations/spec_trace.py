@@ -38,8 +38,8 @@
                                        read-only view (KIT-099): approval keys and protected paths of the profile,
                                        decisions by kind, owners, tech processes with trigger and last run (latest
                                        `- YYYY-MM-DD: run` History line), debts with payment state, and sdd-check C25
-                                       (an open FEAT on an ENB with an open debt it neither cites nor accepts through
-                                       a cited approved decision); exit 0 whatever C25 lists
+                                       (an open FEAT on an ENB with an open debt that no row of its Tasks table cites
+                                       and no approved decision it cites accepts); exit 0 whatever C25 lists
 
 SPEC is optional everywhere and defaults to docs/spec under the working directory, so `impact BASE HEAD`
 and `sync-status` run as a review loop calls them. Options (before the command): `--repo NAME` (repeatable)
@@ -1110,8 +1110,26 @@ def governance_profile(spec):
     resolved, _, errors = module.resolve(root, ["spec_root", "review", "gates"], spec_dir=spec.spec_dir,
                                          schemas_dir=folder)
     if root is not None and (root / resolved["spec_root"]).resolve() != spec.spec_dir:
+        # Not this spec's profile: its errors are not applied. load_params (spec_trace.load) already printed them in
+        # one `profile: note:` line, since profile.py validates the whole file, so they are not printed twice.
         resolved, _, errors = module.resolve(None, ["review", "gates"], spec_dir=spec.spec_dir, schemas_dir=folder)
     return resolved, errors
+
+
+def refused_section(error):
+    """`the profile's <section> section refused (...)` for one resolve error, by the key it names (`review.`, `gates.`;
+    any other is the sdd section's, PARAMS_REFUSED)."""
+    found = re.search(r"\b(review|gates)\.", error)
+    if not found:
+        return f"{PARAMS_REFUSED}: {error}"
+    name = found.group(1)
+    return f"the profile's {name} section refused (profile.py resolve --section {name}): {error}"
+
+
+def task_table(text):
+    """The rows of a FEAT file's `## Tasks` table, the only place a task row pays a debt (C25)."""
+    _, body = split_frontmatter(text)
+    return "\n".join(task_rows(section(body, "Tasks")).values())
 
 
 def decider_names(text):
@@ -1137,10 +1155,10 @@ def cites(text, rid):
 
 
 def debt_payment(debt, data, feats, decisions):
-    """A debt's Payment cell: its status, the FEATs whose file cites it and, for an accepted one, the approved
+    """A debt's Payment cell: its status, the FEATs whose Tasks rows cite it and, for an accepted one, the approved
     decisions that name it."""
     status = data.get("status") or PENDING
-    citing = [fid for fid, text in feats.items() if cites(text, debt)]
+    citing = [fid for fid, text in feats.items() if cites(task_table(text), debt)]
     if status == "accepted":
         accepting = [did for did, d, text, _ in decisions if d.get("status") == "approved" and cites(text, debt)]
         return f"accepted by {', '.join(accepting)}" if accepting else "accepted; no approved decision names it"
@@ -1162,8 +1180,8 @@ def tech_process_row(spec, pid, process):
 
 
 def debt_findings(spec, debts, feats, decisions, fid=None):
-    """C25: an open FEAT (or the one fid names) whose `enablers` names an ENB with an open debt, where no line of the
-    FEAT file cites the debt (a task row pays it) and no approved decision the FEAT cites names it (accepts it)."""
+    """C25: an open FEAT (or the one fid names) whose `enablers` names an ENB with an open debt, where no row of the
+    FEAT's Tasks table cites the debt (pays it) and no approved decision the FEAT file cites names it (accepts it)."""
     approved = {did: text for did, d, text, _ in decisions if d.get("status") == "approved"}
     findings = []
     for feat_id, _, text, _ in feats:
@@ -1172,7 +1190,7 @@ def debt_findings(spec, debts, feats, decisions, fid=None):
             continue
         for eid in listed(data, "enablers"):
             for did, debt, _, _ in debts:
-                if debt.get("status") != "open" or eid not in listed(debt, "enablers") or cites(text, did):
+                if debt.get("status") != "open" or eid not in listed(debt, "enablers") or cites(task_table(text), did):
                     continue
                 if any(cites(text, dec) and cites(body, did) for dec, body in approved.items()):
                     continue
@@ -1252,8 +1270,8 @@ def governance_command(spec, fid):
     if fid and fid not in spec.feats:
         return report([f"{fid} does not exist in features/"], "")
     profile, errors = governance_profile(spec)
-    if spec.param_errors or errors:
-        return report([f"{PARAMS_REFUSED}: {error}" for error in spec.param_errors + errors], "")
+    if spec.param_errors or errors:  # profile.py validates the whole file, so both lists may hold one error
+        return report([refused_section(error) for error in dict.fromkeys(spec.param_errors + errors)], "")
     print("\n".join(render_governance(spec, profile, fid)))
     return 0
 

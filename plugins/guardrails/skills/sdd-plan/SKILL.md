@@ -64,6 +64,6 @@ Fold settled decisions (the `decision_folding.marker` of the project profile, de
 
 ## 6. Check restraint and consistency
 
-Do not add queue/cache/service/layer without demonstrated need. Ensure every criterion has a planned proof in Tests, run `sdd-check FEAT-nnn` (full scope: the functional items again plus the technical ones; C8's task half waits for `sdd-tasks`; with `docs/spec/enablers/`, C18 and C19 from both `spec_trace.py enablers` and `check`) with no critical/high findings, then set `status: planned` and update History.
+Do not add queue/cache/service/layer without demonstrated need. Ensure every criterion has a planned proof in Tests, run `sdd-check FEAT-nnn` (full scope: the functional items again plus the technical ones; C8's task half waits for `sdd-tasks`; with `docs/spec/enablers/`, C18 and C19 from both `spec_trace.py enablers` and `check`, and C25 from `spec_trace.py governance --feat FEAT-nnn`) with no critical/high findings, then set `status: planned` and update History.
 
 Done when: each FEAT is one delivery within `max_feat_tasks`, lists the REQs it delivers on both sides, proves every REQ in Scope by a criterion, holds every `plan_sections` section (content or `— <why>`) naming real files, passes the contract checks, cites each contract by its catalog row and walks each step and REQ to an ENB contract when the project keeps enablers, gives each lasting choice a decision record and the full check is unblocked.

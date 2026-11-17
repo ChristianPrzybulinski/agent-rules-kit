@@ -100,6 +100,13 @@ class GovernanceCase(enb.EnablerCase):
         enb.write(self.root, f"docs/spec/decisions/{did}.md",
                   DECISION.format(did=did, status=status, kind=kind, deciders=deciders, body=body))
 
+    def feat_row(self, task, contract="- none."):
+        """FEAT-001 on ENB-001 whose T1 row's Task cell is `task`, and Plan § Contract `contract`."""
+        self.feat("FEAT-001", "REQ-F-001, REQ-NF-001", "ENB-001", contract)
+        path = self.spec / "features/FEAT-001.md"
+        path.write_text(path.read_text(encoding="utf-8").replace("| T1 | first task |", f"| T1 | {task} |"),
+                        encoding="utf-8")
+
     def view(self, *args):
         code, out, err = governance(self.spec, *args)
         self.assertEqual(code, 0, err)
@@ -133,6 +140,28 @@ class GovernanceViewTest(GovernanceCase):
         self.assertIn("2", self.row(out, "review.rounds"))
         self.assertEqual(self.row(out, "`docs/spec/decisions/**`"),
                          "| `docs/spec/decisions/**` | owner-ok | gates.protected_paths |")
+
+    def test_a_refused_review_or_gates_key_names_its_section(self):
+        enb.write(self.root, ".ai-kit.yaml", "review:\n  rounds: 0\ngates:\n  owner: ''\n")
+        code, out, err = governance(self.spec)
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        lines = err.splitlines()
+        self.assertTrue(any(line.startswith("FAIL: the profile's review section refused (profile.py resolve --section "
+                                            "review): ") and "review.rounds" in line for line in lines), err)
+        self.assertTrue(any(line.startswith("FAIL: the profile's gates section refused (profile.py resolve --section "
+                                            "gates): ") and "gates.owner" in line for line in lines), err)
+        self.assertNotIn("sdd section", err)
+        self.assertEqual(len(lines), len(set(lines)), err)  # each error once
+
+    def test_a_profile_of_another_spec_root_leaves_one_note(self):
+        enb.write(self.root, ".ai-kit.yaml", "spec_root: other/spec\nreview:\n  rounds: 0\n")
+        code, out, err = governance(self.spec)
+        self.assertEqual(code, 0, err)
+        self.assertIn("3", self.row(out, "review.rounds"))  # the defaults, not the other spec's profile
+        notes = [line for line in err.splitlines() if line.startswith("profile: note: ")]
+        self.assertEqual(len(notes), 1, err)
+        self.assertIn("review.rounds 0 is below the minimum 1", notes[0])
 
     def test_decisions_by_kind_count_each_status(self):
         out = self.view()
@@ -172,10 +201,16 @@ class GovernanceViewTest(GovernanceCase):
         self.assertTrue(self.row(out, "[DEBT-003](debts/DEBT-003.md)").endswith("| — | paid |"))
 
     def test_a_feat_that_cites_a_debt_pays_it(self):
-        self.feat("FEAT-001", "REQ-F-001, REQ-NF-001", "ENB-001", "- T1 pays DEBT-001 and DEBT-003.")
+        self.feat_row("pay DEBT-001 and DEBT-003")
         out = self.view()
         self.assertTrue(self.row(out, "[DEBT-001](debts/DEBT-001.md)").endswith("| open; FEAT-001 plans it |"))
         self.assertTrue(self.row(out, "[DEBT-003](debts/DEBT-003.md)").endswith("| paid by FEAT-001 |"))
+
+    def test_a_mention_outside_the_tasks_table_does_not_pay(self):
+        self.feat_row("first task", "- DEBT-001 and DEBT-003 are out of scope.")
+        out = self.view()
+        self.assertTrue(self.row(out, "[DEBT-001](debts/DEBT-001.md)").endswith("| open |"))
+        self.assertTrue(self.row(out, "[DEBT-003](debts/DEBT-003.md)").endswith("| paid |"))
 
     def test_writes_nothing(self):
         before = sorted((p, p.read_bytes()) for p in self.root.rglob("*") if p.is_file())
@@ -202,8 +237,12 @@ class DebtPaymentTest(GovernanceCase):
         self.assertIn("none", out.split("## Debt payment (C25)")[1])
 
     def test_paid_by_a_task_row(self):
-        self.feat("FEAT-001", "REQ-F-001, REQ-NF-001", "ENB-001", "- T1 pays DEBT-001.")
+        self.feat_row("pay DEBT-001")
         self.assertNotIn("C25: FEAT", self.view())
+
+    def test_a_mention_outside_the_tasks_table_does_not_pay(self):
+        self.feat_row("first task", "- DEBT-001 is out of scope.")
+        self.assertIn(self.C25, self.view())
 
     def test_accepted_by_a_cited_approved_decision(self):
         self.decision("DEC-005", "approved", "tech", "tech-lead", "We accept DEBT-001 until the slice.")

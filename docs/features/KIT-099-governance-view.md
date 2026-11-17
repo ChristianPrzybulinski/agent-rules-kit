@@ -30,13 +30,16 @@ scheduled by the owner or the loop, never a CI cron (owner policy: GitHub Action
   and the latest `- YYYY-MM-DD: run` History line as Last run, else `never`), Debts (severity, trigger, enablers and
   the payment state: `open; FEAT-nnn plans it`, `paid by FEAT-nnn`, `accepted by DEC-nnn` or `accepted; no approved
   decision names it`) and Debt payment (C25). C25 lists, for each open FEAT (or `--feat`), every open DEBT on an ENB
-  the FEAT's `enablers` names that the FEAT file does not cite and no approved decision the FEAT cites names; it is
+  the FEAT's `enablers` names that no row of the FEAT's Tasks table cites and no approved decision the FEAT cites names; it is
   off without `enablers/`. The command exits 0 whatever C25 lists (sdd-check judges each trigger) and 1 on an unknown
   `--feat` or a refused profile. Without `profile.py` beside it (a synced copy) it shows the `sdd` keys alone.
 - `plugins/guardrails/templates/spec-index-business.md` and `spec-index-game.md`: a `## Governance` section after
   Architecture, a pointer to the command, worded differently in each so `check_kit.py` § 12 finds no duplicate.
 - `plugins/guardrails/skills/sdd-check/SKILL.md`: row C25 (high), in the full scope with `docs/spec/enablers/`, the
-  `governance=` argument, and routing to `sdd-plan` or `sdd-tasks` (a row that pays the debt, or a DEC that accepts it).
+  `governance=` argument (an output that exited 1 is `debt check not run`), and routing to `sdd-plan` or `sdd-tasks`
+  (a row that pays the debt, or a DEC that accepts it); `sdd-plan` § 6 runs C25 beside C18 and C19.
+- `plugins/guardrails/templates/spec-process.md`: a History comment, one `- YYYY-MM-DD: run: <result>` line per run of
+  a `kind: tech` process, which the view shows as Last run.
 - `plugins/guardrails/skills/security/references/vulnerability-process.md` (new, linked from `SKILL.md`): the example
   `PROC-nnn` (`kind: tech`) in the `spec-process.md` shape: weekly or on an advisory, run by the owner or the loop,
   steps scan `deps` and file a `fix` NEED per CVE at 7 or above, alternatives for a false positive (suppression with a
@@ -45,7 +48,7 @@ scheduled by the owner or the loop, never a CI cron (owner policy: GitHub Action
 ## Proof
 
 `platforms/tools/check.sh`, `check.sh --links`, `python3.12 platforms/tools/run_tests.py --layer unit,contract` and
-`--layer integration --changed-from origin/main`; new `test_spec_trace_governance.py` (18 tests), red before the code
+`--layer integration --changed-from origin/main`; new `test_spec_trace_governance.py` (22 tests), red before the code
 (every test failed on `invalid choice: 'governance'`), green under Python 3.12 and `/usr/bin/python3` 3.9. Backward
 compatibility: on `platforms/ci/fixtures/consumer` and a copy of Stratics' `docs/spec`, `spec_trace.py check`,
 `generate` and `enablers` print the same output under `origin/main` and this branch (3.12 and 3.9), and the rendered
@@ -55,3 +58,5 @@ matrix has the same sha-256. The reference's example, with its placeholders fill
 
 - 2026-11-16: confirmed (owner, #341 from E § 17).
 - 2026-11-17: implemented on `feat/kit-099-governance-view`; PR pending.
+- 2026-11-17: review fixes: a debt is paid only by a Tasks row, a refused `review` or `gates` key names its
+  section, `sdd-plan` runs C25, `spec-process.md` notes the run line.
