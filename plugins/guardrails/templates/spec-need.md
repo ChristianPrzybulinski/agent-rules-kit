@@ -7,6 +7,7 @@ origin: "[owner | user report <ref> | team | audit <ref>]"
 parent: null
 requirements: []
 journeys: []
+processes: []
 decisions: []
 debts: []
 features: []
@@ -18,7 +19,7 @@ updated: "YYYY-MM-DD"
      (sdd-clarify, after a clean functional sdd-check) → delivered (with its last FEAT, by sdd-release or sdd-review; a decision
      NEED with no FEAT, by sdd-clarify when it approves the decision; check_spec.py refuses it before), or closed
      rejected | merged | routed | parked; a parked NEED returns to triaged when taken up.
-     requirements, journeys and decisions are filled by sdd-clarify; features by sdd-plan. Links are written here only:
+     requirements, journeys, processes and decisions are filled by sdd-clarify; features by sdd-plan. Links are written here only:
      REQ, FEAT, decision and debt files never list NEEDs in their link fields; they cite it only as provenance.
      Register (skills/sdd-constitution/references/sdd-process.md, Register): the user's own language, simple, the idea;
      no solution, framework, table, endpoint, class or file path. -->

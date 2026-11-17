@@ -1,11 +1,11 @@
 ---
-description: Quality checklist for sdd-check step 2 (testability, security and integrity, data, compatibility and operation) with the grading rule.
+description: Quality checklist for sdd-check step 2 (testability, security and integrity, data, compatibility and operation, feedback) with the grading rule.
 kind: detail
 ---
 
 # Check list
 
-Grade each item pass / fail / not-applicable with evidence `path:line`; a security or integrity fail is `critical`. The functional scope (`NEED-nnn`) grades Q1 against each REQ's Verification, Q2–Q4 and Q7; the full scope (`FEAT-nnn`) grades every item, Q1 against the FEAT's criteria.
+Grade each item pass / fail / not-applicable with evidence `path:line`; a security or integrity fail is `critical`. The functional scope (`NEED-nnn`) grades Q1 against each REQ's Verification, Q2–Q4, Q7 and Q12; the full scope (`FEAT-nnn`) grades every item, Q1 against the FEAT's criteria.
 
 ## Testability and completeness
 
@@ -26,3 +26,7 @@ Grade each item pass / fail / not-applicable with evidence `path:line`; a securi
 - Q9. Contract changes declare compatibility and protocol-version effect.
 - Q10. Client platform impact is addressed.
 - Q11. Logs/metrics, feature flag/off behavior and documentation changes are listed.
+
+## Feedback
+
+- Q12. Each player or user action in a journey or process step names its feedback (visual, sound or message) and when it appears (at once, when a state ends, on failure): a game's hit flash and sound, a business form's loading, success and error states (`../../sdd-clarify/references/processes.md` § Write).

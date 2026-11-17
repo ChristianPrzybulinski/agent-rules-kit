@@ -60,7 +60,7 @@ above (a `—` waits while an open NEED lists the process in `processes`), and o
 FEATs. A journey main or alternative step whose action cell cites `PROC-nnn` (every step) or `PROC-nnn S<a>–S<b>` (the
 main steps S<a> to S<b> in table order and the alternatives whose `At` is one of them; a hyphen works too) holds `—` in
 Rules, Implemented by and Proven by: it takes the cited steps' rules, tasks and tests, so the matrix, the impact and
-the closure expand it. A prerequisite or a process step never cites a process. With processes, traceability.md adds
+the closure expand it, and the checklist lists each cited step as its own row (KIT-092). A prerequisite or a process step never cites a process. With processes, traceability.md adds
 the Processes, Rules → processes → tests and Tasks → processes views; a spec without processes/ renders it as before.
 
 Enablers (KIT-095) live in <spec>/enablers/ENB-nnn[-slug].md (check_spec.py checks the frontmatter). Each holds the
@@ -1581,14 +1581,36 @@ def render_checklist(spec, jid):
     for s in j["steps"]:
         if s.id.startswith("P"):
             continue
-        rules = "<br>".join(f"{r} — {spec.reqs[r]['title']}" for r in s.rules)
-        lines.append("| " + " | ".join([s.id, cell(s.at), cell(s.action), cell(rules),
-                                        cell("<br>".join(s.tests)), cell(s.manual), ""]) + " |")
+        lines += checklist_rows(spec, s)
     lines += ["", "## Prerequisites", "", "| Step | Needs | Task | Status |", "|---|---|---|---|"]
     for s in (s for s in j["steps"] if s.id.startswith("P")):
         lines.append("| " + " | ".join([s.id, cell(s.action), cell("<br>".join(s.tasks)),
                                         cell("<br>".join(task_status(spec, t) for t in s.tasks))]) + " |")
     return "\n".join(lines) + "\n"
+
+
+def checklist_rows(spec, step):
+    """A step's checklist row; a step that cites a process (KIT-092) is followed by one row per cited step, which
+    carries the rules and proofs, so the smoke walks and records each step of the process."""
+    def row(sid, at, s):
+        rules = "<br>".join(f"{r} — {spec.reqs[r]['title']}" for r in s.rules)
+        return "| " + " | ".join([sid, cell(at), cell(s.action), cell(rules), cell("<br>".join(s.tests)),
+                                  cell(s.manual), ""]) + " |"
+    if not step.cites:
+        return [row(step.id, step.at, step)]
+    rows = ["| " + " | ".join([step.id, cell(step.at), cell(step.action), "—", "—", "—", "—"]) + " |"]
+    for s in step.expands:
+        rows.append(row(f"{step.id} › {s.ref}", f"{step.cites} {s.at}" if s.at else step.at, s))
+    return rows
+
+
+def cited_process_errors(spec, journey):
+    """The errors of the processes a journey's steps cite: their steps are rows of its checklist (KIT-092)."""
+    errors = []
+    for pid in dict.fromkeys(s.cites for s in journey["steps"] if s.cites in spec.processes):
+        rel = spec.processes[pid]["path"].relative_to(spec.root).as_posix()
+        errors += [e for e in spec.errors if e.startswith((f"{pid} ", f"{pid}:", rel))]
+    return errors
 
 
 def checklist(spec, ids, out, force):
@@ -1604,6 +1626,7 @@ def checklist(spec, ids, out, force):
             errors.append(f"{jid}: status is {j['status']!r}, only approved journeys have a checklist")
         rel = j["path"].relative_to(spec.root).as_posix()
         errors += [e for e in spec.errors if e.startswith((f"{jid} ", f"{jid}:", rel))]
+        errors += cited_process_errors(spec, j)
     if not errors and out and Path(out).exists() and not force:
         errors.append(f"{out} exists; pass --force to overwrite it")
     if errors:

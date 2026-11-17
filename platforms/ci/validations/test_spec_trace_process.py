@@ -385,6 +385,51 @@ class ClosureTest(ProcessCase):
         self.assertIn("FEAT-002: ready to validate", out)
 
 
+
+class ChecklistTest(ProcessCase):
+    """KIT-092: the owner checklist walks a citing step's process steps, so sdd-release smokes each one."""
+
+    def checklist(self, cite):
+        write(self.root, "docs/spec/journeys/J-01.md",
+              JOURNEY.format(cite=cite).replace("status: proposed", "status: approved"))
+        self.assertEqual(self.check(), [])
+        code, out, err = quiet(["checklist", str(self.spec), "J-01"])
+        self.assertEqual(code, 0, err)
+        return out
+
+    def test_a_citing_step_lists_each_cited_step_with_its_own_proof(self):
+        out = self.checklist("PROC-001 S2–S3")
+        self.assertIn("| S2 | — | fights one turn: PROC-001 S2–S3 | — | — | — | — |", out)
+        self.assertIn("| S2 › PROC-001 S2 | — | turn resolves → damage shows | REQ-F-002 — Fixture rule REQ-F-002 | "
+                      "FEAT-002 T2 | — |  |", out)
+        self.assertIn("| S2 › PROC-001 S3 | — | turn ends → next turn starts | — | FEAT-001 T1 | watch it |  |", out)
+        self.assertIn('| S2 › PROC-001 A1 | PROC-001 S2 | the move misses → "missed" shows | '
+                      "REQ-F-001 — Fixture rule REQ-F-001 | `game-server/src/test/**` | — |  |", out)
+        self.assertNotIn("PROC-001 S1 |", out)
+
+    def test_a_whole_process_lists_every_step_and_a_plain_step_renders_as_before(self):
+        out = self.checklist("PROC-001")
+        self.assertIn("| S1 | — | opens the battle → sees the field | REQ-F-001 — Fixture rule REQ-F-001 | "
+                      "`game-client/tests/a/**` | — |  |", out)
+        self.assertEqual(out.count("| S2 › PROC-001 "), 4)
+
+    def test_an_error_of_the_cited_process_fails_before_writing(self):
+        write(self.root, "docs/spec/journeys/J-01.md",
+              JOURNEY.format(cite="PROC-001").replace("status: proposed", "status: approved"))
+        self.process("| REQ-F-002 | FEAT-002 T1 |", "| REQ-F-009 | FEAT-002 T1 |")
+        quiet(["generate", str(self.spec)])
+        code, out, err = quiet(["checklist", str(self.spec), "J-01"])
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("PROC-001 S2: Rules cites REQ-F-009, which does not exist", err)
+
+    def test_an_unknown_cited_process_fails_before_writing(self):
+        write(self.root, "docs/spec/journeys/J-01.md",
+              JOURNEY.format(cite="PROC-009").replace("status: proposed", "status: approved"))
+        code, out, err = quiet(["checklist", str(self.spec), "J-01"])
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("J-01 S2: cites PROC-009, which does not exist", err)
+
+
 MAIN_MATRIX = """\
 # Traceability matrix
 
