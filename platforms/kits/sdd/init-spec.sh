@@ -18,9 +18,16 @@ for d in needs features requirements/functional requirements/non-functional deci
 done
 
 # The template carries the sdd: process parameters at the kit defaults (KIT-067); /sdd-constitution sets them.
+# It follows the profile's project.kind (KIT-089): spec-index-game.md for game, else spec-index-business.md.
 if [[ ! -f "$REPO/docs/spec/spec.md" ]]; then
-  cp "$KIT_DIR/plugins/guardrails/templates/spec-index.md" "$REPO/docs/spec/spec.md"
-  echo "created docs/spec/spec.md with the sdd: parameters at the kit defaults (edit the frontmatter)"
+  KIND=$(python3 "$KIT_DIR/platforms/tools/profile.py" resolve --section project --json "$REPO" \
+    | sed -n 's/^ *"kind": "\([a-z]*\)".*/\1/p')
+  TEMPLATE="spec-index-business.md"
+  if [[ "$KIND" == game ]]; then
+    TEMPLATE="spec-index-game.md"
+  fi
+  cp "$KIT_DIR/plugins/guardrails/templates/$TEMPLATE" "$REPO/docs/spec/spec.md"
+  echo "created docs/spec/spec.md from $TEMPLATE (project.kind: ${KIND:-business}) with the sdd: parameters at the kit defaults (edit the frontmatter)"
 else
   echo "docs/spec/spec.md already exists; not overwritten"
   grep -q '^sdd:' "$REPO/docs/spec/spec.md" \

@@ -15,7 +15,9 @@ created: "YYYY-MM-DD"
 <!-- Written by sdd-clarify; a measured quality (p95, %, MB, frames, uptime) or a property across many behaviors, never
      one scenario (that is a REQ-F). Scope rules: skills/sdd-clarify/references/req-scope.md.
      status: proposed → approved (product, when its NEED is refined) → retired. Absent means approved.
-     features is filled by sdd-plan; until then the NEED that lists this REQ is its link. -->
+     features is filled by sdd-plan; until then the NEED that lists this REQ is its link.
+     Register (skills/sdd-constitution/references/sdd-process.md, Register): PO, functional: the quality, its metric
+     and target, never how the code reaches it. -->
 
 # REQ-NF-000 — [Title]
 

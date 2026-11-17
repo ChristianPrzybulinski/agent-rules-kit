@@ -15,7 +15,7 @@ allowed-tools:
 
 # SDD 0 — Constitution
 
-Process: `references/sdd-process.md`. Parameters: `references/sdd-parameters.md`. Templates: `../../templates/spec-index.md` and `../../templates/project-agents-*.md`.
+Process: `references/sdd-process.md`. Parameters: `references/sdd-parameters.md`. Templates: `../../templates/spec-index-business.md`, `../../templates/spec-index-game.md` and `../../templates/project-agents-*.md`.
 
 ## 1. Inspect before creating
 
@@ -30,10 +30,12 @@ Read the README, repository structure and stack manifests. If `AGENTS.md`, `REVI
 
 ## 3. Initialize the spec
 
-Create `docs/spec/spec.md` from the template with a three-line vision, explicit out-of-scope and empty NEED/FEAT/REQ/DEC/DEBT indexes. Create `needs/`, `features/`, `requirements/{functional,non-functional}/`, `decisions/` and `debts/`. Decision ids are `DEC-nnn`; when the project numbers decisions per kind, declare the kinds once in `spec.md` (`decision_kinds: {tech: TEC, product: PRD}`) and `check_spec.py` enforces kind and prefix.
+Create `docs/spec/spec.md` from the template `platforms/kits/sdd/init-spec.sh` copies (the script, not this step, picks `spec-index-game.md` or `spec-index-business.md` by the profile's `project.kind`) with a three-line vision, explicit out-of-scope and empty NEED/FEAT/REQ/DEC/DEBT indexes. Create `needs/`, `features/`, `requirements/{functional,non-functional}/`, `decisions/` and `debts/`. Decision ids are `DEC-nnn`; when the project numbers decisions per kind, declare the kinds once in `spec.md` (`decision_kinds: {tech: TEC, product: PRD}`) and `check_spec.py` enforces kind and prefix.
 
 Declare the two regimes in `spec.md` (see `references/sdd-process.md`, Regimes): spec-anchored for contracts, decisions, requirements, journeys and the index; spec-first for NEED files, FEAT bodies and task tables.
 
+- Vision sections: read `sdd.vision_sections` from `python3 ~/.ai-kit/platforms/tools/profile.py resolve --section sdd` (`check_spec.py --params` leaves it out). Keep each optional section it lists (Pillars, Core loop, Direction, References), delete the others, and add any other heading it lists after References with one placeholder line. Fill them with product in the register `references/sdd-process.md` § Register gives, from facts and approved decisions only: three to five Pillars (`P1`…; product principles for a business project), each with what it rules out, so triage can cite one; a Core loop as actions and visible results; a Direction line per aspect with the mock or reference that holds it; References with what each gives and leaves.
+- First-delivery scope is counted: each item carries a number (screens, roles, integrations, regions; for a game, maps, characters, items, quests). Out of scope: one line per refused or deferred area, with why and `never` or the milestone that reopens it, so `sdd-specify` can cite the line.
 - Glossary: one row per domain term the product already uses (README, code folder and module names, legacy docs), one sentence each with its source. Process terms (NEED, REQ, FEAT) stay out: the kit defines them. `sdd-clarify` later adds every domain term a REQ uses.
 - Architecture: the base architecture in one line, with the decision that records it (§ 6), and one row per area with its rooted paths and what it holds. Areas are the parts a change is counted against: `sdd-tasks` sizes a task row by the areas it touches, `sdd-plan` places the design in them. Take them from the repository's top folders and modules, not from a target layout.
 
@@ -57,4 +59,4 @@ For an already-approved product decision, create one decision record (`DEC-nnn`,
 
 Run the project spec validator, `check_spec.py --params`, `platforms/tools/sync-project.sh --check` from the kit and one real build/test command. Mark only observed commands and versions as facts.
 
-Done when: project principles change behavior, `spec.md` validates with its `sdd:` block, the glossary and architecture areas are filled, `REVIEW.md` has no line a gate enforces, required folders exist, and no version, command, path or target was invented.
+Done when: project principles change behavior, `spec.md` validates with its `sdd:` block, the glossary, architecture areas, counted scope and each vision section `sdd.vision_sections` lists are filled, `REVIEW.md` has no line a gate enforces, required folders exist, and no version, command, path or target was invented.

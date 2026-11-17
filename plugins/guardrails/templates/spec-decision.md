@@ -7,6 +7,8 @@ deciders: "[product | tech]"
 features: []
 supersedes: null
 ---
+<!-- Register (skills/sdd-constitution/references/sdd-process.md, Register): a product or game decision in PO
+     language; a tech decision (ADR) technical. -->
 
 # DEC-000 — [Title]
 
