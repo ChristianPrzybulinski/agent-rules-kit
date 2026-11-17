@@ -14,7 +14,7 @@ allowed-tools:
 
 # Security
 
-Release gates, the secret incident and the review of a sensitive change (§1–§3). The design rules for a new or changed trust boundary (authentication, sessions, per-entity authorization, input and personal data) are skill `sdd-plan`, reference `security-design.md`; read it before such a change. With a scope argument (`deps`, `secrets`, `endpoints` or `all`), run the scan in `references/scan.md`: it reports findings and never updates dependencies or rewrites endpoints.
+Release gates, the secret incident and the review of a sensitive change (§1–§3). The design rules for a new or changed trust boundary (authentication, sessions, per-entity authorization, input and personal data) are skill `sdd-plan`, reference `security-design.md`; read it before such a change. With a scope argument (`deps`, `secrets`, `endpoints` or `all`), run the scan in `references/scan.md`: it reports findings and never updates dependencies or rewrites endpoints. To scan between changes too, a project adopts the tech process `references/vulnerability-process.md`, which the owner or the loop schedules (no CI cron).
 
 ## 1. Apply release gates
 

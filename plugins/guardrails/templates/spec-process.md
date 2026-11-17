@@ -55,6 +55,7 @@ updated: "YYYY-MM-DD"
 
 ## History
 
+<!-- kind: tech: one `- YYYY-MM-DD: run: <result>` line per run; `spec_trace.py governance` shows the latest. -->
 - YYYY-MM-DD: created.
 
 <!-- Notes the checker (spec_trace.py) enforces:

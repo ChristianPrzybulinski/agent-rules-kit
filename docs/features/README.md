@@ -118,5 +118,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-095-enabler-artifact.md`](KIT-095-enabler-artifact.md) | enabler artifact ENB-nnn per bounded context and its catalog tools | done | #337 | #355 |
 | [`KIT-096-versioned-feat.md`](KIT-096-versioned-feat.md) | versioned FEAT as a use case: version blocks, anti-bucket rule, C17 | in-progress | #338 | |
 | [`KIT-098-pattern-reference.md`](KIT-098-pattern-reference.md) | our pattern: SysML links, DDD, Backstage export, SAFe | in-progress | #340 | |
+| [`KIT-099-governance-view.md`](KIT-099-governance-view.md) | governance view, C25 debt payment and the vulnerability tech process | in-progress | #341 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
