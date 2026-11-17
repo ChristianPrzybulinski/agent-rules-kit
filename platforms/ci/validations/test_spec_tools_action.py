@@ -297,7 +297,8 @@ class SpecToolsActionRuns(unittest.TestCase):
         self.assertNotIn(finding, unchanged.stdout)
 
     def test_it_exports_the_resolved_profile_as_json(self):
-        """KIT-087: the profile input names the file; the step exports the resolved view, and a conflict fails it."""
+        """KIT-087: the profile input names the file; the step exports the resolved view, and a refused profile fails
+        it."""
         import json
         name = "Resolve the project profile and export AI_KIT_PROFILE_JSON"
         self.assertEqual(action()["inputs"]["profile"]["default"], ".ai-kit.yaml")
@@ -313,13 +314,18 @@ class SpecToolsActionRuns(unittest.TestCase):
         resolved = json.loads("\n".join(lines[1:-1]))
         self.assertEqual(resolved["ci"]["trigger"], "auto")
         self.assertNotIn("x-team", resolved)
+        # KIT-087 P4: an sdd: block left in spec.md is no home, so no conflict; a refused profile still fails the step
         (self.repo / "ci.yaml").write_text("sdd:\n  tracker: none\n", encoding="utf-8")
         (self.repo / "docs/spec/spec.md").write_text(SPEC_MD.replace("---\n\n", "sdd:\n  tracker: github\n---\n\n"),
                                                      encoding="utf-8")
-        conflict = self.run_step(name, PROFILE="ci.yaml")
-        self.assertEqual(conflict.returncode, 1, conflict.stderr)
-        self.assertIn("profile: sdd.tracker is", conflict.stderr)
-        self.assertEqual(conflict.files["GITHUB_ENV"], "")
+        legacy = self.run_step(name, PROFILE="ci.yaml")
+        self.assertEqual(legacy.returncode, 0, legacy.stderr)
+        self.assertEqual(json.loads("\n".join(legacy.files["GITHUB_ENV"].splitlines()[1:-1]))["sdd"]["tracker"], "none")
+        (self.repo / "ci.yaml").write_text("sdd:\n  tracker: jira\n", encoding="utf-8")
+        refused = self.run_step(name, PROFILE="ci.yaml")
+        self.assertEqual(refused.returncode, 1, refused.stderr)
+        self.assertIn("sdd.tracker 'jira' is not one of", refused.stderr)
+        self.assertEqual(refused.files["GITHUB_ENV"], "")
 
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@
       },
       "properties": {
         "kind": {
-          "description": "A preset of defaults that no skill reads: a key the project does not set (in .ai-kit.yaml or its legacy home) takes the value x-presets gives for this kind, else its schema default. business: every schema default; game: the four game vision sections, the Assets Plan section, greybox and polish passes, playtest acceptance, owner visual approval; tooling: the FEAT-only flow of a tool repository (no NEED, no REQ, no task table, one PR per FEAT, a record for a big change only, Tests and Risks Plan sections, manual release)",
+          "description": "A preset of defaults that no skill reads: a key the project does not set takes the value x-presets gives for this kind, else its schema default. business: every schema default; game: the four game vision sections, the Assets Plan section, greybox and polish passes, playtest acceptance, owner visual approval; tooling: the FEAT-only flow of a tool repository (no NEED, no REQ, no task table, one PR per FEAT, a record for a big change only, Tests and Risks Plan sections, manual release)",
           "enum": [
             "business",
             "game",
@@ -92,14 +92,14 @@
       "x-read-by": "session"
     },
     "spec_root": {
-      "description": "The folder that holds the SDD spec (spec.md, needs/, features/, journeys/ ...), relative to the git top level (KIT-088): folder names of letters, digits, dot, underscore and hyphen joined by single slashes, with no . or .. segment and no backslash (KIT-087 P2a); the resolver reads the legacy sdd: block from <spec_root>/spec.md and fails when the folder resolves outside the root",
+      "description": "The folder that holds the SDD spec (spec.md, needs/, features/, journeys/ ...), relative to the git top level (KIT-088): folder names of letters, digits, dot, underscore and hyphen joined by single slashes, with no . or .. segment and no backslash (KIT-087 P2a); the resolver fails when the folder resolves outside the root",
       "type": "string",
       "pattern": "^(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
       "default": "docs/spec",
       "x-read-by": "sdd"
     },
     "stacks": {
-      "description": "Folder ('.' for the root) -> its stack, or a list of stacks; replaces the profile list of the CLAUDE.md sync marker",
+      "description": "Folder ('.' for the root) -> its stack, or a list of stacks; selects the kit rules (sync-project.sh, the path-rule hook) and the stack recipes",
       "type": "object",
       "propertyNames": {
         "pattern": "^(\\.|(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*)$"
@@ -130,7 +130,7 @@
       "x-read-by": "session"
     },
     "sdd": {
-      "description": "The SDD process parameters (KIT-067): the 23 keys of the legacy sdd: block in <spec_root>/spec.md, plus task_cut and decision_folding (KIT-086) and the profile-only keys vision_sections, passes, acceptance, flow, task_table, record_when and id_prefix (KIT-088); sdd-constitution/references/sdd-parameters.md names each reader",
+      "description": "The SDD process parameters (KIT-067): the keys spec.md's sdd: block held until KIT-087 P4 (less review_rounds and visual_approval, now review.rounds and evidence.visual_approval), plus task_cut and decision_folding (KIT-086) and vision_sections, passes, acceptance, flow, task_table, record_when, id_prefix (KIT-088) and migrations (KIT-095); sdd-constitution/references/sdd-parameters.md names each reader",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -260,13 +260,6 @@
           "default": "merge",
           "x-read-by": "sdd"
         },
-        "review_rounds": {
-          "description": "NOT READY rounds on one criterion before the owner decides; read by review",
-          "type": "integer",
-          "minimum": 1,
-          "default": 3,
-          "x-read-by": "review"
-        },
         "commits_by": {
           "description": "Who commits a task's work: the executor session or the orchestrator; read by sdd-implement",
           "enum": [
@@ -335,16 +328,6 @@
           },
           "default": {},
           "x-read-by": "session"
-        },
-        "visual_approval": {
-          "description": "Who approves a screen or motion change's captures against its REQ's mock before the merge: the owner, the reviewer, or none (no visual approval step); read by review (KIT-069) and by row_checks.py rule j, which is off unless it is owner or reviewer",
-          "enum": [
-            "owner",
-            "reviewer",
-            "none"
-          ],
-          "default": "none",
-          "x-read-by": "review"
         },
         "components": {
           "description": "Component name -> its folder in this repository, '.' for the root: a Files entry or test path may start with either; one task row stays in one component. Read by row_checks.py (rules b, c, e, g, i, j, k) and spec_trace.py (journey test paths)",
@@ -1152,7 +1135,7 @@
       },
       "properties": {
         "visual_approval": {
-          "description": "Who approves the captures: owner, reviewer or none",
+          "description": "Who approves a screen or motion change's captures against its REQ's mock before the merge: the owner, the reviewer, or none (no visual approval step); read by review (KIT-069) and by row_checks.py rule j, which is off unless it is owner or reviewer",
           "enum": [
             "owner",
             "reviewer",
@@ -1197,7 +1180,7 @@
       },
       "properties": {
         "rounds": {
-          "description": "NOT READY rounds on one criterion before the owner decides",
+          "description": "NOT READY rounds on one criterion before the owner decides; read by review",
           "type": "integer",
           "minimum": 1,
           "default": 3,

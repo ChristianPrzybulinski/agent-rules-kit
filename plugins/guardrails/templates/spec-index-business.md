@@ -4,36 +4,8 @@ version: "0.1.0"
 protocol_version: 1
 card_project: null
 updated: "YYYY-MM-DD"
-# Process parameters, written by sdd-constitution with the kit defaults below; each key, its default and the step
-# that reads it: skill sdd-constitution, references/sdd-parameters.md. Skill sdd-constitution prints the resolved block.
-sdd:
-  needs: true
-  # journeys: absent = on when docs/spec/journeys/ exists
-  tracker: github
-  plan_sections: [Design, Contract, Data, UI, Flag, Tests, Observability, Risks, Dependencies]
-  pr_unit: task
-  task_minutes: 30
-  row_check: null
-  cut_command: null
-  max_chain: 4
-  max_feat_tasks: 30
-  release: merge
-  review_rounds: 3
-  commits_by: executor
-  protected_paths: {}
-  bundle: {rows: 1, points: 3, high_rows: 1}
-  rule_paths: {}
-  components: {}
-  spec_index: false
-  github: {repo: null, pr_repos: [], aliases: [], blocked_labels: [blocked], progress_labels: ["status:in-progress"]}
-  row_checks: {gates: null, tests: [], assets: null, protocol: null, artifacts: null, visual: null, evidence_only: false}
-  visual_approval: none
-  owner_approvals: [decision]
-  doc_structure:
-    enabled: false
-    exempt: .github/doc-structure-exempt.txt
-    headings: ["## What goes here", "## What does not go here"]
-    done_index: true
+# No sdd: block (KIT-087 P4): the process parameters are the sdd section of the project's .ai-kit.yaml, which
+# skill sdd-constitution writes; each key, its default and the step that reads it: references/sdd-parameters.md.
 ---
 
 # [Project name] — Specification

@@ -1,4 +1,5 @@
-"""check_docs_structure.py (KIT-074): README rules, done/INDEX.md rules, exemptions, parameters from the sdd block."""
+"""check_docs_structure.py (KIT-074): README rules, done/INDEX.md rules, exemptions, parameters from the profile's
+sdd section (`.ai-kit.yaml`, KIT-087 P4)."""
 import json
 import os
 import subprocess
@@ -40,7 +41,8 @@ class Repo:
                               capture_output=True, text=True, check=False, env=dict(os.environ, CI=""))
 
     def spec(self, block):
-        self.write("docs/spec/spec.md", f"---\nid: SPEC\ntitle: x\nsdd:\n{block}---\n\n# Spec\n")
+        self.write("docs/spec/spec.md", "---\nid: SPEC\ntitle: x\n---\n\n# Spec\n")
+        self.write(".ai-kit.yaml", f"sdd:\n{block}")
 
 
 class ReadmeRules(unittest.TestCase):
@@ -183,7 +185,7 @@ class Cli(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("doc-structure: off", result.stdout)
 
-    def test_off_by_default_in_the_sdd_block(self):
+    def test_off_by_default_in_the_sdd_section(self):
         r = Repo(self)
         r.spec("  tracker: none\n")
         r.write("tools/a.py")
@@ -205,7 +207,7 @@ class Cli(unittest.TestCase):
         self.assertIn("FAIL: tools/done/ has no INDEX.md", result.stdout)
         self.assertIn("doc-structure: 4 authored folders, 2 failure(s)", result.stdout)
 
-    def test_parameters_come_from_the_sdd_block(self):
+    def test_parameters_come_from_the_sdd_section(self):
         r = Repo(self)
         r.spec("  doc_structure:\n    enabled: true\n    exempt: docs/exempt.txt\n"
                "    headings: ['## Purpose']\n    done_index: false\n")

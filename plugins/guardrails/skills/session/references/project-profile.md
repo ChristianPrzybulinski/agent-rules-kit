@@ -26,8 +26,8 @@ python3 "$KIT/platforms/tools/profile.py" resolve --json [--section <name>] .
 ```
 
 - Read only the sections the skill's first step names, each at its resolved value: the project's own, else the `project.kind` preset, else the schema default (`$KIT/platforms/ci/schemas/profile.schema.json`, whose `x-read-by` names each key's phase).
-- `profile: <key> from legacy <path>` lines on stderr are notes: until KIT-087 P4 a key absent from `.ai-kit.yaml` still comes from its legacy home (the `sdd:` block, the `CLAUDE.md` marker, the gates JSON). A missing file is one warning, and every key keeps its legacy value or default.
-- Exit 1 (an unknown key, a value outside the schema, a key set differently in two homes) → report its lines and stop; never guess a value. Fixing the profile is skill `sdd-constitution` § 4.
+- `.ai-kit.yaml` is the only home (KIT-087 P4): the `sdd:` block of `spec.md`, the profile list of an older `CLAUDE.md` marker and the gates JSON are not read for any key. A missing file is one warning on stderr, and every key takes its preset or default.
+- Exit 1 (an unknown key, a value outside the schema) → report its lines and stop; never guess a value. Fixing the profile is skill `sdd-constitution` § 4.
 - `spec_root` (default `docs/spec`) is the spec folder: every step that names `docs/spec` means it.
 
 ## 3. The kit tools a skill runs

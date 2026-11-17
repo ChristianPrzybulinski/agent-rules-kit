@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Task-row checks before the cut (KIT-073): rules a-k of sdd-tasks/references/row-checks.md, driven by the
-project's `sdd:` block in docs/spec/spec.md.
+project profile's `sdd` and `evidence` sections (`.ai-kit.yaml`, KIT-087).
 
     row_checks.py check [--spec DIR] FEAT-NNN ... | --all | --changed BASE HEAD [--all-rows] [--strict]
 
 `--spec` defaults to docs/spec under the working directory; a FEAT-NNN id names <spec>/features/FEAT-NNN.md, a path
 names that file. Only rows that are not settled (todo, or a Status the kit does not know) are checked unless
 --all-rows; --strict turns the c and f warnings into FAIL. Exit 1 iff a FAIL was printed, 2 on a usage error or an
-`sdd` block that check_spec.py refuses.
+profile that profile.py refuses.
 
 Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty is off):
   a FAIL  the kit columns (KIT-068) and their values; a malformed row skips the other rules
@@ -22,7 +22,7 @@ Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty i
   g FAIL  each path a proof clause names is covered by the Files of the row or of a same-FEAT dependency
   h WARN  a message type the Task sends exists as `row_checks.protocol.schemas`/<type>.json
   i WARN  a row that changes the policy of an artifact in the `row_checks.artifacts` registry cites its decision
-  j WARN  with `visual_approval` owner or reviewer, a `row_checks.visual` path needs an `evidence:` clause; each clause
+  j WARN  with `evidence.visual_approval` owner or reviewer, a `row_checks.visual` path needs an `evidence:` clause; each clause
           parses, and its catalog file exists on origin/main or is covered by Files; a row of a greybox version block
           is exempt while `sdd.passes` lists greybox (KIT-094: the owner's playtest line is its acceptance)
   k WARN  a todo or doing row that owns the protocol folder has, per consumer, an open row that depends on it and
@@ -217,9 +217,10 @@ def load_config(spec_dir) -> Config:
     spec_dir = Path(spec_dir).resolve()
     if not spec_dir.is_dir():
         raise UsageError(f"spec dir does not exist: {spec_dir}")
-    params, errors = check_spec.load_params(spec_dir, schemas_dir())
+    sections, errors = check_spec.load_sections(spec_dir, schemas_dir(), ["sdd", "evidence"])
     if errors:
         raise UsageError("the profile's sdd section refused (profile.py resolve --section sdd): " + "; ".join(errors))
+    params = sections["sdd"]
     root = repo_root(spec_dir)
     rc = params.get("row_checks") or {}
     gates = read_json(root, rc.get("gates"), "gates")
@@ -235,7 +236,7 @@ def load_config(spec_dir) -> Config:
     cfg.protocol = rc.get("protocol") or None
     artifacts = read_json(root, rc.get("artifacts"), "artifacts")
     cfg.artifacts = checked_artifacts(artifacts, rc["artifacts"]) if rc.get("artifacts") else []
-    if params.get("visual_approval") in ("owner", "reviewer"):
+    if sections["evidence"].get("visual_approval") in ("owner", "reviewer"):
         cfg.visual = rc.get("visual") or None
     has_main = subprocess.run(["git", "-C", str(root), "rev-parse", "--verify", "--quiet", "origin/main^{commit}"],
                               capture_output=True).returncode == 0

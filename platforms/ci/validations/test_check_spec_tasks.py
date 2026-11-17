@@ -9,6 +9,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_profile import write_spec  # noqa: E402  (a fixture's sdd: block goes to .ai-kit.yaml, KIT-087 P4)
+
 LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
 COVERS = ("platforms/ci/validations/check_spec.py", "platforms/ci/schemas/**",
           "platforms/kits/github/workflows/spec-lint.yml", "platforms/ci/actions/spec-tools/**")
@@ -78,14 +81,15 @@ def row(tid, depends="—", item="—", task="Build the slice: Plan § Design"):
 class SpecFixture(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.spec = Path(self.tmp.name)
-        (self.spec / "features").mkdir()
+        self.root = Path(self.tmp.name)
+        self.spec = self.root / "docs" / "spec"  # the profile beside it holds the sdd keys (KIT-087 P4)
+        (self.spec / "features").mkdir(parents=True)
 
     def tearDown(self):
         self.tmp.cleanup()
 
     def index(self, extra=""):
-        (self.spec / "spec.md").write_text(SPEC_INDEX.format(extra=extra))
+        write_spec(self.root, SPEC_INDEX.format(extra=extra))
 
     def feat(self, fid, *rows, status="planned"):
         table = HEADER + "".join(rows) if rows else ""
@@ -318,8 +322,7 @@ class BaselineTest(SpecFixture):
 
     def test_against_refuses_a_grown_baseline(self):
         older = self.spec.parent / f"{self.spec.name}-older.json"
-        older.write_text(json.dumps({"rules": {"task-chain": {"FEAT-001": 5, "FEAT-003": 7}}}))
-        self.addCleanup(older.unlink)
+        older.write_text(json.dumps({"rules": {"task-chain": {"FEAT-001": 5, "FEAT-003": 7}}}))  # inside the tmp root
         self.baseline({"task-chain": {"FEAT-001": 5}})
         self.assert_passes()
         for result in self.run_both("--baseline-against", str(older)):

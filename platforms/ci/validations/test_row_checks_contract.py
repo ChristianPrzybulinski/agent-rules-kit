@@ -18,7 +18,7 @@ COVERS = ("platforms/ci/validations/row_checks.py", "platforms/ci/validations/pr
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import row_checks as rc  # noqa: E402
-from test_row_checks import HEADER, SPEC_MD, make_repo, row_line  # noqa: E402
+from test_row_checks import HEADER, PROFILE, make_repo, row_line  # noqa: E402
 
 EVIDENCE_LOGIN = "evidence: screen `login` states `form`, `code`"
 LOGIN_FILES = ["frontend/ui/account/login_screen.gd", "frontend/ui/account/login_screen.tscn",
@@ -34,13 +34,13 @@ def run(*argv):
 
 
 class Base(unittest.TestCase):
-    spec_md = SPEC_MD
+    profile = PROFILE
 
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name).resolve()
-        self.spec = make_repo(self.root, spec_md=self.spec_md, rows=[])
+        self.spec = make_repo(self.root, profile=self.profile, rows=[])
         self.cfg = rc.load_config(self.spec)
 
     def git(self, *args):
@@ -95,7 +95,7 @@ class RuleJ(Base):
         self.assertTrue(all("evidence: bad clause" in f.message for f in got))
 
     def test_without_a_visual_approver_rule_j_is_off(self):
-        cfg = rc.load_config(make_repo(self.root, spec_md=SPEC_MD.replace("visual_approval: owner",
+        cfg = rc.load_config(make_repo(self.root, profile=PROFILE.replace("visual_approval: owner",
                                                                            "visual_approval: none"), rows=[]))
         self.assertEqual(rc.rule_j(self.row(PROOF, LOGIN_FILES), cfg), [])
 
@@ -106,7 +106,7 @@ class RuleE(Base):
 
     def test_a_proof_of_evidence_clauses_only_fails_with_rule_j_on_or_off(self):
         """#270: such a row has no runnable proof, and with visual_approval none rule j never looks at it."""
-        off = rc.load_config(make_repo(self.root, spec_md=SPEC_MD.replace("visual_approval: owner",
+        off = rc.load_config(make_repo(self.root, profile=PROFILE.replace("visual_approval: owner",
                                                                            "visual_approval: none"), rows=[]))
         for cfg in (self.cfg, off):
             got = rc.rule_e(self.row(f"{EVIDENCE_LOGIN}; evidence: motion `walk`"), cfg)
@@ -116,7 +116,7 @@ class RuleE(Base):
 
 
 class EvidenceOnlyAllowed(Base):
-    spec_md = SPEC_MD.replace("  row_checks:\n", "  row_checks:\n    evidence_only: true\n")
+    profile = PROFILE.replace("  row_checks:\n", "  row_checks:\n    evidence_only: true\n")
 
     def test_the_parameter_lets_an_evidence_only_proof_pass(self):
         self.assertTrue(self.cfg.evidence_only)
@@ -256,7 +256,7 @@ class RuleK(Base):
 
 
 class Off(Base):
-    spec_md = "---\nproject: \"fixture\"\nversion: \"0.1.0\"\nupdated: \"2026-11-15\"\n---\n"
+    profile = ""  # no row_checks key: the kit rules that need none
 
     def test_without_the_protocol_key_rules_h_and_k_are_off(self):
         rows = rc.parse_rows("FEAT-901", f"## Tasks\n\n{HEADER}\n" + row_line(

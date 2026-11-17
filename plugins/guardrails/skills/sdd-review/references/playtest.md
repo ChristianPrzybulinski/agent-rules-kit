@@ -5,7 +5,7 @@ kind: detail
 
 # Playtest record
 
-Under `sdd.passes: [greybox, polish]` (KIT-094) a new mechanic is one FEAT with two version blocks, `### <version> greybox` then `### <version> polish` (skill `sdd-plan` § 3). The greybox block is accepted by a playtest, not by captures: placeholder art has no mock, so `visual_approval` and row rule j do not apply to its rows (skill `review` § 2, `../../sdd-tasks/references/row-checks.md`). With `passes: []`, the default, nothing here applies.
+Under `sdd.passes: [greybox, polish]` (KIT-094) a new mechanic is one FEAT with two version blocks, `### <version> greybox` then `### <version> polish` (skill `sdd-plan` § 3). The greybox block is accepted by a playtest, not by captures: placeholder art has no mock, so `evidence.visual_approval` and row rule j do not apply to its rows (skill `review` § 2, `../../sdd-tasks/references/row-checks.md`). With `passes: []`, the default, nothing here applies.
 
 ## When and who
 

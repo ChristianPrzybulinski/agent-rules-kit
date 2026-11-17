@@ -11,6 +11,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_profile import write_spec  # noqa: E402  (a fixture's sdd: block goes to .ai-kit.yaml, KIT-087 P4)
+
 LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
 COVERS = ("platforms/ci/validations/check_spec.py", "platforms/ci/schemas/**")
 
@@ -113,7 +116,8 @@ def rows(n, start=3, deps=None):
 class VersionCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.spec = Path(self.tmp.name)
+        self.root = Path(self.tmp.name)
+        self.spec = self.root / "docs" / "spec"  # the profile beside it holds the sdd keys (KIT-087 P4)
         for sub in ("features", "requirements/functional", "processes", "needs"):
             (self.spec / sub).mkdir(parents=True)
         for rid in ("REQ-F-001", "REQ-F-002"):
@@ -130,8 +134,7 @@ class VersionCase(unittest.TestCase):
         (self.spec / "features" / "FEAT-001.md").write_text(text if old is None else text.replace(old, new))
 
     def index(self, sdd):
-        (self.spec / "spec.md").write_text(f'---\nproject: "fixture"\nversion: "0.1.0"\nupdated: "2026-11-17"\n'
-                                           f"{sdd}---\n\n# Fixture\n")
+        write_spec(self.root, f'---\nproject: "fixture"\nversion: "0.1.0"\nupdated: "2026-11-17"\n{sdd}---\n\n# Fixture\n')
 
     def run_both(self, *flags):
         """The full check, then the structural one: python -S hides pyyaml and jsonschema."""

@@ -17,6 +17,7 @@ COVERS = ("platforms/ci/validations/spec_trace.py",)
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import spec_trace as trace  # noqa: E402
+from test_profile import write_spec  # noqa: E402  (a fixture's sdd: block goes to .ai-kit.yaml, KIT-087 P4)
 import test_spec_trace as base  # noqa: E402  (the journey fixture of main)
 import test_spec_trace_process as process_tests  # noqa: E402  (main's matrix for that fixture)
 
@@ -194,6 +195,8 @@ kind: product
 
 
 def write(root, rel, text):
+    if str(rel).endswith("spec/spec.md"):  # its sdd: block goes to .ai-kit.yaml (KIT-087 P4)
+        return write_spec(root, textwrap.dedent(text), rel)
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(textwrap.dedent(text), encoding="utf-8")
@@ -425,7 +428,8 @@ class MigrationsFromProfileTest(EnablerCase):
         write(self.root, "server/db/migration/V2__trade.sql", "-- fixture\n")
         code, out, _ = run(["enablers", str(self.spec)])
         self.assertEqual(code, 0, out)  # no profile, no --catalog: migrations are not walked
-        write(self.root, ".ai-kit.yaml", "sdd:\n  migrations: [server/db/migration]\n")
+        write(self.root, ".ai-kit.yaml", "sdd:\n  migrations: [server/db/migration]\n"
+                                         "  row_checks: {protocol: {schemas: game/protocol/schemas}}\n")
         code, out, _ = run(["enablers", str(self.spec)])
         self.assertEqual(code, 1, out)
         self.assertIn("C19 high: server/db/migration/V2__trade.sql is in no ENB catalog (Schema or file)", out)

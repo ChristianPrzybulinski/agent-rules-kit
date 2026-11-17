@@ -130,7 +130,7 @@ class GovernanceViewTest(GovernanceCase):
     def test_approvals_come_from_the_profile(self):
         out = self.view()
         self.assertIn("decision", self.row(out, "sdd.owner_approvals"))
-        self.assertIn("none", self.row(out, "sdd.visual_approval"))
+        self.assertIn("none", self.row(out, "evidence.visual_approval"))
         self.assertIn("3", self.row(out, "review.rounds"))
         self.assertIn("true", self.row(out, "review.independent_reviewer"))
 

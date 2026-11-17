@@ -1,6 +1,6 @@
-"""platforms/tools/profile.py (KIT-087 P1, KIT-088): the project profile schema, the kind presets, the dual-read
-resolver, its legacy fallbacks and conflicts, the x- namespace, the migration writer, and check_spec.py --params
-delegating to it."""
+"""platforms/tools/profile.py (KIT-087, KIT-088): the project profile schema, the kind presets, the resolver with
+`.ai-kit.yaml` as its only home (P4: no legacy home, alias or migrate), the x- namespace, the YAML writer, and
+check_spec.py --params delegating to it."""
 import ast
 import contextlib
 import importlib.util
@@ -33,6 +33,47 @@ SPEC_MD = '---\nproject: "x"\nversion: "0.1.0"\nupdated: "2026-11-16"\n{extra}--
 _spec = importlib.util.spec_from_file_location("kit_profile_under_test", TOOL)
 profile = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(profile)
+
+
+def split_sdd(spec_md):
+    """A test fixture's spec.md text written with an `sdd:` frontmatter block, as (spec.md text without it, the
+    `.ai-kit.yaml` text that holds it): KIT-087 P4 reads the process parameters from the profile only. The block's
+    `review_rounds` and `visual_approval` lines become `review.rounds` and `evidence.visual_approval`. Other test
+    modules import it to keep their fixtures in one text."""
+    lines = spec_md.splitlines(keepends=True)
+    if not lines or lines[0].strip() != "---":
+        return spec_md, ""
+    end = next((n for n in range(1, len(lines)) if lines[n].strip() == "---"), None)
+    start = next((n for n in range(1, end or 0) if lines[n].startswith("sdd:")), None)
+    if end is None or start is None:
+        return spec_md, ""
+    if lines[start].rstrip("\r\n") != "sdd:":  # a flow value on the key's line: `sdd: {tracker: none}`
+        return "".join(lines[:start] + lines[start + 1:]), lines[start]
+    stop = start + 1
+    while stop < end and (lines[stop].startswith((" ", "\t")) or not lines[stop].strip()):
+        stop += 1
+    sdd, extra = [], []
+    for line in lines[start + 1:stop]:
+        stripped = line.strip()
+        if line.startswith("  review_rounds:") and not line.startswith("   "):
+            extra.append("review:\n  rounds:" + stripped[len("review_rounds:"):] + "\n")
+        elif line.startswith("  visual_approval:") and not line.startswith("   "):
+            extra.append("evidence:\n  visual_approval:" + stripped[len("visual_approval:"):] + "\n")
+        else:
+            sdd.append(line)
+    profile = ("sdd:\n" + "".join(sdd) if any(s.strip() for s in sdd) else "") + "".join(extra)
+    return "".join(lines[:start] + lines[stop:]), profile
+
+
+def write_spec(root, spec_md, rel="docs/spec/spec.md"):
+    """Writes split_sdd's two texts: <root>/<rel> and, when the block was not empty, <root>/.ai-kit.yaml."""
+    spec, given = split_sdd(spec_md)
+    path = Path(root) / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(spec, encoding="utf-8")
+    if given:
+        (Path(root) / ".ai-kit.yaml").write_text(given, encoding="utf-8")
+    return path
 
 
 class Project(unittest.TestCase):
@@ -133,8 +174,8 @@ class Refusals(Project):
 
 
 class KindPresets(Project):
-    """KIT-088: project.kind is a preset of defaults. A key resolves to the project's value (the file or its legacy
-    home), else the kind's preset, else the schema default."""
+    """KIT-088: project.kind is a preset of defaults. A key resolves to the project's value in `.ai-kit.yaml`, else
+    the kind's preset, else the schema default."""
 
     def kind(self, kind, extra=""):
         self.write(".ai-kit.yaml", f"project:\n  kind: {kind}\n{extra}")
@@ -178,13 +219,12 @@ class KindPresets(Project):
         self.assertEqual((resolved["sdd"]["flow"], resolved["sdd"]["task_table"]), ("full", True))
         self.assertEqual(resolved["sdd"]["record_when"], "big-change")
 
-    def test_a_legacy_key_overrides_the_preset(self):
+    def test_an_sdd_block_in_spec_md_does_not_override_the_preset(self):
         self.spec("sdd:\n  needs: true\n")
         self.write(".ai-kit.yaml", "project: {kind: tooling}\n")
         resolved, notes, errors = self.resolve(["sdd"])
-        self.assertEqual(errors, [])
-        self.assertTrue(resolved["sdd"]["needs"], "the legacy sdd: block is the project's own value")
-        self.assertIn("profile: sdd.needs from legacy docs/spec/spec.md", notes)
+        self.assertEqual((errors, notes), ([], []))
+        self.assertFalse(resolved["sdd"]["needs"], "KIT-087 P4: the sdd: block of spec.md is not read")
         self.assertEqual(resolved["sdd"]["flow"], "feat-only")
 
     def test_the_preset_applies_to_a_single_section(self):
@@ -220,16 +260,15 @@ class KindPresets(Project):
                      "spec_root '/abs' does not match"):
             self.assertIn(text, errors)
 
-    def test_spec_root_moves_the_legacy_home(self):
+    def test_spec_root_moves_the_journeys_folder(self):
         self.write("specs/spec.md", SPEC_MD.format(extra="sdd:\n  tracker: none\n"))
         (self.root / "specs" / "journeys").mkdir()
         self.write(".ai-kit.yaml", "spec_root: specs\n")
         resolved, notes, errors = self.resolve()
-        self.assertEqual(errors, [])
+        self.assertEqual((errors, notes), ([], []))
         self.assertEqual(resolved["spec_root"], "specs")
-        self.assertEqual(resolved["sdd"]["tracker"], "none")
+        self.assertEqual(resolved["sdd"]["tracker"], "github", "the sdd: block under spec_root is not read either")
         self.assertTrue(resolved["sdd"]["journeys"])
-        self.assertIn("profile: sdd.tracker from legacy specs/spec.md", notes)
 
 
 class P2aFollowUps(Project):
@@ -260,74 +299,35 @@ class P2aFollowUps(Project):
         resolver.new = {"project": {"kind": "library"}}
         self.assertEqual(resolver.preset("sdd"), PRESETS["business"].get("sdd", {}))
 
-    def test_the_stacks_root_legacy_note_names_the_root_key(self):
-        self.write("CLAUDE.md", MARKER.format("docs,godot:client"))
-        notes = self.resolve(["stacks"])[1]
-        self.assertIn("profile: stacks['.'] from legacy CLAUDE.md", notes)
-        self.assertIn("profile: stacks.client from legacy CLAUDE.md", notes)
-        self.assertFalse(any("stacks.." in note for note in notes), notes)
+class OneHomePerSetting(Project):
+    """KIT-087 P4: review.rounds and evidence.visual_approval are the only homes; sdd.review_rounds and
+    sdd.visual_approval, their aliases until P4, are unknown keys now."""
 
-
-class DuplicateKeys(Project):
-    """KIT-087 P2a: review.rounds and evidence.visual_approval are the homes; sdd.review_rounds and
-    sdd.visual_approval stay as legacy aliases during the dual read, always equal to their home."""
-
-    def test_the_home_alone_sets_the_alias(self):
+    def test_the_homes_resolve_and_the_sdd_section_has_no_alias(self):
         self.write(".ai-kit.yaml", "review: {rounds: 2}\nevidence: {visual_approval: owner}\n")
         resolved, notes, errors = self.resolve()
         self.assertEqual((errors, notes), ([], []))
-        self.assertEqual((resolved["review"]["rounds"], resolved["sdd"]["review_rounds"]), (2, 2))
-        self.assertEqual((resolved["evidence"]["visual_approval"], resolved["sdd"]["visual_approval"]),
-                         ("owner", "owner"))
-        self.assertEqual(self.resolve(["sdd"])[0]["sdd"]["review_rounds"], 2, "a single section still mirrors")
+        self.assertEqual((resolved["review"]["rounds"], resolved["evidence"]["visual_approval"]), (2, "owner"))
+        self.assertNotIn("review_rounds", resolved["sdd"])
+        self.assertNotIn("visual_approval", resolved["sdd"])
 
-    def test_the_legacy_alias_alone_sets_the_home_with_a_note(self):
-        self.spec("sdd:\n  review_rounds: 2\n  visual_approval: reviewer\n")
-        resolved, notes, errors = self.resolve()
-        self.assertEqual(errors, [])
-        self.assertEqual((resolved["review"]["rounds"], resolved["sdd"]["review_rounds"]), (2, 2))
-        self.assertEqual((resolved["evidence"]["visual_approval"], resolved["sdd"]["visual_approval"]),
-                         ("reviewer", "reviewer"))
-        self.assertIn("profile: review.rounds from alias sdd.review_rounds", notes)
-        self.assertIn("profile: evidence.visual_approval from alias sdd.visual_approval", notes)
-        self.assertEqual(self.resolve(["review"])[0]["review"]["rounds"], 2, "a single section reads the alias")
+    def test_an_alias_in_the_file_is_an_unknown_key(self):
+        self.write(".ai-kit.yaml", "sdd: {review_rounds: 4, visual_approval: owner}\n")
+        errors = "\n".join(self.resolve(["sdd"])[2])
+        self.assertIn("sdd.review_rounds is not a known key", errors)
+        self.assertIn("sdd.visual_approval is not a known key", errors)
 
-    def test_the_alias_in_the_new_file_counts_too(self):
-        self.write(".ai-kit.yaml", "sdd: {review_rounds: 4}\n")
-        resolved, _, errors = self.resolve(["review"])
-        self.assertEqual((errors, resolved["review"]["rounds"]), ([], 4))
-
-    def test_the_two_set_differently_fail_once(self):
-        self.spec("sdd:\n  review_rounds: 2\n")
-        self.write(".ai-kit.yaml", "review: {rounds: 3}\nevidence: {visual_approval: owner}\n"
-                                   "sdd: {visual_approval: reviewer}\n")
-        for sections in (None, ["sdd"], ["review"], ["evidence"]):
-            with self.subTest(sections=sections):
-                errors = self.resolve(sections)[2]
-                text = "\n".join(errors)
-                if sections in (None, ["sdd"], ["review"]):
-                    self.assertEqual(text.count("review.rounds is 3"), 1, errors)
-                    self.assertIn("sdd.review_rounds is 2", text)
-                if sections in (None, ["sdd"], ["evidence"]):
-                    self.assertEqual(text.count('evidence.visual_approval is "owner"'), 1, errors)
-
-    def test_equal_values_agree(self):
-        self.spec("sdd:\n  review_rounds: 2\n")
-        self.write(".ai-kit.yaml", "review: {rounds: 2}\n")
-        self.assertEqual(self.resolve()[2], [])
-
-    def test_the_kind_preset_reaches_the_alias(self):
+    def test_the_kind_preset_reaches_the_home(self):
         self.write(".ai-kit.yaml", "project: {kind: game}\n")
-        resolved = self.resolve()[0]
-        self.assertEqual(resolved["sdd"]["visual_approval"], "owner")
+        self.assertEqual(self.resolve(["evidence"])[0]["evidence"]["visual_approval"], "owner")
         resolver = profile.Resolver(self.root)
         resolver.resolve()
-        self.assertEqual(resolver.defaults("sdd")["visual_approval"], "owner")
+        self.assertEqual(resolver.defaults("evidence")["visual_approval"], "owner")
 
 
 class LoadParams(Project):
-    """KIT-087 P2b: check_spec.load_params, the `sdd` view row_checks.py and spec_trace.py read, comes from the profile:
-    `.ai-kit.yaml` first, then the legacy `sdd:` block, as profile.py resolves it."""
+    """KIT-087 P2b, P4: check_spec.load_params and load_sections, the views row_checks.py and spec_trace.py read, come
+    from `.ai-kit.yaml` alone, as profile.py resolves it."""
 
     def load(self, spec_dir="docs/spec"):
         return profile.check_spec().load_params(self.root / spec_dir, SCHEMAS)
@@ -339,24 +339,22 @@ class LoadParams(Project):
         self.assertEqual(errors, [])
         self.assertEqual((params["max_chain"], params["migrations"]), (2, ["server/db/migration"]))
 
-    def test_the_home_of_an_alias_and_the_kind_preset_reach_the_tools(self):
+    def test_the_homes_and_the_kind_preset_reach_the_tools(self):
         self.spec()
         self.write(".ai-kit.yaml", "project: {kind: game}\nreview: {rounds: 2}\n")
-        params, errors = self.load()
+        sections, errors = profile.check_spec().load_sections(self.root / "docs" / "spec", SCHEMAS,
+                                                              ["sdd", "review", "evidence"])
         self.assertEqual(errors, [])
-        self.assertEqual((params["review_rounds"], params["visual_approval"]), (2, "owner"))
-        self.assertEqual(params["passes"], ["greybox", "polish"])
+        self.assertEqual((sections["review"]["rounds"], sections["evidence"]["visual_approval"]), (2, "owner"))
+        self.assertEqual(sections["sdd"]["passes"], ["greybox", "polish"])
 
-    def test_the_legacy_block_still_counts_without_a_profile(self):
+    def test_the_legacy_block_is_not_read(self):
         self.spec("sdd:\n  max_chain: 6\n")
         params, errors = self.load()
-        self.assertEqual((errors, params["max_chain"], params["migrations"]), ([], 6, []))
-
-    def test_a_key_set_differently_in_both_homes_is_an_error(self):
-        self.spec("sdd:\n  max_chain: 6\n")
+        self.assertEqual((errors, params["max_chain"], params["migrations"]), ([], 4, []))
         self.write(".ai-kit.yaml", "sdd: {max_chain: 2}\n")
-        errors = "\n".join(self.load()[1])
-        self.assertIn("sdd.max_chain is 2 in .ai-kit.yaml and 6 in legacy docs/spec/spec.md", errors)
+        params, errors = self.load()
+        self.assertEqual((errors, params["max_chain"]), ([], 2), "the file wins with no conflict to report")
 
     def test_an_invalid_profile_is_an_error_not_a_traceback(self):
         self.spec()
@@ -373,7 +371,7 @@ class LoadParams(Project):
         params, errors = self.load("specs")
         self.assertEqual((errors, params["max_chain"]), ([], 2))
         params, errors = self.load()
-        self.assertEqual((errors, params["max_chain"]), ([], 6), "docs/spec is not this profile's spec")
+        self.assertEqual((errors, params["max_chain"]), ([], 4), "docs/spec is not this profile's spec: defaults")
 
     def test_profile_errors_for_another_spec_root_are_noted_once_on_stderr(self):
         """Review of P2b: the profile's errors are not dropped silently when its spec_root names another folder."""
@@ -383,7 +381,7 @@ class LoadParams(Project):
         err = io.StringIO()
         with contextlib.redirect_stderr(err):
             params, errors = self.load()
-        self.assertEqual((errors, params["max_chain"]), ([], 6))
+        self.assertEqual((errors, params["max_chain"]), ([], 4))
         lines = err.getvalue().splitlines()
         self.assertEqual(len(lines), 1, lines)
         self.assertTrue(lines[0].startswith("profile: note: .ai-kit.yaml describes spec_root specs, not docs/spec; "
@@ -404,80 +402,52 @@ class LoadParams(Project):
         self.assertEqual(self.resolve(["sdd"])[2], [])
 
 
-class LegacyHomes(Project):
-    def test_the_sdd_block_is_the_legacy_home_of_sdd(self):
-        self.spec("sdd:\n  tracker: none\n  max_chain: 6\n")
-        resolved, notes, errors = self.resolve(["sdd"])
-        self.assertEqual(errors, [])
-        self.assertEqual((resolved["sdd"]["tracker"], resolved["sdd"]["max_chain"]), ("none", 6))
-        self.assertEqual(notes[1:], ["profile: sdd.tracker from legacy docs/spec/spec.md",
-                                     "profile: sdd.max_chain from legacy docs/spec/spec.md"])
+class LegacyHomesAreNotRead(Project):
+    """KIT-087 P4: the homes kit 16 still read (the sdd: block, the CLAUDE.md marker's profile list, the gates JSON
+    sdd.row_checks.gates named) give no value and no note."""
 
-    def test_the_claude_md_marker_is_the_legacy_home_of_stacks(self):
+    def test_the_sdd_block_is_not_read(self):
+        self.spec("sdd:\n  tracker: none\n  max_chain: 6\n  pr_unit: wave\n")
+        resolved, notes, errors = self.resolve(["sdd"])
+        self.assertEqual(errors, [], "not even an invalid block is read")
+        self.assertEqual((resolved["sdd"]["tracker"], resolved["sdd"]["max_chain"]), ("github", 4))
+        self.assertEqual(len(notes), 1)
+        self.assertIn("no .ai-kit.yaml", notes[0])
+
+    def test_the_claude_md_marker_is_not_read(self):
         self.write("CLAUDE.md", MARKER.format("docs,godot:client,java:server,python") + "@AGENTS.md\n")
+        resolved, _, errors = self.resolve(["stacks"])
+        self.assertEqual((errors, resolved["stacks"]), ([], {}))
+        self.write(".ai-kit.yaml", "stacks: {client: godot}\n")
         resolved, notes, errors = self.resolve(["stacks"])
-        self.assertEqual(errors, [])
-        self.assertEqual(resolved["stacks"], {".": ["docs", "python"], "client": "godot", "server": "java"})
-        self.assertIn("profile: stacks.client from legacy CLAUDE.md", notes)
+        self.assertEqual((errors, notes, resolved["stacks"]), ([], [], {"client": "godot"}))
 
-    def test_a_marker_without_a_profile_list_is_no_home(self):
-        self.write("CLAUDE.md", "<!-- generated by agent-rules-kit sync-project.sh v11.0.0; AGENTS.md is the source -->\n")
-        self.assertEqual(self.resolve(["stacks"])[0]["stacks"], {})
-
-    def test_the_gates_json_is_the_legacy_home_of_gates(self):
-        self.spec("sdd:\n  row_checks: {gates: loop/config.json}\n")
-        self.write("loop/config.json", json.dumps({
-            "owner": "org", "backlog_repo": "docs", "proof_allowlist": ["python3"],
-            "repos": {"docs": {"path": ".", "role": "home", "require_fragment": True}},
-            "protected_paths": {"contract": ["protocol/**"]}, "max_flagged_rounds": 2, "full_risk_paths": ["x"]}))
+    def test_the_gates_json_is_not_read(self):
+        self.write("loop/config.json", json.dumps({"owner": "org", "backlog_repo": "docs", "proof_allowlist": ["x"]}))
+        self.write(".ai-kit.yaml", "sdd:\n  row_checks: {gates: loop/config.json}\ngates: {owner: other}\n")
         resolved, notes, errors = self.resolve(["gates"])
-        self.assertEqual(errors, [])
-        gates = resolved["gates"]
-        self.assertEqual((gates["owner"], gates["issue_repo"]), ("org", "docs"))
-        self.assertEqual(gates["repos"], {"docs": {"require_fragment": True}})  # only the kit-read key
-        self.assertEqual(gates["protected_paths"], {"contract": ["protocol/**"]})
-        self.assertNotIn("full_risk_paths", gates)
-        self.assertIn("profile: gates.issue_repo from legacy loop/config.json", notes)
-
-    def test_a_missing_gates_json_warns_and_keeps_the_defaults(self):
-        self.spec("sdd:\n  row_checks: {gates: loop/config.json}\n")
-        resolved, notes, errors = self.resolve(["gates"])
-        self.assertEqual(errors, [])
+        self.assertEqual((errors, notes), ([], []), "a different value in the JSON is no conflict any more")
+        self.assertEqual((resolved["gates"]["owner"], resolved["gates"]["issue_repo"]), ("other", None))
         self.assertEqual(resolved["gates"]["proof_allowlist"], [])
-        self.assertTrue(any("names loop/config.json, which does not exist" in n for n in notes))
-
-    def test_an_invalid_legacy_block_fails_as_before(self):
-        self.spec("sdd:\n  pr_unit: wave\n")
-        errors = self.resolve(["sdd"])[2]
-        self.assertTrue(any("sdd.pr_unit 'wave' is not one of ['task', 'feat']" in e for e in errors), errors)
 
 
-class Conflicts(Project):
-    def test_a_key_set_differently_in_both_homes_fails(self):
-        self.spec("sdd:\n  tracker: github\n  max_chain: 4\n")
-        self.write(".ai-kit.yaml", "sdd:\n  tracker: none\n  max_chain: 4\n")
-        resolved, notes, errors = self.resolve(["sdd"])
-        self.assertEqual(len(errors), 1, errors)
-        self.assertIn('profile: sdd.tracker is "none" in .ai-kit.yaml and "github" in legacy docs/spec/spec.md', errors[0])
-        self.assertEqual(notes, [], "a key set in the new file is not read from the legacy home")
+class SplitSdd(unittest.TestCase):
+    """The fixture helper other test modules use."""
 
-    def test_equal_values_after_defaults_do_not_conflict(self):
-        self.spec("sdd:\n  bundle: {rows: 3, points: 3}\n")
-        self.write(".ai-kit.yaml", "sdd:\n  bundle: {rows: 3}\n")
-        self.assertEqual(self.resolve(["sdd"])[2], [])
-
-    def test_stacks_and_gates_conflicts_fail(self):
-        self.write("CLAUDE.md", MARKER.format("docs,python"))
-        self.spec("sdd:\n  row_checks: {gates: gates.json}\n")
-        self.write("gates.json", json.dumps({"owner": "org"}))
-        self.write(".ai-kit.yaml", "stacks: {'.': [python, docs]}\ngates: {owner: other}\n")
-        errors = self.resolve(["stacks", "gates"])[2]
-        self.assertEqual(len(errors), 1, errors)  # the same stacks in another order agree
-        self.assertIn('gates.owner is "other" in .ai-kit.yaml and "org" in legacy gates.json', errors[0])
+    def test_the_block_moves_to_the_profile_with_its_aliases_at_their_homes(self):
+        spec, given = split_sdd(SPEC_MD.format(extra="sdd:\n  tracker: none\n  review_rounds: 2\n"
+                                                      "  github: {repo: a/b}\n  visual_approval: owner\n"))
+        self.assertEqual(spec, SPEC_MD.format(extra=""))
+        self.assertEqual(given, "sdd:\n  tracker: none\n  github: {repo: a/b}\nreview:\n  rounds: 2\n"
+                                "evidence:\n  visual_approval: owner\n")
+        self.assertEqual(split_sdd(SPEC_MD.format(extra="")), (SPEC_MD.format(extra=""), ""))
+        self.assertEqual(split_sdd("# no frontmatter\n"), ("# no frontmatter\n", ""))
+        self.assertEqual(split_sdd(SPEC_MD.format(extra="sdd: {tracker: none}\n")),
+                         (SPEC_MD.format(extra=""), "sdd: {tracker: none}\n"))
 
 
 class Writer(unittest.TestCase):
-    """migrate writes YAML that check_spec.py reads back as the same values, with or without pyyaml."""
+    """resolve writes YAML that check_spec.py reads back as the same values, with or without pyyaml."""
 
     def test_it_round_trips_through_the_fallback_parser(self):
         cs = profile.check_spec()
@@ -525,17 +495,14 @@ class SchemaContract(unittest.TestCase):
                 with self.subTest(section=section):
                     self.assertEqual(rule.get("patternProperties", {}).keys(), {"^x-"})
 
-    def test_the_sdd_section_holds_the_23_spec_keys_plus_the_two_cut_keys(self):
-        spec = SPEC_SCHEMA["properties"]["sdd"]["properties"]
+    def test_the_sdd_section_is_the_only_home_of_the_process_parameters(self):
+        """KIT-087 P4: spec.schema.json no longer defines sdd, and the profile's sdd drops the two aliases."""
+        self.assertNotIn("sdd", SPEC_SCHEMA["properties"])
+        self.assertIs(SPEC_SCHEMA["additionalProperties"], False, "a leftover sdd: block is refused, not ignored")
         sdd = SCHEMA["properties"]["sdd"]["properties"]
-        self.assertEqual(len(spec), 23)
-        self.assertEqual(set(sdd) - set(spec),
-                         {"task_cut", "decision_folding"} | KIT_088_SDD_KEYS | KIT_087_P2B_SDD_KEYS)
-        for key, rule in spec.items():
-            if key == "journeys":
-                continue  # nullable here: null is "on when docs/spec/journeys exists", the legacy absent key
-            with self.subTest(key=key):
-                self.assertEqual(self.without_read_by(sdd[key]), rule)
+        self.assertEqual(len(sdd), 31)
+        self.assertTrue({"task_cut", "decision_folding"} | KIT_088_SDD_KEYS | KIT_087_P2B_SDD_KEYS <= set(sdd))
+        self.assertFalse({"review_rounds", "visual_approval"} & set(sdd))
 
     def without_read_by(self, rule):
         if isinstance(rule, dict):
@@ -565,12 +532,10 @@ class SchemaContract(unittest.TestCase):
                         del cs.failures[start:]
                         self.assertNotEqual(value, rule["properties"][key].get("default"), "a preset changes a default")
 
-    def test_assets_is_a_plan_section_in_both_schemas_and_off_by_default(self):
-        for schema in (SCHEMA, SPEC_SCHEMA):
-            rule = schema["properties"]["sdd"]["properties"]["plan_sections"]
-            with self.subTest(schema=schema["$id"]):
-                self.assertIn("Assets", rule["items"]["enum"])
-                self.assertNotIn("Assets", rule["default"])
+    def test_assets_is_a_plan_section_and_off_by_default(self):
+        rule = SCHEMA["properties"]["sdd"]["properties"]["plan_sections"]
+        self.assertIn("Assets", rule["items"]["enum"])
+        self.assertNotIn("Assets", rule["default"])
 
     def test_the_schema_is_valid_json_schema(self):
         try:
@@ -708,46 +673,29 @@ class CommandLine(Project):
         result = self.run_tool("resolve", "--section", "ci", "--json", str(self.root))
         self.assertEqual(json.loads(result.stdout), {"spec_tools_checks": ["spec"], "trigger": "dispatch"})
         self.assertEqual(self.run_tool("resolve", "--section", "merge", str(self.root)).returncode, 2)
-        usage = self.run_tool("frobnicate")
-        self.assertEqual(usage.returncode, 2)
-        self.assertIn("usage:", usage.stderr)
+        for args in (("frobnicate",), ("migrate", str(self.root))):  # KIT-087 P4: migrate is gone
+            with self.subTest(args=args):
+                usage = self.run_tool(*args)
+                self.assertEqual(usage.returncode, 2)
+                self.assertIn("usage:", usage.stderr)
+        self.assertFalse((self.root / ".ai-kit.yaml").exists())
 
-    def test_migrate_writes_the_file_once_and_it_resolves_the_same(self):
-        self.write("CLAUDE.md", MARKER.format("docs,godot:client"))
-        self.spec("sdd:\n  tracker: none\n  protected_paths: {'game/protocol/**': contract}\n")
-        before = self.run_tool("resolve", "--json", str(self.root))
-        written = self.run_tool("migrate", str(self.root))
-        self.assertEqual(written.returncode, 0, written.stderr)
-        text = (self.root / ".ai-kit.yaml").read_text(encoding="utf-8")
-        self.assertIn("tracker: 'none'", text)
-        self.assertNotIn("max_chain", text, "a key at its default is left out")
+    def params(self, spec_dir, flags=()):
+        env = {k: v for k, v in os.environ.items() if k != "CI"}
+        return subprocess.run([sys.executable, "-B", *flags, str(CHECK_SPEC), "--params", str(spec_dir), str(SCHEMAS)],
+                              capture_output=True, text=True, check=False, env=env)
+
+    def test_params_prints_the_profiles_sdd_section(self):
+        """check_spec.py --params prints what `profile.py resolve --section sdd` resolves, with and without pyyaml."""
+        self.spec()
+        self.write(".ai-kit.yaml", "project: {kind: game}\nsdd:\n  tracker: none\n")
+        expected = self.run_tool("resolve", "--section", "sdd", "--json", str(self.root))
+        self.assertEqual(expected.returncode, 0, expected.stderr)
         for flags in ((), ("-S",)):
-            after = self.run_tool("resolve", "--json", str(self.root), flags=flags)
-            self.assertEqual(after.returncode, 0, after.stderr)
-            self.assertEqual(json.loads(after.stdout), json.loads(before.stdout))
-            self.assertNotIn("from legacy", after.stderr)
-        again = self.run_tool("migrate", str(self.root))
-        self.assertEqual(again.returncode, 1)
-        self.assertIn("migrate never overwrites it", again.stderr)
-        self.assertEqual((self.root / ".ai-kit.yaml").read_text(encoding="utf-8"), text)
-
-    def test_params_output_is_unchanged_on_the_kits_own_spec_fixtures(self):
-        """check_spec.py --params delegates to the resolver and prints what the legacy sdd_params resolved."""
-        template = KIT / "plugins" / "guardrails" / "templates" / "spec-index-business.md"
-        self.write("docs/spec/spec.md", template.read_text(encoding="utf-8").replace("YYYY-MM-DD", "2026-11-16"))
-        fixtures = [KIT / "platforms" / "ci" / "fixtures" / "consumer" / "docs" / "spec", self.root / "docs" / "spec"]
-        cs = profile.check_spec()
-        for spec_dir in fixtures:
-            with self.subTest(spec=str(spec_dir)):
-                index = spec_dir / "spec.md"
-                data = cs.frontmatter(index) if index.exists() else {}
-                expected = cs.sdd_params(index, data, SPEC_SCHEMA, spec_dir)
-                for flags in ((), ("-S",)):
-                    env = {k: v for k, v in os.environ.items() if k != "CI"}
-                    result = subprocess.run([sys.executable, "-B", *flags, str(CHECK_SPEC), "--params", str(spec_dir),
-                                             str(SCHEMAS)], capture_output=True, text=True, check=False, env=env)
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertEqual(result.stdout, json.dumps(expected, indent=2, sort_keys=True) + "\n")
+            with self.subTest(flags=flags):
+                result = self.params(self.root / "docs" / "spec", flags)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(result.stdout), json.loads(expected.stdout))
 
     def test_file_must_stay_under_the_root(self):
         outside = Path(tempfile.mkdtemp())
@@ -763,36 +711,41 @@ class CommandLine(Project):
         self.assertEqual(inside.returncode, 0, inside.stderr)
         self.assertEqual(json.loads(inside.stdout)["trigger"], "auto")
 
-    def test_params_prints_one_summary_line_for_a_legacy_project(self):
+    def test_params_on_a_legacy_project_prints_the_defaults_and_one_warning(self):
         self.spec("sdd:\n  tracker: none\n  max_chain: 6\n  needs: false\n")
-        result = subprocess.run([sys.executable, "-B", str(CHECK_SPEC), "--params", str(self.root / "docs" / "spec"),
-                                 str(SCHEMAS)], capture_output=True, text=True, check=False,
-                                env={k: v for k, v in os.environ.items() if k != "CI"})
+        result = self.params(self.root / "docs" / "spec")
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["tracker"], "github")
         lines = [line for line in result.stderr.splitlines() if line.startswith("profile:")]
         self.assertEqual(len(lines), 1, result.stderr)
-        self.assertIn("3 sdd keys from legacy docs/spec/spec.md (tracker, max_chain, needs)", lines[0])
         self.assertIn("no .ai-kit.yaml", lines[0])
+        self.assertNotIn("legacy", result.stderr)
 
-    def test_migrate_writes_only_the_home_of_a_duplicate_key(self):
-        self.spec("sdd:\n  review_rounds: 2\n  visual_approval: owner\n")
-        written = self.run_tool("migrate", str(self.root))
-        self.assertEqual(written.returncode, 0, written.stderr)
-        data = profile.check_spec().mini_yaml((self.root / ".ai-kit.yaml").read_text(encoding="utf-8"))
-        self.assertEqual(data, {"review": {"rounds": 2}, "evidence": {"visual_approval": "owner"}})
-        after = self.run_tool("resolve", "--json", str(self.root))
-        self.assertEqual(after.returncode, 0, after.stderr)
-
-    def test_params_reads_the_new_file_first(self):
+    def test_params_reads_the_profile_only_keys_too(self):
         self.spec()
         self.write(".ai-kit.yaml", "sdd:\n  tracker: none\n  task_cut: {bundle_exclude: ['changelog.d/**']}\n")
-        result = subprocess.run([sys.executable, "-B", str(CHECK_SPEC), "--params", str(self.root / "docs" / "spec"),
-                                 str(SCHEMAS)], capture_output=True, text=True, check=False,
-                                env={k: v for k, v in os.environ.items() if k != "CI"})
+        result = self.params(self.root / "docs" / "spec")
         self.assertEqual(result.returncode, 0, result.stderr)
         params = json.loads(result.stdout)
         self.assertEqual(params["tracker"], "none")
-        self.assertNotIn("task_cut", params, "--params keeps the keys spec.schema.json defines")
+        self.assertEqual(params["task_cut"]["bundle_exclude"], ["changelog.d/**"])
+
+    def test_check_spec_fails_on_an_sdd_block_left_in_spec_md(self):
+        self.spec("sdd:\n  tracker: none\n")
+        for flags in ((), ("-S",)):
+            with self.subTest(flags=flags):
+                env = {k: v for k, v in os.environ.items() if k != "CI"}
+                result = subprocess.run([sys.executable, "-B", *flags, str(CHECK_SPEC), str(self.root / "docs" / "spec"),
+                                         str(SCHEMAS)], capture_output=True, text=True, check=False, env=env)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                out = result.stdout + result.stderr
+                self.assertIn("the sdd: block is no longer read (KIT-087 P4)", out)
+                self.assertNotIn("Additional properties", out, "one clear failure, not a schema error beside it")
+        self.spec()
+        result = subprocess.run([sys.executable, "-B", str(CHECK_SPEC), str(self.root / "docs" / "spec"), str(SCHEMAS)],
+                                capture_output=True, text=True, check=False,
+                                env={k: v for k, v in os.environ.items() if k != "CI"})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

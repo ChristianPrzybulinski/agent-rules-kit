@@ -10,6 +10,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_profile import write_spec  # noqa: E402  (a fixture's sdd: block goes to .ai-kit.yaml, KIT-087 P4)
+
 LAYER = "integration"  # KIT-077 layer (platforms/tools/run_tests.py): starts processes (scripts, git, temp repos)
 COVERS = ("platforms/ci/validations/check_spec.py", "platforms/ci/schemas/**")
 
@@ -430,7 +433,8 @@ class NeedTest(unittest.TestCase):
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.spec = Path(self.tmp.name)
+        self.root = Path(self.tmp.name)
+        self.spec = self.root / "docs" / "spec"  # the profile beside it sets sdd.needs (KIT-087 P4)
         for sub in ("needs", "features", "requirements/functional", "decisions", "journeys"):
             (self.spec / sub).mkdir(parents=True)
         (self.spec / "features" / "FEAT-001.md").write_text(FEAT.format(fid="FEAT-001", reqs="REQ-F-001"))
@@ -519,7 +523,7 @@ class NeedTest(unittest.TestCase):
         self.assert_fails("REQ-F-002 has no FEAT implementing it and no NEED listing it")
 
     def needs_mode(self, value):
-        (self.spec / "spec.md").write_text(SPEC_INDEX.format(extra=f"sdd:\n  needs: {value}\n"))
+        write_spec(self.root, SPEC_INDEX.format(extra=f"sdd:\n  needs: {value}\n"))
 
     def test_needs_on_keeps_need_files(self):
         """#237, both modes: `sdd.needs: true` (the default) keeps NEED files and lets one hold a REQ before its FEAT."""
@@ -682,31 +686,35 @@ SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
                 "plan_sections": ["Design", "Contract", "Data", "UI", "Flag", "Tests", "Observability", "Risks",
                                   "Dependencies"],
                 "pr_unit": "task", "task_minutes": 30, "row_check": None, "cut_command": None, "max_chain": 4,
-                "max_feat_tasks": 30, "release": "merge", "review_rounds": 3, "commits_by": "executor", "protected_paths": {},
+                "max_feat_tasks": 30, "release": "merge", "commits_by": "executor", "protected_paths": {},
                 "bundle": {"rows": 1, "points": 3, "high_rows": 1}, "rule_paths": {},
                 "components": {}, "spec_index": False,
                 "github": {"repo": None, "pr_repos": [], "aliases": [], "blocked_labels": ["blocked"],
                            "progress_labels": ["status:in-progress"]},
                 "row_checks": {"gates": None, "tests": [], "assets": None, "protocol": None, "artifacts": None,
                                "visual": None, "evidence_only": False},
-                "visual_approval": "none", "owner_approvals": ["decision"],
+                "owner_approvals": ["decision"],
                 "doc_structure": {"enabled": False, "exempt": ".github/doc-structure-exempt.txt",
                                   "headings": ["## What goes here", "## What does not go here"],
                                   "done_index": True}}
 
 
 class SddParamsTest(unittest.TestCase):
-    """The project's sdd: parameters in spec.md (KIT-067): schema-checked keys, kit defaults, a resolved view."""
+    """The project's sdd parameters (KIT-067), the sdd section of .ai-kit.yaml since KIT-087 P4: schema-checked keys
+    that fail the spec check, kit defaults, a resolved view. Each fixture writes them as an `sdd:` block that
+    write_spec moves into the profile (review_rounds and visual_approval to their homes)."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.spec = Path(self.tmp.name)
+        self.root = Path(self.tmp.name)
+        self.spec = self.root / "docs" / "spec"
+        self.spec.mkdir(parents=True)
 
     def tearDown(self):
         self.tmp.cleanup()
 
     def index(self, extra=""):
-        (self.spec / "spec.md").write_text(SPEC_INDEX.format(extra=extra))
+        write_spec(self.root, SPEC_INDEX.format(extra=extra))
 
     def run_both(self, *args):
         """The full check, then the structural one: python -S hides pyyaml and jsonschema."""
@@ -723,19 +731,22 @@ class SddParamsTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
 
     def assert_fails(self, *messages):
-        for result in self.run_both():
+        """A refused key fails --params in both modes (KIT-087 P4: the profile is its home; the spec run itself keeps
+        the key's default, KIT-100)."""
+        for result in self.run_both("--params"):
             self.assertEqual(result.returncode, 1, result.stderr)
             for message in messages:
                 self.assertIn(message, result.stderr)
 
     def params(self):
-        """check_spec.py --params in both modes; both print the same resolved block."""
+        """check_spec.py --params in both modes; both print the same resolved section, here cut to the keys the sdd:
+        block had (the profile-only keys are test_profile.py's)."""
         runs = self.run_both("--params")
         for result in runs:
             self.assertEqual(result.returncode, 0, result.stderr)
         resolved = [json.loads(result.stdout) for result in runs]
         self.assertEqual(resolved[0], resolved[1])
-        return resolved[0]
+        return {key: value for key, value in resolved[0].items() if key in SDD_DEFAULTS}
 
     def test_spec_without_block_passes(self):
         self.index()
@@ -749,20 +760,17 @@ class SddParamsTest(unittest.TestCase):
         self.index("sdd: {tracker: none, pr_unit: feat, plan_sections: [Tests, Risks]}\n")
         self.assert_passes()
 
-    def test_template_block_passes(self):
-        """The spec.md templates init-spec.sh copies carry the whole block with the kit defaults (KIT-089): the
-        business one exactly, the game one with plan_sections at the game preset, which the explicit block would
-        otherwise hide."""
+    def test_the_templates_carry_no_block_and_pass(self):
+        """KIT-087 P4: no spec.md template init-spec.sh copies carries an sdd: block, which would now fail; each
+        passes and resolves the kit defaults (a game project's preset comes from project.kind in .ai-kit.yaml)."""
         templates = VALIDATIONS.parents[2] / "plugins" / "guardrails" / "templates"
-        kind = json.loads((SCHEMAS / "profile.schema.json").read_text())["properties"]["project"]["properties"]["kind"]
-        game = dict(SDD_DEFAULTS, plan_sections=kind["x-presets"]["game"]["sdd"]["plan_sections"])
-        for name, expected in (("spec-index-business.md", SDD_DEFAULTS), ("spec-index-game.md", game)):
+        for name in ("spec-index-business.md", "spec-index-game.md", "spec-index-tooling.md"):
             with self.subTest(template=name):
-                template = templates / name
-                (self.spec / "spec.md").write_text(template.read_text().replace("YYYY-MM-DD", "2026-11-14"))
-                self.assertIn("\nsdd:\n", template.read_text())
+                text = (templates / name).read_text()
+                (self.spec / "spec.md").write_text(text.replace("YYYY-MM-DD", "2026-11-14"))
+                self.assertNotIn("\nsdd:", text)
                 self.assert_passes()
-                self.assertEqual(self.params(), expected)
+                self.assertEqual(self.params(), SDD_DEFAULTS)
 
     def test_unknown_tracker_fails(self):
         self.index("sdd:\n  tracker: jira\n")
@@ -786,7 +794,7 @@ class SddParamsTest(unittest.TestCase):
 
     def test_integer_below_minimum_fails(self):
         self.index("sdd:\n  max_chain: 0\n  review_rounds: -1\n")
-        self.assert_fails("sdd.max_chain 0 is below the minimum 1", "sdd.review_rounds -1 is below the minimum 1")
+        self.assert_fails("sdd.max_chain 0 is below the minimum 1", "review.rounds -1 is below the minimum 1")
 
     def test_max_feat_tasks_below_minimum_fails(self):
         self.index("sdd:\n  max_feat_tasks: 0\n")
@@ -806,7 +814,7 @@ class SddParamsTest(unittest.TestCase):
 
     def test_unknown_visual_approval_fails(self):
         self.index("sdd:\n  visual_approval: product\n")
-        self.assert_fails("sdd.visual_approval 'product' is not one of ['owner', 'reviewer', 'none']")
+        self.assert_fails("evidence.visual_approval 'product' is not one of ['owner', 'reviewer', 'none']")
 
     def test_owner_approvals_list_change_kinds(self):
         self.index("sdd:\n  owner_approvals: [decision, Protocol Version]\n")

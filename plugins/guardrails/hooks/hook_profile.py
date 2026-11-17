@@ -3,14 +3,13 @@
 resolver, cached per session.
 
 The hooks hard-coded `docs/spec/` and took every `.gd` file as Godot; they now read the project's profile
-(`.ai-kit.yaml`, else its legacy homes) through `platforms/tools/profile.py resolve --json`, the one resolver.
+(`.ai-kit.yaml`) through `platforms/tools/profile.py resolve --json`, the one resolver.
 
 - Resolver: the first `platforms/tools/profile.py` of $AI_KIT_DIR, the kit checkout this plugin runs from, then
   ~/.ai-kit. It runs as its own process with `-S` (no site-packages: the resolver's fallback parser, which resolves
   the same view as pyyaml, at about a third of the start-up) and a timeout.
 - Cache: one file per session, $CLAUDE_PLUGIN_DATA/profile/<session_id>.json, maps the project root to the view and
-  its key: the modification time and size of the root's `.ai-kit.yaml` and `CLAUDE.md` (the legacy home of
-  `stacks`) and of the resolver itself. A changed key resolves again; a failed resolution, a timeout included, is
+  its key: the modification time and size of the root's `.ai-kit.yaml` and of the resolver itself. A changed key resolves again; a failed resolution, a timeout included, is
   cached as no view, so a broken profile costs one run per change, not one per tool call, and a slow first resolve
   leaves the session without a view until one of those files changes. A cached view of another shape resolves again. A session's first file prunes the files older than
   PRUNE_DAYS. Without CLAUDE_PLUGIN_DATA every call resolves.
@@ -29,7 +28,7 @@ from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parent.parent
 RESOLVER = Path("platforms") / "tools" / "profile.py"
-FILES = (".ai-kit.yaml", "CLAUDE.md")
+FILES = (".ai-kit.yaml",)
 STATE = "profile"
 PRUNE_DAYS = 3
 TIMEOUT_S = 3
