@@ -311,6 +311,16 @@ class MalformedRecordTest(GovernanceCase):
         self.assertEqual((code, out), (1, ""))
         self.assertIn("FAIL: ", err)
 
+    def test_a_bad_decision_with_enablers_fails_the_same_way(self):
+        """#356: with enablers/, load_enablers reads the decision first; still one FAIL line and exit 1."""
+        enb.write(self.root, "docs/spec/decisions/DEC-005.md", "---\nid: DEC-005\ntitle: [unclosed\n---\n# DEC-005\n")
+        self.fails("decisions/DEC-005.md: frontmatter is not valid YAML")
+
+    def test_a_decision_that_is_not_utf8(self):
+        shutil.rmtree(self.spec / "enablers")
+        (self.spec / "decisions/DEC-005.md").write_bytes(b"---\nid: DEC-005\n---\n\xff\n")
+        self.fails("decisions/DEC-005.md: not UTF-8")
+
 
 class WithoutGovernanceArtifactsTest(enb.EnablerCase):
     def test_bare_spec_renders_the_view(self):

@@ -98,7 +98,13 @@ and the Contracts view, and is required. `enablers` reports, over the open FEATs
               repository (no leading `/`, no `..`; a bad one fails with exit 1), a trailing `**` covers the files under it, and
               the walk never enters a folder whose name starts with `.`;
   C19 medium  a provided contract no ENB requires whose Consumers cell is empty or `—`.
-It exits 1 on a finding. A spec without enablers/ checks and renders as before.
+It also prints each ENB table error `check` fails as a `FAIL:` line (#356: the two commands agree), and exits 1 on a
+finding or such an error. A spec without enablers/ checks and renders as before. Both tools read enablers/ENB-*.md and
+processes/PROC-*.md only (check_spec.NAMED_FILES), so a folder README.md is no record.
+
+Every command exits 1, with one `FAIL: <file>: <why>` line and no traceback, on a spec file it cannot read: not UTF-8
+or frontmatter that is no YAML (#356); `governance` lists every such record. A frontmatter that is no mapping stays a
+`check` finding on a journey, process or ENB, and a FEAT, REQ, NEED, decision or debt with one is skipped.
 
 Versioned FEATs (KIT-096): a FEAT with `## Versions` is one use case (one actor, one goal) for the project's life,
 with one `### <version>` block per project version (check_spec.py checks the blocks' shape). Its last block is the
@@ -258,6 +264,7 @@ class Spec:
     # `processes` list it
     enablers: dict = field(default_factory=dict)  # ENB id -> load_enabler's record (KIT-095)
     enabler_links: dict = field(default_factory=dict)  # ENB id -> {"feature"|"decision"|"debt": [(id, status)]}
+    enabler_errors: list = field(default_factory=list)  # the `errors` load_enablers added, which `enablers` fails too
     errors: list = field(default_factory=list)
     params: dict = field(default_factory=dict)      # the resolved `sdd` block of spec.md (check_spec.py)
     param_errors: list = field(default_factory=list)
@@ -280,13 +287,38 @@ def natural_key(text):
     return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", text)]
 
 
+class SpecFileError(Exception):
+    """A spec file no command can read (#356): main prints it as one `FAIL:` line and exits 1, never a traceback."""
+
+
 def split_frontmatter(text):
-    """Return (frontmatter dict, body) or (None, text) when the file has no closed frontmatter."""
+    """Return (frontmatter dict, body) or (None, text) when the file has no closed frontmatter; SpecFileError on
+    frontmatter that is no YAML."""
     lines = text.splitlines()
     if not lines or lines[0] != "---" or "---" not in lines[1:]:
         return None, text
     end = lines.index("---", 1)
-    return yaml.safe_load("\n".join(lines[1:end])) or {}, "\n".join(lines[end + 1:])
+    try:
+        data = yaml.safe_load("\n".join(lines[1:end]))
+    except yaml.YAMLError as e:
+        raise SpecFileError(f"frontmatter is not valid YAML ({' '.join(str(e).split())})") from e
+    return data or {}, "\n".join(lines[end + 1:])
+
+
+def read_spec(spec, path):
+    """(frontmatter, body) of a spec file, as split_frontmatter gives them; SpecFileError naming the file when it is
+    not UTF-8, cannot be read or holds frontmatter that is no YAML (#356). A frontmatter that is no mapping comes back
+    as it is: each caller reports or skips it as before."""
+    where = path.relative_to(spec.root) if path.is_relative_to(spec.root) else path
+    try:
+        data, body = split_frontmatter(path.read_text(encoding="utf-8"))
+    except UnicodeDecodeError as e:
+        raise SpecFileError(f"{where}: not UTF-8 ({e.reason} at byte {e.start})") from e
+    except OSError as e:
+        raise SpecFileError(f"{where}: unreadable ({e.strerror or e})") from e
+    except SpecFileError as e:
+        raise SpecFileError(f"{where}: {e}") from e
+    return data, body
 
 
 def task_rows(body):
@@ -379,20 +411,20 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
     spec = Spec(root=root, spec_dir=spec_dir, repos=test_roots(root, extra_repos))
     spec.params, spec.param_errors = load_params(spec_dir)
     for path in sorted((spec_dir / "features").glob(feat_glob(spec))):  # KIT-100: sdd.id_prefix.feature
-        data, body = split_frontmatter(path.read_text(encoding="utf-8"))
-        if data and data.get("id"):
+        data, body = read_spec(spec, path)
+        if isinstance(data, dict) and data.get("id"):
             spec.feats[data["id"]] = {"path": path, "requirements": data.get("requirements") or [],
                                       "tasks": task_rows(body), "status": data.get("status"),
                                       "task_status": task_statuses(body), "task_item": task_items(body),
                                       "title": data.get("title", data["id"])}
             spec.feats[data["id"]].update(feat_versions(data, body))
     for path in sorted((spec_dir / "requirements").rglob("REQ-*.md")):
-        data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
-        if data and data.get("id"):
+        data, _ = read_spec(spec, path)
+        if isinstance(data, dict) and data.get("id"):
             spec.reqs[data["id"]] = {"path": path, "features": data.get("features") or [],
                                      "title": data.get("title", "")}
     load_open_needs(spec, spec_dir / "needs")
-    for path in sorted((spec_dir / "processes").glob("PROC-*.md"), key=lambda p: natural_key(p.name)):
+    for path in sorted(check_spec.named_files(spec_dir, "processes"), key=lambda p: natural_key(p.name)):  # #356
         load_process(spec, path)  # before the journeys, whose steps may cite a process
     for path in sorted((spec_dir / "journeys").glob("J-*.md"), key=lambda p: natural_key(p.name)):
         load_journey(spec, path)
@@ -419,7 +451,7 @@ def delivered_by_its_feats(spec: Spec, need: dict) -> bool:
 def load_open_needs(spec: Spec, needs_dir: Path) -> None:
     """Map each journey and process to the open NEEDs that list it; check_spec.py validates the NEED files."""
     for path in sorted(needs_dir.glob("NEED-*.md")):
-        data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+        data, _ = read_spec(spec, path)
         if not isinstance(data, dict) or not data.get("id") or data.get("status") in NEED_SETTLED:
             continue
         if delivered_by_its_feats(spec, data):
@@ -431,7 +463,7 @@ def load_open_needs(spec: Spec, needs_dir: Path) -> None:
 
 def load_journey(spec, path):
     where = path.relative_to(spec.root)
-    data, body = split_frontmatter(path.read_text(encoding="utf-8"))
+    data, body = read_spec(spec, path)
     if not isinstance(data, dict):
         spec.errors.append(f"{where}: frontmatter missing, not closed by --- or not a mapping")
         return
@@ -460,7 +492,7 @@ def load_journey(spec, path):
 def load_process(spec, path):
     """A PROC-nnn file (KIT-090): frontmatter as check_spec.py reads it, then its step tables."""
     where = path.relative_to(spec.root)
-    data, body = split_frontmatter(path.read_text(encoding="utf-8"))
+    data, body = read_spec(spec, path)
     if not isinstance(data, dict):
         spec.errors.append(f"{where}: frontmatter missing, not closed by --- or not a mapping")
         return
@@ -924,7 +956,7 @@ def contract_rows(spec, eid, data, body, table, field_name):
 
 def load_enabler(spec, path):
     """An ENB-nnn file (KIT-095): its contract tables, events and the REQs its Aggregates and Qualities satisfy."""
-    data, body = split_frontmatter(path.read_text(encoding="utf-8"))
+    data, body = read_spec(spec, path)
     if not isinstance(data, dict):
         spec.errors.append(f"{path.relative_to(spec.root)}: frontmatter missing, not closed by --- or not a mapping")
         return
@@ -954,10 +986,10 @@ def load_enabler(spec, path):
 def load_enablers(spec):
     """enablers/ (KIT-095): every ENB, the provider of each required contract, and the FEATs, decisions and debts
     whose `enablers` names each ENB; nothing without the folder."""
-    folder = spec.spec_dir / "enablers"
-    if not folder.is_dir():
+    if not (spec.spec_dir / "enablers").is_dir():
         return
-    for path in sorted(folder.glob("ENB-*.md"), key=lambda p: natural_key(p.name)):
+    first = len(spec.errors)
+    for path in sorted(check_spec.named_files(spec.spec_dir, "enablers"), key=lambda p: natural_key(p.name)):  # #356
         load_enabler(spec, path)
     providers = {api: eid for eid, enabler in spec.enablers.items() for api in enabler["provides"]}
     for eid, enabler in spec.enablers.items():
@@ -965,10 +997,11 @@ def load_enablers(spec):
             source = row.get("From", "")
             if api in providers and source != providers[api]:
                 spec.errors.append(f"{eid}: Required contract {api} is From {source}, but {providers[api]} provides it")
+    spec.enabler_errors = spec.errors[first:]
     spec.enabler_links = {eid: {"feature": [], "decision": [], "debt": []} for eid in spec.enablers}
     for sub, kind in (("features", "feature"), ("decisions", "decision"), ("debts", "debt")):
         for path in sorted((spec.spec_dir / sub).rglob("*.md"), key=lambda p: natural_key(p.name)):
-            data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+            data, _ = read_spec(spec, path)
             if not isinstance(data, dict) or not data.get("id"):
                 continue
             for eid in listed(data, "enablers"):
@@ -1149,7 +1182,9 @@ def enablers_command(spec, fid, globs):
     findings = enabler_findings(spec, fid, patterns)
     for finding in findings:
         print(finding)
-    if findings:
+    for error in spec.enabler_errors:  # #356: an ENB table error `check` fails fails here too, so both agree
+        print(f"FAIL: {error}", file=sys.stderr)
+    if findings or spec.enabler_errors:
         return 1
     contracts = sum(len(e["provides"]) for e in spec.enablers.values())
     print(f"enablers: OK ({len(spec.enablers)} enablers, {contracts} contracts)")
@@ -1609,13 +1644,12 @@ def governance_records(spec, sub, pattern, errors):
     that does not parse, or a printed value that is not text, goes to errors instead."""
     out = []
     for path in sorted((spec.spec_dir / sub).rglob(pattern), key=lambda p: natural_key(p.name)):
-        text = path.read_text(encoding="utf-8")
         try:
-            data, _ = split_frontmatter(text)
-        except yaml.YAMLError as error:
-            where = path.relative_to(spec.spec_dir).as_posix()
-            errors.append(f"{where}: frontmatter is not valid YAML ({' '.join(str(error).split())})")
+            data, _ = read_spec(spec, path)  # #356: not UTF-8 or not YAML, one error per file
+        except SpecFileError as error:
+            errors.append(str(error))
             continue
+        text = path.read_text(encoding="utf-8")
         if isinstance(data, dict) and data.get("id"):
             errors += text_errors(spec, path, data)
             out.append((str(data["id"]), data, text, path))
@@ -2926,6 +2960,15 @@ SPEC_HELP = "the spec directory (default: docs/spec under the working directory)
 
 
 def main(argv=None):
+    """The command line; a spec file no command can read is one `FAIL:` line and exit 1, like report (#356)."""
+    try:
+        return run_command(argv)
+    except SpecFileError as error:
+        print(f"FAIL: {error}", file=sys.stderr)
+        return 1
+
+
+def run_command(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", action="append", default=[], metavar="NAME",
                         help="extra clone name a `Proven by` test path may be rooted at "
