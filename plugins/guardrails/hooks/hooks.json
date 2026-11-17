@@ -46,16 +46,6 @@
     ],
     "SessionStart": [
       {
-        "matcher": "^compact$",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/path_rules.py\" || exit 0",
-            "timeout": 5
-          }
-        ]
-      },
-      {
         "matcher": "^(startup|compact)$",
         "hooks": [
           {
@@ -71,6 +61,16 @@
           {
             "type": "command",
             "command": "python3 -c 'import json,os,sys\ne=sys.argv[1] if len(sys.argv)>1 else \"SessionStart\"\ntry:\n    d=json.load(sys.stdin)\nexcept Exception:\n    d={}\nd=d if isinstance(d,dict) else {}\nc=d.get(\"cwd\")\nr=os.environ.get(\"CLAUDE_PROJECT_DIR\") or (c if isinstance(c,str) and c else os.getcwd())\ns={}\nfor f in (os.path.join(os.environ.get(\"CLAUDE_CONFIG_DIR\") or os.path.join(os.path.expanduser(\"~\"),\".claude\"),\"settings.json\"),os.path.join(r,\".claude\",\"settings.json\"),os.path.join(r,\".claude\",\"settings.local.json\")):\n    try:\n        with open(f,encoding=\"utf-8\") as h:\n            v=json.load(h)\n        s.update(v if isinstance(v,dict) else {})\n    except Exception:\n        pass\noff=os.environ.get(\"CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS\",\"\").lower() in (\"1\",\"true\") or s.get(\"includeGitInstructions\") is False\na=s.get(\"attribution\",{})\nt=[\"ai-kit session start: before the first change, name the one outcome of this session in one sentence; read the repository AGENTS.md and README; verify the working directory, Git root, branch and head commit (`git rev-parse --show-toplevel`, `git branch --show-current`, `git rev-parse HEAD`); skill `session` holds the start, handoff and closeout steps.\"] if e==\"SessionStart\" else []\nif off and a is not False and s.get(\"includeCoAuthoredBy\") is not False:\n    a=a if isinstance(a,dict) else {}\n    m=a.get(\"commit\") if isinstance(a.get(\"commit\"),str) else \"Co-Authored-By: <your model\\u0027s display name, as in Claude Sonnet 5.5> <noreply@anthropic.com>\"\n    p=a.get(\"pr\") if isinstance(a.get(\"pr\"),str) else \"🤖 Generated with [Claude Code](https://claude.com/claude-code)\"\n    w=[\"end each commit message with `\"+m+\"`\"]*bool(m)+[\"end each PR body with `\"+p+\"`\"]*bool(p)\n    if w:\n        t.append(\"ai-kit attribution: Claude Code\\u0027s commit and PR instructions are off here (`includeGitInstructions: false`), so nothing adds the attribution for you: \"+\" and \".join(w)+\", unless the project rules say otherwise.\")\nif t:\n    print(json.dumps({\"hookSpecificOutput\":{\"hookEventName\":e,\"additionalContext\":\" \".join(t)}}))' SessionStart",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "^compact$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/path_rules.py\" || exit 0",
             "timeout": 5
           }
         ]
