@@ -21,7 +21,9 @@ updated: "YYYY-MM-DD"
      status --write records that move in History whichever row moved it;
      validated is written by sdd-review and delivered by sdd-release (or sdd-review under release: merge), through
      spec_trace.py with their History line; clarified remains only on FEATs written before the NEED flow. Never
-     edit status by hand. -->
+     edit status by hand.
+     Register (skills/sdd-constitution/references/sdd-process.md, Register): technical documentation: Plan, contracts,
+     data, assets and tasks, with links to the functional layer; it cites a REQ and never restates its rule. -->
 
 # FEAT-000 — [Title]
 

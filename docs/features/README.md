@@ -109,6 +109,7 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-086-journeys-folding-cut.md`](KIT-086-journeys-folding-cut.md) | journeys and processes, decision folding, task cut checklist | in-progress | #321 | |
 | [`KIT-087-project-profile.md`](KIT-087-project-profile.md) | one project profile read only by the kit | in-progress | #322 | |
 | [`KIT-088-profile-kinds.md`](KIT-088-profile-kinds.md) | profile kind presets and game and FEAT-only keys | in-progress | #329 | |
+| [`KIT-089-vision-pillars.md`](KIT-089-vision-pillars.md) | spec.md templates per kind, pillars and out-of-scope triage | in-progress | #330 | |
 | [`KIT-093-plan-assets.md`](KIT-093-plan-assets.md) | Assets Plan section and sdd-check C15 | in-progress | #334 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
