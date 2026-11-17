@@ -37,6 +37,8 @@
   spec_trace.py versions SPEC [--feat FEAT-NNN]
                                        each version block's status and rows, the FEATs of each process, and the C17
                                        findings of sdd-check (KIT-096); off, exit 0, without a `## Versions` FEAT
+  spec_trace.py similar SPEC           the duplicate findings (C21, C24; exit 1) and candidates (C20, C22, C23;
+                                       exit 0) of sdd-check (KIT-097)
 
 SPEC is optional everywhere and defaults to docs/spec under the working directory, so `impact BASE HEAD`
 and `sync-status` run as a review loop calls them. Options (before the command): `--repo NAME` (repeatable)
@@ -95,6 +97,15 @@ FEAT's `enablers` omits fails. `versions` reads the FEAT file's git history: a R
 first committed `planned` (or later) version did not hold, and a row its first committed version with rows at `planned`
 or later did not hold, are C17 findings, unless a History line names the row and a defect or a REQ of that Scope. A spec
 without a versioned FEAT checks and renders as before.
+
+Duplicates (KIT-097): `similar` compares words after one normalization (casefold, claim tags and punctuation removed,
+stop words dropped, order ignored) and prints one line per pair, then a summary line. Findings, exit 1: C21 a contract
+id two ENBs provide; C24 a REQ in two open blocks (a versioned FEAT's last block, or a FEAT without `## Versions`, while
+not validated, delivered or cancelled: its Scope REQs, or its `requirements`). Candidates a reader judges, exit 0: C20
+two REQs with the same actor, trigger and result (a statement "The system must <result>, when <trigger>, for
+<actor>."), else the same statement words, else the same title words; C22 two processes with the same Trigger words and
+an Actors line in common; C23 two FEATs with the same `- Use case:` words in Scope, or a process step both declare.
+Retired REQs and processes and cancelled FEATs take no part. It reads only; `check` and the matrix are unchanged.
 
 A test path's first segment names the clone it lives in: the spec's own repository (its directory name)
 or a directory beside it — clones sit side by side on the machine that writes journeys — plus any
@@ -1347,6 +1358,152 @@ def versions_command(spec, fid):
     return 1 if findings else 0
 
 
+# KIT-097: the duplicate checks of sdd-check C20-C24. C21 and C24 are mechanical (a finding, exit 1); C20, C22 and C23
+# are candidates a reader judges (exit 0). Words compare after one deterministic normalization (similar_words).
+SIMILAR_STOP = frozenset(
+    "a an the of to in on at for by with from into onto and or as is are be been being was were it its this that these "
+    "those there their his her he she they them must should shall will would can could may might has have had do does "
+    "when then than which who whom whose what where while if once each every any all some".split())
+SIMILAR_TAG = re.compile(r"\[(?:FACT|HYPOTHESIS|DECISION|PROPOSAL)\]")
+SIMILAR_PUNCT = re.compile(r"[^\w\s]|_")
+STATEMENT_PARTS = re.compile(r"\bmust\b(?P<result>.+?),?\s+when\b(?P<trigger>.+?),\s*for\b(?P<actor>.+?)\.?\s*$",
+                             re.I | re.S)
+USE_CASE = re.compile(r"^-\s*Use case:\s*(.+)$", re.M)
+
+
+def similar_words(text):
+    """The normalized words of a text: casefolded, claim tags and punctuation removed, stop words dropped, order
+    ignored (a frozenset, empty when nothing is left)."""
+    text = SIMILAR_PUNCT.sub(" ", SIMILAR_TAG.sub(" ", text or "").casefold())
+    return frozenset(w for w in text.split() if w not in SIMILAR_STOP)
+
+
+def statement_parts(statement):
+    """(actor, trigger, result) words of a REQ-F statement in the template's form "The system must <result>, when
+    <trigger>, for <actor>."; None when it is not in that form or a part is empty."""
+    m = STATEMENT_PARTS.search(" ".join((statement or "").split()))
+    if not m:
+        return None
+    parts = tuple(similar_words(m.group(k)) for k in ("actor", "trigger", "result"))
+    return parts if all(parts) else None
+
+
+def similar_pairs(keys):
+    """[(id, id)] of the ids whose key is equal, from {id: key}; ids without a key (falsy) take no part."""
+    groups = {}
+    for oid in sorted(keys, key=natural_key):
+        if keys[oid]:
+            groups.setdefault(keys[oid], []).append(oid)
+    return sorted(((a, b) for ids in groups.values() for i, a in enumerate(ids) for b in ids[i + 1:]),
+                  key=lambda p: (natural_key(p[0]), natural_key(p[1])))
+
+
+def c20_candidates(spec):
+    """C20: two REQs (not retired) with the same actor, trigger and result (a statement in the template's form), else
+    the same statement words, else the same title words; one line per pair, the first reason that holds."""
+    keys = {"same actor, trigger and result": {}, "same statement words": {}, "same title words": {}}
+    for rid, req in spec.reqs.items():
+        data, body = split_frontmatter(req["path"].read_text(encoding="utf-8"))
+        if (data or {}).get("status") == "retired":
+            continue
+        statement = "\n".join(line for line in check_spec.blank_comments(section(body, "Statement")).splitlines()
+                              if not line.lstrip().startswith("|"))
+        keys["same actor, trigger and result"][rid] = statement_parts(statement)
+        keys["same statement words"][rid] = similar_words(statement)
+        keys["same title words"][rid] = similar_words(req["title"])
+    found, seen = [], set()
+    for why, by_id in keys.items():
+        for pair in similar_pairs(by_id):
+            if pair not in seen:
+                seen.add(pair)
+                found.append((*pair, why))
+    return [f"C20 candidate: {a} ~ {b}: {why}" for a, b, why in sorted(found, key=lambda f: (natural_key(f[0]),
+                                                                                          natural_key(f[1])))]
+
+
+def c22_candidates(spec):
+    """C22: two processes (not retired) with the same trigger words and an actor in common."""
+    triggers, actors = {}, {}
+    for pid, proc in spec.processes.items():
+        if proc["status"] == "retired":
+            continue
+        body = split_frontmatter(proc["path"].read_text(encoding="utf-8"))[1]
+        triggers[pid] = similar_words(section(body, "Trigger"))
+        actors[pid] = {similar_words(line.lstrip("-* ")) for line in section(body, "Actors").splitlines()} - {
+            frozenset()}
+    found = []
+    for a, b in similar_pairs(triggers):
+        shared = actors[a] & actors[b]
+        if shared:
+            names = sorted(" ".join(sorted(words)) for words in shared)
+            found.append(f"C22 candidate: {a} ~ {b}: same trigger and actor ({', '.join(names)})")
+    return found
+
+
+def c23_candidates(spec):
+    """C23: two FEATs (not cancelled) with the same use case words (one actor, one goal) or a process step both
+    declare in `processes`."""
+    feats = {fid: feat for fid, feat in spec.feats.items() if feat.get("status") != "cancelled"}
+    goals, steps = {}, {}
+    for fid, feat in feats.items():
+        line = USE_CASE.search(section(split_frontmatter(feat["path"].read_text(encoding="utf-8"))[1], "Scope"))
+        goals[fid] = similar_words(line.group(1)) if line else frozenset()
+        steps[fid] = declared_steps(spec, fid, feat)[0]
+    found = [(a, b, "same actor and goal") for a, b in similar_pairs(goals)]
+    ids = sorted(feats, key=natural_key)
+    for i, a in enumerate(ids):
+        for b in ids[i + 1:]:
+            shared = steps[a] & steps[b]
+            if shared:
+                found.append((a, b, "same steps " + ", ".join(sorted(shared, key=natural_key))))
+    return [f"C23 candidate: {a} ~ {b}: {why}" for a, b, why in sorted(found, key=lambda f: (natural_key(f[0]),
+                                                                                          natural_key(f[1])))]
+
+
+def c21_findings(spec):
+    """C21: one contract id that two ENBs provide (check_spec.py's enabler-contract fails it too)."""
+    providers = {}
+    for eid in sorted(spec.enablers, key=natural_key):
+        for api in spec.enablers[eid]["provides"]:
+            providers.setdefault(api, []).append(eid)
+    return [f"C21 high: contract {api} is provided by {' and '.join(eids)}"
+            for api, eids in sorted(providers.items()) if len(eids) > 1]
+
+
+def c24_findings(spec):
+    """C24: one REQ in two open blocks: a versioned FEAT's last block while not validated, delivered or cancelled
+    (its Scope REQs), or a FEAT without `## Versions` in that state (its `requirements`)."""
+    holders = {}
+    for fid in sorted(spec.feats, key=natural_key):
+        feat = spec.feats[fid]
+        block = open_block(feat)
+        if block is not None:
+            label, status, reqs = f"{fid} {block['name']}", block["status"], REQ_ID.findall(block["scope"])
+        else:
+            label, status, reqs = fid, feat.get("status"), [str(r) for r in feat["requirements"]]
+        if status in STATUS_FROZEN:
+            continue
+        for rid in dict.fromkeys(reqs):
+            holders.setdefault(rid, []).append(label)
+    return [f"C24 high: {rid} is in the open blocks {', '.join(labels[:-1])} and {labels[-1]}"
+            for rid, labels in sorted(holders.items(), key=lambda item: natural_key(item[0])) if len(labels) > 1]
+
+
+def similar_command(spec):
+    """`spec_trace.py similar`: the C21 and C24 findings, then the C20, C22 and C23 candidates, then a summary line;
+    exit 1 on a finding, 0 with candidates only."""
+    findings = c21_findings(spec) + c24_findings(spec)
+    candidates = c20_candidates(spec) + c22_candidates(spec) + c23_candidates(spec)
+    for line in findings + candidates:
+        print(line)
+    def counted(n, word):
+        return f"{n} {word}{'' if n == 1 else 's'}"
+    print(f"similar: {counted(len(findings), 'finding')} (C21, C24), {counted(len(candidates), 'candidate')} "
+          f"(C20, C22, C23); {len(spec.reqs)} REQs, {len(spec.processes)} processes, {len(spec.feats)} FEATs, "
+          f"{len(spec.enablers)} ENBs")
+    return 1 if findings else 0
+
+
 def journeys_on(spec) -> bool:
     """`sdd.journeys`; absent = on when the spec has a journeys/ folder."""
     value = spec.params.get("journeys")
@@ -2343,6 +2500,8 @@ def main(argv=None):
     ver = sub.add_parser("versions", help="version blocks and sdd-check C17 (KIT-096)")
     ver.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     ver.add_argument("--feat", metavar="FEAT-NNN", help="one FEAT (default: every FEAT with `## Versions`)")
+    sub.add_parser("similar", help="duplicate findings and candidates of sdd-check C20-C24 (KIT-097)").add_argument(
+        "spec", type=Path, nargs="?", help=SPEC_HELP)
     chk = sub.add_parser("checklist", help="owner checklist of approved journeys, to stdout")
     chk.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     chk.add_argument("journeys", nargs="*", metavar="J-NN")
@@ -2405,6 +2564,8 @@ def main(argv=None):
         return enablers_command(spec, args.feat, args.catalog)
     if args.command == "versions":
         return versions_command(spec, args.feat)
+    if args.command == "similar":
+        return similar_command(spec)
     if args.command == "impact":
         print(render_impact(changes(spec, args.base, args.head)), end="")
         return 0
