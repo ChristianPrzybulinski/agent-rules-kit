@@ -124,6 +124,38 @@ jobs:
           if [ "$EVENT" != workflow_dispatch ]; then changed=(--changed-from HEAD^1); fi
           python3 -B platforms/tools/run_tests.py --layer integration "${changed[@]}" --shard "$SHARD" --durations 10
 
+  spec-tools-container:
+    # #372: the spec-tools action in the container a Godot project's CI runs it in (ci-godot.yml), pinned by digest.
+    # There the setup-python build cannot import ssl (the image's OpenSSL 3.0.13 lacks the OPENSSL_3.3.0 symbols the
+    # build needs), so pip cannot reach PyPI and the action takes the distribution's python3-yaml and python3-jsonschema;
+    # the spec and trace checks then run in full on the kit's own docs/spec. Part of `ci`.
+    name: spec-tools-container
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # #372: 3 × the longest measured green run, rounded up to 5 min (the PR lists the runs)
+    container: barichello/godot-ci:4.7.2@sha256:cdcca31e9194fd59a68a63f4b1b9c3981716819c520cd6f7966c5d72ca7246bd
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      # zizmor's self-repository audit asks for `$/`, which the pinned actionlint 1.7.12 refuses; `./` is the checkout,
+      # this commit, which is what the job tests.
+      - name: the spec-tools action from this commit, spec and trace checks  # zizmor: ignore[self-repository]
+        uses: ./platforms/ci/actions/spec-tools
+        with:
+          checks: spec,trace
+          base: ''
+      - name: the checks ran on an interpreter with yaml and jsonschema; say when the image no longer lacks ssl
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$AI_KIT_PYTHON" -c 'import yaml, jsonschema, ssl; print("AI_KIT_PYTHON:", __import__("sys").executable)'
+          if python3 -c 'import ssl' 2>/dev/null; then
+            echo "::warning::#372 fixture: the setup-python build imports ssl in this image now, so this job no longer exercises the action's apt-get fallback (the unit tests in test_spec_tools_action.py still pin it)"
+          elif [ "$AI_KIT_PYTHON" != /usr/bin/python3 ]; then
+            echo "::error::#372 fixture: python3 cannot import ssl here, yet the action exported AI_KIT_PYTHON=$AI_KIT_PYTHON instead of /usr/bin/python3"
+            exit 1
+          fi
+
   red:
     # The PR's new tests run on the base code (review_checks.py red); the job summary records the verdict for the
     # reviewer. Part of `ci` (KIT-077, #281): OK, EXEMPT, FLAG and a NONE with a ## Red exception pass, a FAIL fails.
@@ -169,7 +201,7 @@ jobs:
 
   ci:
     name: ci  # the required check context (KIT-076): a rename leaves the ruleset waiting for "ci" forever
-    needs: [static, unit, integration, red]
+    needs: [static, unit, integration, spec-tools-container, red]
     if: always()  # a skipped required job reports success, so `ci` runs and fails when a layer did not pass
     runs-on: ubuntu-latest
     timeout-minutes: 5  # KIT-077: 3 × the longest measured green run, rounded up to 5 min (the record lists the runs)

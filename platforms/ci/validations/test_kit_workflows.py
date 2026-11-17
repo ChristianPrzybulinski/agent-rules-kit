@@ -38,12 +38,12 @@ CHECKS = {"ci.yml": ["ci", "workflow-lint"], "gitleaks.yml": ["gitleaks"],
           "codeql.yml": ["codeql (python)", "codeql (actions)"]}
 # Every context a workflow reports (KIT-077): the required ones above and the layers' own jobs, so a new, renamed or
 # removed job is a deliberate change here.
-CONTEXTS = {"ci.yml": ["static", "unit", "integration (1)", "integration (2)", "integration (3)", "red", "ci",
-                       "workflow-lint"],
+CONTEXTS = {"ci.yml": ["static", "unit", "integration (1)", "integration (2)", "integration (3)",
+                       "spec-tools-container", "red", "ci", "workflow-lint"],
             "gitleaks.yml": ["gitleaks"], "codeql.yml": ["codeql (python)", "codeql (actions)"]}
 # The one job that carries an `if`: `ci` gathers the pull request layers and the red check (#281: required on every
 # pull request), so it must run, and fail, when one did not pass (a skipped required job reports success).
-AGGREGATORS = {("ci.yml", "ci"): ["static", "unit", "integration", "red"]}
+AGGREGATORS = {("ci.yml", "ci"): ["static", "unit", "integration", "spec-tools-container", "red"]}
 # Where each test layer runs (platforms/tools/run_tests.py --layer), as (workflow, job).
 LAYER_JOBS = {"unit": [("ci.yml", "unit")], "contract": [("ci.yml", "unit")],
               "integration": [("ci-full.yml", "integration"), ("ci.yml", "integration")],
@@ -60,6 +60,8 @@ WRITE_GRANTS = {("codeql.yml", "analyze", "security-events"), ("release.yml", "r
 # A tool fetched by a run step is pinned by version and sha-256 (#294): never a script piped into a shell.
 PIPED_INSTALL = re.compile(r"\b(?:curl|wget)\b[^\n|]*\|\s*(?:sudo\s+)?(?:ba|z|da)?sh\b")
 PINNED = re.compile(r"^\s*-?\s*uses:\s*[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s*v\d+(\.\d+)*\s*$")
+# #372: a kit workflow may run one of the kit's own composite actions from the checked-out commit; a template may not.
+LOCAL = re.compile(r"^\s*-?\s*uses:\s*\./platforms/ci/actions/[\w-]+\s*$")
 GITLEAKS = shutil.which("gitleaks")
 
 
@@ -173,6 +175,8 @@ class EveryWorkflow(unittest.TestCase):
             with self.subTest(workflow=path.name):
                 self.assertTrue(lines)
                 for line in lines:
+                    if path.parent.name == "workflows" and path.parent.parent.name == ".github" and LOCAL.match(line):
+                        continue  # the kit's own action at the commit under test (#372), nothing to pin
                     self.assertRegex(line, PINNED)
 
     def test_every_job_has_a_timeout_within_the_hosted_limit(self):
