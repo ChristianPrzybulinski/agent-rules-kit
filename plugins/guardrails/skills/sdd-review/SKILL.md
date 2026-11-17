@@ -15,7 +15,7 @@ allowed-tools:
 
 # SDD 8 — Review the FEAT on main
 
-Process: `../sdd-constitution/references/sdd-process.md`. Runs once a FEAT's last task row merged, on a clean checkout of `main`, by a context that delivered none of its rows. It checks the FEAT as one delivery and moves it to `validated` (or `delivered` under `release: merge`). It edits only the FEAT's `## Closure`, Scope, criteria, stale text and proof paths, its status through the tool, and the follow-ups it files; a code fix goes back as a row.
+Process: `../sdd-constitution/references/sdd-process.md`. Runs once a FEAT's last task row merged, on a clean checkout of `main`, by a context that delivered none of its rows. It checks the FEAT as one delivery and moves it to `validated` (or `delivered` under `release: merge`). It edits only the FEAT's `## Closure`, Scope, criteria, stale text and proof paths, its status through the tool, the playtest line under `sdd.passes`, and the follow-ups it files; a code fix goes back as a row.
 
 Scripts do the mechanical part; the model reads only what they flag. Resolve the project profile first (`../session/references/project-profile.md`): `spec_root` (every `docs/spec` here), `sdd`, `review`, `gates` and `evidence`; `TRACE` and `RC` are its § 3 commands. Calibration (`references/closure-record.md` § Calibration): on 5 delivered FEATs every finding was a rotted proof, stale text or an untested clause, and 0 of 3,263 tests failed. With `sdd.flow: feat-only` (KIT-100) this step does not run: the FEAT has no rows, the review of its one PR (skill `review`) is its closure, and `TRACE sync-status` delivers it when that PR merges.
 
@@ -37,6 +37,7 @@ Scripts do the mechanical part; the model reads only what they flag. Resolve the
 - Each REQ example and counterexample against an asserting test (`path:line`): the output is a list of missing-test rows, not a block on `validated`. The reading is fallible (1 of 3 spot checks was wrong in calibration), so grep each "untested" claim before filing its row.
 - Each REQ-NF: metric, target, measurement — the command, environment and measured value. A planned value never stands in for a measured one.
 - A touched journey's or process's `manual:` checks, by the person each names; the automated `Proven by` tests are in the broad suite.
+- Under `sdd.passes`, a greybox block's acceptance is the owner's playtest, not captures: before `validate`, the owner plays the closure commit and the dated playtest line goes into History (`references/playtest.md`); a `retune` or `rule` outcome holds `validated`.
 
 ## 4. Decide the outcome
 
@@ -51,7 +52,7 @@ Scripts do the mechanical part; the model reads only what they flag. Resolve the
 
 ## 5. Record the closure
 
-Write the FEAT's `## Closure` before running `validate` without `--check`: the `main` commit, one row per script and judgment with its command and result, the fixes made, the missing-test rows filed, the outcome and the retro numbers (blocked rows, review rounds, REQs amended after `planned`). Format and counts: `references/closure-record.md`.
+Write the FEAT's `## Closure` (in a FEAT with `## Versions`, the open block's `#### Closure`; `validate` then moves the block's `Status:` line with the frontmatter) before running `validate` without `--check`: the `main` commit, one row per script and judgment with its command and result, the fixes made, the missing-test rows filed, the outcome and the retro numbers (blocked rows, review rounds, REQs amended after `planned`). Format and counts: `references/closure-record.md`.
 
 With `docs/spec/enablers/`, the record adds an Enablers row: `TRACE enablers docs/spec --feat FEAT-nnn` and `TRACE check docs/spec` on that commit. A `high` finding, or any finding on this FEAT's ENBs or contracts, blocks the closure (a gap goes back as a row or to `sdd-plan`); a `medium` finding on another ENB is reported in the row and does not block, as in `sdd-check` § 3, although the tool exits 1 on it. After `validate` moves the status, run `TRACE generate docs/spec` and commit `traceability.md` with the closure: § Enablers is each ENB's generated History, which then lists the FEAT with its new status; never write it into the ENB file.
 

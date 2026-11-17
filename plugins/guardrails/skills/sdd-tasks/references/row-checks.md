@@ -48,7 +48,7 @@ Each row passes every check below before its table goes to the spec PR; a row th
 | g | FAIL | each path a proof clause names is in Files of the row or of a same-FEAT dependency | — |
 | h | WARN | each message type the Task sends has its schema | `row_checks.protocol.schemas` |
 | i | WARN | a row that changes an artifact's policy cites the decision that sets it | `row_checks.artifacts` (JSON list of `{pattern, dec, policy}`) |
-| j | WARN | a row with Files on a visual path has one ``evidence: screen `<id>` [states `<s>`, …]`` or ``evidence: motion `<id>` `` clause per capture; each parses, and its catalog file is on `origin/main` or in Files | `visual_approval` `owner` or `reviewer`, `row_checks.visual` |
+| j | WARN | a row with Files on a visual path has one ``evidence: screen `<id>` [states `<s>`, …]`` or ``evidence: motion `<id>` `` clause per capture; each parses, and its catalog file is on `origin/main` or in Files; a greybox block's row is exempt (KIT-094) | `visual_approval` `owner` or `reviewer`, `row_checks.visual`, `passes` |
 | k | WARN | a contract row has, per consumer, an open row that depends on it and covers that consumer's tables | `row_checks.protocol.consumers` |
 
 ## Example
