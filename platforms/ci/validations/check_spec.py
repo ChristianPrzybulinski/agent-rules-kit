@@ -21,6 +21,10 @@ needs a FEAT, the rule before KIT-066: clarify's REQs land in the change that cr
 Markdown files at the top of needs/, each one a NEED record, not the folder (#288, intended): an empty needs/ folder,
 or one that keeps only NEED-nnn-data/ evidence, passes.
 
+Processes (KIT-090): docs/spec/processes/PROC-nnn-slug.md (top level), checked against process.schema.json: `kind` is
+`product` or `tech`. A NEED's `processes` lists existing processes, as its `journeys` lists journeys. Their step tables
+are spec_trace.py's. A spec without processes/ is checked as before.
+
 A FEAT at `validated` or `delivered` carries the History line of the step that moved it (KIT-069, rule
 feature-closure), written by spec_trace.py: `sdd-review: validated`, then `sdd-release: delivered` or, under
 `release: merge`, `sdd-review: delivered`; a FEAT delivered before that step existed carries `delivered before
@@ -312,6 +316,9 @@ STRUCT = {
     "task": {"req": ["id", "feat", "rows", "title", "status", "created"],
              "enums": {"status": ["todo", "doing", "blocked", "done", "cancelled"]},
              "id": r"^TASK-\d{3,}$"},
+    "process": {"req": ["id", "title", "status", "owner", "kind"],
+                "enums": {"status": ["proposed", "approved", "retired"], "kind": ["product", "tech"]},
+                "id": r"^PROC-\d{3,}$"},
 }
 
 ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|[A-Z][A-Z0-9]{1,7})-(\d+)")
@@ -320,7 +327,7 @@ ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|[A-Z][A-Z0-9]{1,7})-(\d+)")
 DEFAULT_DECISION_PREFIX = "DEC"
 DECISION_KIND = re.compile(r"^[a-z][a-z0-9-]*$")
 DECISION_PREFIX = re.compile(r"^[A-Z][A-Z0-9]{1,7}$")
-RESERVED_PREFIXES = {"FEAT", "REQ", "DEBT", "J", "NEED", "TASK"}
+RESERVED_PREFIXES = {"FEAT", "REQ", "DEBT", "J", "NEED", "TASK", "PROC"}
 
 
 def decision_kinds(path, data):
@@ -541,8 +548,10 @@ def check_feature_closure(path, status):
              "release: merge", "feature-closure", path)
 
 
-NEED_LINKS = {"requirements": "requirement", "decisions": "decision", "debts": "debt", "features": "feature"}
-NEED_PRODUCT_LINKS = ("requirements", "journeys", "decisions")
+NEED_LINKS = {"requirements": "requirement", "decisions": "decision", "debts": "debt", "features": "feature",
+              "processes": "process"}
+NEED_PRODUCT_LINKS = ("requirements", "journeys", "decisions")  # the message names these, as before KIT-090
+NEED_PROCESS_LINK = "processes"  # a refined NEED that changed only a process is backed too (KIT-090)
 NEED_CLOSED = ("rejected", "merged", "routed", "parked")
 NEED_SETTLED = NEED_CLOSED + ("delivered",)  # a NEED in one of these no longer holds a REQ for a future FEAT
 JOURNEY_FILE = re.compile(r"^(J-\d{2,})(?:-[a-z0-9-]+)?$")
@@ -577,7 +586,8 @@ def check_needs(spec_dir: Path, needs: dict, ids: dict, kind_of: dict, feat_stat
         elif parent and kind_of.get(str(parent)) != "need":
             fail(f"{path}: parent {parent} is not an existing NEED", "need-link", path)
         status = data.get("status")
-        if status in ("refined", "delivered") and not any(as_list(data.get(f)) for f in NEED_PRODUCT_LINKS):
+        if status in ("refined", "delivered") and not any(as_list(data.get(f))
+                                                          for f in NEED_PRODUCT_LINKS + (NEED_PROCESS_LINK,)):
             fail(f"{path}: status {status} needs at least one link in {', '.join(NEED_PRODUCT_LINKS)}", "need-status", path)
         if status == "delivered":
             delivered_by = as_list(data.get("features"))
@@ -931,10 +941,11 @@ def main():
     if (spec_dir / "spec.md").exists():
         targets.append((spec_dir / "spec.md", "spec"))
     for sub, kind in [("features", "feature"), ("requirements", "requirement"),
-                      ("decisions", "decision"), ("debts", "debt"), ("needs", "need"), ("tasks", "task")]:
+                      ("decisions", "decision"), ("debts", "debt"), ("needs", "need"), ("tasks", "task"),
+                      ("processes", "process")]:
         d = spec_dir / sub
         if d.is_dir():
-            for f in sorted(d.glob("*.md") if sub in ("needs", "tasks") else d.rglob("*.md")):
+            for f in sorted(d.glob("*.md") if sub in ("needs", "tasks", "processes") else d.rglob("*.md")):
                 targets.append((f, kind))
 
     ids, kind_of = {}, {}

@@ -26,7 +26,7 @@ Read the NEED, `docs/spec/spec.md` and the REQs and journeys its Triage names. W
 - reuse: an existing REQ already states it; nothing changes;
 - amend: an existing REQ states it differently; edit that REQ and add a History line;
 - new: write a REQ-F or REQ-NF with `status: proposed` and `source: NEED-nnn S<n>` (next unused id, or the session's reserved block);
-- journey: the Situations add, change, reorder or remove a step of a flow of two or more screens or interactions, and the project keeps journeys (`sdd.journeys`; absent = on when `docs/spec/journeys/` exists) → `references/journeys.md` (journeys and processes: a step reused from another flow cites its process, `PROC-nnn` or `PROC-nnn S<a>–S<b>`, once the kit has processes, KIT-090); a new step holds `—` in `Implemented by` and `Proven by` until `sdd-tasks` fills them, and the NEED lists the journey in `journeys`;
+- journey: the Situations add, change, reorder or remove a step of a flow of two or more screens or interactions, and the project keeps journeys (`sdd.journeys`; absent = on when `docs/spec/journeys/` exists) → `references/journeys.md` (journeys and processes: a step reused from another flow cites its process, `PROC-nnn` or `PROC-nnn S<a>–S<b>`, and the NEED lists it in `processes`); a new step holds `—` in `Implemented by` and `Proven by` until `sdd-tasks` fills them, and the NEED lists the journey in `journeys`;
 - decision: product must choose between two or more reasonable options → a product decision record with `status: proposed`, cited in each REQ's Rationale;
 - cut: out of scope, with where it goes.
 

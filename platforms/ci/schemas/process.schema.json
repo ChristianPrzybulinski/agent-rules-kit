@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/process.schema.json",
+  "title": "Frontmatter of PROC-nnn (a process)",
+  "type": "object",
+  "required": ["id", "title", "status", "owner", "kind"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^PROC-[0-9]{3,}$" },
+    "title": { "type": "string", "minLength": 5, "maxLength": 100 },
+    "status": { "type": "string", "enum": ["proposed", "approved", "retired"] },
+    "owner": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["product", "tech"] },
+    "created": { "type": "string", "format": "date" },
+    "updated": { "type": "string", "format": "date" }
+  }
+}

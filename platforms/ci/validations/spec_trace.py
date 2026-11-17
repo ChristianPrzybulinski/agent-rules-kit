@@ -51,6 +51,15 @@ NEED in <spec>/needs/ that lists the journey in `journeys` is open (not delivere
 routed or parked, and its listed FEATs have not yet all delivered every REQ it lists); once none is, both cite refs. Without needs/ nothing waits. A prerequisite row, an
 empty cell and a journey with no main step always fail.
 
+Processes (KIT-090) live in <spec>/processes/PROC-nnn[-slug].md, frontmatter `id`, `title`, `status`, `owner` and
+`kind` (`product` or `tech`). A process holds one reusable functional flow; its step tables follow the journey rules
+above (a `—` waits while an open NEED lists the process in `processes`), and one process may cite the tasks of many
+FEATs. A journey main or alternative step whose action cell cites `PROC-nnn` (every step) or `PROC-nnn S<a>–S<b>` (the
+main steps S<a> to S<b> in table order and the alternatives whose `At` is one of them; a hyphen works too) holds `—` in
+Rules, Implemented by and Proven by: it takes the cited steps' rules, tasks and tests, so the matrix, the impact and
+the closure expand it. A prerequisite or a process step never cites a process. With processes, traceability.md adds
+the Processes, Rules → processes → tests and Tasks → processes views; a spec without processes/ renders it as before.
+
 A test path's first segment names the clone it lives in: the spec's own repository (its directory name)
 or a directory beside it — clones sit side by side on the machine that writes journeys — plus any
 `--repo` names for clones CI does not check out. A path rooted at the spec's own repository must match
@@ -104,6 +113,10 @@ TASK_REF = re.compile(r"FEAT-\d{3,} T\d+")
 TASK_ROW = re.compile(r"^\| (T\d+) \|")
 JOURNEY_FILE = re.compile(r"^(J-\d{2,})(?:-[a-z0-9-]+)?$")
 JOURNEY_ID = re.compile(r"^J-\d{2,}$")
+PROCESS_FILE = re.compile(r"^(PROC-\d{3,})(?:-[a-z0-9-]+)?$")
+PROCESS_ID = re.compile(r"^PROC-\d{3,}$")
+PROC_CITE = re.compile(r"PROC-\d{3,}(?:\s+[SAP]\d+(?:\s*[–-]\s*[SAP]\d+)?)?")  # what a step's action cell cites
+PROC_RANGE = re.compile(r"^(PROC-\d{3,})(?: S(\d+)\s*[–-]\s*S(\d+))?$")  # the forms a citation may take
 STEP_ID = re.compile(r"^[SAP]\d+$")
 TEST_PATH = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)/\S+$")
 BACKTICKED = re.compile(r"`([^`]+)`")
@@ -120,6 +133,8 @@ NEED_SETTLED = ("delivered", "rejected", "merged", "routed", "parked")
 PENDING = "—"
 JOURNEY_STATUS = ("proposed", "approved", "retired")
 JOURNEY_FIELDS = ("id", "title", "status", "owner", "created", "updated")
+PROCESS_FIELDS = ("id", "title", "status", "owner", "kind")
+PROCESS_KINDS = ("product", "tech")
 MAIN_COLUMNS = ("Rules", "Implemented by", "Proven by")
 TEXT_SKIP = ("Step", "At", "Implemented by", "Rules", "Proven by")
 STAGE = re.compile(r"\bstage ([A-Z][A-Za-z0-9-]*\d)\b")
@@ -136,7 +151,7 @@ REMOTE = re.compile(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
 
 @dataclass
 class Step:
-    journey: str
+    journey: str      # the journey or process (PROC-nnn) the step belongs to
     id: str
     at: str | None = None
     rules: list[str] = field(default_factory=list)
@@ -144,6 +159,8 @@ class Step:
     tests: list[str] = field(default_factory=list)
     manual: str | None = None
     action: str = ""
+    cites: str | None = None  # the PROC-nnn a journey step cites; its rules, tasks and tests come from `expands`
+    expands: list = field(default_factory=list)
 
     @property
     def ref(self):
@@ -158,7 +175,9 @@ class Spec:
     feats: dict = field(default_factory=dict)     # FEAT id -> {"path", "requirements", "tasks": {Tn: row}}
     reqs: dict = field(default_factory=dict)      # REQ id -> {"path", "features", "title"}
     journeys: dict = field(default_factory=dict)  # J id -> {"path", "title", "status", "steps"}
-    open_needs: dict = field(default_factory=dict)  # J id -> ids of the open NEEDs whose `journeys` list it
+    processes: dict = field(default_factory=dict)  # PROC id -> {"path", "title", "status", "kind", "steps"}
+    open_needs: dict = field(default_factory=dict)  # J or PROC id -> ids of the open NEEDs whose `journeys` or
+    # `processes` list it
     errors: list = field(default_factory=list)
     params: dict = field(default_factory=dict)      # the resolved `sdd` block of spec.md (check_spec.py)
     param_errors: list = field(default_factory=list)
@@ -166,6 +185,15 @@ class Spec:
     @property
     def steps(self):
         return [s for j in self.journeys.values() for s in j["steps"]]
+
+    @property
+    def process_steps(self):
+        return [s for p in self.processes.values() for s in p["steps"]]
+
+    @property
+    def all_steps(self):
+        """Journey steps, then process steps: the same list as `steps` in a spec without processes."""
+        return self.steps + self.process_steps
 
 
 def natural_key(text):
@@ -279,6 +307,8 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
             spec.reqs[data["id"]] = {"path": path, "features": data.get("features") or [],
                                      "title": data.get("title", "")}
     load_open_needs(spec, spec_dir / "needs")
+    for path in sorted((spec_dir / "processes").glob("PROC-*.md"), key=lambda p: natural_key(p.name)):
+        load_process(spec, path)  # before the journeys, whose steps may cite a process
     for path in sorted((spec_dir / "journeys").glob("J-*.md"), key=lambda p: natural_key(p.name)):
         load_journey(spec, path)
     return spec
@@ -300,16 +330,16 @@ def delivered_by_its_feats(spec: Spec, need: dict) -> bool:
 
 
 def load_open_needs(spec: Spec, needs_dir: Path) -> None:
-    """Map each journey to the open NEEDs that list it; check_spec.py validates the NEED files themselves."""
+    """Map each journey and process to the open NEEDs that list it; check_spec.py validates the NEED files."""
     for path in sorted(needs_dir.glob("NEED-*.md")):
         data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict) or not data.get("id") or data.get("status") in NEED_SETTLED:
             continue
         if delivered_by_its_feats(spec, data):
             continue
-        journeys = data.get("journeys") or []
-        for jid in journeys if isinstance(journeys, list) else [journeys]:
-            spec.open_needs.setdefault(str(jid), []).append(str(data["id"]))
+        for key in ("journeys", "processes"):
+            for jid in listed(data, key):
+                spec.open_needs.setdefault(jid, []).append(str(data["id"]))
 
 
 def load_journey(spec, path):
@@ -338,6 +368,34 @@ def load_journey(spec, path):
     spec.journeys[jid] = {"path": path, "title": data.get("title", ""), "status": data.get("status"),
                           "steps": steps, "preconditions": section(body, "Preconditions"),
                           "stage": next(iter(STAGE.findall(goal)), "")}
+
+
+def load_process(spec, path):
+    """A PROC-nnn file (KIT-090): frontmatter as check_spec.py reads it, then its step tables."""
+    where = path.relative_to(spec.root)
+    data, body = split_frontmatter(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        spec.errors.append(f"{where}: frontmatter missing, not closed by --- or not a mapping")
+        return
+    for key in PROCESS_FIELDS:
+        if key not in data:
+            spec.errors.append(f"{where}: required field missing: {key}")
+    pid = str(data.get("id", ""))
+    name = PROCESS_FILE.match(path.stem)
+    if not PROCESS_ID.match(pid):
+        spec.errors.append(f"{where}: id {pid!r} does not match PROC-nnn")
+        return
+    if not name or name.group(1) != pid:
+        spec.errors.append(f"{where}: id={pid} != file name prefix")
+    if data.get("status") not in JOURNEY_STATUS:
+        spec.errors.append(f"{where}: status={data.get('status')!r} not in {list(JOURNEY_STATUS)}")
+    if "kind" in data and data.get("kind") not in PROCESS_KINDS:
+        spec.errors.append(f"{where}: kind={data.get('kind')!r} not in {list(PROCESS_KINDS)}")
+    if pid in spec.processes:
+        spec.errors.append(f"{where}: duplicate id {pid}")
+        return
+    spec.processes[pid] = {"path": path, "title": data.get("title", ""), "status": data.get("status"),
+                           "kind": data.get("kind"), "steps": parse_steps(spec, pid, body)}
 
 
 def section(body, name):
@@ -395,6 +453,11 @@ def parse_step(spec, jid, row, header):
         return None
     action = next((v for k, v in row.items() if k not in TEXT_SKIP), "")
     step = Step(journey=jid, id=sid, at=row.get("At") or None, action=action)
+    cites = PROC_CITE.findall(action)
+    if cites and PROCESS_ID.match(jid):
+        spec.errors.append(f"{step.ref}: a process step cannot cite a process ({', '.join(cites)})")
+    elif cites:
+        return citing_step(spec, step, row, cites)
     if "Implemented by" not in header:
         spec.errors.append(f"{step.ref}: table has no 'Implemented by' column")
         return step
@@ -418,8 +481,51 @@ def parse_step(spec, jid, row, header):
     return step
 
 
+def citing_step(spec: Spec, step: Step, row: dict, cites: list) -> Step:
+    """A journey step that cites a process holds `—` in its own link cells and takes the cited steps' links."""
+    if step.id.startswith("P"):
+        spec.errors.append(f"{step.ref}: a prerequisite cannot cite a process; it cites its task")
+        return step
+    if len(cites) > 1:
+        spec.errors.append(f"{step.ref}: cites more than one process ({', '.join(cites)}); split the step")
+        return step
+    cite = re.sub(r"\s+", " ", cites[0])
+    if any(row.get(column, "").strip() != PENDING for column in MAIN_COLUMNS):
+        spec.errors.append(f"{step.ref}: a step that cites {cite.split()[0]} holds `{PENDING}` in Rules, Implemented by "
+                           "and Proven by: the process's steps carry them")
+    m = PROC_RANGE.match(cite)
+    if not m:
+        spec.errors.append(f"{step.ref}: cites {cite!r}: write PROC-nnn or PROC-nnn S<a>–S<b>")
+        return step
+    step.cites = m.group(1)
+    process = spec.processes.get(step.cites)
+    if process is None:
+        spec.errors.append(f"{step.ref}: cites {step.cites}, which does not exist")
+        return step
+    steps = process["steps"]
+    if m.group(2) is None:
+        step.expands = list(steps)
+    else:
+        main = [s.id for s in steps if s.id.startswith("S")]
+        ends = [f"S{m.group(2)}", f"S{m.group(3)}"]
+        unknown = [e for e in ends if e not in main]
+        if unknown:
+            spec.errors.append(f"{step.ref}: {cite}: {unknown[0]} is not a main step of {step.cites}")
+            return step
+        first, last = main.index(ends[0]), main.index(ends[1])
+        if first > last:
+            spec.errors.append(f"{step.ref}: {cite}: the range runs backwards")
+            return step
+        chosen = set(main[first:last + 1])
+        step.expands = [s for s in steps if s.id in chosen or (s.id.startswith("A") and s.at in chosen)]
+    for attr in ("rules", "tasks", "tests"):
+        setattr(step, attr, list(dict.fromkeys(v for s in step.expands for v in getattr(s, attr))))
+    step.manual = "; ".join(s.manual for s in step.expands if s.manual) or None
+    return step
+
+
 def awaits(spec: Spec, step: Step, cell: str) -> bool:
-    """A literal `—` waits for the FEAT, its tasks and tests while an open NEED lists the step's journey."""
+    """A literal `—` waits for the FEAT, its tasks and tests while an open NEED lists the step's journey or process."""
     return cell.strip() == PENDING and bool(spec.open_needs.get(step.journey))
 
 
@@ -427,7 +533,8 @@ def why_due(spec: Spec, step: Step, cell: str) -> str:
     """Why a `—` no longer waits; empty for any other cell, whose message stays as on main."""
     if cell.strip() != PENDING or spec.open_needs.get(step.journey):
         return ""
-    return (f"; `{PENDING}` waits only while a NEED listing the journey is open: no open NEED lists {step.journey} "
+    noun = "process" if PROCESS_ID.match(step.journey) else "journey"
+    return (f"; `{PENDING}` waits only while a NEED listing the {noun} is open: no open NEED lists {step.journey} "
             f"(a NEED whose listed FEATs are all delivered and cover every REQ it lists counts as settled)")
 
 
@@ -550,10 +657,11 @@ def step_list(steps):
 
 def render_matrix(spec):
     spec_dir = spec.spec_dir
+    sources = "FEAT, REQ, journey and process files" if spec.processes else "FEAT, REQ and journey files"
     lines = [
         "# Traceability matrix",
         "",
-        "Generated by `spec_trace.py generate` from the FEAT, REQ and journey files.",
+        f"Generated by `spec_trace.py generate` from the {sources}.",
         "Never edit it by hand: `spec_trace.py check` fails when it is stale. These are reverse views",
         "only — the links are written once, in the journeys (journey → rule, task, test) and in FEAT/REQ",
         "frontmatter.",
@@ -600,7 +708,64 @@ def render_matrix(spec):
             by_task.setdefault(ref, []).append(step)
     for ref in sorted(by_task, key=natural_key):
         lines.append(f"| {ref} | {step_list(by_task[ref])} |")
+    if spec.processes:
+        lines += process_views(spec)
     return "\n".join(lines) + "\n"
+
+
+def process_views(spec):
+    """The matrix sections a spec with processes adds (KIT-090): Processes, Rules → processes → tests and
+    Tasks → processes, the view a review reads for the task of a code PR that serves a process."""
+    lines = [
+        "",
+        "## Processes",
+        "",
+        "`Cited by`: the journey steps that cite the process, whole or a range of its steps.",
+        "",
+        "| Process | Title | Kind | Status | Main steps | Alternative steps | Rules cited | Cited by |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for pid, process in spec.processes.items():
+        steps = process["steps"]
+        count = {k: sum(1 for s in steps if s.id.startswith(k)) for k in "SA"}
+        rules = len({r for s in steps for r in s.rules})
+        link = process["path"].relative_to(spec.spec_dir).as_posix()
+        cited = [s for s in spec.steps if s.cites == pid]
+        lines.append(f"| [{pid}]({link}) | {process['title']} | {process['kind']} | {process['status']} | "
+                     f"{count['S']} | {count['A']} | {rules} | {step_list(cited)} |")
+    lines += [
+        "",
+        "## Rules → processes → tests",
+        "",
+        "Every REQ a process step cites.",
+        "",
+        "| Rule | Title | FEATs | Process steps | Tests at those steps |",
+        "|---|---|---|---|---|",
+    ]
+    for rid in sorted({r for s in spec.process_steps for r in s.rules}, key=natural_key):
+        steps = [s for s in spec.process_steps if rid in s.rules]
+        req = spec.reqs.get(rid)
+        if req is None:
+            continue  # check reports the unknown id
+        link = req["path"].relative_to(spec.spec_dir).as_posix()
+        feats = ", ".join(sorted(req["features"], key=natural_key)) or "—"
+        lines.append(f"| [{rid}]({link}) | {req['title']} | {feats} | {step_list(steps)} | {tests_of(steps)} |")
+    lines += [
+        "",
+        "## Tasks → processes",
+        "",
+        "Every task a process cites, in `Implemented by` or as a test task in `Proven by`.",
+        "",
+        "| Task | Process steps |",
+        "|---|---|",
+    ]
+    by_task = {}
+    for step in spec.process_steps:
+        for ref in step.tasks + [t for t in step.tests if not t.startswith("`")]:
+            by_task.setdefault(ref, []).append(step)
+    for ref in sorted(by_task, key=natural_key):
+        lines.append(f"| {ref} | {step_list(by_task[ref])} |")
+    return lines
 
 
 def journeys_on(spec) -> bool:
@@ -614,8 +779,8 @@ def check(spec):
     if spec.params.get("spec_index"):
         errors += index_errors(spec)
     matrix = spec.spec_dir / MATRIX
-    # The matrix is required with journeys and kept fresh once it exists; a project with neither needs none.
-    if (journeys_on(spec) or matrix.exists()) and (
+    # The matrix is required with journeys or processes and kept fresh once it exists; a project with none needs none.
+    if (journeys_on(spec) or (spec.spec_dir / "processes").is_dir() or matrix.exists()) and (
             not matrix.exists() or matrix.read_text(encoding="utf-8") != render_matrix(spec)):
         errors.append(f"{matrix} is stale or missing: run spec_trace.py generate on the spec directory")
     return errors
@@ -785,17 +950,34 @@ def closure_gaps(spec, fid, needs):
     for nid, (_, need) in needs.items():
         if fid not in listed(need, "features"):
             continue
+        seen = set()
+
+        def unfilled(step, via):
+            missing = [c for c, ok in (("Implemented by", step.tasks), ("Proven by", step.tests or step.manual))
+                       if not ok]
+            if missing and not step.id.startswith("P") and step.ref not in seen:
+                seen.add(step.ref)
+                gaps.append(f"{step.ref}: {' and '.join(missing)} still `{PENDING}`; {nid}, which lists {fid}, "
+                            f"lists {via}")
+
         for jid in listed(need, "journeys"):
             journey = spec.journeys.get(jid)
             if journey is None:
                 gaps.append(f"{nid} lists {jid}, which has no journey file")
                 continue
             for step in journey["steps"]:
-                missing = [c for c, ok in (("Implemented by", step.tasks), ("Proven by", step.tests or step.manual))
-                           if not ok]
-                if missing and not step.id.startswith("P"):
-                    gaps.append(f"{step.ref}: {' and '.join(missing)} still `{PENDING}`; {nid}, which lists {fid}, "
-                                f"lists {jid}")
+                if step.cites:  # a step that cites a process is filled when the steps it expands to are
+                    for cited in step.expands:
+                        unfilled(cited, f"{jid} ({step.ref} cites it)")
+                else:
+                    unfilled(step, jid)
+        for pid in listed(need, "processes"):
+            process = spec.processes.get(pid)
+            if process is None:
+                gaps.append(f"{nid} lists {pid}, which has no process file")
+                continue
+            for step in process["steps"]:
+                unfilled(step, pid)
     return gaps
 
 
@@ -937,11 +1119,11 @@ def lint_feat(spec, fid):
         said = int(m.group(1)) if m.group(1).isdigit() else NUMBER_WORDS[m.group(1).lower()]
         if said != len(feat["tasks"]):
             found.append(f"{fid}: Plan says {said} rows, the task table has {len(feat['tasks'])}")
-    if spec.journeys:
+    if spec.journeys or spec.processes:
         for rid in feat["requirements"]:
             if rid not in spec.reqs:
                 continue
-            cell = tests_of([s for s in spec.steps if rid in s.rules])
+            cell = tests_of([s for s in spec.all_steps if rid in s.rules])
             for token in proving_tokens(spec.reqs[rid]["path"]):
                 if cell == "—":
                     found.append(f"{rid}: its trace row lists no test (proving test {token}, {fid})")
@@ -1021,12 +1203,16 @@ def changes(spec, base, head):
         path = spec.root / name
         stem = path.stem
         if REQ_ID.fullmatch(stem):
-            found.append((f"{stem} edited", [s for s in spec.steps if stem in s.rules]))
+            found.append((f"{stem} edited", [s for s in spec.all_steps if stem in s.rules]))
         elif re.fullmatch(r"FEAT-\d{3,}", stem):
             found += feat_changes(spec, base, head, stem, path)
         elif JOURNEY_FILE.match(stem):
             jid = JOURNEY_FILE.match(stem).group(1)
             found.append((f"{jid} edited", spec.journeys.get(jid, {}).get("steps", [])))
+        elif PROCESS_FILE.match(stem):
+            pid = PROCESS_FILE.match(stem).group(1)
+            found.append((f"{pid} edited", spec.processes.get(pid, {}).get("steps", [])
+                          + [s for s in spec.steps if s.cites == pid]))
     return found
 
 
@@ -1038,11 +1224,11 @@ def feat_changes(spec, base, head, fid, path):
     for tid in sorted(set(old_rows) | set(new_rows), key=natural_key):
         if old_rows.get(tid) != new_rows.get(tid):
             ref = f"{fid} {tid}"
-            found.append((f"{ref} row edited", [s for s in spec.steps if ref in s.tasks or ref in s.tests]))
+            found.append((f"{ref} row edited", [s for s in spec.all_steps if ref in s.tasks or ref in s.tests]))
     outside = [line for line in old_body.splitlines() if not TASK_ROW.match(line)]
     if outside != [line for line in new_body.splitlines() if not TASK_ROW.match(line)] or \
             (old_data or {}).get("requirements") != (new_data or {}).get("requirements"):
-        steps = [s for s in spec.steps if any(t.startswith(fid + " ") for t in s.tasks + s.tests)]
+        steps = [s for s in spec.all_steps if any(t.startswith(fid + " ") for t in s.tasks + s.tests)]
         found.append((f"{fid} text outside the task table", steps))
     return found
 
@@ -1403,7 +1589,7 @@ def apply_sync(spec, changed, today):
             append_history(feat["path"], f"- {today} sync: status derived from GitHub ({detail}).")
         written += 1
     matrix = spec.spec_dir / MATRIX
-    if spec.journeys or matrix.exists():
+    if spec.journeys or spec.processes or matrix.exists():
         rendered = render_matrix(spec)
         if not matrix.exists() or matrix.read_text(encoding="utf-8") != rendered:
             matrix.write_text(rendered, encoding="utf-8")
@@ -1557,6 +1743,9 @@ def main(argv=None):
     spec = load(spec_dir, args.repo)
     matrix = spec.spec_dir / MATRIX
     summary = f"spec-trace: OK ({len(spec.journeys)} journeys, {len(spec.steps)} steps, {len(spec.reqs)} REQs)"
+    if spec.processes:
+        summary = (f"spec-trace: OK ({len(spec.journeys)} journeys, {len(spec.processes)} processes, "
+                   f"{len(spec.all_steps)} steps, {len(spec.reqs)} REQs)")
     if args.command == "generate":
         matrix.write_text(render_matrix(spec), encoding="utf-8")
         return report(spec.errors + symmetry_errors(spec), f"wrote {matrix}; " + summary)
