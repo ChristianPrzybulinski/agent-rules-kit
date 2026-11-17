@@ -40,7 +40,7 @@
           "description": "The FEAT ## Plan subsections this project fills; Risks and Tests are always on; read by sdd-plan",
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": ["Design", "Contract", "Data", "UI", "Flag", "Tests", "Observability", "Risks", "Dependencies"] },
+          "items": { "enum": ["Design", "Contract", "Data", "UI", "Assets", "Flag", "Tests", "Observability", "Risks", "Dependencies"] },
           "allOf": [{ "contains": { "const": "Risks" } }, { "contains": { "const": "Tests" } }],
           "default": ["Design", "Contract", "Data", "UI", "Flag", "Tests", "Observability", "Risks", "Dependencies"]
         },
