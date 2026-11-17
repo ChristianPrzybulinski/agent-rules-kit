@@ -220,8 +220,12 @@ Four phases, one PR each, plus P1b, the kit's own profile (#322):
   3.9, with and without `-S`; the resolved view equals kit 16.0.0's but for the two dropped alias mirrors;
   `check_spec.py`, `row_checks.py check --all` and `spec_trace.py check` print byte-identical output on this branch and
   on `~/.ai-kit` 16.0.0.
-- Not run here: the functional layer and `smoke.sh`, `claude plugin eval` for the edited skills and eval fixtures, CI
-  on a runner.
+- The five changed eval cases (`claude plugin eval plugins/guardrails --case '*-rule-*' --runs 1 --ablation none`):
+  - godot, tests and protocol scored 1.00;
+  - java scored 1.00 with `--allow-tools Edit Write`;
+  - code scored 0.00 without its Bash grant, which this machine cannot give, and `origin/main`'s plugin scored the
+    same.
+- Not run here: the functional layer and `smoke.sh`, `claude plugin eval` for the edited skills, and CI on a runner.
 
 ## What would prove it wrong
 
