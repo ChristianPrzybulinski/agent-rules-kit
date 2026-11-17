@@ -74,6 +74,6 @@ One format. Line one: `validator: OK (N artifacts[; M held]) | FAIL (n lines) | 
 
 ## 4. Route findings
 
-Ambiguity, a C12, C26 or Q12 finding and a C14 tunable without range, unit or exposure go to `sdd-clarify`, a missing Situation or a C13 finding to `sdd-specify`, a plan or task gap (a C14 tunable with no Plan § Data exposure, a C17, a C18, a C19 or a C25 included; a C17 REQ moves to the next version block; a C25 needs a row that pays the debt, or a DEC that accepts it) to `sdd-plan` or `sdd-tasks`, a kit-rule violation to a decision record or a blocker.
+Ambiguity, a C12, C26 or Q12 finding and a C14 tunable without range, unit or exposure go to `sdd-clarify`, a missing Situation or a C13 finding to `sdd-specify`, a plan or task gap (a C14 tunable with no Plan § Data exposure, a C16, a C17, a C18, a C19 or a C25 included; a C17 REQ moves to the next version block; a C25 needs a row that pays the debt, or a DEC that accepts it) to `sdd-plan` or `sdd-tasks`, a kit-rule violation to a decision record or a blocker.
 
 Done when: every finding cites `path:line`, the validator verdict is on line one, and the report states its scope and whether the next status is blocked.
