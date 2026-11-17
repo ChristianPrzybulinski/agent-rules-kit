@@ -112,6 +112,7 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-088-profile-kinds.md`](KIT-088-profile-kinds.md) | profile kind presets and game and FEAT-only keys | in-progress | #329 | |
 | [`KIT-089-vision-pillars.md`](KIT-089-vision-pillars.md) | spec.md templates per kind, pillars and out-of-scope triage | in-progress | #330 | |
 | [`KIT-090-process-artifact.md`](KIT-090-process-artifact.md) | process artifact PROC-nnn and its trace tools | in-progress | #331 | |
+| [`KIT-092-process-verify-skills.md`](KIT-092-process-verify-skills.md) | skills that use and verify processes | in-progress | #333 | |
 | [`KIT-093-plan-assets.md`](KIT-093-plan-assets.md) | Assets Plan section and sdd-check C15 | in-progress | #334 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

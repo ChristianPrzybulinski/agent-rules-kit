@@ -49,8 +49,9 @@ When `cut_command` is set, run it on the FEAT and paste its output; otherwise cu
 - Bundle: new rows of one repository that share a Files path go into one item within `bundle` (`rows`, `points` with Low 1, Med 2, High 3, `high_rows`); the default `rows: 1` cuts one item per row. A row whose Files match a `task_cut.bundle_exclude` glob is its own item.
 - Labels: a row whose Files match a `protected_paths` entry gives its item that label.
 - Write each item (`#N` or `TASK-nnn`) into its rows' `Item` cell.
-- Journeys and processes (`journeys`; absent = on when `docs/spec/journeys/` exists): fill every `—` step of the journeys this FEAT's NEED lists, a step with `Rules` `—` included: `Implemented by` takes the `FEAT-nnn Tn` rows that build it, `Proven by` the test rows, never a path to a test file that does not exist yet; add any `P<n>` row with its task and run `spec_trace.py check`. A step that cites a process (`PROC-nnn`) gets no cells of its own: the process's steps carry them.
-- Commit the Item and journey cells together; `check_spec.py` passes.
+- Journeys (`journeys`; absent = on when `docs/spec/journeys/` exists): fill every `—` step of the journeys this FEAT's NEED lists, a step with `Rules` `—` included: `Implemented by` takes the `FEAT-nnn Tn` rows that build it, `Proven by` the test rows, never a path to a test file that does not exist yet; add any `P<n>` row with its task. A step that cites a process (`PROC-nnn` or `PROC-nnn S<a>–S<b>`) keeps `—` in its Rules, Implemented by and Proven by: write nothing new on it, since the cited process steps carry them.
+- Processes (`docs/spec/processes/`): fill, the same way, every `—` step of the processes the NEED lists in `processes` and of the process steps a listed journey cites. A process holds the rows of several FEATs: add this FEAT's rows beside the ones a step already cites and never remove another FEAT's.
+- Run `spec_trace.py check`, then commit the Item, journey and process cells together; `check_spec.py` passes.
 
 ## 5. Resync
 
@@ -60,4 +61,4 @@ When `cut_command` is set, run it on the FEAT and paste its output; otherwise cu
 
 Read each item as a fresh session would: if it cannot start from that text alone, add the missing fact to the row (the file to start in, a real input or output sample) and resync. An executor's “done” is not evidence; the diff and the re-run proofs are.
 
-Done when: the rows are sized, pass the cut checklist, are explicitly ordered within `max_chain`, mapped both ways to criteria and pass the row checks in a merged or approved spec PR; every row's `Item` names its cut item; journey cells are filled; `check_spec.py` passes.
+Done when: the rows are sized, pass the cut checklist, are explicitly ordered within `max_chain`, mapped both ways to criteria and pass the row checks in a merged or approved spec PR; every row's `Item` names its cut item; journey and process cells are filled; `check_spec.py` passes.
