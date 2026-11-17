@@ -57,15 +57,15 @@ change applies only with `docs/spec/enablers/`:
   gets its Aggregates or Qualities row in that PR. `spec-feature.md` carries the two notes as comments.
 - `sdd-check`: rows C18 and C19 (ids free: the table held C1–C15 and C26) in the full scope, and § 1 f. The calling
   session pastes `spec_trace.py enablers --feat FEAT-nnn` after `enablers=` and `spec_trace.py check` after
-  `trace=`; both are required, because `enablers` prints OK while `check` fails an ENB table error (#356 item 2). A
-  FEAT that changes a protocol schema or a migration passes the catalog check with `--catalog <migration glob>`.
+  `trace=`; both are required, because `enablers` prints OK while `check` fails an ENB table error (#356 item 2). Protocol
+  schemas pass the catalog check through `sdd.row_checks.protocol.schemas`; a migration needs `--catalog <glob>`.
 - `sdd-tasks` § 2 sizes a row by ENB (one ENB's code and its contracts; work across two ENBs splits at the contract,
   provider first); § 3 writes the row ids into the walk table's Task cells.
 - `sdd-review` § 5 and `closure-record.md`: an Enablers closure row (`enablers --feat` and `check`), then `generate`
   after `validate`, so `traceability.md` § Enablers, each ENB's generated History, lists the FEAT with its new
   status in the closure commit.
 - `spec-index-business.md` and `spec-index-game.md`: the Architecture comment says the table is the ENB index when
-  `enablers/` exists, as `sdd-constitution` § 3 already does.
+  `enablers/` exists, and `sdd-constitution` § 3 drops its "only while sdd-tasks sizes rows by the area paths".
 
 Moved out: the profile key for the migration folder belongs to KIT-087 P2b, which owns the profile. Until it lands,
 the skills pass the folder with `--catalog`.
@@ -85,5 +85,5 @@ Part 2 is text only: `check.sh`, `check.sh --links` and the unit, contract and c
 
 - 2026-11-16: confirmed (owner, #337 from E § 17).
 - 2026-11-17: part 1 implemented on `feat/kit-095-enabler-artifact`; PR #355 merged.
-- 2026-11-17: part 2 implemented on `feat/kit-095-part2-enabler-skills`; done. The migration-folder profile key
-  moved to KIT-087 P2b.
+- 2026-11-17: part 2 implemented on `feat/kit-095-part2-enabler-skills`; PR pending; done. The migration-folder
+  profile key moved to KIT-087 P2b.
