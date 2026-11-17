@@ -19,11 +19,13 @@ created: "YYYY-MM-DD"
 The system must [observable behavior], when [condition], for [actor].
 
 <!-- One rule sentence. Numbers or formulas the actor experiences go in Values. How the code does it (algorithm, draw
-     order, data structure, message) belongs to the technical step, never here. -->
+     order, data structure, message) belongs to the technical step, never here. Tunable: `fixed` when the rule itself
+     sets the value, else its range and unit and its exposure (where it is tuned: content, config or a debug control),
+     so a retune within the range is no REQ or decision change; the code reads it from there, never a literal. -->
 
-| Value | Meaning |
-|---|---|
-| [number or formula] | [what the actor experiences] |
+| Value | Meaning | Tunable |
+|---|---|---|
+| [number or formula] | [what the actor experiences] | [`fixed` \| <min>–<max> <unit>, <exposure>] |
 
 ## Rationale
 

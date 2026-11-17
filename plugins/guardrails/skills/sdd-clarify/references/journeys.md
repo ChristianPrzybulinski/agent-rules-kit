@@ -7,7 +7,7 @@ kind: detail
 
 Only for a project that keeps `docs/spec/journeys/` (`sdd.journeys`). A journey is one user-visible flow of two or more screens or interactions, written as an ordered set of steps; it cites rule ids, processes, task rows and tests, never rule values. A process (`PROC-nnn`) holds one reusable functional flow, such as a mechanic or a flow no user sees, and a journey step may cite it whole (`PROC-nnn`) or a range of its steps (`PROC-nnn S<a>–S<b>`) instead of copying them. Template: `../../../templates/spec-journey.md`.
 
-Processes are KIT-090: the `PROC-nnn` artifact, its schema, the NEED `processes` field and the `spec_trace.py` expansion of a cited range. Until the installed kit validates `docs/spec/processes/`, write no `PROC` reference: a step reused from another flow keeps its own Rules, Implemented by and Proven by, and never says "as in J-nn" in place of them.
+A process lives in `docs/spec/processes/PROC-nnn-slug.md` (template `../../../templates/spec-process.md`, `kind: product` or `tech`); `check_spec.py` validates it and `spec_trace.py` checks its steps by the rules below and expands a cited range (KIT-090). A step reused from another flow cites its process, never "as in J-nn" in place of its own links.
 
 ## When
 
@@ -21,7 +21,7 @@ Processes are KIT-090: the `PROC-nnn` artifact, its schema, the NEED `processes`
 - Step tables (first header cell `Step`): `S<n>` main path in order, `A<n>` alternative with `At` naming its main step, `P<n>` prerequisite (contracts, assets, tooling no user sees), which always cites its task, so `sdd-tasks` adds it with the row.
 - `Rules` holds REQ ids only, or `—`. The rules already are REQs.
 - `Implemented by` holds `FEAT-nnn Tn` rows as they are on main; `Proven by` holds test tasks, backticked paths rooted at a clone name, and an optional trailing `manual: <check>`. A main or alternative step written here holds a literal `—` in both, and `sdd-tasks` fills both when it cuts the rows (`Proven by` with test task rows until the test file exists). `spec_trace.py` accepts the `—` while a NEED that lists the journey in `journeys` is open (not `delivered`, `rejected`, `merged`, `routed` or `parked`, and its FEATs have not yet all delivered every REQ it lists); once none is, both are required, and a project without `docs/spec/needs/` never waits. An empty cell fails.
-- A step that cites a process (processes, KIT-090) carries no rule, task or test of its own: the process's steps carry them, and the matrix expands the range.
+- A step that cites a process holds `—` in Rules, Implemented by and Proven by: the process's steps carry them, `spec_trace.py` expands `PROC-nnn` to every step and `PROC-nnn S<a>–S<b>` to those main steps and the alternatives at them. A prerequisite never cites a process. A process step's `—` waits while an open NEED lists the process in `processes`.
 
 ## Link once, generate
 
@@ -32,4 +32,4 @@ Processes are KIT-090: the `PROC-nnn` artifact, its schema, the NEED `processes`
 ## Check a change
 
 - The review of a PR that changes a REQ, a FEAT or a journey reads `spec_trace.py impact docs/spec <base> <head>` (the journey steps and tests the diff touches) and checks each listed step and its tests.
-- The journey steps a code PR's task serves are in `traceability.md` § Tasks → journeys.
+- The journey steps a code PR's task serves are in `traceability.md` § Tasks → journeys, its process steps in § Tasks → processes.

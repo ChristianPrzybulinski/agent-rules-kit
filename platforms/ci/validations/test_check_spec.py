@@ -312,6 +312,10 @@ class DecisionKindsTest(unittest.TestCase):
         self.index("{tech: NEED}")
         self.assert_fails("decision prefix 'NEED' must match")
 
+    def test_process_prefix_is_reserved(self):
+        self.index("{process: PROC}")
+        self.assert_fails("decision prefix 'PROC' must match")
+
 
 NEED = """---
 id: {nid}
@@ -348,6 +352,77 @@ created: "2026-11-14"
 
 # DEBT-001
 """
+
+
+PROCESS = """---
+id: PROC-001
+title: "Fixture process"
+status: proposed
+owner: "product"
+kind: product
+{extra}created: "2026-11-16"
+updated: "2026-11-16"
+---
+
+# PROC-001
+"""
+
+
+class ProcessTest(unittest.TestCase):
+    """docs/spec/processes/PROC-nnn-slug.md frontmatter (KIT-090), with and without jsonschema."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.spec = Path(self.tmp.name)
+        (self.spec / "processes").mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def process(self, name="PROC-001-fixture", old=None, new=None):
+        text = PROCESS.format(extra="")
+        (self.spec / "processes" / f"{name}.md").write_text(text if old is None else text.replace(old, new))
+
+    def run_both(self):
+        """The full check, then the structural one: python -S hides pyyaml and jsonschema."""
+        env = {k: v for k, v in os.environ.items() if k != "CI"}
+        return [subprocess.run([sys.executable, *flags, str(CHECK_SPEC), str(self.spec), str(SCHEMAS)],
+                               capture_output=True, text=True, check=False, env=env)
+                for flags in ([], ["-S"])]
+
+    def assert_fails(self, *messages):
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 1, result.stderr)
+            for message in messages:
+                self.assertIn(message, result.stderr)
+
+    def test_product_and_tech_processes_pass(self):
+        self.process()
+        (self.spec / "processes" / "PROC-002-runbook.md").write_text(
+            PROCESS.format(extra="").replace("PROC-001", "PROC-002").replace("kind: product", "kind: tech"))
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("spec: OK (2 artifacts)", result.stdout)
+
+    def test_kind_is_required_and_an_enum(self):
+        self.process(old="kind: product\n", new="")
+        self.assert_fails("PROC-001-fixture.md")
+        self.process(old="kind: product", new="kind: ops")
+        self.assert_fails("PROC-001-fixture.md", "ops")
+
+    def test_status_is_an_enum(self):
+        self.process(old="status: proposed", new="status: done")
+        self.assert_fails("PROC-001-fixture.md", "done")
+
+    def test_id_pattern_and_file_name(self):
+        self.process(old="id: PROC-001", new="id: PROC-1")
+        self.assert_fails("PROC-001-fixture.md")
+        self.process(name="PROC-003-other")
+        self.assert_fails("id=PROC-001 != file name prefix")
+
+    def test_unknown_field_fails_with_the_schema(self):
+        self.process(old="kind: product", new="kind: product\nlevel: end-to-end")
+        self.assertEqual(self.run_both()[0].returncode, 1)
 
 
 class NeedTest(unittest.TestCase):
@@ -539,6 +614,15 @@ class NeedTest(unittest.TestCase):
         self.assert_passes()
         self.need("NEED-002", debts="[DEC-001]")
         self.assert_fails("debts lists DEC-001, which is not an existing debt")
+
+    def test_processes_link_must_be_a_process(self):
+        """KIT-090: a NEED lists the processes it changes, as it lists journeys."""
+        (self.spec / "processes").mkdir()
+        (self.spec / "processes" / "PROC-001-fixture.md").write_text(PROCESS.format(extra=""))
+        self.need("NEED-001", status="refined", processes="[PROC-001]")
+        self.assert_passes()
+        self.need("NEED-002", processes="[PROC-009]")
+        self.assert_fails("processes lists PROC-009, which is not an existing process")
 
 
 class MiniYamlTest(unittest.TestCase):

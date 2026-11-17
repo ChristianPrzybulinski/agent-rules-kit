@@ -51,6 +51,9 @@ updated: "YYYY-MM-DD"
   - `Rules` cites REQ ids only — never rule values or free text. Every rule is a REQ that
     sdd-clarify writes before any FEAT exists, so a step cites the REQ it exercises.
   - `Implemented by` cites `FEAT-nnn Tn` task rows only, as they exist on main.
+  - A main or alternative step whose action cites a process, `PROC-nnn` (every step) or `PROC-nnn S<a>–S<b>`
+    (those main steps and the alternatives at them), holds `—` in Rules, Implemented by and Proven by: the
+    process's steps carry them, and the matrix expands the citation. A prerequisite never cites a process.
   - A main or alternative step may hold a literal `—` in `Implemented by` and `Proven by` while an
     open NEED lists this journey in `journeys`, and its listed FEATs have not yet all delivered every REQ it lists; rule: `skills/sdd-clarify/references/journeys.md`.
   - `Proven by` holds `FEAT-nnn Tn` test tasks, backticked paths rooted at a clone name

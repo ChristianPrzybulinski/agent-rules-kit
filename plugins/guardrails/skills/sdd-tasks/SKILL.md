@@ -49,7 +49,7 @@ When `cut_command` is set, run it on the FEAT and paste its output; otherwise cu
 - Bundle: new rows of one repository that share a Files path go into one item within `bundle` (`rows`, `points` with Low 1, Med 2, High 3, `high_rows`); the default `rows: 1` cuts one item per row. A row whose Files match a `task_cut.bundle_exclude` glob is its own item.
 - Labels: a row whose Files match a `protected_paths` entry gives its item that label.
 - Write each item (`#N` or `TASK-nnn`) into its rows' `Item` cell.
-- Journeys and processes (`journeys`; absent = on when `docs/spec/journeys/` exists): fill every `—` step of the journeys this FEAT's NEED lists, a step with `Rules` `—` included: `Implemented by` takes the `FEAT-nnn Tn` rows that build it, `Proven by` the test rows, never a path to a test file that does not exist yet; add any `P<n>` row with its task and run `spec_trace.py check`. A step that cites a process (`PROC-nnn`, processes KIT-090) gets no cells of its own: the process's steps carry them.
+- Journeys and processes (`journeys`; absent = on when `docs/spec/journeys/` exists): fill every `—` step of the journeys this FEAT's NEED lists, a step with `Rules` `—` included: `Implemented by` takes the `FEAT-nnn Tn` rows that build it, `Proven by` the test rows, never a path to a test file that does not exist yet; add any `P<n>` row with its task and run `spec_trace.py check`. A step that cites a process (`PROC-nnn`) gets no cells of its own: the process's steps carry them.
 - Commit the Item and journey cells together; `check_spec.py` passes.
 
 ## 5. Resync
