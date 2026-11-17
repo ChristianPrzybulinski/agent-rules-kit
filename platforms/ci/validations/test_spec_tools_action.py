@@ -125,12 +125,112 @@ class SpecToolsActionRuns(unittest.TestCase):
             path.write_text("", encoding="utf-8")
         full = {k: v for k, v in os.environ.items() if k != "CI"}
         full.update({k: str(v) for k, v in files.items()}, GITHUB_ACTION_PATH=str(ACTION_DIR),
-                    RUNNER_TEMP=str(self.tmp), PATH=f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}")
+                    RUNNER_TEMP=str(self.tmp), PATH=f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}",
+                    AI_KIT_PYTHON=sys.executable)  # the install step exports it for the later steps (#372)
         full.update({k: str(v) for k, v in env.items()})  # a test may also set GITHUB_ACTION_PATH
         result = subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step(name)["run"]],
                                 cwd=self.repo, env=full, capture_output=True, text=True, check=False)
         result.files = {key: path.read_text(encoding="utf-8") for key, path in files.items()}
         return result
+
+    INSTALL = "Install the validators' modules (pyyaml and jsonschema, for the full check)"
+    SSL_ERROR = ("ImportError: /lib/x86_64-linux-gnu/libcrypto.so.3: version `OPENSSL_3.3.0' not found (required by"
+                 " /__t/Python/3.12.16/x64/lib/python3.12/lib-dynload/_ssl.cpython-312-x86_64-linux-gnu.so)")
+
+    def fake_tools(self, apt_get=True, apt_fails=False):
+        """A bin folder with a python3 whose ssl import fails when NO_SSL is set (the setup-python build in
+        barichello/godot-ci:4.7.2, #372), a system python3 with yaml and jsonschema, an id whose -u prints FAKE_UID and,
+        unless apt_get is false, an apt-get; each logs its arguments to calls.log."""
+        bin_dir = self.tmp / "bin"
+        bin_dir.mkdir()
+        log = self.tmp / "calls.log"
+        error = self.tmp / "ssl-error.txt"
+        error.write_text(f"Traceback (most recent call last):\n{self.SSL_ERROR}\n", encoding="utf-8")
+        tools = {
+            "python3": f"""case "$*" in
+  "-c import ssl") if [ -n "${{NO_SSL:-}}" ]; then cat "{error}" >&2; exit 1; fi ;;
+  "-c import yaml, jsonschema") ;;
+  *) echo "python3 $*" >> "{log}" ;;
+esac""",
+            "system-python3": f'echo "system-python3 $*" >> "{log}"',
+            "id": 'if [ "$1" = -u ]; then echo "$FAKE_UID"; else exec /usr/bin/id "$@"; fi',
+        }
+        if apt_get:
+            tools["apt-get"] = f'echo "apt-get $*" >> "{log}"' + ("\nexit 100" if apt_fails else "")
+        for name, body in tools.items():
+            (bin_dir / name).write_text(f"#!/bin/bash\n{body}\n", encoding="utf-8")
+            (bin_dir / name).chmod(0o755)
+        log.write_text("", encoding="utf-8")
+        return bin_dir, log
+
+    def install(self, bin_dir, **env):
+        path = f"{bin_dir}{os.pathsep}{os.environ['PATH']}"
+        if not (bin_dir / "apt-get").exists():  # a Debian runner's /usr/bin holds apt-get: PATH is the fakes alone
+            for tool in ("bash", "cat", "tail"):
+                (bin_dir / tool).symlink_to(shutil.which(tool))
+            path = str(bin_dir)
+        return self.run_step(self.INSTALL, **{"PATH": path, "SYSTEM_PYTHON": bin_dir / "system-python3", "FAKE_UID": "0",
+                                              **env})
+
+    def test_with_ssl_the_install_step_uses_pip_and_exports_that_python(self):
+        bin_dir, log = self.fake_tools()
+        result = self.install(bin_dir)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(log.read_text(encoding="utf-8"),
+                         "python3 -m pip install --disable-pip-version-check --quiet pyyaml jsonschema\n")
+        self.assertEqual(result.files["GITHUB_ENV"], f"AI_KIT_PYTHON={bin_dir / 'python3'}\n")
+        self.assertNotIn("::", result.stdout)
+
+    def test_without_ssl_the_install_step_takes_the_distributions_modules(self):
+        """#372: in barichello/godot-ci:4.7.2 the setup-python build cannot import ssl, so pip cannot reach PyPI; as
+        root with apt-get the step installs python3-yaml and python3-jsonschema and the later steps run the system
+        python3, with a warning that names the cause."""
+        bin_dir, log = self.fake_tools()
+        result = self.install(bin_dir, NO_SSL="1")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(log.read_text(encoding="utf-8"),
+                         "apt-get update -qq\napt-get install -y -qq --no-install-recommends python3 python3-yaml"
+                         " python3-jsonschema\nsystem-python3 -c import yaml, jsonschema\n")
+        self.assertEqual(result.files["GITHUB_ENV"], f"AI_KIT_PYTHON={bin_dir / 'system-python3'}\n")
+        self.assertEqual(result.stdout, f"::warning::spec-tools: {bin_dir / 'python3'} cannot import ssl"
+                                        f" ({self.SSL_ERROR}); installing python3, python3-yaml and python3-jsonschema"
+                                        f" with apt-get, and the spec tools run on {bin_dir / 'system-python3'}\n")
+        later = self.run_step("Export AI_KIT_DIR, the kit at this action's commit")  # the next steps still run
+        self.assertEqual(later.returncode, 0, later.stderr)
+
+    def test_without_ssl_or_a_root_apt_get_the_install_step_fails_naming_the_cause(self):
+        """#372: the spec checks are never skipped silently: with no way to install the modules the step fails."""
+        for case, kwargs, env in (("no apt-get", {"apt_get": False}, {}),
+                                  ("not root", {}, {"FAKE_UID": "1001"})):
+            with self.subTest(case=case):
+                if (self.tmp / "bin").exists():
+                    shutil.rmtree(self.tmp / "bin")
+                bin_dir, log = self.fake_tools(**kwargs)
+                result = self.install(bin_dir, NO_SSL="1", **env)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertEqual(result.stdout, f"::error::spec-tools: {bin_dir / 'python3'} cannot import ssl"
+                                                f" ({self.SSL_ERROR}), so pip cannot install pyyaml and jsonschema from"
+                                                " PyPI, and no apt-get runs as root to install python3-yaml and"
+                                                " python3-jsonschema instead; run the action in a job without a"
+                                                " container, or in an image with apt-get as root or a Python whose ssl"
+                                                " module loads\n")
+                self.assertEqual(log.read_text(encoding="utf-8"), "")
+                self.assertEqual(result.files["GITHUB_ENV"], "")
+        shutil.rmtree(self.tmp / "bin")
+        bin_dir, log = self.fake_tools(apt_fails=True)
+        failed = self.install(bin_dir, NO_SSL="1")
+        self.assertEqual(failed.returncode, 1, failed.stdout + failed.stderr)
+        self.assertIn(f"::error::spec-tools: {bin_dir / 'python3'} cannot import ssl ({self.SSL_ERROR}), and apt-get"
+                      " could not install python3, python3-yaml and python3-jsonschema\n", failed.stdout)
+        self.assertEqual(failed.files["GITHUB_ENV"], "")
+
+    def test_every_later_step_runs_the_exported_python(self):
+        """#372: after the install step no step calls a bare python3, which in a container job may be the build that
+        cannot import ssl."""
+        names = [s.get("name") for s in action()["runs"]["steps"]]
+        for item in action()["runs"]["steps"][names.index(self.INSTALL) + 1:]:
+            with self.subTest(step=item.get("name")):
+                self.assertIsNone(re.search(r"(?<![\w/-])python3\b", item.get("run", "")))
 
     def test_the_checks_input_selects_the_steps_and_refuses_an_unknown_name(self):
         name = "Resolve the requested checks"

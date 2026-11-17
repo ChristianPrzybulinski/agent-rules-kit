@@ -421,7 +421,8 @@ class SpecToolsBaselineTest(unittest.TestCase):
         base = subprocess.run(["git", "-C", str(self.repo), "rev-parse", "-q", "--verify", "origin/main"],
                               capture_output=True, text=True, check=False).stdout.strip()
         env.update(BASE_SHA=base, RUNNER_TEMP=str(runner), GITHUB_ACTION_PATH=str(ACTION_DIR),
-                   PATH=f"{Path(sys.executable).parent}{os.pathsep}{os.environ.get('PATH', '')}")
+                   PATH=f"{Path(sys.executable).parent}{os.pathsep}{os.environ.get('PATH', '')}",
+                   AI_KIT_PYTHON=sys.executable)  # the action's install step exports it (#372)
         return subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", self.baseline_step()["run"]],
                               cwd=self.repo, env=env, capture_output=True, text=True, check=False)
 

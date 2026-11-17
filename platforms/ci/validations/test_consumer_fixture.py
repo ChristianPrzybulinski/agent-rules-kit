@@ -55,7 +55,8 @@ class ConsumerFixture(unittest.TestCase):
         userbase = subprocess.run(["python3", "-c", "import site; print(site.getuserbase())"], capture_output=True,
                                   text=True, check=True).stdout.strip()
         self.env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, HOME=str(self.home), GITHUB_ACTION_PATH=str(ACTION_DIR),
-                        PYTHONUSERBASE=os.environ.get("PYTHONUSERBASE", userbase))
+                        PYTHONUSERBASE=os.environ.get("PYTHONUSERBASE", userbase),
+                        AI_KIT_PYTHON=shutil.which("python3"))  # the action's install step exports it (#372)
         self.env.pop("AI_KIT_DIR", None)
         self.git("init", "-q", "-b", "main")
         self.commit("the fixture as the kit keeps it")
