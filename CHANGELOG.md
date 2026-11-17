@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Fixed
+- The workflow templates pin the kit actions at v17.0.0 (25a271e) instead of v16.0.0, so a project copying them gets the 17.0.0 spec-tools action, which runs in a container whose Python lacks ssl (#372).
+
 ## [17.0.0] - 2026-11-17
 
 ### Removed
