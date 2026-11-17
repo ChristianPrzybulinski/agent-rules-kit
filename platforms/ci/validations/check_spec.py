@@ -32,6 +32,15 @@ and each id in `consumesApis` is provided by another ENB (enabler-contract); a F
 one ENB and lists no REQ-F (enabler-kind). The ENB tables and the C18 and C19 tool are spec_trace.py's. A spec without
 enablers/ and without `enablers` fields is checked as before.
 
+Versioned FEATs (KIT-096): a FEAT whose body has `## Versions` is one use case with one `### <version>` block per
+project version, each with a `Status:` line, a `Scope:` line and its own task rows and `#### Closure`. Every block but
+the last is delivered or cancelled, the FEAT's `status` is the last block's, every task row sits in a block and a
+block's Scope names only REQs the FEAT lists (rule version-block); each open block's table gets the chain checks below,
+and more rows than `sdd.max_feat_tasks` in an open block fail (rule block-tasks, held by baseline.json as the block's
+row count, like task-chain). A FEAT's `processes` names existing processes, optionally with a step or a step range
+(rule feature-process). A NEED delivered by an earlier block of a FEAT stays valid while its next block is open. A FEAT
+without `## Versions` is checked as before: more rows than `sdd.max_feat_tasks` only warn.
+
 A FEAT at `validated` or `delivered` carries the History line of the step that moved it (KIT-069, rule
 feature-closure), written by spec_trace.py: `sdd-review: validated`, then `sdd-release: delivered` or, under
 `release: merge`, `sdd-review: delivered`; a FEAT delivered before that step existed carries `delivered before
@@ -73,8 +82,8 @@ SPEC_DIR = None  # set by main(); a finding's key is relative to it
 RULES = ("frontmatter", "schema", "id-file", "id-duplicate", "decision-kinds", "sdd-params", "conflict-marker",
          "need-link", "need-status", "progress", "link-missing", "link-one-sided", "req-unlisted", "task-file",
          "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure", "needs-off", "enabler-link",
-         "enabler-kind", "enabler-contract")
-MEASURED = ("task-chain",)  # the baseline holds the longest chain in rows, not a count of findings
+         "enabler-kind", "enabler-contract", "version-block", "block-tasks", "feature-process")
+MEASURED = ("task-chain", "block-tasks")  # the baseline holds the longest chain in rows, not a count of findings
 
 
 def artifact_key(path):
@@ -517,6 +526,22 @@ def load_params(spec_dir, schemas_dir):
     return resolved, errors
 
 
+def load_release(spec_dir, schemas_dir):
+    """The resolved `release` section (KIT-096: spec_trace.py reads `versioning` for the version block names), from
+    the profile as load_params resolves `sdd`; {} without profile.py or its schema. Nothing is printed and no failure
+    is kept: a refused profile shows in profile.py resolve and in the tools that read `sdd`."""
+    spec_dir = Path(spec_dir).resolve()
+    tool = Path(__file__).resolve().parents[2] / "tools" / "profile.py"
+    if not (tool.is_file() and (schemas_dir / "profile.schema.json").is_file()):
+        return {}
+    module = profile_module()
+    root = profile_root(spec_dir)
+    resolved, _, _ = module.resolve(root, ["spec_root", "release"], spec_dir=spec_dir, schemas_dir=schemas_dir)
+    if root is not None and (root / resolved["spec_root"]).resolve() != spec_dir:
+        resolved, _, _ = module.resolve(None, ["release"], spec_dir=spec_dir, schemas_dir=schemas_dir)
+    return resolved["release"] if isinstance(resolved.get("release"), dict) else {}
+
+
 def profile_module():
     """platforms/tools/profile.py (KIT-087), which resolves the project profile with this module's parser and checks.
     This module registers itself as check_spec first, so both share one failure list."""
@@ -858,8 +883,154 @@ def check_task_items(tasks, tables, ids):
                 fail(f"{path}: {rid} Item {item}, but {item} rows does not list {rid}", "task-item", path)
 
 
+VERSIONS_HEADING = re.compile(r"^## Versions[ \t]*$")
+BLOCK_HEADING = re.compile(r"^### (.+?)[ \t]*$")
+BLOCK_LINE = re.compile(r"^(Status|Scope):[ \t]*(.*?)[ \t]*$")
+BLOCK_ROW = re.compile(r"^\|\s*(T-?\d+)\s*\|")
+BLOCK_STATUSES = ("proposed", "planned", "in-progress", "validated", "delivered", "cancelled")
+BLOCK_SETTLED = ("delivered", "cancelled")  # what every block but the last one is
+REQ_REF = re.compile(r"\bREQ-(?:F|NF)-\d{3,}\b")
+FEAT_PROCESS = re.compile(r"^(PROC-\d{3,})(?: ([SA]\d+)(?:\s*[–-]\s*([SA]\d+))?)?$")  # a FEAT `processes` item
+
+
+def version_blocks(text):
+    """KIT-096: the `### <version>` blocks under a FEAT's `## Versions`, in file order; None without that section.
+    Each is {"name", "line" (0-based, in text), "status", "status_line", "scope", "rows", "closure", "text"}: its
+    `Status:` and `Scope:` lines, the task row ids its tables hold, whether its `#### Closure` holds a line, and its
+    text. HTML comments are blanked first, keeping the line count."""
+    lines = re.sub(r"(?s)<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), text).split("\n")
+    start = next((n for n, line in enumerate(lines) if VERSIONS_HEADING.match(line)), None)
+    if start is None:
+        return None
+    blocks, sub = [], None
+    for n in range(start + 1, len(lines)):
+        line = lines[n]
+        if line.startswith("## "):
+            break
+        heading = BLOCK_HEADING.match(line)
+        if heading:
+            blocks.append({"name": heading.group(1), "line": n, "status": None, "status_line": None, "scope": "",
+                           "rows": [], "closure": False, "text": ""})
+            sub = None
+            continue
+        if not blocks:
+            continue
+        block = blocks[-1]
+        block["text"] += line + "\n"
+        if line.startswith("#### "):
+            sub = line[5:].strip()
+            continue
+        field = BLOCK_LINE.match(line)
+        if field and sub is None and field.group(1) == "Status" and block["status_line"] is None:
+            block["status"], block["status_line"] = field.group(2), n
+        elif field and sub is None and field.group(1) == "Scope":
+            block["scope"] = field.group(2)
+        row = BLOCK_ROW.match(line.strip())
+        if row:
+            block["rows"].append(row.group(1))
+        if sub == "Closure" and line.strip():
+            block["closure"] = True
+    return blocks
+
+
+def check_versions(fid, path, data, rows, params):
+    """KIT-096: a FEAT with `## Versions` is one use case with one block per project version. Every block has a
+    `Status:`, every one but the last is delivered or cancelled, the FEAT's status is the last block's, every task row
+    sits in a block and a block's Scope names only REQs the FEAT lists (rule version-block). Each open block's rows
+    are checked as an open FEAT's table, and above sdd.max_feat_tasks they fail (rule block-tasks). Returns the
+    blocks, or None for a FEAT without `## Versions`, whose table check_task_table reads as before."""
+    blocks = version_blocks(path.read_text(encoding="utf-8"))
+    if blocks is None:
+        return None
+    if not blocks:
+        fail(f"{path}: ## Versions holds no `### <version>` block", "version-block", path)
+        return blocks
+    inside = {rid for block in blocks for rid in block["rows"]}
+    for rid in rows:
+        if rid not in inside:
+            fail(f"{path}: {rid} is outside every version block: a versioned FEAT keeps its task rows in the block of "
+                 "its version", "version-block", path)
+    listed, names = set(map(str, as_list(data.get("requirements")))), set()
+    for n, block in enumerate(blocks):
+        label = f"{fid} {block['name']}"
+        if block["name"] in names:
+            fail(f"{path}: two version blocks are named {block['name']}", "version-block", path)
+        names.add(block["name"])
+        if block["status"] not in BLOCK_STATUSES:
+            fail(f"{path}: {label} needs a `Status:` line with one of {', '.join(BLOCK_STATUSES)}", "version-block",
+                 path)
+        elif n < len(blocks) - 1 and block["status"] not in BLOCK_SETTLED:
+            fail(f"{path}: {label} is {block['status']}, but only the last version block is open: an earlier block is "
+                 "delivered or cancelled", "version-block", path)
+        for rid in REQ_REF.findall(block["scope"]):
+            if rid not in listed:
+                fail(f"{path}: {label} Scope names {rid}, which the FEAT's requirements do not list", "version-block",
+                     path)
+        if block["status"] not in FEAT_HISTORY:
+            check_block_rows(fid, path, label, {rid: rows[rid] for rid in block["rows"] if rid in rows}, rows, params)
+    last = blocks[-1]["status"]
+    if last in BLOCK_STATUSES and data.get("status") != last:
+        fail(f"{path}: status {data.get('status')}, but its last version block {blocks[-1]['name']} is {last}: the "
+             "FEAT's status is its open block's", "version-block", path)
+    return blocks
+
+
+def check_block_rows(fid, path, label, rows, every_row, params):
+    """An open version block's rows: the check_task_table rules over the block, where a Depends on an earlier block's
+    row is satisfied and stays off the chain, and more rows than sdd.max_feat_tasks fail (KIT-096)."""
+    label_of = {int(ROW_ID.match(rid).group(1)): rid for rid in rows}
+    known = {int(ROW_ID.match(rid).group(1)) for rid in every_row}
+    deps = {}
+    for rid, cells in rows.items():
+        n = int(ROW_ID.match(rid).group(1))
+        named = own_dependencies(cells.get("Depends on", ""), fid)
+        for missing in sorted(set(named) - known):
+            fail(f"{path}: {rid} Depends on T{missing}, which is not a row of the {fid} task table", "task-depends",
+                 path)
+        deps[n] = [m for m in named if m in label_of]
+    longest, cycle = chains(deps)
+    if cycle:
+        fail(f"{path}: {label}: Depends on cycle {' → '.join(label_of[n] for n in cycle)}", "task-cycle", path)
+    max_chain = positive(params.get("max_chain"), 4)
+    if len(longest) > max_chain:
+        fail(f"{path}: {label}: longest Depends on chain is {len(longest)} rows "
+             f"({' → '.join(label_of[n] for n in longest)}), above sdd.max_chain {max_chain}", "task-chain", path,
+             measure=len(longest))
+    max_rows = positive(params.get("max_feat_tasks"), 30)
+    if len(rows) > max_rows:
+        fail(f"{path}: {label} has {len(rows)} task rows, above sdd.max_feat_tasks {max_rows}: the rest goes to the "
+             "next version block", "block-tasks", path, measure=len(rows))
+    for rid, cells in rows.items():
+        size = len(cells.get("Task", ""))
+        if size > TASK_CELL_MAX:
+            warn(f"{path}: {rid} Task cell has {size} characters, above {TASK_CELL_MAX}: point to the Plan section "
+                 f"instead of restating it", "task-cell")
+
+
+def delivered_once(feat_status, versions):
+    """The FEAT statuses check_needs reads: a versioned FEAT with a delivered block counts as delivered, so the NEED
+    an earlier block delivered stays valid while the next block is open (KIT-096)."""
+    return {fid: "delivered" if any(b["status"] == "delivered" for b in versions.get(fid) or ()) else status
+            for fid, status in feat_status.items()}
+
+
+def check_feature_processes(linked, kind_of):
+    """A FEAT's `processes` (KIT-096): each item is PROC-nnn, optionally with one step or a range of steps, and names
+    an existing process; spec_trace.py checks the steps."""
+    for fid, (path, kind, data) in sorted(linked.items()):
+        if kind != "feature":
+            continue
+        for item in map(str, as_list(data.get("processes"))):
+            m = FEAT_PROCESS.match(item)
+            if not m:
+                fail(f"{path}: processes lists {item!r}: write PROC-nnn, PROC-nnn S<a>–S<b>, PROC-nnn S<n> or "
+                     "PROC-nnn A<n>", "feature-process", path)
+            elif kind_of.get(m.group(1)) != "process":
+                fail(f"{path}: processes lists {item}, which names no existing process", "feature-process", path)
+
+
 BASELINE = "baseline.json"
-CHECK_ROW = re.compile(r"^[CQ]\d+$")  # sdd-check rows; sdd-check all compares them
+CHECK_ROW =re.compile(r"^[CQ]\d+$")  # sdd-check rows; sdd-check all compares them
 
 
 def read_baseline(path):
@@ -1026,6 +1197,7 @@ def main():
     ids, kind_of = {}, {}
     linked = {}  # id -> (path, kind, frontmatter) of each FEAT, decision, debt and ENB (KIT-095)
     feats, reqs, feat_status, dec_status, needs, tasks, tables = {}, {}, {}, {}, {}, {}, {}
+    versions = {}  # FEAT id -> its version blocks, None without `## Versions` (KIT-096)
     kinds = None  # spec.md is the first target, so its decision_kinds is read before any decision
     params = sdd_params(spec_dir / "spec.md", {}, spec_schema, spec_dir)
     for path, kind in targets:
@@ -1070,7 +1242,9 @@ def main():
             feat_status[fid] = data.get("status")
             check_feature_closure(path, data.get("status"))
             tables[str(fid)] = {"path": path, "rows": task_table(path)}
-            check_task_table(str(fid), path, data.get("status"), tables[str(fid)]["rows"], params)
+            versions[str(fid)] = check_versions(str(fid), path, data, tables[str(fid)]["rows"], params)
+            if versions[str(fid)] is None:
+                check_task_table(str(fid), path, data.get("status"), tables[str(fid)]["rows"], params)
         if kind == "requirement" and fid:
             reqs[fid] = data.get("features") or []
         if kind == "need" and fid:
@@ -1080,9 +1254,10 @@ def main():
 
     progress_files = check_progress(spec_dir / "progress", progress_schema, feats)
     check_conflict_markers(spec_dir)
-    check_needs(spec_dir, needs, ids, kind_of, feat_status, dec_status)
+    check_needs(spec_dir, needs, ids, kind_of, delivered_once(feat_status, versions), dec_status)
     check_task_items(tasks, tables, ids)
     check_enablers(linked, kind_of)
+    check_feature_processes(linked, kind_of)
     needs_off = params.get("needs") is False  # KIT-075: the front chain runs without NEED files
     if needs_off:
         for path, kind in targets:

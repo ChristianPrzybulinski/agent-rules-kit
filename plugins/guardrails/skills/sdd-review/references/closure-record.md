@@ -5,7 +5,7 @@ kind: detail
 
 # Closure record
 
-`sdd-review` writes it into the FEAT under `## Closure` (the `spec-feature.md` template carries the heading), then runs `spec_trace.py validate`, which refuses a FEAT whose closure holds no line.
+`sdd-review` writes it into the FEAT under `## Closure`, or, in a FEAT with `## Versions`, under the open block's `#### Closure` (the `spec-feature.md` template carries the heading), then runs `spec_trace.py validate`, which refuses a FEAT whose closure holds no line.
 
 ## Shape
 
