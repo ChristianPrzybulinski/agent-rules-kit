@@ -37,6 +37,12 @@ feature-closure), written by spec_trace.py: `sdd-review: validated`, then `sdd-r
 `release: merge`, `sdd-review: delivered`; a FEAT delivered before that step existed carries `delivered before
 sdd-review` instead.
 
+FEAT-only flow (KIT-100): the project profile's `sdd.flow` and `sdd.id_prefix.feature` (read through load_params, so
+`.ai-kit.yaml` and the kind preset count; `tooling` sets `feat-only`). A FEAT id is `<prefix>-nnn` (default `FEAT`).
+Under `feat-only` a FEAT needs no `requirements`, may name its `issue` and `pr` (`#N` or `OWNER/NAME#N`, or empty), and
+is delivered by its merged PR: the History line `- YYYY-MM-DD pr: delivered (<repo>#N merged)` that spec_trace.py
+sync-status writes. The full flow with the FEAT prefix checks a FEAT exactly as before.
+
 Task rows (KIT-068): a FEAT's `## Tasks` table (header `| ID | Task | ...`, rows `T<n>`). With `sdd.tracker: none` each
 cut item is docs/spec/tasks/TASK-nnn-slug.md (task.schema.json); its `feat` and `rows` and the rows' `Item` cell name
 each other. On a FEAT that is not validated, delivered or cancelled, the longest chain of own-FEAT `Depends on` ids
@@ -587,6 +593,57 @@ def check_feature_closure(path, status):
              "release: merge", "feature-closure", path)
 
 
+
+# FEAT-only flow (KIT-100). The full flow's FEAT rule stays the one STRUCT holds; apply_flow derives this run's.
+FEAT_ONLY = "feat-only"
+FEATURE_STRUCT = STRUCT["feature"]
+ITEM_REF = r"^(([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[0-9]+)?$"  # a FEAT's issue or pr: #N, OWNER/NAME#N, or empty
+PR_DELIVERED = re.compile(r"^- \d{4}-\d{2}-\d{2} pr: delivered\b", re.M)
+
+
+def flow_params(spec_dir, schemas_dir):
+    """(sdd.flow, sdd.id_prefix.feature) from the profile's resolved sdd section; a refused key is profile.py's
+    finding, never one of this run, and leaves its default."""
+    start = len(failures)
+    try:
+        params, _ = load_params(spec_dir, schemas_dir)
+    finally:
+        del failures[start:]
+    prefix = (params.get("id_prefix") or {}).get("feature")
+    return (params.get("flow") or "full"), (prefix if isinstance(prefix, str) and prefix else "FEAT")
+
+
+def apply_flow(schemas, flow, prefix):
+    """Sets this run's FEAT rules and returns the flow: the id prefix, and under feat-only an optional `requirements`
+    and the `issue` and `pr` fields. The full flow with the FEAT prefix keeps the schema and STRUCT unchanged."""
+    STRUCT["feature"] = FEATURE_STRUCT
+    if flow != FEAT_ONLY and prefix == "FEAT":
+        return flow
+    rule = dict(FEATURE_STRUCT, id=rf"^{re.escape(prefix)}-\d{{3,}}$")
+    if flow == FEAT_ONLY:
+        rule["req"] = [key for key in FEATURE_STRUCT["req"] if key != "requirements"]
+    STRUCT["feature"] = rule
+    if "feature" in schemas:
+        schema = json.loads(json.dumps(schemas["feature"]))
+        pattern = f"^{re.escape(prefix)}-[0-9]{{3,}}$"
+        schema["properties"]["id"]["pattern"] = pattern
+        schema["properties"]["depends_on"]["items"]["pattern"] = pattern
+        if flow == FEAT_ONLY:
+            schema["required"] = rule["req"]
+            for key in ("issue", "pr"):
+                schema["properties"][key] = {"type": ["string", "null"], "pattern": ITEM_REF}
+        schemas["feature"] = schema
+    return flow
+
+
+def check_closure(path, status, flow):
+    """check_feature_closure, except that a feat-only FEAT is also delivered by its merged PR's History line."""
+    if flow == FEAT_ONLY and status == "delivered":
+        match = re.search(r"(?ms)^## History[ \t]*$(.*?)(?=^## |\Z)", path.read_text(encoding="utf-8"))
+        if match and PR_DELIVERED.search(match.group(1)):
+            return
+    check_feature_closure(path, status)
+
 NEED_LINKS = {"requirements": "requirement", "decisions": "decision", "debts": "debt", "features": "feature",
               "processes": "process"}
 NEED_PRODUCT_LINKS = ("requirements", "journeys", "decisions")  # the message names these, as before KIT-090
@@ -1011,6 +1068,7 @@ def main():
     p = schemas_dir / "progress.schema.json"
     if FULL and p.exists():
         progress_schema = json.loads(p.read_text())
+    flow = apply_flow(schemas, *flow_params(spec_dir, schemas_dir))  # KIT-100
 
     targets = []  # (path, kind)
     if (spec_dir / "spec.md").exists():
@@ -1068,7 +1126,7 @@ def main():
         if kind == "feature" and fid:
             feats[fid] = data.get("requirements") or []
             feat_status[fid] = data.get("status")
-            check_feature_closure(path, data.get("status"))
+            check_closure(path, data.get("status"), flow)
             tables[str(fid)] = {"path": path, "rows": task_table(path)}
             check_task_table(str(fid), path, data.get("status"), tables[str(fid)]["rows"], params)
         if kind == "requirement" and fid:

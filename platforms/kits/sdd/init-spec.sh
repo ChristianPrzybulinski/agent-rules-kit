@@ -6,28 +6,33 @@ set -euo pipefail
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 REPO="${1:?usage: init-spec.sh <repo-dir>}"
 
-mkdir -p "$REPO/docs/spec/needs" \
-         "$REPO/docs/spec/features" \
-         "$REPO/docs/spec/requirements/functional" \
-         "$REPO/docs/spec/requirements/non-functional" \
-         "$REPO/docs/spec/decisions" \
-         "$REPO/docs/spec/debts"
+# The profile's project.kind picks the template and the folders (KIT-089, KIT-100); an invalid profile stops here.
+KIND=$(python3 "$KIT_DIR/platforms/tools/profile.py" resolve --section project --json "$REPO" \
+  | sed -n 's/^ *"kind": "\([a-z]*\)".*/\1/p')
 
-for d in needs features requirements/functional requirements/non-functional decisions debts; do
+# tooling runs the FEAT-only flow: no NEED and no REQ folder.
+FOLDERS="needs features requirements/functional requirements/non-functional decisions debts"
+if [[ "$KIND" == tooling ]]; then
+  FOLDERS="features decisions debts"
+fi
+for d in $FOLDERS; do
+  mkdir -p "$REPO/docs/spec/$d"
   touch "$REPO/docs/spec/$d/.gitkeep"
 done
 
-# The template carries the sdd: process parameters at the kit defaults (KIT-067); /sdd-constitution sets them.
-# It follows the profile's project.kind (KIT-089): spec-index-game.md for game, else spec-index-business.md.
+# The business and game templates carry the sdd: process parameters (KIT-067); /sdd-constitution sets them. The
+# tooling one carries none, since a block there would hide the tooling preset (KIT-100).
 if [[ ! -f "$REPO/docs/spec/spec.md" ]]; then
-  KIND=$(python3 "$KIT_DIR/platforms/tools/profile.py" resolve --section project --json "$REPO" \
-    | sed -n 's/^ *"kind": "\([a-z]*\)".*/\1/p')
   TEMPLATE="spec-index-business.md"
+  NOTE="with the sdd: parameters at the kit defaults (edit the frontmatter)"
   if [[ "$KIND" == game ]]; then
     TEMPLATE="spec-index-game.md"
+  elif [[ "$KIND" == tooling ]]; then
+    TEMPLATE="spec-index-tooling.md"
+    NOTE="with no sdd: block (the tooling preset of .ai-kit.yaml applies)"
   fi
   cp "$KIT_DIR/plugins/guardrails/templates/$TEMPLATE" "$REPO/docs/spec/spec.md"
-  echo "created docs/spec/spec.md from $TEMPLATE (project.kind: ${KIND:-business}) with the sdd: parameters at the kit defaults (edit the frontmatter)"
+  echo "created docs/spec/spec.md from $TEMPLATE (project.kind: ${KIND:-business}) $NOTE"
 else
   echo "docs/spec/spec.md already exists; not overwritten"
   grep -q '^sdd:' "$REPO/docs/spec/spec.md" \

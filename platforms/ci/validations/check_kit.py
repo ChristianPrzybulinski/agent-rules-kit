@@ -1240,6 +1240,7 @@ for name, plugin_dir in plugins.items():
 SPEC_MAP = {
     "spec-index-business": "spec.schema.json",
     "spec-index-game": "spec.schema.json",
+    "spec-index-tooling": "spec.schema.json",
     "spec-feature": "feature.schema.json",
     "spec-requirement-functional": "requirement.schema.json",
     "spec-requirement-non-functional": "requirement.schema.json",

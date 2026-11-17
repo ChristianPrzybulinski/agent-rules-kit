@@ -12,7 +12,8 @@
   spec_trace.py sync-status SPEC [--write] [--backlog OWNER/NAME]
                                        `sdd.tracker: github` only: each task row's Status from its issue and
                                        the PRs that close it (sdd-tasks/references/task-issue.md § States),
-                                       then each FEAT's status as `status` derives it; dry run without --write
+                                       then each FEAT's status as `status` derives it; under `sdd.flow:
+                                       feat-only` a FEAT's status from its PR (KIT-100); dry run without --write
   spec_trace.py mark-done SPEC FEAT-NNN Tn [--pr REPO#N]
                                        set the task row's Status to `done` and append a History line
   spec_trace.py status SPEC [--write]  derive each FEAT's status from its task rows (in-progress at most);
@@ -110,6 +111,14 @@ rewritten. It never writes a FEAT's `validated` or `delivered`. --write also ref
 Status cell of each FEAT row in spec.md and, where their markers are, the `<!-- sync-status:begin -->` ...
 `<!-- sync-status:end -->` block (in-progress FEATs) and the `<!-- sync-counts:begin -->` ...
 `<!-- sync-counts:end -->` block (`N FEATs: n `status`, …`, proposed and cancelled FEATs named).
+
+FEAT-only flow (KIT-100): FEAT files are `<sdd.id_prefix.feature>-*.md` (default FEAT). Under `sdd.flow: feat-only` a
+FEAT has no REQ and no task rows and is its own item, so sync-status derives its status from its PR: the one its `pr`
+field names (`#N` or `OWNER/NAME#N` of the backlog, an earlier name or a PR repository), else a PR whose body closes
+its `issue`. An open PR moves a proposed or planned FEAT to `in-progress`, a merged one moves it to `delivered`, each
+with the History line `- <date> pr: <status> (<repo>#N open|merged)`, which check_spec.py accepts as the delivery
+record; a PR closed without a merge only warns. A delivered or cancelled FEAT, and a record whose status is not a FEAT
+status (a project's older records), is never rewritten.
 
 Run it after the frontmatter lint (`check_spec.py`), which this file is synced next to by
 platforms/tools/sync-project.sh and which resolves the `sdd` block it reads. Upstreamed from a consumer
@@ -335,7 +344,7 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
     root = repo_root(spec_dir)
     spec = Spec(root=root, spec_dir=spec_dir, repos=test_roots(root, extra_repos))
     spec.params, spec.param_errors = load_params(spec_dir)
-    for path in sorted((spec_dir / "features").glob("FEAT-*.md")):
+    for path in sorted((spec_dir / "features").glob(feat_glob(spec))):  # KIT-100: sdd.id_prefix.feature
         data, body = split_frontmatter(path.read_text(encoding="utf-8"))
         if data and data.get("id"):
             spec.feats[data["id"]] = {"path": path, "requirements": data.get("requirements") or [],
@@ -2027,6 +2036,7 @@ def sync_status(spec, settings, write, today, gh=run_gh):
         if new_status != feat["status"]:
             lines.append(f"{fid}: {feat['status']} -> {new_status}")
             feat["sync_status"] = new_status
+    pr_feat_status(spec, settings, closing, lines, today, gh)  # KIT-100: a feat-only FEAT follows its PR
     if not write:
         print("\n".join(lines) or "sync-status: everything already derived")
         return 0
@@ -2035,6 +2045,61 @@ def sync_status(spec, settings, write, today, gh=run_gh):
     print(f"sync-status: wrote {written} file(s)")
     return 0
 
+
+# FEAT-only flow (KIT-100): the FEAT is its own item, and its status follows its PR.
+FEAT_ONLY = "feat-only"
+ITEM_FIELD = re.compile(r"^(?:([\w.-]+/[\w.-]+))?#(\d+)$")
+PR_OPENS = ("proposed", "clarified", "planned")  # an open PR moves these to in-progress
+PR_DELIVERS = PR_OPENS + ("in-progress",)  # a merged PR moves these to delivered; any other status stays
+
+
+def feat_glob(spec):
+    """The FEAT file pattern: `<sdd.id_prefix.feature>-*.md`, `FEAT-*.md` by default."""
+    prefix = (spec.params.get("id_prefix") or {}).get("feature")
+    return f"{prefix if isinstance(prefix, str) and prefix else 'FEAT'}-*.md"
+
+
+def feat_prs(data, settings, closing, gh):
+    """The FEAT's PRs as [{ref, state, merged}]: the one its `pr` field names, else those whose body closes its
+    `issue`; None when it names neither, and [] for a ref outside the backlog, its earlier names and PR repositories."""
+    pr = ITEM_FIELD.match(str(data.get("pr") or "").strip())
+    if pr:
+        repo = pr.group(1) or settings["repo"]
+        if repo not in {settings["repo"], *settings["aliases"], *settings["pr_repos"]}:
+            return []
+        found = gh_json(f"repos/{repo}/pulls/{pr.group(2)}", gh)
+        return [{"ref": f"{repo.split('/')[-1]}#{pr.group(2)}", "state": found.get("state"),
+                 "merged": found.get("merged_at") is not None}]
+    issue = ITEM_FIELD.match(str(data.get("issue") or "").strip())
+    if issue and (issue.group(1) or settings["repo"]) in {settings["repo"], *settings["aliases"]}:
+        return closing.get(int(issue.group(2)), [])
+    return None
+
+
+def pr_feat_status(spec, settings, closing, lines, today, gh=run_gh):
+    """Under sdd.flow: feat-only, each open FEAT's status from its PR: a merged PR delivers it, an open one makes it
+    in-progress; the move and its History line wait in the FEAT record for apply_sync."""
+    if spec.params.get("flow") != FEAT_ONLY:
+        return
+    for fid in sorted(spec.feats, key=natural_key):
+        feat = spec.feats[fid]
+        if feat["status"] not in PR_DELIVERS or feat["task_status"]:
+            continue
+        prs = feat_prs(split_frontmatter(feat["path"].read_text(encoding="utf-8"))[0] or {}, settings, closing, gh)
+        if prs is None:
+            lines.append(f"{fid}: {feat['status']} (no PR)")
+            continue
+        merged = sorted((p["ref"] for p in prs if p["merged"]), key=natural_key)
+        opened = sorted((p["ref"] for p in prs if p["state"] == "open"), key=natural_key)
+        if merged:
+            new, via = "delivered", f"{merged[0]} merged"
+        elif opened and feat["status"] in PR_OPENS:
+            new, via = "in-progress", f"{opened[0]} open"
+        else:
+            lines += [f"WARN {fid}: {p['ref']} closed without a merge" for p in prs if p["state"] != "open"]
+            continue
+        lines.append(f"{fid}: {feat['status']} -> {new} ({via})")
+        feat["sync_status"], feat["sync_history"] = new, f"- {today} pr: {new} ({via})"
 
 def task_header(body):
     """The cells of the task-table header (the `| ID |` table with a `Status` column), or None."""
@@ -2081,6 +2146,8 @@ def apply_sync(spec, changed, today):
             detail = "; ".join(f"{tid} {old} -> {new}" + (f" via {', '.join(via)}" if via else "")
                                for tid, old, new, via in changed[fid])
             append_history(feat["path"], f"- {today} sync: status derived from GitHub ({detail}).")
+        if feat.get("sync_history"):
+            append_history(feat["path"], feat["sync_history"])
         written += 1
     matrix = spec.spec_dir / MATRIX
     if spec.journeys or spec.processes or matrix.exists():
