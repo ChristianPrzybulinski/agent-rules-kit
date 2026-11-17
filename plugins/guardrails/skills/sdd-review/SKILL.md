@@ -21,7 +21,7 @@ Scripts do the mechanical part; the model reads only what they flag. `TRACE` is 
 
 ## 1. Gate the start (script)
 
-`python3 TRACE validate docs/spec FEAT-nnn --at <main sha> --check`. Before the closure record exists it must report only that record missing: every task row done (or superseded by another row, or cancelled by a resync), and every step of a journey that a NEED listing the FEAT names cites its tasks and tests. A step still `—` goes back to `sdd-tasks` for the row that fills it.
+`python3 TRACE validate docs/spec FEAT-nnn --at <main sha> --check`. Before the closure record exists it must report only that record missing: every task row done (or superseded by another row, or cancelled by a resync), and every step of a journey that a NEED listing the FEAT names cites its tasks and tests, and so does every step of a process that NEED names in `processes` or that such a journey cites (a citing journey step is filled when the process steps it expands to are). A step still `—` goes back to `sdd-tasks` for the row that fills it.
 
 ## 2. Run the scripts on main
 
@@ -33,10 +33,10 @@ Scripts do the mechanical part; the model reads only what they flag. `TRACE` is 
 
 - A stale proof (a path that moved, a renamed id): find the current test (grep the CA or REQ id), run it, record both, and correct the Proof cell. Re-run only the proofs this changed.
 - A stale marker: rewrite it as the current fact or delete it, citing the evidence (the merged PR, the config value). A flagged `[PROPOSAL]` in Scope that is settled folds into Scope as fact, a CA or a REQ (a REQ change goes through `sdd-clarify`), keeping the profile's `decision_folding.marker`: `→ folded into CA-3` (`sdd-plan` § 5). A split History bullet: move the inserted lines below the bullet's last line.
-- A trace gap: link the test in the journey step's `Proven by`, or correct the REQ's proving test.
+- A trace gap: link the test in the journey or process step's `Proven by` (for a journey step that cites a process, in the cited process step), or correct the REQ's proving test.
 - Each REQ example and counterexample against an asserting test (`path:line`): the output is a list of missing-test rows, not a block on `validated`. The reading is fallible (1 of 3 spot checks was wrong in calibration), so grep each "untested" claim before filing its row.
 - Each REQ-NF: metric, target, measurement — the command, environment and measured value. A planned value never stands in for a measured one.
-- A touched journey's `manual:` checks, by the person each names; the automated `Proven by` tests are in the broad suite.
+- A touched journey's or process's `manual:` checks, by the person each names; the automated `Proven by` tests are in the broad suite.
 
 ## 4. Decide the outcome
 
