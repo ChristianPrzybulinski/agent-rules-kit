@@ -5,16 +5,11 @@
 #                                                          whose CI runs no spec tools), removes a generated
 #                                                          .github/spec-lint/ (KIT-081 stage 1),
 #                                                          CLAUDE.md (imports AGENTS.md; its marker records the
-#                                                          profile list),
+#                                                          kit version),
 #                                                          .claude/settings.json (ai-kit marketplace at
 #                                                          ref stable (KIT-081) +
 #                                                          enabledPlugins guardrails@ai-kit +
 #                                                          includeGitInstructions false)
-#        sync-project.sh --migrate-profile <repo-dir>
-#                                                          writes <repo-dir>/.ai-kit.yaml from the resolved profile
-#                                                          (platforms/tools/profile.py migrate, KIT-087 P2a): every
-#                                                          key its legacy homes set off its default; never overwrites;
-#                                                          runs alone and writes nothing else
 #        sync-project.sh --check [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>
 #                                                          compares all of them with the kit and scans the
 #                                                          repo's *.md for obsolete kit paths and
@@ -24,18 +19,19 @@
 # receive each one (KIT-047). The `stacks` of the project profile <repo-dir>/.ai-kit.yaml win when it sets them
 # (KIT-087 P2a: {'.': docs, client: godot} is the list docs,godot:client): --profile must then name the same list or
 # the run stops (exit 2), as it does on a profile platforms/tools/profile.py refuses. Without them, --profile, else
-# the list the generated CLAUDE.md marker records is used, then (a repository
-# synced in the vendored mode before KIT-081 stage 2b) the list .claude/skills/KIT_MANIFEST.json records; a repo with
-# neither gets the profile inferred, first match wins: project.godot (godot), pom.xml (java), docs/spec/ (docs). The
-# run prints which source won.
+# (a repository synced in the vendored mode before KIT-081 stage 2b) the list .claude/skills/KIT_MANIFEST.json
+# records; a repo with neither gets the profile inferred, first match wins: project.godot (godot), pom.xml (java),
+# docs/spec/ (docs). The run prints which source won, and without `stacks` it warns: the path-rule hook reads only
+# them (KIT-087 P4: the CLAUDE.md marker no longer records a profile list, and nothing reads the list an older marker
+# holds).
 # <profile> is godot|java|docs|python, optionally followed by :<dir>. A comma list syncs the union
 # of its profiles' rules, for a monorepo such as
 # docs,godot:client,java:server,python:platform. The :<dir> suffix scopes the globs/paths of the rule named
 # after that profile to <dir>/ ("**/*.gd" renders as "client/**/*.gd"; java:server leaves the
 # godot rule alone), and any other rule to the folders of every profile that receives the rule.
-# The list is stored sorted and deduplicated, which is the form the CLAUDE.md marker records.
+# The list is used sorted and deduplicated.
 # No rule is copied into the project since KIT-081 stage 3: the guardrails plugin's hook
-# (plugins/guardrails/hooks/path_rules.py) gives Claude Code each rule the CLAUDE.md marker's profiles select when a
+# (plugins/guardrails/hooks/path_rules.py) gives Claude Code each rule the profile's `stacks` select when a
 # tool call reads or edits a file its globs match. Install removes the kit-marked .claude/rules copies older syncs wrote
 # (platforms/tools/sync_rules.py) and keeps the project's own rules with a "sync: kept" line; --check names each copy
 # left.
@@ -44,11 +40,11 @@
 # the flag exits 2, and a repository that still holds its state (KIT_MANIFEST.json, the .claude/skills/ copies and
 # guardrails-pinned/ marked .agent-rules-kit, .claude/ai-kit/, the pinned hooks and key in .claude/settings.json) is
 # migrated by platforms/tools/sync_unvendor.py: install removes only the kit-marked folders and the kit's settings
-# entries, after the plugin is on and CLAUDE.md records the profile list, and --check reports each leftover. An
+# entries, after the plugin is on and CLAUDE.md is written, and --check reports each leftover. An
 # unmarked folder or a symbolic link is never read, replaced or deleted.
-# docs/spec/spec.md may set sdd.rule_paths, kit rule name -> folders (KIT-067): it scopes that rule's globs
+# The profile's sdd.rule_paths, kit rule name -> folders (KIT-067), scopes that rule's globs
 # like :<dir> does and wins over the profile folders; "." keeps the whole repository. A key that names no kit
-# rule, or an sdd block check_spec.py refuses, stops both modes before any write (exit 2).
+# rule, or a profile the kit resolver refuses, stops both modes before any write (exit 2).
 # Each rendered rule's body goes into a generated block in the AGENTS.md of each folder its globs start in
 # (platforms/tools/sync_agents_md.py), for runtimes that load no rule by path. The blocks stay after KIT-081 stage 3:
 # Codex reads only AGENTS.md, and a Codex equivalent of the hook waits for a Codex probe. A rule named after a profile
@@ -87,13 +83,14 @@ SPEC_TOOLS="$KIT_DIR/platforms/tools/sync_spec_tools.py"
 RULES_TOOL="$KIT_DIR/platforms/tools/sync_rules.py"
 
 MODE="install"
-MIGRATE=0
 PROFILE=""
 WORKFLOW=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --check) MODE="check" ;;
-    --migrate-profile) MIGRATE=1 ;;
+    --migrate-profile)
+      echo "sync: --migrate-profile was removed in KIT-087 P4: the kit reads no legacy home any more; write .ai-kit.yaml with kit 16 (sync-project.sh --migrate-profile) or by hand (platforms/ci/schemas/profile.schema.json)" >&2
+      exit 2 ;;
     --profile) PROFILE="${2:?usage: sync-project.sh [--check] [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>}"; shift ;;
     --workflow) WORKFLOW="${2:?usage: sync-project.sh [--check] [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>}"; shift ;;
     --vendor-skills)
@@ -106,16 +103,8 @@ while [[ $# -gt 0 ]]; do
 done
 REPO="${1:?usage: sync-project.sh [--check] [--profile <profile>[,<profile>...]] [--workflow <file>] <repo-dir>}"
 PROFILE_TOOL="$KIT_DIR/platforms/tools/profile.py"
-# KIT-087 P2a: the project profile from its legacy homes, written once by the kit resolver; nothing else runs.
-if [[ "$MIGRATE" == 1 ]]; then
-  if [[ "$MODE" != install || -n "$PROFILE" || -n "$WORKFLOW" ]]; then
-    echo "sync: --migrate-profile runs alone: sync-project.sh --migrate-profile <repo-dir>" >&2
-    exit 2
-  fi
-  exec python3 "$PROFILE_TOOL" migrate "$REPO"
-fi
 CLAUDE_MARKER="generated by agent-rules-kit sync-project.sh"
-RULE_PATHS=""  # "<rule> <dir>..." lines from docs/spec/spec.md sdd.rule_paths (KIT-067)
+RULE_PATHS=""  # "<rule> <dir>..." lines from the profile's sdd.rule_paths (KIT-067)
 # KIT-081 stage 1b: the driver runs from the installed kit; the copy older syncs vendored (KIT-074) is a leftover.
 # shellcheck disable=SC2088  # printed for the user to paste; git runs the driver through sh, which expands ~
 MERGE_DRIVER_KIT="~/.ai-kit/platforms/kits/godot/scripts/keyed_csv_merge.py"
@@ -198,12 +187,6 @@ infer_profile() { # $1 = repo dir
   elif [[ -d "$1/docs/spec" ]]; then echo docs
   else echo "sync: cannot infer profile for $1 (no project.godot, pom.xml or docs/spec); pass --profile godot|java|docs|python" >&2; return 1
   fi
-}
-
-claude_profile() { # $1 = CLAUDE.md; prints the profile list its generated marker records (KIT-081 stage 2b), or
-  # nothing when the file is missing, hand-written or from a sync before the marker carried one
-  [[ -f "$1" ]] || return 0
-  sed -n '1s/^<!-- generated by agent-rules-kit sync-project\.sh v[^;]*; profile \([^; ]*\); AGENTS\.md is the source -->$/\1/p' "$1"
 }
 
 manifest_profile() { # prints the profile list the KIT_MANIFEST.json of a repository synced in the vendored mode before
@@ -440,7 +423,7 @@ spec = importlib.util.spec_from_file_location("kit_profile", sys.argv[1])
 profile = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(profile)
 resolver = profile.Resolver(Path(sys.argv[2]))
-resolver.read_new()  # the file's own stacks: the marker is what this run rewrites, never a source beside them
+resolver.read_new()  # the file's own stacks
 for error in resolver.errors:
     print(f"sync: {error}", file=sys.stderr)
 if resolver.errors:
@@ -454,8 +437,8 @@ PY
 }
 
 # The repo profile selects the rules; check and install both need it. The project profile's stacks win (KIT-087 P2a);
-# else the list is sticky: without --profile, the list the CLAUDE.md marker records wins, then (migration from the vendored mode, KIT-081 stage 2b) the one
-# KIT_MANIFEST.json records, then inference, so a bare run keeps a monorepo's union (KIT-017).
+# else --profile, then (migration from the vendored mode, KIT-081 stage 2b) the list KIT_MANIFEST.json records, then
+# inference. Only the stacks persist (KIT-087 P4), so a monorepo sets them to keep its union (KIT-017).
 stacks_profile="$(profile_stacks)" || {
   echo "sync: fix $REPO/.ai-kit.yaml (platforms/ci/schemas/profile.schema.json), then rerun" >&2
   exit 2
@@ -470,8 +453,6 @@ if [[ -n "$stacks_profile" ]]; then
   profile_source=".ai-kit.yaml"
 elif [[ -n "$PROFILE" ]]; then
   profile_source="--profile"
-elif PROFILE="$(claude_profile "$REPO/CLAUDE.md")" && [[ -n "$PROFILE" ]]; then
-  profile_source="CLAUDE.md"
 elif PROFILE="$(manifest_profile)" && [[ -n "$PROFILE" ]]; then
   profile_source="manifest"
 else
@@ -480,20 +461,21 @@ else
 fi
 PROFILE="$(normalize_profile "$PROFILE")" || {
   case "$profile_source" in
-    CLAUDE.md) echo "sync: CLAUDE.md records that profile; pass --profile to replace it" >&2 ;;
     manifest) echo "sync: .claude/skills/KIT_MANIFEST.json records that profile; pass --profile to replace it" >&2 ;;
   esac
   exit 2
 }
 echo "sync: profile=$PROFILE ($profile_source)"
+if [[ "$profile_source" != .ai-kit.yaml ]]; then
+  echo "sync: warning: $REPO/.ai-kit.yaml sets no stacks, and the path-rule hook reads only them: no kit rule reaches a session until it sets them for the list $PROFILE (KIT-087 P4; docs,godot:client is stacks: {'.': docs, client: godot})" >&2
+fi
 
-# The project's sdd parameters (KIT-067): check_spec.py resolves and checks the block, so an invalid one refuses
-# both modes before any write. CI is cleared for that call: without pyyaml it parses the block structurally.
-if [[ -f "$REPO/docs/spec/spec.md" ]]; then
-  if ! CI='' python3 "$KIT_DIR/platforms/ci/validations/check_spec.py" --params "$REPO/docs/spec" \
-      "$KIT_DIR/platforms/ci/schemas" >"$SYNC_TMP/params.json" 2>"$SYNC_TMP/params.err"; then
-    grep -v '^WARN: ' "$SYNC_TMP/params.err" >&2 || true
-    echo "sync: fix the sdd block in $REPO/docs/spec/spec.md (skill sdd-constitution, references/sdd-parameters.md), then rerun" >&2
+# The project's sdd parameters (KIT-067): the kit resolver resolves the profile's sdd section, so a refused profile
+# stops both modes before any write.
+if [[ -f "$REPO/.ai-kit.yaml" ]]; then
+  if ! python3 "$PROFILE_TOOL" resolve --section sdd --json "$REPO" >"$SYNC_TMP/params.json" 2>"$SYNC_TMP/params.err"; then
+    cat "$SYNC_TMP/params.err" >&2
+    echo "sync: fix the sdd section of $REPO/.ai-kit.yaml (skill sdd-constitution, references/sdd-parameters.md), then rerun" >&2
     exit 2
   fi
   python3 - "$SYNC_TMP/params.json" "$KIT_DIR/plugins/$KIT_PLUGIN/rules" >"$SYNC_TMP/rule-paths" <<'PY' || exit 2
@@ -503,7 +485,7 @@ kit_rules = sorted(name[:-3] for name in os.listdir(sys.argv[2]) if name.endswit
 bad = False
 for rule, dirs in sorted(params.get("rule_paths", {}).items()):
     if rule not in kit_rules:
-        print(f"sync: docs/spec/spec.md sdd.rule_paths names rule {rule!r}, which the kit does not ship"
+        print(f"sync: .ai-kit.yaml sdd.rule_paths names rule {rule!r}, which the kit does not ship"
               f" ({', '.join(kit_rules)})", file=sys.stderr)
         bad = True
     print(rule, *dirs)
@@ -547,12 +529,8 @@ if [[ "$MODE" == check ]]; then
   scan_stale_kit_paths "$REPO" || FAILED=1
   scan_removed_kit_skills "$REPO" || FAILED=1
   claude_file="$REPO/CLAUDE.md"
-  recorded="$(claude_profile "$claude_file")"
-  if [[ -n "$recorded" && "$recorded" != "$PROFILE" ]]; then
-    echo "sync: CLAUDE.md records profile '$recorded' expected '$PROFILE' (pass --profile or rerun sync-project.sh)"
-    FAILED=1
-  elif [[ ! -f "$claude_file" ]] \
-      || ! grep -qF "$CLAUDE_MARKER v$expected; profile $PROFILE;" "$claude_file" \
+  if [[ ! -f "$claude_file" ]] \
+      || [[ "$(head -n 1 "$claude_file")" != "<!-- $CLAUDE_MARKER v$expected; AGENTS.md is the source -->" ]] \
       || [[ "$(grep -v '^<!--' "$claude_file" || true)" != "@AGENTS.md" ]]; then
     echo "sync: CLAUDE.md missing or diverges (rerun sync-project.sh)"
     FAILED=1
@@ -682,8 +660,8 @@ elif merge_driver_config_stale; then
   merge_driver_step | sed -n 2p
 fi
 
-# The marker records the profile list, which a sync without --profile reuses (KIT-081 stage 2b).
-claude_body="<!-- $CLAUDE_MARKER v$version; profile $PROFILE; AGENTS.md is the source -->
+# The marker records the kit version; the profile list lives in .ai-kit.yaml stacks only (KIT-087 P4).
+claude_body="<!-- $CLAUDE_MARKER v$version; AGENTS.md is the source -->
 @AGENTS.md"
 if [[ ! -f "$REPO/CLAUDE.md" ]] || [[ "$(cat "$REPO/CLAUDE.md")" != "$claude_body" ]]; then
   printf '%s\n' "$claude_body" > "$REPO/CLAUDE.md"
@@ -694,7 +672,7 @@ fi
 python3 "$RULES_TOOL" remove "$REPO"
 
 # KIT-081 stage 2b: a repository synced in the vendored mode loses the kit-marked copies, the pin and the pin's
-# settings entries; guardrails@ai-kit is already on and CLAUDE.md records the profile, so a failure here loses neither.
+# settings entries; guardrails@ai-kit is already on and CLAUDE.md is written, so a failure here loses neither.
 python3 "$UNVENDOR_TOOL" remove "$REPO"
 
 # KIT-081 stage 1: the .github/spec-lint/ copy an older sync generated goes (kit-named files only); the spec tools run

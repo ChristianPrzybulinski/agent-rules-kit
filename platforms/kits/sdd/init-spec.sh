@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Initializes docs/spec/ in a repo: the folders of the profile's sdd.flow and the spec.md template of its
-# project.kind (business and game carry the sdd: parameters, tooling none). Usage: init-spec.sh <repo-dir>
+# project.kind (none carries an sdd: block, KIT-087 P4). Usage: init-spec.sh <repo-dir>
 # Precondition: the repo must already have AGENTS.md (the sync generates CLAUDE.md importing it).
 set -euo pipefail
 
@@ -24,23 +24,23 @@ for d in $FOLDERS; do
   touch "$REPO/docs/spec/$d/.gitkeep"
 done
 
-# The business and game templates carry the sdd: process parameters (KIT-067); /sdd-constitution sets them. The
-# tooling one carries none, since a block there would hide the tooling preset (KIT-100).
+# No template carries an sdd: block (KIT-087 P4): the process parameters are the sdd section of .ai-kit.yaml, which
+# /sdd-constitution writes; a key left out takes its project.kind preset or default.
 if [[ ! -f "$REPO/docs/spec/spec.md" ]]; then
   TEMPLATE="spec-index-business.md"
-  NOTE="with the sdd: parameters at the kit defaults (edit the frontmatter)"
+  NOTE="(the process parameters go in the sdd section of .ai-kit.yaml)"
   if [[ "$KIND" == game ]]; then
     TEMPLATE="spec-index-game.md"
   elif [[ "$KIND" == tooling ]]; then
     TEMPLATE="spec-index-tooling.md"
-    NOTE="with no sdd: block (the tooling preset of .ai-kit.yaml applies)"
   fi
   cp "$KIT_DIR/plugins/guardrails/templates/$TEMPLATE" "$REPO/docs/spec/spec.md"
   echo "created docs/spec/spec.md from $TEMPLATE (project.kind: ${KIND:-business}) $NOTE"
 else
   echo "docs/spec/spec.md already exists; not overwritten"
-  grep -q '^sdd:' "$REPO/docs/spec/spec.md" \
-    || echo "docs/spec/spec.md has no sdd: block, so every parameter takes its kit default; /sdd-constitution writes it"
+  if grep -q '^sdd:' "$REPO/docs/spec/spec.md"; then
+    echo "docs/spec/spec.md still holds an sdd: block, which the kit no longer reads (KIT-087 P4): move its keys under sdd: in .ai-kit.yaml"
+  fi
 fi
 
 [[ -f "$REPO/AGENTS.md" ]] || { echo "init-spec: $REPO/AGENTS.md missing; create it from plugins/guardrails/templates/project-agents-*.md first"; exit 1; }

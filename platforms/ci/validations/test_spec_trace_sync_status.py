@@ -22,6 +22,7 @@ COVERS = ("platforms/ci/validations/spec_trace.py",)
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import spec_trace as trace  # noqa: E402
+from test_profile import write_spec  # noqa: E402
 
 FEAT11 = """\
 ---
@@ -113,6 +114,8 @@ TODAY = "2026-10-06"
 
 
 def write(root, rel, text):
+    if rel.endswith("spec/spec.md"):  # its sdd: block goes to .ai-kit.yaml (KIT-087 P4)
+        return write_spec(root, textwrap.dedent(text), rel)
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(textwrap.dedent(text), encoding="utf-8")

@@ -1,0 +1,7 @@
+# The fixture project's profile (KIT-087): the parameters the kit reads. The stacks are the sync profile list
+# docs,python:tools, which bare syncs keep since KIT-087 P4 (the CLAUDE.md marker records no list).
+stacks:
+  '.': docs
+  tools: python
+sdd:
+  tracker: none

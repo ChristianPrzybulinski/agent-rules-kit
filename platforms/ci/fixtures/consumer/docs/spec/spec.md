@@ -2,8 +2,6 @@
 project: "consumer-fixture"
 version: "0.1.0"
 updated: "2026-11-16"
-sdd:
-  tracker: none
 ---
 
 # Consumer fixture

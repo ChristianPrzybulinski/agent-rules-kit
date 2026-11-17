@@ -90,14 +90,15 @@ class HelperTest(Stubbed):
     def test_a_changed_profile_file_resolves_again(self):
         self.set_view("specs")
         self.hp.view(str(self.project), self.env, "s1")
-        for name in (".ai-kit.yaml", "CLAUDE.md"):
-            with self.subTest(name=name):
-                before = self.runs()
-                (self.project / name).write_text(f"x-{name}: 1\n", encoding="utf-8")
-                self.hp.view(str(self.project), self.env, "s1")
-                self.assertEqual(self.runs(), before + 1)
-                self.hp.view(str(self.project), self.env, "s1")
-                self.assertEqual(self.runs(), before + 1)
+        before = self.runs()
+        (self.project / ".ai-kit.yaml").write_text("x-a: 1\n", encoding="utf-8")
+        self.hp.view(str(self.project), self.env, "s1")
+        self.assertEqual(self.runs(), before + 1)
+        self.hp.view(str(self.project), self.env, "s1")
+        self.assertEqual(self.runs(), before + 1)
+        (self.project / "CLAUDE.md").write_text(marker("godot"), encoding="utf-8")
+        self.hp.view(str(self.project), self.env, "s1")
+        self.assertEqual(self.runs(), before + 1, "KIT-087 P4: CLAUDE.md is no profile home, so no key of the cache")
 
     def test_a_failing_resolver_gives_none_once_per_change(self):
         self.assertIsNone(self.hp.view(str(self.project), self.env, "s1"))  # no view.json: exit 1
@@ -248,8 +249,8 @@ class LintHookTest(Stubbed):
 
 
 class PathRulesProfileTest(unittest.TestCase):
-    """The path-rule hook selects the rules by the resolved stacks: `.ai-kit.yaml` adds a godot folder the marker does
-    not list. Runs the kit's real resolver."""
+    """The path-rule hook selects the rules by the resolved stacks of `.ai-kit.yaml` alone: the profile list of an
+    older marker is not read (KIT-087 P4). Runs the kit's real resolver."""
 
     LAYER = "integration"
     COVERS = ("plugins/guardrails/hooks/**", "platforms/tools/profile.py")
@@ -279,13 +280,13 @@ class PathRulesProfileTest(unittest.TestCase):
         return [line.split("`")[1] for line in context.splitlines() if line.startswith("ai-kit path rule `")]
 
     def test_the_profile_stacks_select_the_rules(self):
-        self.assertNotIn("godot", self.given("s1"), "the marker alone lists docs")
+        self.assertEqual(self.given("s1"), [], "the marker's list (docs) is not read: no stacks, no rule")
         (self.project / ".ai-kit.yaml").write_text("stacks: {'.': docs, client: godot}\n", encoding="utf-8")
         self.assertIn("godot", self.given("s2"))
 
-    def test_a_refused_profile_falls_back_to_the_marker(self):
+    def test_a_refused_profile_gives_no_rule(self):
         (self.project / ".ai-kit.yaml").write_text("stacks: {client: unity}\n", encoding="utf-8")
-        self.assertNotIn("godot", self.given("s3"))
+        self.assertEqual(self.given("s3"), [])
 
 
 class Latency(Stubbed):

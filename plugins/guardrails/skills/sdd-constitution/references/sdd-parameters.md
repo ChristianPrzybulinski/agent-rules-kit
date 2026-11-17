@@ -1,13 +1,13 @@
 ---
-description: The project's sdd parameters in docs/spec/spec.md; each key, its values, its kit default and the step that reads it.
+description: The project's sdd parameters in .ai-kit.yaml; each key, its values, its kit default and the step that reads it.
 kind: detail
 ---
 
 # SDD parameters
 
-The kit skills are the process; a project never copies a step to change it. It sets its parameters once, in the `sdd:` block of the `docs/spec/spec.md` frontmatter, next to `decision_kinds`. `sdd-constitution` writes the block (the `spec-index-<kind>.md` template carries it with every default, the game one with `Assets` on). `check_spec.py` refuses an unknown key or a value outside its range, with or without pyyaml; `spec.schema.json` holds the keys, values and defaults. To see what a step will read, run `PROFILE resolve --section sdd` (`../../session/references/project-profile.md`): it prints the resolved section, every absent key at its default. Project profile (KIT-087): these keys, plus `task_cut`, `decision_folding` and `migrations` (profile only, so `check_spec.py --params` omits them), are the `sdd` section of `.ai-kit.yaml` (`profile.schema.json`, `platforms/tools/profile.py`); during the dual read this `sdd:` block is the legacy home, read for each key the profile does not set (`profile: sdd.<key> from legacy docs/spec/spec.md`), and a key set differently in both fails; `--params` prints that view.
+The kit skills are the process; a project never copies a step to change it. It sets its parameters once, in the `sdd` section of `.ai-kit.yaml` at its git top level, the project profile (KIT-087: `profile.schema.json`, `platforms/tools/profile.py`). `sdd-constitution` writes the section with the keys the project changes; a key left out takes its kind preset or default. The resolver refuses an unknown key or a value outside its range, with or without pyyaml. To see what a step will read, run `PROFILE resolve --section sdd` (`../../session/references/project-profile.md`): it prints the resolved section, every absent key at its preset or default; `check_spec.py --params` prints the same section. Since KIT-087 P4 the `sdd:` block of `docs/spec/spec.md` is not read, and `check_spec.py` fails on one left there; its `review_rounds` and `visual_approval` are `review.rounds` and `evidence.visual_approval`.
 
-A default is the kit's behavior before the key existed, except `max_chain` and `max_feat_tasks`, which the kit did not limit. Kinds (KIT-088): `project.kind` (`business`, the default, `game` or `tooling`) is a preset of defaults no step reads; a key the project sets nowhere takes its kind's preset, else its default. The presets and the profile-only `sdd` keys `vision_sections`, `passes`, `acceptance`, `flow`, `task_table`, `record_when` and `id_prefix.feature`, with `spec_root` and `release.versioning`, are described in `profile.schema.json`; `--params` leaves them out. `points` sums the bundled rows' `Complexity`: Low 1, Med 2, High 3.
+A default is the kit's behavior before the key existed, except `max_chain` and `max_feat_tasks`, which the kit did not limit. Kinds (KIT-088): `project.kind` (`business`, the default, `game` or `tooling`) is a preset of defaults no step reads; a key the project sets nowhere takes its kind's preset, else its default. The presets and the profile-only `sdd` keys `vision_sections`, `passes`, `acceptance`, `flow`, `task_table`, `record_when` and `id_prefix.feature`, with `spec_root` and `release.versioning`, are described in `profile.schema.json`. `points` sums the bundled rows' `Complexity`: Low 1, Med 2, High 3.
 
 | Key | Values | Default | Read by |
 |---|---|---|---|
@@ -26,21 +26,21 @@ A default is the kit's behavior before the key existed, except `max_chain` and `
 | `max_chain` | integer ≥ 1 | `4` | `sdd-tasks`, `check_spec.py` (fails above it): longest chain of a FEAT's own `Depends on` rows |
 | `max_feat_tasks` | integer ≥ 1 | `30` | `sdd-plan` (splits a NEED above it), `check_spec.py` (fails an open `## Versions` block above it, KIT-096; warns on a FEAT without blocks): task rows in one FEAT or version block |
 | `release` | `merge`, `manual` | `merge` (delivered once on `main`, flag on or none) | `sdd-review`, `sdd-release` |
-| `review_rounds` | integer ≥ 1 | `3` (`review` § 4) | `review`: a ceiling, not a target; the escalation cap for a PR whose fix delta adds a new mechanism, in rounds that end `NOT READY` on one criterion before the owner decides |
 | `commits_by` | `executor`, `orchestrator` | `executor` | `sdd-implement`: who commits a task's work |
 | `protected_paths` | map: rooted path or glob → label | `{}` | `sdd-tasks` cut (the item gets the label), `review`: a change there needs the label |
 | `bundle` | map: `rows` ≥ 1, `points` ≥ 1, `high_rows` ≥ 0 | `{rows: 1, points: 3, high_rows: 1}` | `sdd-tasks` cut: new rows of one repository sharing a Files path in one item; `rows: 1` = one item per row |
 | `task_cut` (profile) | map: `owned_area_form` (`globs`, `paths`), `required_test_folders` (code glob → test folders), `bundle_exclude` (globs), `longest_chain_max_complexity` (`Low`, `Med`, `High`) | `{owned_area_form: globs, required_test_folders: {}, bundle_exclude: [], longest_chain_max_complexity: Med}` (`High`: no limit) | `sdd-tasks` and `sdd-check` § 1 d: the task cut checklist (`sdd-tasks/references/task-cut.md`, KIT-086) |
 | `decision_folding` (profile) | map: `marker` (text) | `{marker: "→ folded into"}` | `sdd-plan` § 5, `sdd-tasks`, `sdd-clarify`, `sdd-review` and `sdd-check` § 1 e: the marker a settled `[DECISION]` line of a FEAT's Open questions gets when it is folded (KIT-086) |
 | `migrations` (profile) | list of folders rooted at the repository | `[]` | `spec_trace.py enablers` (`sdd-check` § 1 f, C19): every file under each folder needs an ENB catalog row (`Schema or file`), as `row_checks.protocol.schemas` does for protocol schemas (KIT-095, KIT-087 P2b) |
-| `rule_paths` | map: kit rule name → folders, `.` for the whole repository | `{}` (the `--profile` folders) | `sync-project.sh`: the rule's globs and its `AGENTS.md` block |
-| `visual_approval` | `owner`, `reviewer`, `none` | `none` | `review`: who approves a screen or motion change's captures against its REQ's mock before the merge; `row_checks.py` rule j, which is off unless it is `owner` or `reviewer` |
+| `rule_paths` | map: kit rule name → folders, `.` for the whole repository | `{}` (the `stacks` folders) | `sync-project.sh`: the rule's globs and its `AGENTS.md` block |
 | `owner_approvals` | list of change kinds, kebab-case | `[decision]` | `review` and an orchestrator under owner-review autonomy: kinds only the owner approves, such as `approved-dec-change`, `protocol-version`, `in-game-evidence` |
 | `doc_structure` | map: `enabled` (`true`, `false`), `exempt` (a path in the repository), `headings` (list of `##` to `######` headings), `done_index` (`true`, `false`) | `{enabled: false, exempt: .github/doc-structure-exempt.txt, headings: ["## What goes here", "## What does not go here"], done_index: true}` | `check_docs_structure.py`, run by the `docs.just` `lint` recipe and the spec-tools action, passes as `off` unless enabled (KIT-074) |
 
+Two settings have their own sections: `review.rounds` (integer ≥ 1, default `3`, read by `review`: a ceiling, not a target; the escalation cap for a PR whose fix delta adds a new mechanism, in rounds that end `NOT READY` on one criterion before the owner decides) and `evidence.visual_approval` (`owner`, `reviewer`, `none`; default `none`, `owner` in the game preset; read by `review`: who approves a screen or motion change's captures against its REQ's mock before the merge, and by `row_checks.py` rule j, which is off unless it is `owner` or `reviewer`).
+
 ## Rule paths
 
-`sync-project.sh` renders each kit rule under the folders of its profile (`--profile godot:client`). A rule named
+`sync-project.sh` renders each kit rule under the folders of its stacks (`stacks: {client: godot}`). A rule named
 after no profile (`json`, `spec`) covers the folders of every profile that receives it, often the whole repository. A
 `rule_paths` entry sets the folders for one rule and wins over the profile; a key that names no kit rule refuses the
 sync. For a monorepo whose message schemas live in `game/protocol/`:
@@ -56,4 +56,4 @@ The sync writes the json rule into a block in `game/protocol/AGENTS.md` (glob `g
 that load no rule by path, and `--check` flags it when the parameter changes; a missing folder gets no block. Claude
 Code gets the rule from the plugin's hook by the kit's own globs, which the parameter does not narrow (KIT-081 stage 3).
 
-A setting with no key here (a model map, a host limit, a formatter) stays in the project's tooling config or `AGENTS.md`; the block takes no project-private keys.
+A setting with no key here (a model map, a host limit, a formatter) stays in the project's tooling config or `AGENTS.md`; a project-private key in `.ai-kit.yaml` goes under `x-<name>:`, which the kit ignores.

@@ -31,9 +31,17 @@ SPEC_MD = """\
 project: "fixture"
 version: "0.1.0"
 updated: "2026-11-15"
+---
+
+# Fixture spec
+"""
+
+# The fixture's profile (KIT-087 P4: .ai-kit.yaml is the only home of the sdd and evidence keys).
+PROFILE = """\
+evidence:
+  visual_approval: owner
 sdd:
   tracker: github
-  visual_approval: owner
   components: {project: ".", backend: server, frontend: client}
   row_checks:
     gates: tools/gates.json
@@ -45,9 +53,6 @@ sdd:
     protocol: {folder: protocol, schemas: protocol/schemas, consumers: {backend: ["server/src/main/java/ws/MessageTypes.java", "server/src/main/java/ws/ErrorCode.java"], frontend: ["client/app/network/protocol.gd"]}}
     artifacts: tools/artifact-policies.json
     visual: {paths: ["client/**/*.tscn", "client/features/ui/**"], ignore: ["client/tests/**"], catalog: {screen: "client/tests/evidence/screens/$id.json", motion: "client/tests/evidence/motion/$id.gd"}}
----
-
-# Fixture spec
 """
 
 GATES = {"owner": "org", "backlog_repo": "docs",
@@ -118,10 +123,11 @@ def feat_text(fid, rows, header=HEADER):
             f"- 2026-11-15 plan: rows.\n")
 
 
-def make_repo(root, spec_md=SPEC_MD, rows=ROWS, fid="FEAT-900"):
-    """A repository with the fixture spec, gates, registry, protocol schemas and component folders."""
+def make_repo(root, spec_md=SPEC_MD, rows=ROWS, fid="FEAT-900", profile=PROFILE):
+    """A repository with the fixture spec, its profile, gates, registry, protocol schemas and component folders."""
     files = {
         "docs/spec/spec.md": textwrap.dedent(spec_md),
+        ".ai-kit.yaml": profile,
         f"docs/spec/features/{fid}.md": feat_text(fid, rows),
         "tools/gates.json": json.dumps(GATES),
         "tools/artifact-policies.json": json.dumps(ARTIFACTS),
@@ -398,7 +404,7 @@ class WithoutParameters(unittest.TestCase):
     def test_a_spec_without_row_check_keys_runs_the_kit_rules_that_need_none(self):
         bare = "---\nproject: \"fixture\"\nversion: \"0.1.0\"\nupdated: \"2026-11-15\"\n---\n"
         with tempfile.TemporaryDirectory() as tmp:
-            spec = make_repo(tmp, spec_md=bare)
+            spec = make_repo(tmp, spec_md=bare, profile="")
             code, out, err = run("check", "--spec", str(spec), "FEAT-900")
         self.assertEqual(code, 1, err)
         self.assertIn("FEAT-900 T6: Proof of completion clause 1 'docker exec demo ls' (forbidden construct) [e]", out)
@@ -406,10 +412,10 @@ class WithoutParameters(unittest.TestCase):
         self.assertNotIn("[h]", out)
         self.assertNotIn("[j]", out)
 
-    def test_an_invalid_sdd_block_is_a_usage_error(self):
-        bad = SPEC_MD.replace("visual_approval: owner", "visual_approval: anyone")
+    def test_an_invalid_profile_is_a_usage_error(self):
+        bad = PROFILE.replace("visual_approval: owner", "visual_approval: anyone")
         with tempfile.TemporaryDirectory() as tmp:
-            spec = make_repo(tmp, spec_md=bad)
+            spec = make_repo(tmp, profile=bad)
             code, _, err = run("check", "--spec", str(spec), "FEAT-900")
         self.assertEqual(code, 2)
         self.assertIn("visual_approval", err)

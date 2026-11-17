@@ -15,6 +15,7 @@ COVERS = ("platforms/ci/validations/spec_trace.py",)
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import spec_trace as trace  # noqa: E402
+from test_profile import write_spec  # noqa: E402  (a fixture's sdd: block goes to .ai-kit.yaml, KIT-087 P4)
 
 FEAT = """\
 ---
@@ -106,6 +107,8 @@ sdd:
 
 
 def write(root, rel, text):
+    if str(rel).endswith("spec/spec.md"):  # its sdd: block goes to .ai-kit.yaml (KIT-087 P4)
+        return write_spec(root, textwrap.dedent(text), rel)
     path = Path(root) / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(textwrap.dedent(text), encoding="utf-8")
@@ -341,8 +344,8 @@ class ComponentPathsTest(unittest.TestCase):
         journey = JOURNEY.format(root="x").replace("`x/tests/a/**`", f"`{path}`").replace("`x/tests/b/**`",
                                                                                         "`client/tests/a/**`")
         spec = fixture(self.root, journey, index="false")
-        index = spec / "spec.md"
-        index.write_text(index.read_text().replace(
+        profile = self.root / ".ai-kit.yaml"  # the sdd keys live in the profile (KIT-087 P4)
+        profile.write_text(profile.read_text().replace(
             "  spec_index: false\n", "  spec_index: false\n  components: {project: \".\", backend: server, "
                                      "frontend: client}\n"))
         return [e for e in trace.check(trace.load(spec)) if "test path" in e]

@@ -39,7 +39,7 @@ Under `release: merge` (the default `sdd:` value) `sdd-review` already moved eac
 
 ## 4. Get the product acceptance
 
-- The owner accepts on the test environment, as `sdd.acceptance` says: `captures` (the default) compares the captures with each UI REQ's mock (`visual_approval`); `playtest` is the owner playing the build, its dated line written as `../sdd-review/references/playtest.md` says. Record who, when and their words in the release PR or the FEAT's History. A greybox block's acceptance is its playtest line (`sdd.passes`), never captures.
+- The owner accepts on the test environment, as `sdd.acceptance` says: `captures` (the default) compares the captures with each UI REQ's mock (`evidence.visual_approval`); `playtest` is the owner playing the build, its dated line written as `../sdd-review/references/playtest.md` says. Record who, when and their words in the release PR or the FEAT's History. A greybox block's acceptance is its playtest line (`sdd.passes`), never captures.
 - A refusal returns the FEAT: a task row for a defect, `sdd-clarify` for a wrong REQ. With the new row open, `TRACE status --write` moves the validated FEAT back to `in-progress` with a History line, and `sdd-review` closes it again once the row merges.
 
 ## 5. Turn the flag on, with a rollback plan

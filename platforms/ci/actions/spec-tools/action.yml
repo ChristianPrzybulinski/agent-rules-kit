@@ -26,9 +26,9 @@ inputs:
     default: ${{ github.event.pull_request.head.sha }}
   profile:
     description: >-
-      The project profile (KIT-087), relative to the repository root. platforms/tools/profile.py resolves it, falling
-      back to the legacy homes for each key it does not set, and the action exports the resolved view as JSON in
-      AI_KIT_PROFILE_JSON. A missing file resolves every key from its legacy home or default, with a warning.
+      The project profile (KIT-087), relative to the repository root. platforms/tools/profile.py resolves it, each
+      key it does not set at its kind preset or default, and the action exports the resolved view as JSON in
+      AI_KIT_PROFILE_JSON. A missing file resolves every key at its default, with a warning.
     required: false
     default: .ai-kit.yaml
 runs:
@@ -77,8 +77,8 @@ runs:
       shell: bash
       run: |  # zizmor: ignore[github-env]
         echo "AI_KIT_DIR=$(cd "$GITHUB_ACTION_PATH/../../../.." && pwd)" >> "$GITHUB_ENV"
-    # The resolved profile (KIT-087) for a later step of the job. An invalid profile, or a key set differently in
-    # .ai-kit.yaml and a legacy home, fails here. The value is the resolver's JSON between a random delimiter, so no
+    # The resolved profile (KIT-087) for a later step of the job. An invalid profile (an unknown key or a value out
+    # of range) fails here. The value is the resolver's JSON between a random delimiter, so no
     # line of the project's file can end it early and set another variable.
     - name: Resolve the project profile and export AI_KIT_PROFILE_JSON
       shell: bash

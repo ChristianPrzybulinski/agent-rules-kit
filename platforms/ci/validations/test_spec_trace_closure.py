@@ -19,6 +19,7 @@ COVERS = ("platforms/ci/validations/spec_trace.py", "platforms/ci/validations/ch
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import spec_trace as trace  # noqa: E402
+from test_profile import write_spec  # noqa: E402  (a fixture's sdd: block goes to .ai-kit.yaml, KIT-087 P4)
 
 SPEC_INDEX = """\
 ---
@@ -115,6 +116,8 @@ CLOSURE = "Main: 1a2b3c4 · 2026-11-14 · outcome validated"
 
 
 def write(root, rel, text):
+    if str(rel).endswith("spec/spec.md"):  # its sdd: block goes to .ai-kit.yaml (KIT-087 P4)
+        return write_spec(root, textwrap.dedent(text), rel)
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(textwrap.dedent(text), encoding="utf-8")

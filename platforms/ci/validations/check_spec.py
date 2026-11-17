@@ -6,8 +6,10 @@ Usage: check_spec.py [--params | --baseline-init | --baseline-update] [--baselin
 
 With pyyaml+jsonschema: full validation. Without them: minimal YAML parser
 (frontmatter maps nested by indentation, flow lists and maps) + structural checks (required, enums, id pattern).
-spec.md may set `sdd`, the project's process parameters (KIT-067): each key is checked against spec.schema.json in
-both modes, and `--params` prints the resolved block (every absent key at its schema default) as JSON.
+The project's process parameters (KIT-067) are the `sdd` section of its `.ai-kit.yaml`, resolved by the kit's
+platforms/tools/profile.py; `--params` prints that section (every absent key at its preset or default) as JSON. Since
+KIT-087 P4 an `sdd:` block left in spec.md fails (rule sdd-params): its keys belong in `.ai-kit.yaml`. A profile the
+resolver refuses fails `--params` and profile.py, not this run (KIT-100).
 Also validates docs/spec/progress/*.json (executor progress of FEATs cut before KIT-068) when the folder exists, and
 fails on a merge-conflict marker left in any Markdown file under the spec dir.
 Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id prefix, e.g.
@@ -426,8 +428,8 @@ def check_decision(path, data, fid, kinds):
     elif prefix != kinds[str(kind)]:
         fail(f"{path}: id {fid} prefix does not match kind {kind!r} ({kinds[str(kind)]}-nnn)", "decision-kinds", path)
 
-# Project process parameters: spec.md may set `sdd` (KIT-067). spec.schema.json is the single source of its keys,
-# values and defaults; the checks below read it in both modes, so a bad value names its key with or without jsonschema.
+# Value checks for the project profile (KIT-087): profile.py checks each `.ai-kit.yaml` key against
+# profile.schema.json with these, so a bad value names its key with or without jsonschema.
 TYPE_NAMES = {"boolean": "a boolean", "integer": "an integer", "string": "a string", "null": "null",
               "array": "a list", "object": "a map"}
 
@@ -502,30 +504,6 @@ def check_value(path, name, value, rule):
     return ok
 
 
-def sdd_params(path, data, spec_schema, spec_dir):
-    """Checks spec.md's `sdd` block and returns it resolved: every absent key at its schema default; `journeys`
-    without a value is on when spec_dir/journeys exists (the behavior before the parameter)."""
-    rule = spec_schema.get("properties", {}).get("sdd")
-    if rule is None:
-        return {}
-    if "sdd" in data:
-        check_value(path, "sdd", data["sdd"], rule)
-    given = data.get("sdd") if isinstance(data.get("sdd"), dict) else {}
-    resolved = {}
-    for key, prop in rule["properties"].items():
-        if key == "journeys":
-            default = (spec_dir / "journeys").is_dir()
-        elif "properties" in prop:
-            default = {sub: subprop.get("default") for sub, subprop in prop["properties"].items()}
-        else:
-            default = prop.get("default")
-        value = given.get(key, default)
-        if "properties" in prop and isinstance(value, dict):
-            value = {**default, **value}
-        resolved[key] = value
-    return resolved
-
-
 def profile_root(spec_dir):
     """The project root whose `.ai-kit.yaml` may describe spec_dir: the folder above it that holds `.git`, else
     `x` for `x/docs/spec`, else None."""
@@ -535,48 +513,40 @@ def profile_root(spec_dir):
     return spec_dir.parents[1] if spec_dir.parts[-2:] == ("docs", "spec") else None
 
 
-def load_params(spec_dir, schemas_dir):
-    """The resolved `sdd` section for another kit tool (row_checks.py, spec_trace.py): (params, errors), where errors
-    lists each refused key, conflict or unreadable file; nothing is printed and no failure is kept for this run.
-    KIT-087 P2b: profile.py resolves it, `.ai-kit.yaml` first, then the legacy `sdd:` block, when the root's profile
-    names spec_dir as its spec_root; otherwise, or without profile.py and its schema, the legacy block alone."""
-    spec_dir = Path(spec_dir).resolve()
-    tool = Path(__file__).resolve().parents[2] / "tools" / "profile.py"
-    if tool.is_file() and (schemas_dir / "profile.schema.json").is_file():
-        module = profile_module()
-        root = profile_root(spec_dir)
-        resolved, _, errors = module.resolve(root, ["spec_root", "sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
-        if root is not None and (root / resolved["spec_root"]).resolve() != spec_dir:
-            if errors:  # not this spec's profile, but its errors stay visible: one note, never a failure here
-                print(f"profile: note: {module.FILE} describes spec_root {resolved['spec_root']}, not "
-                      f"{module.shown(spec_dir, root)}; its errors were not applied: {'; '.join(errors)}",
-                      file=sys.stderr)
-            resolved, _, errors = module.resolve(None, ["sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
-        return resolved["sdd"], errors
-    start = len(failures)
-    index = spec_dir / "spec.md"
-    data = frontmatter(index) if index.exists() else {}
-    spec_schema = json.loads((schemas_dir / "spec.schema.json").read_text(encoding="utf-8"))
-    resolved = sdd_params(index, data if isinstance(data, dict) else {}, spec_schema, spec_dir)
-    errors = [msg for _, _, msg, *_ in failures[start:]]
-    del failures[start:]
-    return resolved, errors
-
-
-def load_release(spec_dir, schemas_dir):
-    """The resolved `release` section (KIT-096: spec_trace.py reads `versioning` for the version block names), from
-    the profile as load_params resolves `sdd`; {} without profile.py or its schema. Nothing is printed and no failure
-    is kept: a refused profile shows in profile.py resolve and in the tools that read `sdd`."""
+def load_sections(spec_dir, schemas_dir, sections):
+    """The resolved profile sections for spec_dir's project (KIT-087): (sections, errors), where errors lists each
+    refused key or unreadable file; nothing is printed and no failure is kept for this run. profile.py resolves them
+    from the root's `.ai-kit.yaml` when it names spec_dir as its spec_root, else every key takes its default; without
+    profile.py or its schema each section is {} and one error says so."""
     spec_dir = Path(spec_dir).resolve()
     tool = Path(__file__).resolve().parents[2] / "tools" / "profile.py"
     if not (tool.is_file() and (schemas_dir / "profile.schema.json").is_file()):
-        return {}
+        return {name: {} for name in sections}, [f"no {tool} or {schemas_dir / 'profile.schema.json'}: the profile "
+                                                 f"sections {', '.join(sections)} take the tools' own defaults"]
     module = profile_module()
     root = profile_root(spec_dir)
-    resolved, _, _ = module.resolve(root, ["spec_root", "release"], spec_dir=spec_dir, schemas_dir=schemas_dir)
+    resolved, _, errors = module.resolve(root, ["spec_root", *sections], spec_dir=spec_dir, schemas_dir=schemas_dir)
     if root is not None and (root / resolved["spec_root"]).resolve() != spec_dir:
-        resolved, _, _ = module.resolve(None, ["release"], spec_dir=spec_dir, schemas_dir=schemas_dir)
-    return resolved["release"] if isinstance(resolved.get("release"), dict) else {}
+        if errors:  # not this spec's profile, but its errors stay visible: one note, never a failure here
+            print(f"profile: note: {module.FILE} describes spec_root {resolved['spec_root']}, not "
+                  f"{module.shown(spec_dir, root)}; its errors were not applied: {'; '.join(errors)}",
+                  file=sys.stderr)
+        resolved, _, errors = module.resolve(None, list(sections), spec_dir=spec_dir, schemas_dir=schemas_dir)
+    return {name: resolved[name] if isinstance(resolved.get(name), dict) else {} for name in sections}, errors
+
+
+def load_params(spec_dir, schemas_dir):
+    """The resolved `sdd` section for another kit tool (row_checks.py, spec_trace.py): (params, errors), as
+    load_sections reads it."""
+    sections, errors = load_sections(spec_dir, schemas_dir, ["sdd"])
+    return sections["sdd"], errors
+
+
+def load_release(spec_dir, schemas_dir):
+    """The resolved `release` section (KIT-096: spec_trace.py reads `versioning` for the version block names); {}
+    without profile.py or its schema. A refused profile shows in profile.py resolve and in the tools that read
+    `sdd`."""
+    return load_sections(spec_dir, schemas_dir, ["release"])[0]["release"]
 
 
 def profile_module():
@@ -595,24 +565,20 @@ def profile_module():
 
 
 def print_params(spec_dir, schemas_dir):
-    """check_spec.py --params: the resolved `sdd` block as JSON on stdout; exit 1 when the block is invalid. It prints
-    profile.py's `sdd` section (KIT-087): `.ai-kit.yaml` first when spec_dir is <root>/docs/spec, then the legacy
-    `sdd:` block in spec.md. The notes go to stderr as one line (KIT-087 P2a): a legacy project's keys are counted
-    and named there, not printed one per line. The output keeps the keys spec.schema.json defines; `profile.py resolve
-    --section sdd` also prints the profile-only ones."""
+    """check_spec.py --params: the project profile's resolved `sdd` section (KIT-087) as JSON on stdout; exit 1 when
+    the profile is refused. The resolver's notes go to stderr as one line."""
     spec_dir = spec_dir.resolve()
-    root = spec_dir.parents[1] if spec_dir.parts[-2:] == ("docs", "spec") else None
     module = profile_module()
-    resolved, notes, errors = module.resolve(root, ["sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
+    resolved, notes, errors = module.resolve(profile_root(spec_dir), ["sdd"], spec_dir=spec_dir,
+                                             schemas_dir=schemas_dir)
     if notes:
         print("; ".join(note[len("profile: "):] if n and note.startswith("profile: ") else note
-                        for n, note in enumerate(module.summary(notes))), file=sys.stderr)
+                        for n, note in enumerate(notes)), file=sys.stderr)
     if errors:
         for error in errors:
             print(f"FAIL: {error} [sdd-params]", file=sys.stderr)
         sys.exit(1)
-    keys = json.loads((schemas_dir / "spec.schema.json").read_text())["properties"]["sdd"]["properties"]
-    print(json.dumps({k: v for k, v in resolved["sdd"].items() if k in keys}, indent=2, sort_keys=True))
+    print(json.dumps(resolved["sdd"], indent=2, sort_keys=True))
 
 
 # Start, base (diff3) and end markers git writes in a conflicted file. A bare "=======" line is not matched:
@@ -1320,7 +1286,6 @@ def main():
     if opts.get("--params"):
         print_params(spec_dir, schemas_dir)
         return
-    spec_schema = json.loads((schemas_dir / "spec.schema.json").read_text())
 
     schemas = {}
     for name in STRUCT:
@@ -1355,14 +1320,20 @@ def main():
     feats, reqs, feat_status, dec_status, needs, tasks, tables = {}, {}, {}, {}, {}, {}, {}
     versions = {}  # FEAT id -> its version blocks, None without `## Versions` (KIT-096)
     kinds = None  # spec.md is the first target, so its decision_kinds is read before any decision
-    params = sdd_params(spec_dir / "spec.md", {}, spec_schema, spec_dir)
+    start = len(failures)
+    params, _ = load_params(spec_dir, schemas_dir)  # a refused key is profile.py's finding (and --params'), never
+    del failures[start:]                            # one of this run (KIT-100): its key keeps its default here
     for path, kind in targets:
         data = frontmatter(path)
         if data is None or not isinstance(data, dict):
             continue
         if kind == "spec":
             kinds = decision_kinds(path, data)
-            params = sdd_params(path, data, spec_schema, spec_dir)
+            if "sdd" in data:  # KIT-087 P4: the legacy home is no longer read
+                fail(f"{path}: the sdd: block is no longer read (KIT-087 P4); move its keys under sdd: in the "
+                     f"project's .ai-kit.yaml (review_rounds as review.rounds, visual_approval as "
+                     f"evidence.visual_approval) and delete the block", "sdd-params", path)
+                data = {key: value for key, value in data.items() if key != "sdd"}
         if FULL and kind in schemas:
             try:
                 js_validate(data, schemas[kind], format_checker=FormatChecker())

@@ -2,8 +2,8 @@
 project: "[project-name]"
 version: "0.1.0"
 updated: "YYYY-MM-DD"
-# No sdd: block. A tooling project's process parameters come from its .ai-kit.yaml: project.kind: tooling gives the
-# FEAT-only flow (profile.schema.json, x-presets), and a key written here would override that preset (KIT-100).
+# No sdd: block (KIT-087 P4). A tooling project's process parameters come from its .ai-kit.yaml: project.kind: tooling
+# gives the FEAT-only flow (profile.schema.json, x-presets).
 ---
 
 # [Project name] — Specification

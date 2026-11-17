@@ -104,7 +104,7 @@ class ConsumerFixture(unittest.TestCase):
         self.assertIn(f"uses: {ACTION}@{head}  # v{(KIT / 'VERSION').read_text(encoding='utf-8').strip()}", workflow)
         self.assertEqual(sorted(p.name for p in self.repo.rglob("*just*")), [])  # KIT-085: no justfile, no copy
         self.assertFalse((self.repo / ".claude" / "skills").exists())  # KIT-081 stage 2b: no copy in the project
-        self.assert_own_checks_pass()  # the CLAUDE.md marker records the profile list: bare runs keep it
+        self.assert_own_checks_pass()  # the .ai-kit.yaml stacks hold the profile list: bare runs keep it
         self.assert_resync_changes_nothing()
 
 

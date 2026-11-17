@@ -13,7 +13,7 @@ COVERS = ("platforms/ci/validations/row_checks.py", "platforms/ci/validations/ch
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import row_checks as rc  # noqa: E402
-from test_row_checks import HEADER, make_repo, row_line  # noqa: E402
+from test_row_checks import HEADER, PROFILE, make_repo, row_line  # noqa: E402
 
 VISUAL = "`frontend/ui/battle/dash.tscn`, `frontend/tests/battle/**`"
 PROOF = "`godot --headless --quit`"
@@ -45,15 +45,13 @@ class PassRows(unittest.TestCase):
 
 
 class Base(unittest.TestCase):
-    profile = None
+    profile = PROFILE
 
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name).resolve()
-        spec = make_repo(self.root, rows=[])
-        if self.profile is not None:
-            (self.root / ".ai-kit.yaml").write_text(self.profile, encoding="utf-8")
+        spec = make_repo(self.root, rows=[], profile=self.profile)
         self.cfg = rc.load_config(spec)
 
     def row(self, pass_name):
@@ -63,7 +61,7 @@ class Base(unittest.TestCase):
 
 
 class WithPasses(Base):
-    profile = "sdd:\n  passes: [greybox, polish]\n"
+    profile = PROFILE.replace("sdd:\n", "sdd:\n  passes: [greybox, polish]\n")
 
     def test_the_profile_key_reaches_the_row_check(self):
         self.assertEqual(self.cfg.params.get("passes"), ["greybox", "polish"])
@@ -87,7 +85,7 @@ class WithPasses(Base):
 class Cli(Base):
     """`row_checks.py check` on a versioned FEAT: parse_rows reads the open block's rows (KIT-096), and rule j skips
     them when that block is the greybox one."""
-    profile = "sdd:\n  passes: [greybox, polish]\n"
+    profile = PROFILE.replace("sdd:\n", "sdd:\n  passes: [greybox, polish]\n")
 
     def check(self, blocks):
         text = ("---\nid: FEAT-902\ntitle: \"Dash\"\nstatus: planned\nrequirements: []\ncreated: \"2026-11-17\"\n"

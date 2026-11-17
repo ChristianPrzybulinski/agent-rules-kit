@@ -222,7 +222,8 @@ class BlockStatusTest(VersionCase):
 
     def test_deliver_moves_the_block(self):
         write(self.root, "docs/spec/spec.md", '---\nproject: "fixture"\nversion: "0.2.0"\nupdated: "2026-11-17"\n'
-                                              "sdd:\n  release: release\n---\n\n# Fixture\n")
+                                              "---\n\n# Fixture\n")
+        write(self.root, ".ai-kit.yaml", "sdd:\n  release: manual\n")  # KIT-087 P4: the profile is its home
         self.feat(t3="done", closure="\n- closed at def5678.\n")
         run(["validate", str(self.spec), "FEAT-001", "--at", "def5678"])
         self.assertIn("### 0.2.0\n\nStatus: validated\n", self.text())
