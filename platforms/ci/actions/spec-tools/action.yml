@@ -37,9 +37,39 @@ runs:
     - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
       with:
         python-version: '3.12'
+    # #372: in a container job the setup-python build above runs on the image's libraries, which may be older than the
+    # ones it was built against (barichello/godot-ci:4.7.2 ships OpenSSL 3.0.13; the 3.12.16 build's _ssl needs
+    # OPENSSL_3.3.0), so `import ssl` fails and pip cannot reach PyPI. The step then installs the distribution's
+    # python3, python3-yaml and python3-jsonschema with apt-get, as root, and the later steps run that interpreter; with
+    # no apt-get run as root it fails and names the cause, so no check is skipped. It exports the interpreter as
+    # AI_KIT_PYTHON for the later steps and the caller's (zizmor github-env: the same false positive as AI_KIT_DIR below,
+    # a fixed name and a path the step chose).
     - name: Install the validators' modules (pyyaml and jsonschema, for the full check)
       shell: bash
-      run: python3 -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+      env:
+        SYSTEM_PYTHON: /usr/bin/python3
+      run: |  # zizmor: ignore[github-env]
+        py="$(command -v python3)"
+        if ssl_error="$("$py" -c 'import ssl' 2>&1)"; then
+          "$py" -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+        else
+          why="$(printf '%s\n' "$ssl_error" | tail -n 1)"
+          if ! command -v apt-get >/dev/null 2>&1 || [ "$(id -u)" != 0 ]; then
+            echo "::error::spec-tools: $py cannot import ssl ($why), so pip cannot install pyyaml and jsonschema from PyPI, and no apt-get runs as root to install python3-yaml and python3-jsonschema instead; run the action in a job without a container, or in an image with apt-get as root or a Python whose ssl module loads"
+            exit 1
+          fi
+          echo "::warning::spec-tools: $py cannot import ssl ($why); installing python3, python3-yaml and python3-jsonschema with apt-get, and the spec tools run on $SYSTEM_PYTHON"
+          if ! { apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3 python3-yaml python3-jsonschema; }; then
+            echo "::error::spec-tools: $py cannot import ssl ($why), and apt-get could not install python3, python3-yaml and python3-jsonschema"
+            exit 1
+          fi
+          py="$SYSTEM_PYTHON"
+        fi
+        if ! "$py" -c 'import yaml, jsonschema'; then
+          echo "::error::spec-tools: $py cannot import yaml and jsonschema after the install"
+          exit 1
+        fi
+        echo "AI_KIT_PYTHON=$py" >> "$GITHUB_ENV"
     # AI_KIT_DIR lets a later step of the job (a kit just module, pr_gates.py) run the kit at the pinned commit. zizmor's
     # github-env audit flags every write to GITHUB_ENV; a documented false positive here (CONTRIBUTING): the name is
     # fixed and the value is this action's own path on the runner, which no event payload or input reaches.
@@ -55,7 +85,7 @@ runs:
       env:
         PROFILE: ${{ inputs.profile }}
       run: |
-        json="$(python3 "$GITHUB_ACTION_PATH/../../../tools/profile.py" resolve --json --file "$PROFILE" .)"
+        json="$("$AI_KIT_PYTHON" "$GITHUB_ACTION_PATH/../../../tools/profile.py" resolve --json --file "$PROFILE" .)"
         delim="ai_kit_profile_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
         { echo "AI_KIT_PROFILE_JSON<<$delim"; printf '%s\n' "$json"; echo "$delim"; } >> "$GITHUB_ENV"
     # The checks input, else the profile's ci.spec_tools_checks (KIT-087 P2a) from the view the step above exported.
@@ -67,7 +97,7 @@ runs:
       run: |
         set -f
         if [ -z "$CHECKS" ]; then
-          if ! CHECKS="$(printf '%s' "${AI_KIT_PROFILE_JSON:-}" | python3 -c 'import json,sys; print(",".join(json.load(sys.stdin)["ci"]["spec_tools_checks"]))' 2>/dev/null)"; then
+          if ! CHECKS="$(printf '%s' "${AI_KIT_PROFILE_JSON:-}" | "$AI_KIT_PYTHON" -c 'import json,sys; print(",".join(json.load(sys.stdin)["ci"]["spec_tools_checks"]))' 2>/dev/null)"; then
             echo "::error::spec-tools: no checks input and no resolved profile (AI_KIT_PROFILE_JSON) to read ci.spec_tools_checks from"
             exit 2
           fi
@@ -117,12 +147,13 @@ runs:
     - name: Validate frontmatter and FEAT/REQ references
       if: steps.checks.outputs.spec == 'true'
       shell: bash
-      run: CI=1 python3 "$GITHUB_ACTION_PATH/../../validations/check_spec.py" docs/spec "$GITHUB_ACTION_PATH/../../schemas"
+      run: CI=1 "$AI_KIT_PYTHON" "$GITHUB_ACTION_PATH/../../validations/check_spec.py" docs/spec "$GITHUB_ACTION_PATH/../../schemas"
     # sdd.doc_structure (KIT-074): with enabled false the check prints "off" and passes, so no step needs a hand edit.
     - name: Every authored folder says what belongs in it (sdd.doc_structure)
       if: steps.checks.outputs.spec == 'true'
       shell: bash
-      run: python3 "$GITHUB_ACTION_PATH/../../validations/check_docs_structure.py"
+      run: |
+        "$AI_KIT_PYTHON" "$GITHUB_ACTION_PATH/../../validations/check_docs_structure.py"
     # docs/spec/baseline.json holds old findings and may only shrink (KIT-068): a pull request that adds an entry or
     # raises a value over its base commit fails here. With nothing to compare it says why (KIT-083).
     - name: Baseline only shrinks
@@ -139,13 +170,14 @@ runs:
           echo "::notice::spec-tools: the base commit has no docs/spec/baseline.json; the baseline is not compared"
         else
           git show "$BASE_SHA:docs/spec/baseline.json" > "$RUNNER_TEMP/baseline-base.json"
-          CI=1 python3 "$GITHUB_ACTION_PATH/../../validations/check_spec.py" \
+          CI=1 "$AI_KIT_PYTHON" "$GITHUB_ACTION_PATH/../../validations/check_spec.py" \
             --baseline-against "$RUNNER_TEMP/baseline-base.json" docs/spec "$GITHUB_ACTION_PATH/../../schemas"
         fi
     - name: Journeys, FEAT and REQ symmetry and the traceability matrix (spec_trace.py check)
       if: steps.checks.outputs.trace == 'true'
       shell: bash
-      run: python3 "$GITHUB_ACTION_PATH/../../validations/spec_trace.py" check docs/spec
+      run: |
+        "$AI_KIT_PYTHON" "$GITHUB_ACTION_PATH/../../validations/spec_trace.py" check docs/spec
     - name: Open task rows (row_checks.py)
       if: steps.checks.outputs.rows == 'true'
       shell: bash
@@ -155,7 +187,7 @@ runs:
         HEAD_SHA: ${{ inputs.head }}
       run: |
         if [ "$EVENT" = pull_request ]; then
-          python3 "$GITHUB_ACTION_PATH/../../validations/row_checks.py" check --changed "$BASE_SHA" "$HEAD_SHA"
+          "$AI_KIT_PYTHON" "$GITHUB_ACTION_PATH/../../validations/row_checks.py" check --changed "$BASE_SHA" "$HEAD_SHA"
         else
-          python3 "$GITHUB_ACTION_PATH/../../validations/row_checks.py" check --all
+          "$AI_KIT_PYTHON" "$GITHUB_ACTION_PATH/../../validations/row_checks.py" check --all
         fi
