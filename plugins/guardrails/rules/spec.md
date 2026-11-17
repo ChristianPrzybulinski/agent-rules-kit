@@ -9,7 +9,7 @@ paths:
 
 Always/never for governed documents under `docs/spec`. Procedures: the `sdd-*` skills and `sdd-constitution/references/sdd-process.md`.
 
-- Always: start from the governed template (`spec-need.md`, `spec-feature.md`, `spec-requirement-functional.md`, `spec-requirement-non-functional.md`, `spec-decision.md`, `spec-debt.md`, `spec-task.md`, `spec-index.md`) and keep every section.
+- Always: start from the governed template (`spec-need.md`, `spec-feature.md`, `spec-requirement-functional.md`, `spec-requirement-non-functional.md`, `spec-decision.md`, `spec-debt.md`, `spec-task.md`, `spec-index-business.md` or `spec-index-game.md`) and keep every section, except the optional `spec.md` vision sections `sdd.vision_sections` leaves out.
 - Never: compress, summarize or drop a template section.
 - Always: ids namespaced and sequential (`NEED-nnn`, `FEAT-nnn`, `REQ-F-nnn`, `REQ-NF-nnn`, `DEC-nnn` or the prefixes `spec.md` `decision_kinds` declares, `DEBT-nnn`, `TASK-nnn`), the file name carries the id, and a retired id is never reused.
 - Always: every claim tagged `[FACT]` (with source), `[DECISION]`, `[PROPOSAL]`, `[HYPOTHESIS]` or `[BLOCKER]`; an untagged assertion counts as `[HYPOTHESIS]`.

@@ -750,12 +750,19 @@ class SddParamsTest(unittest.TestCase):
         self.assert_passes()
 
     def test_template_block_passes(self):
-        """The spec.md template that init-spec.sh copies carries the whole block with the kit defaults."""
-        template = VALIDATIONS.parents[2] / "plugins" / "guardrails" / "templates" / "spec-index.md"
-        (self.spec / "spec.md").write_text(template.read_text().replace("YYYY-MM-DD", "2026-11-14"))
-        self.assertIn("\nsdd:\n", template.read_text())
-        self.assert_passes()
-        self.assertEqual(self.params(), SDD_DEFAULTS)
+        """The spec.md templates init-spec.sh copies carry the whole block with the kit defaults (KIT-089): the
+        business one exactly, the game one with plan_sections at the game preset, which the explicit block would
+        otherwise hide."""
+        templates = VALIDATIONS.parents[2] / "plugins" / "guardrails" / "templates"
+        kind = json.loads((SCHEMAS / "profile.schema.json").read_text())["properties"]["project"]["properties"]["kind"]
+        game = dict(SDD_DEFAULTS, plan_sections=kind["x-presets"]["game"]["sdd"]["plan_sections"])
+        for name, expected in (("spec-index-business.md", SDD_DEFAULTS), ("spec-index-game.md", game)):
+            with self.subTest(template=name):
+                template = templates / name
+                (self.spec / "spec.md").write_text(template.read_text().replace("YYYY-MM-DD", "2026-11-14"))
+                self.assertIn("\nsdd:\n", template.read_text())
+                self.assert_passes()
+                self.assertEqual(self.params(), expected)
 
     def test_unknown_tracker_fails(self):
         self.index("sdd:\n  tracker: jira\n")

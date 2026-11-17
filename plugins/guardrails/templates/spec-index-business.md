@@ -43,17 +43,56 @@ Cover and index. The source of truth for each subject lives in the linked files;
 Regimes: spec-anchored (maintained and validated for the life of the product) = protocol schemas and examples, content schemas, decisions, requirements, journeys (where the project has them) and this index.
 Spec-first (written to frame and cut the work, then frozen as history) = NEED files, FEAT bodies and task tables; task status is derived from each row's item and FEAT status from its rows up to `in-progress`; `validated` and `delivered` are written by `spec_trace.py validate` and `deliver`; none is edited by hand.
 
+<!-- The spec.md template of project.kind business (init-spec.sh copies it; spec-index-game.md is the game one).
+     Register (skills/sdd-constitution/references/sdd-process.md, Register): Vision to Out of scope in PO language, the
+     experience the product promises; technical choices live in Architecture, decisions and FEATs.
+     Optional vision sections: Pillars, Core loop, Direction and References stay only when sdd.vision_sections lists
+     them; sdd-constitution deletes the others and adds any other heading the key lists after References. -->
+
 ## Vision
 
 [3 lines: what it is, for whom, what makes it different.]
 
-## First-delivery scope
+## Pillars
+<!-- Optional (sdd.vision_sections). Product principles: three to five promises to the user that every NEED serves.
+     A NEED names the pillar it serves (Triage, Pillar: P<n>); sdd-specify parks or rejects one that serves none,
+     citing this table, and sdd-check C13 flags it. Ids are never reused. -->
 
-- [item]
+| Id | Pillar | Rules out |
+|---|---|---|
+| P1 | [a promise to the user, one sentence: "Any task takes at most three steps"] | [the kind of work it refuses] |
+
+## Core loop
+<!-- Optional (sdd.vision_sections). The loop a returning user repeats, as actions and visible results. -->
+
+[trigger → action → visible result → reason to come back]
+
+## Direction
+<!-- Optional (sdd.vision_sections). Brand, tone and visual style in a few lines, each with the approved mock or style
+     guide that holds it. -->
+
+- Tone: [...]
+- Visual: [... — approved mock or style guide path]
+
+## References
+<!-- Optional (sdd.vision_sections). Products and works this one learns from: what it takes and what it leaves. -->
+
+| Reference | Take | Leave |
+|---|---|---|
+| [product or work] | [what to follow] | [what not to] |
+
+## First-delivery scope
+<!-- Counted: every item carries a number (screens, roles, integrations, regions), so a NEED is checked against it. -->
+
+| Item | Count |
+|---|---|
+| [screens, roles, integrations or regions] | [n] |
 
 ## Out of scope (explicit)
+<!-- One line per refused or deferred area, with why and until when. sdd-specify closes a NEED that hits a line
+     rejected (never) or parked (later), citing the line; sdd-check C13 flags it. -->
 
-- [item — and why, if not obvious]
+- [area — why; never | after <milestone>]
 
 ## Glossary
 <!-- sdd-constitution seeds it; sdd-clarify adds each domain term a REQ uses. Domain terms only: the kit defines the

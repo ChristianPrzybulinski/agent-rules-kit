@@ -57,7 +57,8 @@
 - `spec-debt.md`
 - `spec-decision.md`
 - `spec-feature.md`
-- `spec-index.md`
+- `spec-index-business.md`
+- `spec-index-game.md`
 - `spec-journey.md`
 - `spec-need.md`
 - `spec-process.md`

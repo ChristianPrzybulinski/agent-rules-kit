@@ -10,7 +10,9 @@ created: "YYYY-MM-DD"
 ---
 <!-- Written by sdd-clarify from a NEED Situation; scope and split rules: skills/sdd-clarify/references/req-scope.md.
      status: proposed → approved (product, when its NEED is refined) → retired (never deleted). Absent means approved.
-     features is filled by sdd-plan; until then the NEED that lists this REQ is its link. -->
+     features is filled by sdd-plan; until then the NEED that lists this REQ is its link.
+     Register (skills/sdd-constitution/references/sdd-process.md, Register): PO, functional: the rule and the values
+     the actor experiences, never how the code does it. -->
 
 # REQ-F-000 — [Title]
 

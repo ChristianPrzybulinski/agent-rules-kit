@@ -33,7 +33,8 @@ Read `docs/spec/spec.md` and only the REQs, journeys and FEATs the NEED touches;
 | platform | process, tooling, CI or the kit | `refine` in the project's platform track |
 
 - A problem with no artifact stating the right behavior is an improvement, never a fix. A duplicate closes `merged`, naming the NEED kept; a refused NEED closes `rejected` with its reason.
-- Complete Problem / value and the Triage block: type and why, existing artifacts touched (with paths), Route, Size (`S`, `M` or `L`, no duration without a measured run), Priority (`now`, `next` or `later`; `later` closes `parked`, which returns to `triaged` when taken up).
+- Pillars and Out of scope (on when `spec.md` has them, as journeys are on when the folder exists): a NEED that hits an `Out of scope (explicit)` line closes `rejected` (the line says never) or `parked` (it names a later milestone), and its Route cites that line (`spec.md:<line>` and its text). While `spec.md` has `## Pillars`, a `new`, `improvement`, `content` or `decision` NEED names the pillar it serves (`Pillar: P<n>` and how); one that serves none closes `rejected` or `parked` the same way, citing the Pillars table. A `fix` (it restores stated behavior) and a `platform` NEED write `Pillar: —`. `sdd-check` C13 flags a miss.
+- Complete Problem / value and the Triage block: type and why, existing artifacts touched (with paths), Pillar, Route, Size (`S`, `M` or `L`, no duration without a measured run), Priority (`now`, `next` or `later`; `later` closes `parked`, which returns to `triaged` when taken up).
 - Finding facts is the agent's job. Open with a verdict and its evidence, then ask one question at a time with two to four options and a recommendation.
 - Product confirms a `new`, `improvement`, `platform` or `decision` NEED, a `content` value, a rejection and a park (`Confirmed by: <name>, YYYY-MM-DD`). The agent routes a `fix` that cites the violated artifact's path and a duplicate that names the NEED kept, and records `Confirmed by: agent (fix|duplicate), product reviews later`.
 - Set the status and add `YYYY-MM-DD specify: <type>, <route>, <priority>` to History. A routed NEED names the fix row or data change that took it.
@@ -42,7 +43,7 @@ Read `docs/spec/spec.md` and only the REQs, journeys and FEATs the NEED touches;
 
 With product, fill in plain language:
 
-- Desired outcome: what the actor can do or see when this is done, and the sign that it worked.
+- Desired outcome: what the actor can do or see when this is done, and the sign that it worked; its `Experience` line holds the feeling it should give, in the actor's own words (the register: `../sdd-constitution/references/sdd-process.md` § Register).
 - Situations: who, when, expects; at least one that goes right and one that goes wrong. They are the input of `sdd-clarify`, so each names one case, not a solution.
 - Scope, Out of scope (and where each excluded part goes), Constraints (deadline, budget, licence, platform, must-not).
 - Evidence: an approved mock for a visual change, an `sdd-spike` report for a feel question (motion, camera, feedback, UI).
@@ -58,4 +59,4 @@ Run the spec validator (`python3 ~/.ai-kit/platforms/ci/validations/check_spec.p
 - No REQ, FEAT, decision, debt or task row; no technical choice (framework, table, message, algorithm).
 - Links are written only in the NEED.
 
-Done when: a decided NEED names type, route, size, priority and who confirmed, or says where it went or why it stopped; a described NEED has its outcome, Situations (right and wrong), scope and constraints, and validates as `specified`.
+Done when: a decided NEED names type, pillar (or `—`), route, size, priority and who confirmed, or says where it went or why it stopped; a described NEED has its outcome, Situations (right and wrong), scope and constraints, and validates as `specified`.

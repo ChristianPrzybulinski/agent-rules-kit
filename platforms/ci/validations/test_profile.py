@@ -520,7 +520,7 @@ class CommandLine(Project):
 
     def test_params_output_is_unchanged_on_the_kits_own_spec_fixtures(self):
         """check_spec.py --params delegates to the resolver and prints what the legacy sdd_params resolved."""
-        template = KIT / "plugins" / "guardrails" / "templates" / "spec-index.md"
+        template = KIT / "plugins" / "guardrails" / "templates" / "spec-index-business.md"
         self.write("docs/spec/spec.md", template.read_text(encoding="utf-8").replace("YYYY-MM-DD", "2026-11-16"))
         fixtures = [KIT / "platforms" / "ci" / "fixtures" / "consumer" / "docs" / "spec", self.root / "docs" / "spec"]
         cs = profile.check_spec()
