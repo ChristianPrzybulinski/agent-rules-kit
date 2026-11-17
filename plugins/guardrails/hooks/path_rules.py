@@ -18,7 +18,10 @@ NotebookEdit, Bash and Grep.
   `*` and `?`, the forms the kit rules use.
 - Once per session: the rule names given are kept in $CLAUDE_PLUGIN_DATA/path-rules/<session_id>.json under a lock,
   and a session's first file prunes the files older than PRUNE_DAYS. Without CLAUDE_PLUGIN_DATA nothing is given,
-  since the promise cannot hold.
+  since the promise cannot hold. A rule is recorded only once its text is read, so an error before then loses nothing.
+- Compaction: hooks.json also runs this file on SessionStart with matcher `compact`. A compaction summarizes the
+  conversation and may drop the rule text given earlier, so that event deletes the session's state file and the next
+  matching call gives the rules again; at worst a rule the summary kept is given twice.
 - Log: each delivery appends one record, load_reason kit_hook_path_match, to the InstructionsLoaded hook's
   $CLAUDE_PLUGIN_DATA/instructions-loaded.jsonl (same fields, lock and rotation), which skill_usage.py --rules counts.
 - Failure: the hook never blocks a tool; any error exits 0 with nothing on stdout.
@@ -90,6 +93,11 @@ def read_rule(path):
         else:
             inside = False
     return globs, "\n".join(lines[end + 1:]).strip()
+
+
+def state_file(data, session):
+    """The session's state file under $CLAUDE_PLUGIN_DATA; the session id never leaves the state folder."""
+    return Path(data) / STATE / f"{UNSAFE.sub('_', session)[:128] or 'unknown'}.json"
 
 
 def marker_profiles(root):
@@ -178,13 +186,12 @@ def match_forms(raw, root, cwd):
 
 
 def claim(state, names):
-    """The names among `names` this session has not been given yet, now recorded as given, and whether the session's
-    file is new; one lock covers the read and the write, so parallel tool calls give a rule once."""
+    """The names among `names` this session has not been given yet, now recorded as given; one lock covers the read
+    and the write, so parallel tool calls give a rule once. The caller has read every rule of `names` before."""
     try:
         import fcntl
     except ImportError:  # no flock on this platform: a rare double delivery is the cost
         fcntl = None
-    new = not state.exists()
     with open(state, "a+", encoding="utf-8") as handle:
         if fcntl:
             fcntl.flock(handle, fcntl.LOCK_EX)
@@ -199,7 +206,7 @@ def claim(state, names):
             handle.seek(0)
             handle.truncate()
             handle.write(json.dumps(sorted(given | set(fresh))))
-    return fresh, new
+    return fresh
 
 
 def prune(folder, keep):
@@ -238,11 +245,26 @@ def block(name, globs, trigger, body):
             f" `{PLUGIN}/skills/<skill>/references/<file>`.\n\n{body}")
 
 
+def forget(event, env):
+    """SessionStart: after a compaction, deletes the session's state file so its rules are given again."""
+    data = env.get("CLAUDE_PLUGIN_DATA")
+    session = event.get("session_id") if isinstance(event.get("session_id"), str) else ""
+    if event.get("source") == "compact" and data:
+        try:
+            state_file(data, session).unlink()
+        except FileNotFoundError:
+            pass
+    return ""
+
+
 def run(text, env):
-    """The hook's stdout for one PostToolUse event: a JSON document, or "" when no rule is due."""
+    """The hook's stdout for one PostToolUse event: a JSON document, or "" when no rule is due. A SessionStart event
+    only clears the session's state after a compaction."""
     event = json.loads(text)
     if not isinstance(event, dict):
         return ""
+    if event.get("hook_event_name") == "SessionStart":
+        return forget(event, env)
     cwd = event.get("cwd") if isinstance(event.get("cwd"), str) and event.get("cwd") else os.getcwd()
     root = env.get("CLAUDE_PROJECT_DIR") or cwd
     profiles = marker_profiles(root)
@@ -252,29 +274,34 @@ def run(text, env):
         return ""
     root = os.path.realpath(root)
     forms = [match_forms(raw, root, cwd) for raw in raws]
-    hits = {}  # rule name -> (globs, the trigger as shown: relative, or as written outside the root; its real path)
+    # rule name -> (globs, the trigger as shown: relative, or as written outside the root; its real path; the body):
+    # the body comes from this one read, so nothing is read after the claim
+    hits = {}
     for name in selected_rules(profiles):
-        globs, _ = read_rule(RULES / f"{name}.md")
+        globs, body = read_rule(RULES / f"{name}.md")
         patterns = [glob_regex(glob) for glob in globs]
         for shown, full in forms:
             if any(pattern.match(form) for pattern in patterns for form in shown):
-                hits[name] = (globs, shown[-1], full)
+                hits[name] = (globs, shown[-1], full, body)
                 break
     if not hits:
         return ""
     session = event.get("session_id") if isinstance(event.get("session_id"), str) else ""
-    folder = Path(data) / STATE
+    state = state_file(data, session)
+    folder = state.parent
     folder.mkdir(parents=True, exist_ok=True)
-    state = folder / f"{UNSAFE.sub('_', session)[:128] or 'unknown'}.json"
-    fresh, new = claim(state, list(hits))
-    if new:
-        prune(folder, state)
+    if not state.exists():
+        try:
+            prune(folder, state)
+        except OSError:
+            pass  # housekeeping only; the rules still reach the session
+    fresh = claim(state, list(hits))
     if not fresh:
         return ""
     parts, records = [], []
     for name in fresh:
-        globs, shown, full = hits[name]
-        parts.append(block(name, globs, shown, read_rule(RULES / f"{name}.md")[1]))
+        globs, shown, full, body = hits[name]
+        parts.append(block(name, globs, shown, body))
         records.append({"ts": int(time.time()), "session_id": session or None, "cwd": event.get("cwd"),
                         "file_path": str(RULES / f"{name}.md"), "memory_type": None, "load_reason": LOAD_REASON,
                         "globs": globs, "trigger_file_path": full, "parent_file_path": None})

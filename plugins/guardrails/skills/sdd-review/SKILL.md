@@ -32,7 +32,7 @@ Scripts do the mechanical part; the model reads only what they flag. `TRACE` is 
 ## 3. Judge what the scripts flagged
 
 - A stale proof (a path that moved, a renamed id): find the current test (grep the CA or REQ id), run it, record both, and correct the Proof cell. Re-run only the proofs this changed.
-- A stale marker: rewrite it as the current fact or delete it, citing the evidence (the merged PR, the config value). A flagged `[PROPOSAL]` in Scope that is settled folds into Scope as fact, a CA or a REQ (a REQ change goes through `sdd-clarify`), keeping a marker: `→ folded into CA-3`. A split History bullet: move the inserted lines below the bullet's last line.
+- A stale marker: rewrite it as the current fact or delete it, citing the evidence (the merged PR, the config value). A flagged `[PROPOSAL]` in Scope that is settled folds into Scope as fact, a CA or a REQ (a REQ change goes through `sdd-clarify`), keeping the profile's `decision_folding.marker`: `→ folded into CA-3` (`sdd-plan` § 5). A split History bullet: move the inserted lines below the bullet's last line.
 - A trace gap: link the test in the journey step's `Proven by`, or correct the REQ's proving test.
 - Each REQ example and counterexample against an asserting test (`path:line`): the output is a list of missing-test rows, not a block on `validated`. The reading is fallible (1 of 3 spot checks was wrong in calibration), so grep each "untested" claim before filing its row.
 - Each REQ-NF: metric, target, measurement — the command, environment and measured value. A planned value never stands in for a measured one.

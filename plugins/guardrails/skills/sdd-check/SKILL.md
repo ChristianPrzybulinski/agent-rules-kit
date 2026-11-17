@@ -1,7 +1,7 @@
 ---
 name: sdd-check
 description: SDD tool — read-only spec check that sdd-clarify and sdd-plan call. Use when a NEED, a FEAT or the spec needs gap checks. Not for ambiguity (skill sdd-clarify).
-argument-hint: "NEED-nnn | FEAT-nnn | all [validator=<output of check_spec.py 2>&1>] [trace=<output of spec_trace.py check 2>&1>]"
+argument-hint: "NEED-nnn | FEAT-nnn | all [validator=<output of check_spec.py 2>&1>] [trace=<output of spec_trace.py check 2>&1>] [rows=<output of the row check 2>&1>]"
 triggers:
   - user
   - model
@@ -20,7 +20,7 @@ Process: `../sdd-constitution/references/sdd-process.md`. Read-only: this tool e
 
 Scope, chosen by the argument:
 - functional (`NEED-nnn`, called by `sdd-clarify` before `refined`): the NEED, its REQs, journeys and product decisions; rows C1, C2, C4, C5, C6, C11, C13, the journey links and checklist Q1 (read against each REQ's Verification), Q2–Q4 and Q7; a block stops `refined`.
-- full (`FEAT-nnn`, called by `sdd-plan` before `planned`): the functional scope again on the FEAT's REQs and its NEED, plus the FEAT, its Plan, Tasks once cut and decisions with rows C3, C7, C8, C9, C10 and checklist Q1 (read against the FEAT's criteria), Q5, Q6 and Q8–Q11; a block stops `planned`.
+- full (`FEAT-nnn`, called by `sdd-plan` before `planned`): the functional scope again on the FEAT's REQs and its NEED, plus the FEAT, its Plan, Tasks once cut and decisions with rows C3, C7, C8, C9, C10, the task cut and decision folding (§ 1 d, e), C15 and checklist Q1 (read against the FEAT's criteria), Q5, Q6 and Q8–Q11; a block stops `planned`.
 - With `sdd.needs: false` (no NEED file) there is no functional run: the full scope reads the FEAT's Problem section where it reads the NEED (C1 checks the FEAT→REQ link and a Problem Situation with no REQ).
 - `all` (an audit): the full scope on every artifact. `docs/spec/baseline.json` may hold old findings per row (`C<n>`, `Q<n>`) and artifact id with a count: a finding within its count is listed under `Baseline` and does not block; one above it, or on an artifact the file does not hold, is reported as usual; an entry that finds less than its count is listed as `lower: <row> <artifact> <count> → <found>`. The file only shrinks: never propose adding an entry (`check_spec.py` keeps its own rows the same way).
 
@@ -28,7 +28,7 @@ Scope, chosen by the argument:
 
 a. Validator verdict. The calling session runs `python3 ~/.ai-kit/platforms/ci/validations/check_spec.py docs/spec ~/.ai-kit/platforms/ci/schemas 2>&1` (the installed kit's validator) and pastes the whole output after `validator=`, because the `researcher` profile has no `exec`. Success is the line `spec: OK (N artifacts)`, with `; M findings held by baseline.json` when `docs/spec/baseline.json` holds old findings; failures are `FAIL: ...` lines on stderr, hence `2>&1`. With no `validator=` argument, finding #1 is `high | validator not run; run <command>`. Every pasted `FAIL:` line becomes one `high` finding; a `BASELINE:` line or a `WARN:` line is not a finding (a `WARN` on task size or a long Task cell goes in the report's notes).
 
-b. Journey links (functional and full scope, only when the project keeps journeys: `sdd.journeys`, absent = on when `docs/spec/journeys/` exists). The calling session pastes `spec_trace.py check 2>&1` after `trace=`; each failure line is one `high` finding, and a missing `trace=` is `high | journey check not run`. A step written in `sdd-clarify` holds `—` in `Implemented by` and `Proven by`, which the validator accepts while an open NEED lists the journey in `journeys`, and its listed FEATs have not yet all delivered every REQ it lists (`../sdd-clarify/references/journeys.md`), so a NEED's new step does not block `refined`.
+b. Journey and process links (functional and full scope, only when the project keeps journeys: `sdd.journeys`, absent = on when `docs/spec/journeys/` exists). The calling session pastes `spec_trace.py check 2>&1` after `trace=`; each failure line is one `high` finding, and a missing `trace=` is `high | journey check not run`. A step written in `sdd-clarify` holds `—` in `Implemented by` and `Proven by`, which the validator accepts while an open NEED lists the journey in `journeys`, and its listed FEATs have not yet all delivered every REQ it lists (`../sdd-clarify/references/journeys.md`), so a NEED's new step does not block `refined`. A step that cites `PROC-nnn` or `PROC-nnn S<a>–S<b>` is checked through the process once the kit has processes (KIT-090); before that, a `PROC` reference or an "as in J-nn" step with no links of its own is a `high` finding.
 
 c. Consistency table. Load the artifacts of the scope, then check its rows:
 
@@ -46,6 +46,11 @@ c. Consistency table. Load the artifacts of the scope, then check its rows:
 | C10 | invalid frontmatter | high |
 | C11 | a REQ states how instead of what (algorithm, message, table, framework); rule: `../sdd-clarify/references/req-scope.md` | medium |
 | C13 | a NEED that names no pillar (`new`, `improvement`, `content` or `decision`) or a pillar `spec.md` does not list, while `spec.md` has `## Pillars`; or a NEED that matches a `spec.md` Out of scope line and is not closed `rejected` or `parked` citing it; rule: `../sdd-specify/SKILL.md` § 1 | high |
+| C15 | a Plan § Assets row without its source, its license or the REQ or mock it serves (full scope); rows: `../sdd-plan/references/plan-sections.md` | medium |
+
+d. Task cut (full scope, while the FEAT has rows not yet `done` or `cancelled`). The calling session pastes after `rows=` the row check's output (`row_check`, else `row_checks.py check FEAT-nnn`) and the `task_cut` block of `profile.py resolve --section sdd`; each `FAIL` line is one `high` finding, a `WARN` goes in the notes, and a missing `rows=` is `high | row check not run`. Then read each row against `../sdd-tasks/references/task-cut.md` with those values: an owned area outside `owned_area_form`, a code path without its `required_test_folders`, a protected path whose item lacks its label, a hotspot edited where an additive registry fits, an ordering-only `Depends on` edge, a row on the longest chain above `longest_chain_max_complexity`, or a bundled item holding a `bundle_exclude` row is one `medium` finding each (`high` for a missing label or test folder).
+
+e. Decision folding (full scope, on a FEAT not yet `delivered` or `cancelled`). A settled `[DECISION]` line in the FEAT's Open questions without the profile's `decision_folding.marker` and its target after the FEAT's last spec PR, a marker whose target (Scope, `CA-n`, a REQ id) does not state the decision, or a folded line listed above an unfolded one is one `medium` finding (skill `sdd-plan` § 5).
 
 ## 2. Judgment checks
 

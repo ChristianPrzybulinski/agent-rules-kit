@@ -5,7 +5,7 @@ kind: detail
 
 # Plan sections
 
-`sdd-plan` writes one `### <section>` per name in the project's `plan_sections` (default all nine, `Risks` and `Tests` always on), in the order below. A section in the list that does not apply holds one line `— <why>`; a section the project turned off is absent. The Plan is the design: every choice the task rows need is made here, and a row's Task cell points to `Plan § <section>`.
+`sdd-plan` writes one `### <section>` per name in the project's `plan_sections` (default all but `Assets`, `Risks` and `Tests` always on), in the order below. A section in the list that does not apply holds one line `— <why>`; a section the project turned off is absent. The Plan is the design: every choice the task rows need is made here, and a row's Task cell points to `Plan § <section>`.
 
 | Section | Holds |
 |---|---|
@@ -13,11 +13,14 @@ kind: detail
 | Contract | each changed message, endpoint, schema or content file with its compatibility and protocol-version effect, and the four checks of `contract.md` |
 | Data | tables and columns, the migration `V<n>__slug.sql`, indexes, transaction boundary and idempotency, cache keys and their expiry |
 | UI | each screen or state, the REQ mock it matches, input and feedback, what the player or user sees on failure |
+| Assets | only when `plan_sections` lists it: one row per asset the delivery needs before the cut, with its kind, source, license and the REQ or mock it serves (below) |
 | Flag | the feature flag name, its default and the behavior with it off, or why none is needed |
 | Tests | each acceptance criterion's test type and rooted location; the failing domain test that starts each business rule; fixtures and their source |
 | Observability | logs, metrics and traces, and the question each one answers |
 | Risks | at most three load-bearing hypotheses, each `Fails if <condition>` with its cheapest test (one that needs code becomes an `sdd-spike`); each external API with its exact signature and the source read this session |
 | Dependencies | the FEATs in `depends_on` and what this one reads from each, external services, approvals and blockers |
+
+An `Assets` row is `| Asset | Kind | Source | License | Serves |`: Kind adds what sizes the work (a game's animation with its frame count, a particle, a sound with its duration; a business project's e-mail template, copy, icon, translation); Source is made, licensed or legacy, with its path or URL; License is the usage license (`CC0`, `own`, the purchase); Serves is a REQ id or the REQ mock it matches. Example: `| player-dash | animation, 6 frames | made, art/player/dash.aseprite | own | REQ-F-012 mock |`. `sdd-check` C15 flags a row without source, license or what it serves; `sdd-implement` imports the rows (`../../sdd-implement/references/assets.md`).
 
 A decision record holds a choice with a rejected alternative that outlives the FEAT; the Plan section cites its id and keeps one line. A choice that matters only inside the delivery stays in its section, with the rejected alternative in one line.
 

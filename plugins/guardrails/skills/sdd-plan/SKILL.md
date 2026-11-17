@@ -15,7 +15,7 @@ allowed-tools:
 
 # SDD 4 — Plan
 
-The technical refinement: cuts a refined NEED into deliveries, creates one FEAT per delivery and plans it. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-feature.md`. It reads the parameters `plan_sections` and `max_feat_tasks` from `check_spec.py --params` (`../sdd-constitution/references/sdd-parameters.md`).
+The technical refinement: cuts a refined NEED into deliveries, creates one FEAT per delivery and plans it. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-feature.md`. It reads the parameters `plan_sections` and `max_feat_tasks` from `check_spec.py --params` (`../sdd-constitution/references/sdd-parameters.md`), and `decision_folding` from the project profile (`python3 ~/.ai-kit/platforms/tools/profile.py resolve --section sdd`).
 
 ## 1. Confirm readiness
 
@@ -37,22 +37,26 @@ Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs
 
 ## 4. Write the Plan sections
 
-`## Plan` holds one `### <section>` per name in `plan_sections`, in this order: Design, Contract, Data, UI, Flag, Tests, Observability, Risks, Dependencies (`Risks` and `Tests` always). Each holds its content or one line `— <why it does not apply>`. What each section holds: `references/plan-sections.md`. The standards each section applies:
+`## Plan` holds one `### <section>` per name in `plan_sections`, in this order: Design, Contract, Data, UI, Assets, Flag, Tests, Observability, Risks, Dependencies (`Risks` and `Tests` always; `Assets` only when listed). Each holds its content or one line `— <why it does not apply>`. What each section holds: `references/plan-sections.md`. The standards each section applies:
 
 | Section | Reference |
 |---|---|
 | Design | `references/architecture.md` (blocks: `references/pattern-catalog.md`); a trust boundary `references/security-design.md`; a service `references/twelve-factor.md`; a Godot client `references/godot/README.md` |
 | Contract | `references/contract.md` |
 | Data | `references/data.md` (versions `references/postgres-18.md`, `references/redis-7.md`) |
+| Assets | `references/plan-sections.md` § Assets rows; the import: skill `sdd-implement`, reference `assets.md` |
 | Tests | skill `sdd-implement`, references `tdd.md` and `test-gates.md` |
 
 - The Plan is the design: every choice the rows need is made here, so a task cell points to `Plan § <section>` and never restates it.
+- Assets: one row per asset the delivery needs (for a game, animations with frame counts, particles and sounds; for a business project, e-mail templates, copy, icons and translations), each with its source, its license and the REQ or mock it serves, so the art is made or bought before the cut.
 - Contract: every changed message, endpoint, schema or table another FEAT reads passes the four checks of `references/contract.md`.
 - Name real rooted files and the architecture areas of `docs/spec/spec.md` § Architecture each change lands in.
 
 ## 5. Record decisions
 
 A technical choice with a rejected reasonable alternative that outlives the FEAT (other FEATs or later work rely on it) gets a decision record (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`) with `status: proposed`. A choice that matters only inside this delivery stays in its Plan section, the rejected alternative in one line. A product choice is not made here: it returns to `sdd-clarify`. Several open choices form a tree, as the questions of `sdd-clarify` § 2 do: settle only from its frontier, the choice the others depend on first, one choice per question when it needs the owner, and never one whose answer hinges on a choice still open. Do not hide a kit-rule exception in prose—record a blocker or explicit decision.
+
+Fold settled decisions (the `decision_folding.marker` of the project profile, default `→ folded into`): a `[DECISION]` line settled in the FEAT's `## Open questions` is not edited or deleted. The next spec PR that touches the FEAT (a Plan amendment, the `sdd-tasks` rows, a resync) writes the decision where it belongs, as a Scope bullet, an acceptance criterion with its Given/When/Then, or the REQ (a REQ change goes through `sdd-clarify`), and appends the marker and the target to the line: `→ folded into CA-3`. Open questions lists the unfolded lines first. Task `Status` needs no folding: it is derived from the items (`sdd-tasks` § 5).
 
 ## 6. Check restraint and consistency
 
