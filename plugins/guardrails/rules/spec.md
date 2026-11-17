@@ -20,4 +20,4 @@ Always/never for governed documents under `docs/spec`. Procedures: the `sdd-*` s
 - Never: add an entry to `docs/spec/baseline.json` or raise a count; old findings only leave it.
 - Always: prose and frontmatter in English, dates as `YYYY-MM-DD`; only a NEED's verbatim Request quote keeps the asker's language.
 - Always: open only the FEAT/REQ/DEC/DEBT files the task cites and orient with `docs/spec/spec.md`; never bulk-read the corpus.
-- Always: run the project spec gates (`check_spec.py`, and `spec_trace.py check` when present) and paste the literal result.
+- Always: run the project spec gates as the editing skill says (`sdd-intake`, `sdd-specify`, `sdd-clarify`, `sdd-tasks`: the validator, and `spec_trace.py check` when present) and paste the literal result.

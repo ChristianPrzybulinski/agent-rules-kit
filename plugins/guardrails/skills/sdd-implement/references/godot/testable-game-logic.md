@@ -25,5 +25,5 @@ sources:
 
 ## Policy and fixtures
 
-- Coverage policy: every game rule has a scene-free test; there is no numeric gate for GDScript (owner, 2026-11-13). Advisory measures, run from the project folder: `python3 ~/.ai-kit/platforms/tools/gd_coverage.py` (line and branch coverage per function) and `python3 ~/.ai-kit/platforms/tools/gd_mutation.py` (surviving mutants); `../test-gates.md` § 1 says when and with which flags.
+- Coverage policy: every game rule has a scene-free test; there is no numeric gate for GDScript unless the profile's `quality.godot` sets one (KIT-087). Advisory measures, run from the project folder: `GD_COVERAGE` (line and branch coverage per function) and `GD_MUTATION` (surviving mutants), named in `../../../session/references/project-profile.md` § 3; `../test-gates.md` § 1 says when and with which flags.
 - Test fixtures live next to the suites (protocol fixtures per `../../../sdd-plan/references/godot/network-codec.md`); generated `*.uid` files next to test scripts are committed - see `./scenes-and-generated-files.md`.

@@ -13,14 +13,14 @@ A project keeps no justfile for the kit's recipes and never calls a kit script (
 
 ## 1. Find the folder's stack
 
-1. `python3 ~/.ai-kit/platforms/tools/profile.py resolve --section stacks --json <repo>`: folder (`.` the root) → stack or list of stacks. Without `.ai-kit.yaml` it reads the profile list of the root `CLAUDE.md` sync marker and says so on stderr.
+1. `PROFILE resolve --section stacks --json <repo>` (`KIT` and `PROFILE`: `../../session/references/project-profile.md`): folder (`.` the root) → stack or list of stacks. Without `.ai-kit.yaml` it reads the profile list of the root `CLAUDE.md` sync marker and says so on stderr.
 2. The folder is the longest key that is the changed file's folder or one of its parents. No key matches → the folder has no stack: say so and run no recipe.
 3. A non-zero exit (an invalid profile, a conflict) → report its lines and stop; never guess a stack.
 
 ## 2. Run the recipe
 
 ```bash
-just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d <repo>/<folder> <recipe> [args]
+just -f "$KIT/platforms/kits/just/<stack>.just" -d <repo>/<folder> <recipe> [args]
 ```
 
 - `-f` names the kit's module, `-d` the folder the recipe runs in; without `-d`, just runs it in the module's own folder, the kit's. `-d` alone is refused (it needs `-f`).
@@ -42,5 +42,5 @@ just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d <repo>/<folder> <recipe> [
 | spec lint, changelog fragments | `lint`, `changelog` | docs |
 
 - Paste the literal output. A green run counts only when the runner's summary shows tests executed (`test-gates.md` § 3).
-- A recipe that fails because `~/.ai-kit` is missing → run the kit's `platforms/tools/bootstrap.sh`; never copy a module into the project.
+- A recipe that fails because the kit is missing (no `KIT`) → run the kit's `platforms/tools/bootstrap.sh`; never copy a module into the project.
 - [FACT] On just 1.58.0 the `godot`, `java`, `python` and `docs` modules run with `-f`/`-d` and no project justfile (`test_just_modules.py`).

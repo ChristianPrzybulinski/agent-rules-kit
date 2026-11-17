@@ -33,5 +33,5 @@ A process (`PROC-nnn`) holds one reusable functional flow: a mechanic, a busines
 ## Sign and change
 
 - Product signs a product process (`status: approved`) when its NEED is refined; the owner team signs a tech one. A retired flow is `retired`, never deleted.
-- Regenerate the matrix after a process or journey changes: `python3 ~/.ai-kit/platforms/ci/validations/spec_trace.py generate docs/spec`, then `check`.
+- Regenerate the matrix after a process or journey changes: `TRACE generate <spec_root>` (`../../session/references/project-profile.md` § 3), then `check`.
 - A FEAT is one use case, a slice of a process's steps; one process may hold the steps of several FEATs. `sdd-plan` § Design cites each state the FEAT implements.

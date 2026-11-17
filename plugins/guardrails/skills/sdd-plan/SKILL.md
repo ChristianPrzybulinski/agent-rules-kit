@@ -15,7 +15,7 @@ allowed-tools:
 
 # SDD 4 — Plan
 
-The technical refinement: cuts a refined NEED into deliveries, creates one FEAT per delivery and plans it. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-feature.md`. It reads the parameters `plan_sections` and `max_feat_tasks` from `check_spec.py --params` (`../sdd-constitution/references/sdd-parameters.md`), and `decision_folding` from the project profile (`python3 ~/.ai-kit/platforms/tools/profile.py resolve --section sdd`).
+The technical refinement: cuts a refined NEED into deliveries, creates one FEAT per delivery and plans it. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-feature.md`. It resolves the project profile first (`../session/references/project-profile.md`) and reads `spec_root` and the `sdd` parameters `plan_sections`, `max_feat_tasks` (`../sdd-constitution/references/sdd-parameters.md`) and `decision_folding`.
 
 ## 1. Confirm readiness
 

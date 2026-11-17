@@ -19,6 +19,7 @@ One skill, four modes: `start` opens and scopes the session, `review` closes it 
 
 ## start
 
+- Resolve the project profile first (`references/project-profile.md`): `project` and `stacks`; every kit skill resolves it the same way at its first step and runs the kit tools by the names its § 3 gives.
 - When the outcome sentence (`AGENTS.md` § Session) cannot be written, ask before proceeding.
 - When `AGENTS.md` § Work loop calls for a plan, propose planning mode before editing; once a plan is approved, execute it without reopening it.
 - Before the first edit in a worktree or folder that a state or handoff file describes, read that file's top line `Writer: <session id> since <YYYY-MM-DD HH:MM>`. A line naming another session that is still running means stop and ask the user; never write beside it. Otherwise add the line before the first edit and remove it at close or handoff.
@@ -46,7 +47,7 @@ One skill, four modes: `start` opens and scopes the session, `review` closes it 
 
 ## audit
 
-- Read and follow `references/cross-session-audit.md`. The input is the redacted extract of `python3 ~/.ai-kit/platforms/tools/session_audit.py`, never a raw transcript.
+- Read and follow `references/cross-session-audit.md`. The input is the redacted extract of `AUDIT` (`references/project-profile.md` § 3), never a raw transcript.
 - Classify memory entries and recurring failures, re-check every claim before the report, and sort actions by the number of sessions that cite them.
 - It only proposes, with one exception: expired one-night, one-batch or one-session memory entries older than 7 days move to `memory/archive/`. Every other memory change, a repository `AGENTS.md` promotion (a PR) and a kit promotion (a `Kit [PROPOSAL]` block) waits for the user's yes.
 

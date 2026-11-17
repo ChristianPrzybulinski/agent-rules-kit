@@ -21,6 +21,7 @@ Under `release: merge` (the default `sdd:` value) `sdd-review` already moved eac
 
 ## 1. Group the FEATs
 
+- Resolve the project profile first (`../session/references/project-profile.md`): `spec_root` (every `docs/spec` here), `sdd` (`release`), `changelog`, `release` and `ci`.
 - List the candidates: `grep -l '^status: validated' docs/spec/features/*.md`. Group the ones the owner releases together; a FEAT behind a flag goes with its flag plan (§ 5).
 - A FEAT whose `## Closure` is older than a later merge into the files it covers gets `sdd-review` again before it joins.
 
@@ -32,14 +33,14 @@ Under `release: merge` (the default `sdd:` value) `sdd-review` already moved eac
 ## 3. Deploy to the test environment and smoke
 
 - Deploy the release commit with the project's deploy command (`AGENTS.md` § Commands or its release runbook) to the test environment, never to production first.
-- Smoke: the main steps of every journey the group touches, expanded, on that environment, with literal output or a capture per step. A step that cites a process walks each step it cites: `spec_trace.py checklist docs/spec J-NN` lists them as `S<n> › PROC-nnn S<m>` rows (`A<k>` for an alternative on either side) with their rules and proofs.
+- Smoke: the main steps of every journey the group touches, expanded, on that environment, with literal output or a capture per step. A step that cites a process walks each step it cites: `TRACE checklist <spec_root> J-NN` lists them as `S<n> › PROC-nnn S<m>` rows (`A<k>` for an alternative on either side) with their rules and proofs.
 - A touched process that no journey cites (`Cited by` is `—` in `traceability.md` § Processes: a server-only flow such as a scheduled job, or a tech process) is smoked by its postconditions: start it by its Trigger on that environment and record, per Postconditions bullet, the literal output or capture that shows it holds. A process is touched when a grouped FEAT's NEED lists it in `processes` or its steps cite a grouped FEAT's tasks (`traceability.md` § Tasks → processes).
 - A failed smoke stops the release and files a class-A fix row (skill `review`, reference `coordination.md`).
 
 ## 4. Get the product acceptance
 
 - The owner accepts on the test environment: a playtest for a game, or the captures compared with each UI REQ's mock (`visual_approval`). Record who, when and their words in the release PR or the FEAT's History.
-- A refusal returns the FEAT: a task row for a defect, `sdd-clarify` for a wrong REQ. With the new row open, `spec_trace.py status --write` moves the validated FEAT back to `in-progress` with a History line, and `sdd-review` closes it again once the row merges.
+- A refusal returns the FEAT: a task row for a defect, `sdd-clarify` for a wrong REQ. With the new row open, `TRACE status --write` moves the validated FEAT back to `in-progress` with a History line, and `sdd-review` closes it again once the row merges.
 
 ## 5. Turn the flag on, with a rollback plan
 
@@ -48,7 +49,7 @@ Under `release: merge` (the default `sdd:` value) `sdd-review` already moved eac
 
 ## 6. Deliver
 
-- `python3 <spec_trace.py> deliver docs/spec FEAT-nnn --in X.Y.Z` per FEAT (`~/.ai-kit/platforms/ci/validations/spec_trace.py`): `validated` to `delivered` with its History line, and each NEED whose listed FEATs are now all delivered and cover its REQs to `delivered`.
+- `TRACE deliver <spec_root> FEAT-nnn --in X.Y.Z` per FEAT: `validated` to `delivered` with its History line, and each NEED whose listed FEATs are now all delivered and cover its REQs to `delivered`.
 - Never set `status` by hand: `check_spec.py` requires the line `deliver` writes.
 
 ## 7. Route the feedback

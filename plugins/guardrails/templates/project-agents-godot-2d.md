@@ -25,7 +25,7 @@ res://
 
 ## Commands
 
-Skill `sdd-implement` runs these recipes of the installed agent-rules-kit's godot module (reference `recipes.md`): it finds this folder's stack in the project profile and runs `just -f ~/.ai-kit/platforms/kits/just/godot.just -d <folder> <recipe>`. The project keeps no justfile for them; CI runs the same recipes (the kit `ci-godot.yml`).
+Skill `sdd-implement` runs these recipes of the installed agent-rules-kit's godot module (reference `recipes.md`): it finds this folder's stack in the project profile and runs the recipe from the installed kit. The project keeps no justfile for them; CI runs the same recipes (the kit `ci-godot.yml`).
 
 | Recipe | What it does |
 |---|---|

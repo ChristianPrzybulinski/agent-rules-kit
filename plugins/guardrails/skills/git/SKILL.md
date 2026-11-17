@@ -19,6 +19,8 @@ Branch, commit and version policy (§1–§5), the `gh` workflow (§6–§9) and
 
 ## 1. Start from releasable main
 
+Resolve the project profile first (`../session/references/project-profile.md`): `changelog`, `release` and `ci`.
+
 `main` is the only long-lived branch and stays green. Update it, then create `feature/FEAT-nnn-name` (`fix/`, `docs/`, `chore/` for non-features). Do not create develop or release branches. `spike/<topic>` is the only exception: it is time-boxed (skill sdd-spike), never merged to `main`, and deleted after its report. Before branching, search open PRs and branches on the topic (`gh pr list --search '<topic or #issue>'`, `git branch -r`); build on one that covers it, or name it and stop.
 
 ## 2. Keep incomplete work safe

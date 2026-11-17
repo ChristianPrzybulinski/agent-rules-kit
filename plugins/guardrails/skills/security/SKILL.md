@@ -18,6 +18,7 @@ Release gates, the secret incident and the review of a sensitive change (§1–�
 
 ## 1. Apply release gates
 
+- Resolve the project profile first (`../session/references/project-profile.md`): `secrets` (the scanner and its config).
 - Reject critical/high dependency CVEs: OWASP Dependency-Check uses `failBuildOnCVSS=7`.
 - A suppression needs the false-positive reason and a review date.
 - Accept a new dependency only after it has been published for at least seven days.

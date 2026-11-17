@@ -1585,9 +1585,10 @@ for template, profile in TEMPLATE_PROFILES:
 RECIPES_REF = PLUGINS_ROOT / KIT_PLUGIN / "skills" / "sdd-implement" / "references" / "recipes.md"
 if not RECIPES_REF.is_file():
     fail(rel(RECIPES_REF), "missing: skill sdd-implement runs the kit's just recipes from it (KIT-085)")
-elif "just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d " not in RECIPES_REF.read_text(encoding="utf-8"):
-    fail(rel(RECIPES_REF), "names no `just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d <folder> <recipe>`"
-                           " (KIT-085)")
+elif 'just -f "$KIT/platforms/kits/just/<stack>.just" -d ' not in RECIPES_REF.read_text(encoding="utf-8"):
+    # KIT-087 P2b: KIT is the kit the skill finds (session reference project-profile.md), ~/.ai-kit by default
+    fail(rel(RECIPES_REF), 'names no `just -f "$KIT/platforms/kits/just/<stack>.just" -d <folder> <recipe>`'
+                           " (KIT-085, KIT-087 P2b)")
 
 just_pins = set()
 for workflow in sorted((KIT / "platforms" / "kits" / "github" / "workflows").glob("*.yml")):

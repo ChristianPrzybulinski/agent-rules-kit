@@ -417,5 +417,26 @@ class CatalogGlobTest(EnablerCase):
         self.assertIn("server/db/migration/V2__trade.sql", out)
 
 
+
+class MigrationsFromProfileTest(EnablerCase):
+    """KIT-087 P2b: the profile's sdd.migrations folders join the catalog check in place of --catalog."""
+
+    def test_profile_migration_folders_need_a_catalog_row(self):
+        write(self.root, "server/db/migration/V2__trade.sql", "-- fixture\n")
+        code, out, _ = run(["enablers", str(self.spec)])
+        self.assertEqual(code, 0, out)  # no profile, no --catalog: migrations are not walked
+        write(self.root, ".ai-kit.yaml", "sdd:\n  migrations: [server/db/migration]\n")
+        code, out, _ = run(["enablers", str(self.spec)])
+        self.assertEqual(code, 1, out)
+        self.assertIn("C19 high: server/db/migration/V2__trade.sql is in no ENB catalog (Schema or file)", out)
+        self.assertNotIn("V1__battle.sql", out)
+
+    def test_a_bad_profile_folder_fails_cleanly(self):
+        write(self.root, ".ai-kit.yaml", "sdd:\n  migrations: ['../outside']\n")
+        code, out, err = run(["enablers", str(self.spec)])
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("migrations", err)
+        self.assertNotIn("Traceback", err)
+
 if __name__ == "__main__":
     unittest.main()

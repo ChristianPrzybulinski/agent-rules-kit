@@ -135,6 +135,20 @@ class CheckKitReadmesTest(unittest.TestCase):
         self.assertEqual([line for line in output.splitlines() if line.startswith("FAIL: ")],
                          ["FAIL: .ai-kit.yaml: missing: the kit carries its own project profile (KIT-087 P1b)"], output)
 
+    def test_the_recipes_reference_names_the_command_from_the_resolved_kit(self):
+        """KIT-085, KIT-087 P2b: recipes.md names `just -f "$KIT/platforms/kits/just/<stack>.just" -d`, KIT being the
+        kit the session reference project-profile.md finds; the fixed ~/.ai-kit form alone fails."""
+        recipes = self.kit / "plugins/guardrails/skills/sdd-implement/references/recipes.md"
+        text = recipes.read_text(encoding="utf-8")
+        self.assertIn('just -f "$KIT/platforms/kits/just/<stack>.just" -d ', text)
+        recipes.write_text(text.replace('"$KIT/platforms/kits/just/<stack>.just"',
+                                        "~/.ai-kit/platforms/kits/just/<stack>.just"), encoding="utf-8")
+        result = self.check()
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 1, output)
+        self.assertIn('recipes.md: names no `just -f "$KIT/platforms/kits/just/<stack>.just" -d <folder> <recipe>`',
+                      output)
+
     @unittest.skipUnless(bash_major() == 3, "the trap is specific to bash 3.x, the macOS /bin/bash")
     def test_an_odd_apostrophe_in_a_heredoc_inside_command_substitution_fails_under_bash_3(self):
         # The comment that broke doctor.sh during agent-rules-kit#207; shellcheck 0.11.0 accepts it.

@@ -26,7 +26,7 @@ src/test/java       # mirrors main
 
 ## Commands
 
-Skill `sdd-implement` runs these recipes of the installed agent-rules-kit's java module (reference `recipes.md`): it finds this folder's stack in the project profile and runs `just -f ~/.ai-kit/platforms/kits/just/java.just -d <folder> <recipe>`. Each runs the Maven wrapper; the project keeps no justfile for them, and CI runs the same recipes (the kit `ci-java.yml`).
+Skill `sdd-implement` runs these recipes of the installed agent-rules-kit's java module (reference `recipes.md`): it finds this folder's stack in the project profile and runs the recipe from the installed kit. Each runs the Maven wrapper; the project keeps no justfile for them, and CI runs the same recipes (the kit `ci-java.yml`).
 
 | Recipe | What it does |
 |---|---|

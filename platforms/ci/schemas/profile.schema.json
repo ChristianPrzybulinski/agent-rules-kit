@@ -806,6 +806,18 @@
             }
           },
           "x-read-by": "sdd"
+        },
+        "migrations": {
+          "description": "Folders of schema migrations, rooted at the repository, whose every file an ENB catalog row (Schema or file) must cover: spec_trace.py enablers walks each as <folder>/**/* for C19, as it walks row_checks.protocol.schemas; [] = none (KIT-095, KIT-087 P2b)",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s*?\\[]+$"
+          },
+          "default": [],
+          "x-read-by": "sdd"
         }
       },
       "patternProperties": {

@@ -26,7 +26,7 @@ Choose the higher rung when two work; never trade correctness at an edge case fo
 ## 3. Design the change before the edit
 
 - One decision (rule, threshold, mapping) lives in one place; every other site reads it from there.
-- A new or changed function that repeats existing code is merged into one owner every caller uses, or the PR names why the copy stays; in GDScript, `python3 ~/.ai-kit/platforms/tools/gd_duplicates.py --base <base>` lists the pairs at 0.82 or more (advisory).
+- A new or changed function that repeats existing code is merged into one owner every caller uses, or the PR names why the copy stays; in GDScript, `GD_DUPLICATES --base <base>` (`../../session/references/project-profile.md` § 3) lists the pairs at 0.82 or more (advisory).
 - Get the data shape right before the logic: a shape that holds only valid states removes the branches that would repair it.
 - A new requirement is not bolted onto the old design: build the smallest edit of the design you would have made had the requirement been there from the start, and deliver it in pieces. A second special case for the same root cause means the design is wrong: reopen it instead of adding a third.
 - When work is not obvious at a glance, do one unit by hand, then make a tool reproduce it (the hand-done unit is the tool's test); do first what helps every later step.

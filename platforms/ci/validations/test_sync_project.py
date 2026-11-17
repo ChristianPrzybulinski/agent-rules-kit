@@ -25,6 +25,7 @@ VERSION = (KIT / "VERSION").read_text(encoding="utf-8").strip()
 UNVENDOR = KIT / "platforms" / "tools" / "sync_unvendor.py"
 PLUGIN = KIT / "plugins" / "guardrails"
 PINNED = "guardrails-pinned"  # KIT-072's pinned copy of the plugin, which KIT-081 stage 2b removes from a project
+KIT_TOOL = "$KIT/platforms/"  # KIT-087 P2b: the kit a skill finds, ~/.ai-kit by default
 HEAD_TOOL = "~/.ai-kit/platforms/"  # B2: a kit tool or template the skills and rules call from the kit clone
 PINNED_TOOL = '"$(git rev-parse --show-toplevel)"/.claude/ai-kit/platforms/'  # ... and from KIT-072's pin, gone since 2b
 
@@ -810,18 +811,19 @@ class SyncProjectCheckTest(unittest.TestCase):
         result = self.run_sync("--profile", "docs,godot:client")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         rule = self.text("client/AGENTS.md")  # KIT-081 stage 3: the block carries the code rule; the hook its location
-        self.assertIn(HEAD_TOOL + "tools/complexity.py", rule)
+        self.assertIn("skill `review` runs `complexity.py`", rule)  # KIT-087 P2b: a rule names the skill, not a path
         self.assertIn("`~/.ai-kit/plugins/guardrails/skills/<skill>/`", rule)
         self.assertNotIn("guardrails-pinned", rule + (self.repo / "AGENTS.md").read_text())
         self.assertNotIn(PINNED_TOOL, "".join(self.vendored_texts().values()))
 
     def test_every_kit_tool_call_names_a_kit_file(self):  # B2; KIT-081 stage 1: the schemas folder too
-        refs = {}
+        refs = {}  # KIT-087 P2b: the skills name the kit as "$KIT" (session reference project-profile.md)
         for root in ("skills", "rules", "agents", "templates"):
             for path in (PLUGIN / root).rglob("*"):
-                if path.is_file() and HEAD_TOOL.encode() in path.read_bytes():
+                if path.is_file() and any(head.encode() in path.read_bytes() for head in (HEAD_TOOL, KIT_TOOL)):
                     self.assertEqual(path.suffix, ".md", f"{path} calls a kit tool outside markdown")
-                    pattern = re.escape(HEAD_TOOL) + r"([A-Za-z0-9_./-]+(?:<stack>\.just)?)"
+                    pattern = (f"(?:{re.escape(HEAD_TOOL)}|{re.escape(KIT_TOOL)})"
+                               + r"([A-Za-z0-9_./-]+(?:<stack>\.just)?)")
                     for m in re.finditer(pattern, path.read_text()):
                         ref = m.group(1).rstrip(".")
                         # KIT-085: `kits/just/<stack>.just` names every stack's module, and each must exist

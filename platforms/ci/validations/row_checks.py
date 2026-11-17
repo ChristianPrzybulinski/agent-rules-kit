@@ -217,7 +217,7 @@ def load_config(spec_dir) -> Config:
         raise UsageError(f"spec dir does not exist: {spec_dir}")
     params, errors = check_spec.load_params(spec_dir, schemas_dir())
     if errors:
-        raise UsageError("spec.md sdd block refused (check_spec.py --params): " + "; ".join(errors))
+        raise UsageError("the profile's sdd section refused (profile.py resolve --section sdd): " + "; ".join(errors))
     root = repo_root(spec_dir)
     rc = params.get("row_checks") or {}
     gates = read_json(root, rc.get("gates"), "gates")

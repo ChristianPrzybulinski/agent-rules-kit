@@ -5,7 +5,7 @@ protocol_version: 1
 card_project: null
 updated: "YYYY-MM-DD"
 # Process parameters, written by sdd-constitution with the kit defaults below; each key, its default and the step
-# that reads it: skill sdd-constitution, references/sdd-parameters.md. check_spec.py --params prints the resolved block.
+# that reads it: skill sdd-constitution, references/sdd-parameters.md. Skill sdd-constitution prints the resolved block.
 sdd:
   needs: true
   # journeys: absent = on when docs/spec/journeys/ exists

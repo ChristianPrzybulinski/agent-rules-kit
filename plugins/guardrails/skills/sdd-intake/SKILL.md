@@ -17,7 +17,7 @@ allowed-tools:
 
 Every request enters here and becomes a `NEED-nnn` under `docs/spec/needs/` with `status: proposed`. This skill only records: it never judges, classifies or prioritizes, and it reads nothing beyond `docs/spec/needs/` and `docs/spec/spec.md`. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-need.md`.
 
-With `sdd.needs: false` (`check_spec.py --params`; `../sdd-constitution/references/sdd-parameters.md`) the project keeps no NEED file: skip this skill and hand the request, quoted verbatim with its date and channel, to `sdd-specify`.
+Resolve the project profile first (`../session/references/project-profile.md`): `spec_root` (every `docs/spec` here) and `sdd`. With `sdd.needs: false` (`../sdd-constitution/references/sdd-parameters.md`) the project keeps no NEED file: skip this skill and hand the request, quoted verbatim with its date and channel, to `sdd-specify`.
 
 ## 1. Take the id
 
@@ -32,7 +32,7 @@ With `sdd.needs: false` (`check_spec.py --params`; `../sdd-constitution/referenc
 
 ## 3. Validate and hand off
 
-- Run the spec validator (`python3 ~/.ai-kit/platforms/ci/validations/check_spec.py docs/spec ~/.ai-kit/platforms/ci/schemas`; in this kit, `platforms/tools/check.sh --spec docs/spec`) and paste its literal output.
+- Run the spec validator (`CHECK_SPEC`; in this kit, `platforms/tools/check.sh --spec docs/spec`) and paste its literal output.
 - Hand the NEED to `sdd-specify`, now or later; a recorded NEED may wait.
 
 ## Rules

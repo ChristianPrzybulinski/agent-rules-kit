@@ -28,7 +28,7 @@ Verifies a delivery someone else made and reports a verdict with sources. It nev
 
 ## 1. Run the steps in order
 
-A `record` step reads the result recorded for the exact pushed head (CI checks, or the project's gate record where it runs no CI on pull requests) and runs it once on a clean checkout only when none exists; a `script` step runs `python3 ~/.ai-kit/platforms/tools/review_checks.py <check>`, which reads the diff and git objects and runs no code; a `judgment` step is the reviewer's reading. Commands and detail: `references/delivery-steps.md`.
+Resolve the project profile first (`../session/references/project-profile.md`): `review`, `gates`, `evidence` and `quality`. A `record` step reads the result recorded for the exact pushed head (CI checks, or the project's gate record where it runs no CI on pull requests) and runs it once on a clean checkout only when none exists; a `script` step runs `RC <check>`, which reads the diff and git objects and runs no code; a `judgment` step is the reviewer's reading. Commands and detail: `references/delivery-steps.md`.
 
 | # | Step | Kind | What it settles |
 |---|---|---|---|
