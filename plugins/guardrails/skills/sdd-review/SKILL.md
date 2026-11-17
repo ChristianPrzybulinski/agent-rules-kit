@@ -17,7 +17,7 @@ allowed-tools:
 
 Process: `../sdd-constitution/references/sdd-process.md`. Runs once a FEAT's last task row merged, on a clean checkout of `main`, by a context that delivered none of its rows. It checks the FEAT as one delivery and moves it to `validated` (or `delivered` under `release: merge`). It edits only the FEAT's `## Closure`, Scope, criteria, stale text and proof paths, its status through the tool, the playtest line under `sdd.passes`, and the follow-ups it files; a code fix goes back as a row.
 
-Scripts do the mechanical part; the model reads only what they flag. Resolve the project profile first (`../session/references/project-profile.md`): `spec_root` (every `docs/spec` here), `sdd`, `review`, `gates` and `evidence`; `TRACE` and `RC` are its § 3 commands. Calibration (`references/closure-record.md` § Calibration): on 5 delivered FEATs every finding was a rotted proof, stale text or an untested clause, and 0 of 3,263 tests failed.
+Scripts do the mechanical part; the model reads only what they flag. Resolve the project profile first (`../session/references/project-profile.md`): `spec_root` (every `docs/spec` here), `sdd`, `review`, `gates` and `evidence`; `TRACE` and `RC` are its § 3 commands. Calibration (`references/closure-record.md` § Calibration): on 5 delivered FEATs every finding was a rotted proof, stale text or an untested clause, and 0 of 3,263 tests failed. With `sdd.flow: feat-only` (KIT-100) this step does not run: the FEAT has no rows, the review of its one PR (skill `review`) is its closure, and `TRACE sync-status` delivers it when that PR merges.
 
 ## 1. Gate the start (script)
 

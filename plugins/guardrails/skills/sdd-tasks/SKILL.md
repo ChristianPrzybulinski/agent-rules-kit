@@ -13,7 +13,7 @@ allowed-tools:
 
 # SDD 5 — Tasks
 
-Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Resolve the project profile first (`../session/references/project-profile.md`) and read `spec_root` and the `sdd` parameters `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`), `passes`, `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token.
+Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Resolve the project profile first (`../session/references/project-profile.md`) and read `spec_root` and the `sdd` parameters `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`), `passes`, `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token. With `sdd.task_table: false` (the `tooling` preset, set with `sdd.flow: feat-only`; KIT-100) this step does not run: the FEAT is the item, one issue and one PR, and its status follows that PR (`TRACE sync-status`); say so and stop.
 
 ## 1. Gate
 
