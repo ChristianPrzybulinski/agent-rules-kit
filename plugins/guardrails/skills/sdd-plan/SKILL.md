@@ -33,6 +33,7 @@ Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs
 - `requirements`: the REQs this delivery implements, new or amended; add the FEAT to each of those REQs' `features` (both sides list the link). REQs left to another delivery stay in Out of scope.
 - Problem / value: one line and the NEED id; the NEED keeps the full problem, Situations and scope. Scope lists the REQs delivered.
 - Acceptance criteria are technical (contract, unit, integration, e2e); each cites in `Proves` the REQ ids it proves, and every REQ in Scope is proved by at least one criterion. The REQs' examples and counterexamples are the functional criteria; do not restate them.
+- `enablers` (only with `docs/spec/enablers/`): the ENBs this delivery creates or changes; `kind: enabler` marks a FEAT that changes ENBs and delivers no REQ-F.
 - Add the FEAT to the NEED's `features` and a History line.
 
 ## 4. Write the Plan sections
@@ -51,7 +52,8 @@ Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs
 - Design cites each process state the FEAT implements (`PROC-nnn` and the state name) with what holds it (a state machine, `references/pattern-catalog.md`), and each process step it serves; a state the Plan adds or drops goes back to `sdd-clarify` as a process change.
 - Data maps each tunable of the FEAT's REQs (a Values row whose `Tunable` cell is not `fixed`) to its exposure: the content key, config entry or debug control the code reads it from, never a literal; `sdd-check` C14 flags one with no line.
 - Assets: one row per asset the delivery needs (for a game, animations with frame counts, particles and sounds; for a business project, e-mail templates, copy, icons and translations), each with its source, its license and the REQ or mock it serves, so the art is made or bought before the cut.
-- Contract: every changed message, endpoint, schema or table another FEAT reads passes the four checks of `references/contract.md`.
+- Contract: every changed message, endpoint, schema or table another FEAT reads passes the four checks of `references/contract.md`. With `docs/spec/enablers/`, the section cites each contract as its catalog row `ENB-nnn:<contract>` (`ENB-004:turn-result`) and states only the change; a new contract gets its Provided contracts row and `providesApis` id in this spec PR, and the contract PR corrects the row to what shipped (skill `sdd-implement`).
+- Walk table (only with `docs/spec/enablers/`), at the end of Design: `| Step | REQ | ENB contract | Task |`, one row per process or journey step the FEAT serves (`PROC-nnn S2`; `—` for a REQ no step cites), each REQ of Scope in at least one row, the ENB contract that carries it (`ENB-nnn:<contract>`, or `ENB-nnn` for an aggregate with no contract), and `—` in Task until `sdd-tasks` writes the row ids. A REQ that no ENB satisfies gets its Aggregates or Qualities row in the owning ENB in this spec PR (`sdd-check` C18).
 - Name real rooted files and the architecture areas of `docs/spec/spec.md` § Architecture each change lands in.
 
 ## 5. Record decisions
@@ -62,6 +64,6 @@ Fold settled decisions (the `decision_folding.marker` of the project profile, de
 
 ## 6. Check restraint and consistency
 
-Do not add queue/cache/service/layer without demonstrated need. Ensure every criterion has a planned proof in Tests, run `sdd-check FEAT-nnn` (full scope: the functional items again plus the technical ones; C8's task half waits for `sdd-tasks`) with no critical/high findings, then set `status: planned` and update History.
+Do not add queue/cache/service/layer without demonstrated need. Ensure every criterion has a planned proof in Tests, run `sdd-check FEAT-nnn` (full scope: the functional items again plus the technical ones; C8's task half waits for `sdd-tasks`; with `docs/spec/enablers/`, C18 and C19 from both `spec_trace.py enablers` and `check`) with no critical/high findings, then set `status: planned` and update History.
 
-Done when: each FEAT is one delivery within `max_feat_tasks`, lists the REQs it delivers on both sides, proves every REQ in Scope by a criterion, holds every `plan_sections` section (content or `— <why>`) naming real files, passes the contract checks, gives each lasting choice a decision record and the full check is unblocked.
+Done when: each FEAT is one delivery within `max_feat_tasks`, lists the REQs it delivers on both sides, proves every REQ in Scope by a criterion, holds every `plan_sections` section (content or `— <why>`) naming real files, passes the contract checks, cites each contract by its catalog row and walks each step and REQ to an ENB contract when the project keeps enablers, gives each lasting choice a decision record and the full check is unblocked.

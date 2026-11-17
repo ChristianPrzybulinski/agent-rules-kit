@@ -19,6 +19,7 @@ Main: 1a2b3c4 · 2026-11-20 · reviewer provider=claude tier=opus session=<id> �
 | Task proofs | `review_checks.py feat-proofs --feat … --run` | 9 pass; T1 stale (`content-projection/` merged into `content-publish/`, #4036), re-pointed, pass |
 | Lint | `spec_trace.py lint docs/spec FEAT-109` | 8 stale items fixed (Not verified, Audit Pending, 3 `[PROPOSAL]` → folded into Scope, …) |
 | Trace | same lint | REQ-F-997: `HaircutRefundMigrationIT` linked in J-12 S4 |
+| Enablers | `spec_trace.py enablers docs/spec --feat FEAT-109`, `spec_trace.py check docs/spec` | `enablers: OK (3 enablers, 7 contracts)`; check OK |
 | Broad suite | record of wave 3: `./mvnw -B -ntp verify` at 1a2b3c4 | pass (reused) |
 | REQ-NF-003 p95 latency ≤ 50 ms | measured 31 ms, `k6 run trade.js` on hml, 2026-11-20 | pass |
 | REQ clauses → tests | model reading, each "untested" grep-checked | 2 missing tests filed as T11, T12 |
@@ -27,6 +28,7 @@ Main: 1a2b3c4 · 2026-11-20 · reviewer provider=claude tier=opus session=<id> �
 Retro: blocked rows 1 (T5, spec gap) · review rounds 9 over 6 PRs, max 3 on T4 · REQs amended after planned 1 (REQ-F-015)
 ```
 
+- The Enablers row exists only with `docs/spec/enablers/`; the `traceability.md` that `generate` rewrites after `validate` is each ENB's History and lands in the same commit.
 - One row per check; a check that could not run is `not run: <why>` and blocks `validated`. Missing-test rows do not.
 - The outcome is `validated`, `delivered (release: merge)` or `returned: <the rows, clarify, NEED or DEBT it filed>`. A returned closure is rewritten on the next run, never appended below the old one.
 - Results are measured, with the command; targets and estimates are labeled `planned:` and never fill the Result column.

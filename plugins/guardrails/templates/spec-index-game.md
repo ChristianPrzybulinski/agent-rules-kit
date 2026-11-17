@@ -114,13 +114,16 @@ Spec-first (written to frame and cut the work, then frozen as history) = NEED fi
 ## Architecture
 <!-- sdd-constitution. The base architecture in one line with the decision that records it, then one row per area: a
      part of the code a change is counted against (sdd-tasks sizes a task row by the areas it touches; sdd-plan places
-     the design in them). -->
+     the design in them). With docs/spec/enablers/, the table is the ENB index: one row per enabler, the Area cell
+     links its file (`enablers/ENB-001-battle.md`), Paths repeats its Code paths and Holds its bounded
+     context in one line; sdd-tasks then sizes a row by the ENB it changes, and a part outside every ENB (build,
+     tooling) keeps a plain area row. -->
 
 [Base architecture in one line, for example "authoritative server, thin client" — DEC-nnn.]
 
 | Area | Paths | Holds |
 |---|---|---|
-| [area] | [rooted folder or glob] | [what lives there, one line] |
+| [area, or the ENB id linked to its `enablers/ENB-nnn-slug.md`] | [rooted folder or glob] | [what lives there, one line] |
 
 ## Reading order for a new session
 
