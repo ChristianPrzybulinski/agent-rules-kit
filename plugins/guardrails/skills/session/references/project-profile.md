@@ -12,7 +12,7 @@ A project never calls a kit script and never copies a step (KIT-087): the skill 
 `KIT` is the first of these folders that holds `platforms/tools/profile.py`, the order the hooks use (`hook_profile.py`):
 
 1. `$AI_KIT_DIR`;
-2. the kit checkout this plugin runs from (two folders above `plugins/guardrails`);
+2. the kit root this plugin runs from: the folder that holds `plugins/guardrails`, two folders above this plugin's own folder, as the hooks resolve it;
 3. `~/.ai-kit`, the user install `bootstrap.sh` clones.
 
 None holds it → say so and stop; the install is missing (`bootstrap.sh`), never copy a tool into the project. In the kit's own repository `KIT` is the working tree.

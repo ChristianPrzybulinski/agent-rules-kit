@@ -2,7 +2,9 @@
 resolver, its legacy fallbacks and conflicts, the x- namespace, the migration writer, and check_spec.py --params
 delegating to it."""
 import ast
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -372,6 +374,26 @@ class LoadParams(Project):
         self.assertEqual((errors, params["max_chain"]), ([], 2))
         params, errors = self.load()
         self.assertEqual((errors, params["max_chain"]), ([], 6), "docs/spec is not this profile's spec")
+
+    def test_profile_errors_for_another_spec_root_are_noted_once_on_stderr(self):
+        """Review of P2b: the profile's errors are not dropped silently when its spec_root names another folder."""
+        (self.root / ".git").mkdir()
+        self.spec("sdd:\n  max_chain: 6\n")
+        self.write(".ai-kit.yaml", "spec_root: specs\nsdd: {max_chain: 0}\n")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            params, errors = self.load()
+        self.assertEqual((errors, params["max_chain"]), ([], 6))
+        lines = err.getvalue().splitlines()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertTrue(lines[0].startswith("profile: note: .ai-kit.yaml describes spec_root specs, not docs/spec; "
+                                            "its errors were not applied: "), lines)
+        self.assertIn("max_chain", lines[0])
+        self.write(".ai-kit.yaml", "spec_root: specs\n")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.load()
+        self.assertEqual(err.getvalue(), "", "no errors, no note")
 
     def test_the_migrations_key_takes_rooted_folders(self):
         for value in ("/abs", "../up", "a/../../b"):

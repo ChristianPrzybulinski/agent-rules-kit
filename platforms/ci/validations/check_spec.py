@@ -501,6 +501,10 @@ def load_params(spec_dir, schemas_dir):
         root = profile_root(spec_dir)
         resolved, _, errors = module.resolve(root, ["spec_root", "sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
         if root is not None and (root / resolved["spec_root"]).resolve() != spec_dir:
+            if errors:  # not this spec's profile, but its errors stay visible: one note, never a failure here
+                print(f"profile: note: {module.FILE} describes spec_root {resolved['spec_root']}, not "
+                      f"{module.shown(spec_dir, root)}; its errors were not applied: {'; '.join(errors)}",
+                      file=sys.stderr)
             resolved, _, errors = module.resolve(None, ["sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
         return resolved["sdd"], errors
     start = len(failures)

@@ -69,9 +69,13 @@ updated: "YYYY-MM-DD"
      each holds its content or one line "— <why it does not apply>". Task cells point to "Plan § <section>". -->
 
 ### Design
-<!-- cites each process state the FEAT implements (PROC-nnn and the state) and what holds it. -->
+<!-- cites each process state the FEAT implements (PROC-nnn and the state) and what holds it. With docs/spec/enablers/,
+     it ends with the walk table | Step | REQ | ENB contract | Task |: each step or REQ to the ENB contract that
+     carries it, Task filled by sdd-tasks (skill sdd-plan § 4; sdd-check C18). -->
 
 ### Contract
+<!-- with docs/spec/enablers/: cite each contract as its catalog row ENB-nnn:<contract> and list those ENBs in the
+     frontmatter `enablers`; state only the change (sdd-check C19). -->
 
 ### Data
 <!-- one line per tunable of the FEAT's REQs (Tunable not `fixed`): REQ and value, range and unit, and its exposure
