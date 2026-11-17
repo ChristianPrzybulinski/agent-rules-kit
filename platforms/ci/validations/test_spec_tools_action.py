@@ -165,9 +165,10 @@ esac""",
 
     def install(self, bin_dir, **env):
         path = f"{bin_dir}{os.pathsep}{os.environ['PATH']}"
-        if "apt-get" not in {p.name for p in bin_dir.iterdir()}:  # hide a real apt-get on a Debian runner
-            path = os.pathsep.join([str(bin_dir), *(d for d in os.environ["PATH"].split(os.pathsep)
-                                                   if not (Path(d) / "apt-get").exists())])
+        if not (bin_dir / "apt-get").exists():  # a Debian runner's /usr/bin holds apt-get: PATH is the fakes alone
+            for tool in ("bash", "cat", "tail"):
+                (bin_dir / tool).symlink_to(shutil.which(tool))
+            path = str(bin_dir)
         return self.run_step(self.INSTALL, **{"PATH": path, "SYSTEM_PYTHON": bin_dir / "system-python3", "FAKE_UID": "0",
                                               **env})
 
