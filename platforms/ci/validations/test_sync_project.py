@@ -403,6 +403,64 @@ class SyncProjectCheckTest(unittest.TestCase):
         self.assertIn("sync: CLAUDE.md records that profile; pass --profile to replace it", result.stderr)
         self.assertEqual(before, self.claude_state() | {"CLAUDE.md": self.text("CLAUDE.md")})
 
+    # KIT-087 P2a: the stacks of the project profile win over --profile and the marker; --migrate-profile writes it.
+
+    def test_profile_stacks_select_the_profile_and_rewrite_the_marker(self):
+        (self.repo / ".ai-kit.yaml").write_text("stacks:\n  '.': docs\n  client: godot\n  server: [java, python]\n")
+        write = self.run_sync()
+        self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
+        self.assertIn("sync: profile=docs,godot:client,java:server,python:server (.ai-kit.yaml)", write.stdout)
+        self.assertEqual(self.text("CLAUDE.md"), self.claude_md("docs,godot:client,java:server,python:server"))
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        self.assertIn("(.ai-kit.yaml)", check.stdout)
+        same = self.run_sync("--check", "--profile", "godot:client,docs,java:server,python:server")
+        self.assertEqual(same.returncode, 0, same.stdout + same.stderr)
+
+    def test_a_profile_list_other_than_the_profile_stacks_is_refused(self):
+        (self.repo / ".ai-kit.yaml").write_text("stacks: {'.': docs, client: godot}\n")
+        before = self.text("CLAUDE.md")
+        result = self.run_sync("--profile", "docs")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("sync: --profile docs differs from the stacks .ai-kit.yaml sets (docs,godot:client)",
+                      result.stderr)
+        self.assertEqual(self.text("CLAUDE.md"), before)
+
+    def test_an_invalid_profile_refuses_the_sync(self):
+        (self.repo / ".ai-kit.yaml").write_text("stacks: {client: unity}\n")
+        before = self.text("CLAUDE.md")
+        result = self.run_sync()
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("stacks.client 'unity' does not match", result.stderr)
+        self.assertEqual(self.text("CLAUDE.md"), before)
+
+    def test_a_profile_without_stacks_keeps_the_marker(self):
+        (self.repo / ".ai-kit.yaml").write_text("ci: {trigger: auto}\n")
+        result = self.run_sync("--check")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("sync: profile=docs (CLAUDE.md)", result.stdout)
+
+    def test_migrate_profile_writes_the_profile_once(self):
+        write = self.run_sync("--profile", "docs,godot:client")
+        self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
+        migrate = self.run_sync("--migrate-profile")
+        self.assertEqual(migrate.returncode, 0, migrate.stdout + migrate.stderr)
+        self.assertIn("profile: wrote", migrate.stdout)
+        text = self.text(".ai-kit.yaml")
+        self.assertIn("client: 'godot'", text)
+        check = self.run_sync("--check")
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        self.assertIn("sync: profile=docs,godot:client (.ai-kit.yaml)", check.stdout)
+        again = self.run_sync("--migrate-profile")
+        self.assertEqual(again.returncode, 1)
+        self.assertIn("migrate never overwrites it", again.stderr)
+        self.assertEqual(self.text(".ai-kit.yaml"), text)
+        for args in (("--migrate-profile", "--check"), ("--migrate-profile", "--profile", "docs")):
+            with self.subTest(args=args):
+                refused = self.run_sync(*args)
+                self.assertEqual(refused.returncode, 2, refused.stdout + refused.stderr)
+                self.assertIn("--migrate-profile runs alone", refused.stderr)
+
     # KIT-067: spec.md sdd.rule_paths scopes a rule's globs; a block in each folder's AGENTS.md carries the rules for
     # agents that load no rule by path.
 

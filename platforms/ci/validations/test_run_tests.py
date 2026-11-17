@@ -22,7 +22,8 @@ _SPEC.loader.exec_module(rt)
 PERFORMANCE = {"test_hooks_context.ContextHooksTest.test_latency_budget",
                "test_hooks_guard_compact.HooksTest.test_each_hook_within_budget",
                "test_hooks_instructions_loaded.InstructionsLoadedHookTest.test_stays_within_budget",
-               "test_hooks_path_rules.HookCommandTest.test_stays_within_budget"}  # KIT-081 stage 3
+               "test_hooks_path_rules.HookCommandTest.test_stays_within_budget",  # KIT-081 stage 3
+               "test_hooks_profile.Latency.test_the_cached_view_is_within_the_budget"}  # KIT-087 P2a
 
 
 class Fake:

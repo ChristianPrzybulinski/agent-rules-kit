@@ -11,8 +11,9 @@ inputs:
       Comma-separated checks to run. spec: check_spec.py and check_docs_structure.py on docs/spec, and on a pull
       request the baseline that may only shrink. trace: spec_trace.py check. rows: row_checks.py check, --changed on a
       pull request and --all otherwise. none: only Python and AI_KIT_DIR, for a caller that runs a kit tool itself.
+      Empty (the default): the project profile's ci.spec_tools_checks (KIT-087 P2a), whose own default is spec.
     required: false
-    default: spec
+    default: ''
   base:
     description: >-
       The pull request's base commit: the baseline step reads docs/spec/baseline.json there and the row checks diff
@@ -33,20 +34,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - id: checks
-      name: Resolve the requested checks
-      shell: bash
-      env:
-        CHECKS: ${{ inputs.checks }}
-      run: |
-        set -f
-        for check in $(printf '%s' "$CHECKS" | tr ',' ' '); do
-          case "$check" in
-            spec|trace|rows) echo "$check=true" >> "$GITHUB_OUTPUT" ;;
-            none) ;;
-            *) echo "::error::spec-tools: unknown check '$check' (spec, trace, rows or none)"; exit 2 ;;
-          esac
-        done
     - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
       with:
         python-version: '3.12'
@@ -71,6 +58,27 @@ runs:
         json="$(python3 "$GITHUB_ACTION_PATH/../../../tools/profile.py" resolve --json --file "$PROFILE" .)"
         delim="ai_kit_profile_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
         { echo "AI_KIT_PROFILE_JSON<<$delim"; printf '%s\n' "$json"; echo "$delim"; } >> "$GITHUB_ENV"
+    # The checks input, else the profile's ci.spec_tools_checks (KIT-087 P2a) from the view the step above exported.
+    - id: checks
+      name: Resolve the requested checks
+      shell: bash
+      env:
+        CHECKS: ${{ inputs.checks }}
+      run: |
+        set -f
+        if [ -z "$CHECKS" ]; then
+          if ! CHECKS="$(printf '%s' "${AI_KIT_PROFILE_JSON:-}" | python3 -c 'import json,sys; print(",".join(json.load(sys.stdin)["ci"]["spec_tools_checks"]))' 2>/dev/null)"; then
+            echo "::error::spec-tools: no checks input and no resolved profile (AI_KIT_PROFILE_JSON) to read ci.spec_tools_checks from"
+            exit 2
+          fi
+        fi
+        for check in $(printf '%s' "$CHECKS" | tr ',' ' '); do
+          case "$check" in
+            spec|trace|rows) echo "$check=true" >> "$GITHUB_OUTPUT" ;;
+            none) ;;
+            *) echo "::error::spec-tools: unknown check '$check' (spec, trace, rows or none)"; exit 2 ;;
+          esac
+        done
     # A project justfile of its own may import a kit just module from ~/.ai-kit (KIT-081 stage 1b; the kit's templates
     # run the module from AI_KIT_DIR with -f, KIT-085): just reads no variable in
     # an import path, so the kit at this commit is linked there, unless the runner already holds a kit at that path.

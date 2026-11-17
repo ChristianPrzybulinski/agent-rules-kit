@@ -23,9 +23,15 @@ Dual read (until KIT-087 P4): a key absent from `.ai-kit.yaml` falls back to its
 A key set in both homes must resolve to the same value, else the run fails naming both. A missing `.ai-kit.yaml`
 prints one warning line and resolves every key from its legacy home or default. `kit: ">=X.Y"` fails on an older kit.
 
+Duplicate keys (KIT-087 P2a): `review.rounds` and `evidence.visual_approval` are the homes; `sdd.review_rounds` and
+`sdd.visual_approval` (the legacy `sdd:` block's names) are their aliases until P4. An alias set where its home is not
+gives the home its value (`profile: review.rounds from alias sdd.review_rounds`); the two set differently fail; the
+resolved alias always equals its home, kind preset included, and migrate writes only the home.
+
 resolve prints the resolved view (`--section` one section) as YAML in the subset check_spec.py's fallback parser
 reads, or as JSON with `--json`; ROOT defaults to the current folder, and its git top level is used. `--file` names
-the profile file relative to ROOT (default `.ai-kit.yaml`). migrate writes `.ai-kit.yaml` from the resolved view,
+the profile file relative to ROOT (default `.ai-kit.yaml`) and must stay under it, links resolved. `spec_root` must
+also resolve under the root. migrate writes `.ai-kit.yaml` from the resolved view,
 every key that differs from its default, and never overwrites an existing file.
 
 Exit 0 on success, 1 on an invalid profile, a conflict or a refused write, 2 on a usage error. Standard library only
@@ -52,6 +58,9 @@ GATES_KEYS = (("owner", "owner"), ("backlog_repo", "issue_repo"), ("repos", "rep
               ("protected_paths", "protected_paths"), ("proof_allowlist", "proof_allowlist"),
               ("generated_neighbours", "generated_neighbours"), ("expected_red_checks", "expected_red_checks"))
 PLAIN_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
+# Duplicate keys (KIT-087 P2a): (alias section, alias key) -> (home section, home key).
+ALIASES = {("sdd", "review_rounds"): ("review", "rounds"), ("sdd", "visual_approval"): ("evidence", "visual_approval")}
+MISSING = object()
 USAGE = "usage: profile.py resolve [--section S] [--json] [--file F] [ROOT] | profile.py migrate [ROOT]"
 
 
@@ -114,6 +123,32 @@ def canonical(section, value):
     return json.dumps(value, sort_keys=True)
 
 
+def key_name(section, key):
+    """How a note names a key: `stacks.client`, or `stacks['.']` for a key a dot would garble."""
+    key = str(key)
+    return f"{section}.{key}" if key and not key.startswith(".") else f"{section}[{key!r}]"
+
+
+def summary(notes):
+    """The notes with each section's `from legacy <path>` lines folded into one line per section and path:
+    `profile: 3 sdd keys from legacy docs/spec/spec.md (tracker, max_chain, needs)`."""
+    folded, out = {}, []
+    pattern = re.compile(r"^profile: ([A-Za-z_]+)(?:\.(.+)|\[(.+)\]) from legacy (.+)$")
+    for note in notes:
+        found = pattern.match(note)
+        if not found:
+            out.append(note)
+            continue
+        group = (found.group(1), found.group(4))
+        if group not in folded:
+            folded[group] = []
+            out.append(group)
+        folded[group].append(found.group(2) or found.group(3))
+    return [item if isinstance(item, str) else
+            f"profile: {len(folded[item])} {item[0]} key{'' if len(folded[item]) == 1 else 's'} from legacy {item[1]} "
+            f"({', '.join(folded[item])})" for item in out]
+
+
 def shown(path, root):
     if root is not None:
         try:
@@ -138,6 +173,7 @@ class Resolver:
         self.notes, self.errors = [], []
         self.new, self.new_path = {}, None
         self.legacy_sdd = None
+        self.alias_failed = set()
 
     def checked(self, fn, *args):
         start = len(self.cs.failures)
@@ -176,8 +212,16 @@ class Resolver:
                 continue
             if self.checked(self.cs.check_value, self.new_path, key, value, props[key]):
                 self.new[key] = {k: v for k, v in value.items() if not private(k)} if isinstance(value, dict) else value
-        if "spec_root" in self.new and not self.spec_dir_given:
-            self.spec_dir = self.root / self.new["spec_root"]
+        if "spec_root" in self.new:
+            spec_dir = self.root / self.new["spec_root"]
+            try:
+                spec_dir.resolve().relative_to(self.root.resolve())
+            except ValueError:
+                self.errors.append(f"{self.new_path}: spec_root {self.new['spec_root']} resolves outside {self.root}")
+                del self.new["spec_root"]
+            else:
+                if not self.spec_dir_given:
+                    self.spec_dir = spec_dir
         self.check_pin()
 
     def preset(self, section):
@@ -279,10 +323,10 @@ class Resolver:
         return {}, None
 
     # --- resolution
-    def resolve_section(self, section, quiet=False):
+    def given(self, section, quiet=False):
+        """The values the project sets in a section: `.ai-kit.yaml` first, then its legacy home per key, with a note
+        per legacy key and an error per key the two set differently (both silent when quiet)."""
         rule = self.schema["properties"][section]
-        if rule.get("type") != "object":  # a top-level scalar: kit, spec_root
-            return self.new.get(section, default_of(rule))
         new = self.new.get(section) or {}
         old, old_path = self.legacy(section)
         given = {}
@@ -291,7 +335,7 @@ class Resolver:
             if key in new and key in old:
                 a, b = fill(prop, new[key]), fill(prop, old[key])
                 if canonical(section, a) != canonical(section, b) and not quiet:
-                    self.errors.append(f"profile: {section}.{key} is {json.dumps(a)} in {self.new_path} and "
+                    self.errors.append(f"profile: {key_name(section, key)} is {json.dumps(a)} in {self.new_path} and "
                                        f"{json.dumps(b)} in legacy {old_path}; keep one value (the legacy home goes in "
                                        f"KIT-087 P4)")
                 given[key] = new[key]
@@ -300,9 +344,41 @@ class Resolver:
             else:
                 given[key] = old[key]
                 if not quiet:
-                    self.notes.append(f"profile: {section}.{key} from legacy {old_path}")
+                    self.notes.append(f"profile: {key_name(section, key)} from legacy {old_path}")
+        return given
+
+    def alias_conflict(self, alias, home, alias_value, home_value, quiet):
+        if quiet or alias_value is MISSING or home_value is MISSING or alias_value == home_value \
+                or alias in self.alias_failed:
+            return
+        self.alias_failed.add(alias)
+        self.errors.append(f"profile: {home[0]}.{home[1]} is {json.dumps(home_value)} and its legacy alias "
+                           f"{alias[0]}.{alias[1]} is {json.dumps(alias_value)}; keep one value, under "
+                           f"{home[0]}.{home[1]} (the alias goes in KIT-087 P4)")
+
+    def resolve_section(self, section, quiet=False):
+        rule = self.schema["properties"][section]
+        if rule.get("type") != "object":  # a top-level scalar: kit, spec_root
+            return self.new.get(section, default_of(rule))
+        given = self.given(section, quiet)
+        mirrored = {}
+        for alias, home in ALIASES.items():
+            if section == home[0]:
+                alias_value = self.given(alias[0], quiet=True).get(alias[1], MISSING)
+                self.alias_conflict(alias, home, alias_value, given.get(home[1], MISSING), quiet)
+                if home[1] not in given and alias_value is not MISSING:
+                    given[home[1]] = alias_value
+                    if not quiet:
+                        self.notes.append(f"profile: {home[0]}.{home[1]} from alias {alias[0]}.{alias[1]}")
+            elif section == alias[0]:
+                home_value = self.given(home[0], quiet=True).get(home[1], MISSING)
+                self.alias_conflict(alias, home, given.get(alias[1], MISSING), home_value, quiet)
+                mirrored[alias[1]] = home
         journeys = self.spec_dir / "journeys" if section == "sdd" and self.spec_dir is not None else None
-        return resolve_map(rule, given, journeys, self.preset(section))
+        out = resolve_map(rule, given, journeys, self.preset(section))
+        for key, home in mirrored.items():  # the alias always reads as its home, kind preset included
+            out[key] = self.resolve_section(home[0], quiet=True)[home[1]]
+        return out
 
     def resolve(self, sections=None):
         self.read_new()
@@ -315,7 +391,11 @@ class Resolver:
         if rule.get("type") != "object":
             return default_of(rule)
         journeys = self.spec_dir / "journeys" if section == "sdd" and self.spec_dir is not None else None
-        return resolve_map(rule, {}, journeys, self.preset(section))
+        out = resolve_map(rule, {}, journeys, self.preset(section))
+        for alias, home in ALIASES.items():
+            if alias[0] == section:
+                out[alias[1]] = self.defaults(home[0])[home[1]]
+        return out
 
 
 def resolve(root, sections=None, spec_dir=None, schemas_dir=None, profile_file=FILE):
@@ -414,6 +494,13 @@ def main(argv=None):
         print(f"profile: {opts['root']} is not a folder", file=sys.stderr)
         return 2
     root = toplevel(opts["root"])
+    try:
+        if Path(opts["file"]).is_absolute():
+            raise ValueError
+        (root / opts["file"]).resolve().relative_to(root.resolve())
+    except ValueError:
+        print(f"profile: --file must name a file under {root}, not {opts['file']}", file=sys.stderr)
+        return 2
     resolver = Resolver(root, profile_file=opts["file"])
     if opts["section"] is not None and opts["section"] not in resolver.schema["properties"]:
         print(f"profile: unknown section {opts['section']!r}; known: {sorted(resolver.schema['properties'])}",
@@ -443,8 +530,8 @@ def migrate(resolver, resolved):
     for section, value in resolved.items():
         default = resolver.defaults(section)
         if isinstance(value, dict):
-            changed = {k: v for k, v in value.items() if not isinstance(default, dict) or default.get(k) != v
-                       or k not in default}
+            changed = {k: v for k, v in value.items() if (section, k) not in ALIASES
+                       and (not isinstance(default, dict) or default.get(k) != v or k not in default)}
             if changed:
                 out[section] = changed
         elif value != default:
