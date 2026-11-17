@@ -30,8 +30,9 @@ kind: detail
 ## The longest chain
 
 - The longest chain of own rows is at most `max_chain` (`check_spec.py` fails above it).
-- A row on the longest chain is Med at most, so the critical path never waits on the top tier.
-- A High row is split along its Plan steps (one row per step of the Plan section it implements), each step at Med or Low where it can be, before it is allowed on the chain.
+- A row on the longest chain carries at most `task_cut.longest_chain_max_complexity` (`Med` keeps the critical path off the top tier; `High` sets no limit).
+- A row above that limit is split along its Plan steps (one row per step of the Plan section it implements), each step at Med or Low where it can be, before it is allowed on the chain.
+- `Depends on` holds code and contract edges only; an order the merge resolves (a migration number, a shared file) is no edge (`task-cut.md` § Chains).
 
 ## Worked example
 
@@ -43,4 +44,4 @@ A FEAT cut across three waves:
 | 1 | T2 Server handler, T3 Client mapper | `server/...` / `client/...` | disjoint file sets; both read only the merged contract |
 | 2 | T4 Integration | `tests/e2e/...` | reads the output of T2 and T3 |
 
-`Depends on`: T2 and T3 → `T1` (the contract, not each other); T4 → `T2, T3`. Longest chain: T1 → T2 → T4, three rows, all Med or Low.
+`Depends on`: T2 and T3 → `T1` (the contract, not each other); T4 → `T2, T3`. Longest chain: T1 → T2 → T4, three rows, all Med or Low, so any `longest_chain_max_complexity` holds.

@@ -106,6 +106,7 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-082-fewer-check-kit-runs.md`](KIT-082-fewer-check-kit-runs.md) | fewer check_kit runs, gdtoolkit in CI | done | #311 | #312 |
 | [`KIT-083-kit-081-review-follow-ups.md`](KIT-083-kit-081-review-follow-ups.md) | the small findings of the KIT-081 reviews | done | #317 | #318 |
 | [`KIT-084-changelog-fragments-and-status-sync.md`](KIT-084-changelog-fragments-and-status-sync.md) | changelog fragments, status-sync PR and gitleaks action from the kit | in-progress | #319 | |
+| [`KIT-086-journeys-folding-cut.md`](KIT-086-journeys-folding-cut.md) | journeys and processes, decision folding, task cut checklist | in-progress | #321 | |
 | [`KIT-087-project-profile.md`](KIT-087-project-profile.md) | one project profile read only by the kit | in-progress | #322 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
