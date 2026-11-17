@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [16.0.0] - 2026-11-17
+
 ### Added
 - KIT-094: greybox and polish passes under `sdd.passes` (KIT-088; `[]`, the default, changes nothing). `sdd-plan` plans a new mechanic as two version blocks of one FEAT, `### <version> greybox` (rules, Design, Contract, tunables, placeholder art) then `### <version> polish` (Assets and feel values, no rule change); `sdd-tasks` writes and cuts the polish block only after the greybox block's playtest line with outcome `go`; `sdd-review` gains `references/playtest.md` (the owner alone plays the closure commit and signs a dated History line, `go`, `retune` or `rule`); `sdd-release` § 4 reads `sdd.acceptance` (`captures` or `playtest`); `review` and `row_checks.py` rule j exempt a greybox block's rows from visual approval; `sdd-check` gains row C16 (full scope, high). The two-FEAT form of the issue's first text is not supported: the owner chose blocks (#335).
 - KIT-085: skill `sdd-implement` runs the kit's just recipes. Its new reference `references/recipes.md` finds a folder's stack with `profile.py resolve --section stacks` (the profile's `stacks`, else the `CLAUDE.md` marker) and runs `just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d <folder> <recipe>`; a command the profile's `tests` section sets replaces the recipe for the same check. `check_kit.py` keeps the AGENTS templates on a Commands table of recipes and skill `sdd-implement`, the CI templates on the `-f`/`-d` form, and the reference on that command.
