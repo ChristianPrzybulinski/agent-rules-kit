@@ -9,9 +9,9 @@ kind: detail
 
 | Section | Holds |
 |---|---|
-| Design | domain aggregates, value objects and events, the invariants they protect; client, server, protocol and adapter boundaries; the rooted files or modules each change lands in and the `spec.md` § Architecture areas they belong to |
+| Design | domain aggregates, value objects and events, the invariants they protect; each process state the FEAT implements (`PROC-nnn` and the state) and what holds it; client, server, protocol and adapter boundaries; the rooted files or modules each change lands in and the `spec.md` § Architecture areas they belong to |
 | Contract | each changed message, endpoint, schema or content file with its compatibility and protocol-version effect, and the four checks of `contract.md` |
-| Data | tables and columns, the migration `V<n>__slug.sql`, indexes, transaction boundary and idempotency, cache keys and their expiry |
+| Data | tables and columns, the migration `V<n>__slug.sql`, indexes, transaction boundary and idempotency, cache keys and their expiry; one line per tunable of the FEAT's REQs (`Tunable` not `fixed`): REQ and value, its range and unit, and where it is exposed (content key, config entry, debug control) |
 | UI | each screen or state, the REQ mock it matches, input and feedback, what the player or user sees on failure |
 | Assets | only when `plan_sections` lists it: one row per asset the delivery needs before the cut, with its kind, source, license and the REQ or mock it serves (below) |
 | Flag | the feature flag name, its default and the behavior with it off, or why none is needed |

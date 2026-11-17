@@ -19,7 +19,7 @@ The technical refinement: cuts a refined NEED into deliveries, creates one FEAT 
 
 ## 1. Confirm readiness
 
-Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs: false` (no NEED file), the request `sdd-specify` decided and the approved REQs `sdd-clarify` wrote, which land in this change, and Problem / value holds what the NEED would: the Request quote, the Triage block, the desired outcome, the Situations, scope and constraints. Read the actual modules/files plus repository rules; do not infer structure from the desired design.
+Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs: false` (no NEED file), the request `sdd-specify` decided and the approved REQs `sdd-clarify` wrote, which land in this change, and Problem / value holds what the NEED would: the Request quote, the Triage block, the desired outcome, the Situations, scope and constraints. Read the actual modules/files plus repository rules, and the journeys and processes the NEED lists; do not infer structure from the desired design.
 
 ## 2. Cut the NEED into deliveries
 
@@ -48,6 +48,8 @@ Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs
 | Tests | skill `sdd-implement`, references `tdd.md` and `test-gates.md` |
 
 - The Plan is the design: every choice the rows need is made here, so a task cell points to `Plan § <section>` and never restates it.
+- Design cites each process state the FEAT implements (`PROC-nnn` and the state name) with what holds it (a state machine, `references/pattern-catalog.md`), and each process step it serves; a state the Plan adds or drops goes back to `sdd-clarify` as a process change.
+- Data maps each tunable of the FEAT's REQs (a Values row whose `Tunable` cell is not `fixed`) to its exposure: the content key, config entry or debug control the code reads it from, never a literal; `sdd-check` C14 flags one with no line.
 - Assets: one row per asset the delivery needs (for a game, animations with frame counts, particles and sounds; for a business project, e-mail templates, copy, icons and translations), each with its source, its license and the REQ or mock it serves, so the art is made or bought before the cut.
 - Contract: every changed message, endpoint, schema or table another FEAT reads passes the four checks of `references/contract.md`.
 - Name real rooted files and the architecture areas of `docs/spec/spec.md` § Architecture each change lands in.
