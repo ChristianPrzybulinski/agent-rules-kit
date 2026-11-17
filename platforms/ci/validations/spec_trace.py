@@ -235,6 +235,7 @@ class Step:
     tasks: list[str] = field(default_factory=list)
     tests: list[str] = field(default_factory=list)
     manual: str | None = None
+    runbook: bool = False  # a `kind: tech` step a person runs: `—` in Implemented by, a `manual:` Proven by (#360)
     action: str = ""
     cites: str | None = None  # the PROC-nnn a journey step cites; its rules, tasks and tests come from `expands`
     expands: list = field(default_factory=list)
@@ -481,7 +482,8 @@ def load_process(spec, path):
         spec.errors.append(f"{where}: duplicate id {pid}")
         return
     spec.processes[pid] = {"path": path, "title": data.get("title", ""), "status": data.get("status"),
-                           "kind": data.get("kind"), "steps": parse_steps(spec, pid, body)}
+                           "kind": data.get("kind"), "steps": []}  # registered first: a step reads its kind
+    spec.processes[pid]["steps"] = parse_steps(spec, pid, body)
 
 
 def section(body, name):
@@ -561,8 +563,10 @@ def parse_step(spec, jid, row, header):
         if rid not in spec.reqs:
             spec.errors.append(f"{step.ref}: Rules cites {rid}, which does not exist")
     cell = row["Implemented by"]
-    if not step.tasks and not awaits(spec, step, cell):
-        spec.errors.append(f"{step.ref}: Implemented by cites no task (FEAT-nnn Tn){why_due(spec, step, cell)}")
+    step.runbook = runbook(spec, step, cell, row["Proven by"])
+    if not step.tasks and not awaits(spec, step, cell) and not step.runbook:
+        spec.errors.append(f"{step.ref}: Implemented by cites no task (FEAT-nnn Tn){why_due(spec, step, cell)}"
+                           f"{runbook_hint(spec, step, cell)}")
     parse_tests(spec, step, row["Proven by"])
     return step
 
@@ -613,6 +617,23 @@ def citing_step(spec: Spec, step: Step, row: dict, cites: list) -> Step:
 def awaits(spec: Spec, step: Step, cell: str) -> bool:
     """A literal `—` waits for the FEAT, its tasks and tests while an open NEED lists the step's journey or process."""
     return cell.strip() == PENDING and bool(spec.open_needs.get(step.journey))
+
+
+def tech_step(spec: Spec, step: Step) -> bool:
+    return spec.processes.get(step.journey, {}).get("kind") == "tech"
+
+
+def runbook(spec: Spec, step: Step, implemented: str, proven: str) -> bool:
+    """A `kind: tech` process step a person runs, with no FEAT behind it (a manual runbook), holds `—` in Implemented
+    by for good when its Proven by is a `manual:` check alone (#360); a product step or a tested one cites its task."""
+    return (tech_step(spec, step) and implemented.strip() == PENDING
+            and MANUAL.fullmatch(proven.strip()) is not None)
+
+
+def runbook_hint(spec: Spec, step: Step, cell: str) -> str:
+    if cell.strip() != PENDING or not tech_step(spec, step):
+        return ""
+    return "; or, in a `kind: tech` process, `—` with a Proven by of `manual:` alone (a step a person runs)"
 
 
 def why_due(spec: Spec, step: Step, cell: str) -> str:
@@ -1572,15 +1593,44 @@ def decider_names(text):
     return {part.strip() for part in re.split(r"[,;]| and ", plain) if part.strip()[:1].isalpha()}
 
 
-def governance_records(spec, sub, pattern):
-    """(id, frontmatter, whole text, path) of each record under SPEC/sub whose frontmatter has an id."""
+GOVERNANCE_TEXT = ("title", "trigger", "severity", "kind", "deciders", "owner")  # the values the view prints
+
+
+def text_errors(spec, path, data):
+    """`<path>: <key> is <value>, not text` for each value the view prints that YAML read as a number, list or map
+    (check_spec.py rejects these too; the view says so instead of a traceback, #360)."""
+    where = path.relative_to(spec.spec_dir).as_posix()
+    return [f"{where}: {key} is {data[key]!r}, not text; quote it" for key in GOVERNANCE_TEXT
+            if data.get(key) is not None and not isinstance(data[key], str)]
+
+
+def governance_records(spec, sub, pattern, errors):
+    """(id, frontmatter, whole text, path) of each record under SPEC/sub whose frontmatter has an id; a frontmatter
+    that does not parse, or a printed value that is not text, goes to errors instead."""
     out = []
     for path in sorted((spec.spec_dir / sub).rglob(pattern), key=lambda p: natural_key(p.name)):
         text = path.read_text(encoding="utf-8")
-        data, _ = split_frontmatter(text)
+        try:
+            data, _ = split_frontmatter(text)
+        except yaml.YAMLError as error:
+            where = path.relative_to(spec.spec_dir).as_posix()
+            errors.append(f"{where}: frontmatter is not valid YAML ({' '.join(str(error).split())})")
+            continue
         if isinstance(data, dict) and data.get("id"):
+            errors += text_errors(spec, path, data)
             out.append((str(data["id"]), data, text, path))
     return out
+
+
+def governance_inputs(spec):
+    """The decisions, debts and FEATs the view reads, plus the errors of those and of the processes' printed values."""
+    errors = []
+    records = {sub: governance_records(spec, sub, pattern, errors)
+               for sub, pattern in (("decisions", "*.md"), ("debts", "DEBT-*.md"), ("features", "FEAT-*.md"))}
+    for process in spec.processes.values():
+        data, _ = split_frontmatter(process["path"].read_text(encoding="utf-8"))  # load() parsed it already
+        errors += text_errors(spec, process["path"], data)
+    return records, errors
 
 
 def cites(text, rid):
@@ -1633,12 +1683,10 @@ def debt_findings(spec, debts, feats, decisions, fid=None):
     return findings
 
 
-def render_governance(spec, profile, fid=None):
+def render_governance(spec, profile, records, fid=None):
     """The governance view (E § 14.2 item 4): every value comes from where it is kept; nothing here is a copy."""
     review, gates, sdd = profile.get("review") or {}, profile.get("gates") or {}, spec.params
-    decisions = governance_records(spec, "decisions", "*.md")
-    debts = governance_records(spec, "debts", "DEBT-*.md")
-    feats = governance_records(spec, "features", "FEAT-*.md")
+    decisions, debts, feats = records["decisions"], records["debts"], records["features"]
     lines = ["# Governance", "",
              "Generated by `spec_trace.py governance` from the profile (`.ai-kit.yaml`, else spec.md `sdd:`), the "
              "decisions, debts, enablers and processes; never edited by hand.", "",
@@ -1699,13 +1747,16 @@ def render_governance(spec, profile, fid=None):
 
 def governance_command(spec, fid):
     """`spec_trace.py governance`: print the view; exit 0 whatever C25 finds (sdd-check judges each trigger), 1 on an
-    unknown --feat or a refused profile."""
+    unknown --feat, a refused profile or a record the view cannot read (one `FAIL:` line each, no view)."""
     if fid and fid not in spec.feats:
         return report([f"{fid} does not exist in features/"], "")
     profile, errors = governance_profile(spec)
     if spec.param_errors or errors:  # profile.py validates the whole file, so both lists may hold one error
         return report([refused_section(error) for error in dict.fromkeys(spec.param_errors + errors)], "")
-    print("\n".join(render_governance(spec, profile, fid)))
+    records, errors = governance_inputs(spec)
+    if errors:
+        return report(errors, "")
+    print("\n".join(render_governance(spec, profile, records, fid)))
     return 0
 
 
@@ -2045,7 +2096,8 @@ def closure_gaps(spec, fid, needs):
         seen = set()
 
         def unfilled(step, via):
-            missing = [c for c, ok in (("Implemented by", step.tasks), ("Proven by", step.tests or step.manual))
+            missing = [c for c, ok in (("Implemented by", step.tasks or step.runbook),
+                                       ("Proven by", step.tests or step.manual))
                        if not ok]
             if missing and not step.id.startswith("P") and step.ref not in seen:
                 seen.add(step.ref)

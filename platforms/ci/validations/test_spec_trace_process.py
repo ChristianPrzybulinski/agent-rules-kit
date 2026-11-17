@@ -255,6 +255,41 @@ class WaitingRuleTest(ProcessCase):
         self.assert_error(self.check(), "PROC-001 S2: Implemented by cites no task")
 
 
+class ManualRunbookTest(ProcessCase):
+    """#360 item 2: a `kind: tech` step a person runs, with no FEAT behind it, holds `—` in Implemented by when its
+    Proven by is a `manual:` check alone; no open NEED needs to list the process."""
+
+    FILLED = "| REQ-F-002 | FEAT-002 T1 | FEAT-002 T2 |"
+
+    def runbook(self, kind="tech", proven="manual: report pasted in History"):
+        self.process(text=PROCESS.replace("kind: product", f"kind: {kind}").replace(
+            self.FILLED, f"| REQ-F-002 | — | {proven} |"))
+
+    def test_a_manual_tech_step_holds_a_dash(self):
+        self.runbook()
+        self.assertEqual(self.check(), [])
+        step = next(s for s in trace.load(self.spec).processes["PROC-001"]["steps"] if s.id == "S2")
+        self.assertEqual((step.tasks, step.manual), ([], "report pasted in History"))
+
+    def test_a_product_step_still_cites_a_task(self):
+        self.runbook(kind="product")
+        self.assert_error(self.check(), "PROC-001 S2: Implemented by cites no task")
+
+    def test_a_tech_step_proven_by_a_test_still_cites_a_task(self):
+        for proven in ("FEAT-002 T2", "FEAT-002 T2 · manual: watch it", "—"):
+            with self.subTest(proven=proven):
+                self.runbook(proven=proven)
+                self.assert_error(self.check(), "PROC-001 S2: Implemented by cites no task",
+                                  "in a `kind: tech` process, `—` with a Proven by of `manual:` alone")
+
+    def test_validate_takes_the_manual_step_as_filled(self):
+        self.runbook()
+        self.need("refined", "requirements: [REQ-F-002]\nprocesses: [PROC-001]\nfeatures: [FEAT-002]\n")
+        code, out, err = quiet(["validate", str(self.spec), "FEAT-002", "--at", "abc1234", "--check"])
+        self.assertEqual(code, 0, err)
+        self.assertIn("FEAT-002: ready to validate", out)
+
+
 class ExpansionTest(ProcessCase):
     """A journey step that cites a process holds `—` in its own cells; the process's steps carry them."""
 

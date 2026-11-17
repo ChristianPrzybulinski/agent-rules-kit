@@ -267,6 +267,51 @@ class DebtPaymentTest(GovernanceCase):
         self.assertIn("FEAT-099 does not exist", err)
 
 
+class MalformedRecordTest(GovernanceCase):
+    """#360 item 1: a record the view cannot read is one `FAIL:` line and exit 1, never a traceback."""
+
+    def fails(self, *fragments):
+        code, out, err = governance(self.spec)
+        self.assertEqual(code, 1, out)
+        self.assertEqual(out, "")
+        for fragment in fragments:
+            self.assertIn(fragment, err)
+        self.assertTrue(all(line.startswith("FAIL: ") for line in err.splitlines()), err)
+
+    def bad_decision(self):
+        """Without enablers/: with it, load_enablers reads the decisions first, and #356 owns that read."""
+        shutil.rmtree(self.spec / "enablers")
+        enb.write(self.root, "docs/spec/decisions/DEC-005.md", "---\nid: DEC-005\ntitle: [unclosed\n---\n# DEC-005\n")
+
+    def test_a_decision_whose_yaml_does_not_parse(self):
+        self.bad_decision()
+        self.fails("decisions/DEC-005.md: frontmatter is not valid YAML")
+
+    def test_a_debt_title_that_is_not_text(self):
+        path = self.spec / "debts/DEBT-001.md"
+        path.write_text(path.read_text(encoding="utf-8").replace('title: "Fixture debt DEBT-001"', "title: 7"),
+                        encoding="utf-8")
+        self.fails("debts/DEBT-001.md: title is 7, not text")
+
+    def test_a_debt_trigger_that_is_a_list(self):
+        self.debt("DEBT-005", "open", "x", "ENB-001")
+        path = self.spec / "debts/DEBT-005.md"
+        path.write_text(path.read_text(encoding="utf-8").replace('trigger: "x"', "trigger: [a, b]"), encoding="utf-8")
+        self.fails("debts/DEBT-005.md: trigger is ['a', 'b'], not text")
+
+    def test_a_tech_process_title_that_is_not_text(self):
+        path = self.spec / "processes/PROC-002-no-vulnerabilities.md"
+        path.write_text(path.read_text(encoding="utf-8").replace(
+            'title: "Keep dependencies without known vulnerabilities"', "title: 7"), encoding="utf-8")
+        self.fails("processes/PROC-002-no-vulnerabilities.md: title is 7, not text")
+
+    def test_the_c25_feat_scope_fails_the_same_way(self):
+        self.bad_decision()
+        code, out, err = governance(self.spec, "--feat", "FEAT-001")
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("FAIL: ", err)
+
+
 class WithoutGovernanceArtifactsTest(enb.EnablerCase):
     def test_bare_spec_renders_the_view(self):
         shutil.rmtree(self.spec / "enablers")
