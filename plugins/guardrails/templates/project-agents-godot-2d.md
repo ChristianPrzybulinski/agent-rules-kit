@@ -110,4 +110,4 @@ Never mix the two models in one entity; presentation never changes the authorita
 
 ## More
 
-- Mechanics and balancing: `docs/design.md`. Decisions: `docs/adr/`.
+- Mechanics and balancing: `docs/spec/` (`spec.md` Pillars, Core loop and Direction; REQ Values). Decisions: `docs/spec/decisions/`.
