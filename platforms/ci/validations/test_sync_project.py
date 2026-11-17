@@ -763,8 +763,12 @@ class SyncProjectCheckTest(unittest.TestCase):
             for path in (PLUGIN / root).rglob("*"):
                 if path.is_file() and HEAD_TOOL.encode() in path.read_bytes():
                     self.assertEqual(path.suffix, ".md", f"{path} calls a kit tool outside markdown")
-                    for m in re.finditer(re.escape(HEAD_TOOL) + r"([A-Za-z0-9_./-]+)", path.read_text()):
-                        refs.setdefault(m.group(1).rstrip("."), path)
+                    pattern = re.escape(HEAD_TOOL) + r"([A-Za-z0-9_./-]+(?:<stack>\.just)?)"
+                    for m in re.finditer(pattern, path.read_text()):
+                        ref = m.group(1).rstrip(".")
+                        # KIT-085: `kits/just/<stack>.just` names every stack's module, and each must exist
+                        for stack in (("godot", "java", "python", "docs") if "<stack>" in ref else ("",)):
+                            refs.setdefault(ref.replace("<stack>", stack), path)
         self.assertTrue(refs)
         self.assertIn("ci/schemas", refs)  # the spec validators take the kit's schemas folder
         for rel, path in refs.items():

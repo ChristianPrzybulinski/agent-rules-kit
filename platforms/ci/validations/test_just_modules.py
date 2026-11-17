@@ -1,7 +1,8 @@
 """The per-profile just modules (KIT-074): recipe names, the commands each recipe runs (stub tools on PATH), and the
-check_kit.py gate that keeps the AGENTS and CI templates on the modules' recipe names. A project imports a module from
-the installed kit, `import '~/.ai-kit/platforms/kits/just/<profile>.just'` (KIT-081 stage 1b: no copy), so each test
-project does so, with a throwaway HOME whose ~/.ai-kit holds the kit's modules."""
+check_kit.py gate that keeps the AGENTS and CI templates on the modules' recipe names. A project keeps no justfile for
+the kit's recipes (KIT-085): skill sdd-implement runs `just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d <folder>
+<recipe>`, so each test runs a module that way against a throwaway project, with a throwaway HOME whose ~/.ai-kit
+holds the kit's modules. A project may still import a module into a justfile of its own; one test keeps that form."""
 import os
 import re
 import shutil
@@ -36,8 +37,8 @@ def executable(path, text):
 
 @unittest.skipIf(JUST is None and not os.environ.get("CI"), "just is not on PATH (CI=1 makes it required)")
 class ModuleTest(unittest.TestCase):
-    """Each module imported by a throwaway project's justfile from ~/.ai-kit, the line sync-project.sh writes; HOME is
-    a throwaway folder whose .ai-kit/platforms/kits/just is the kit's module folder."""
+    """Each module run from ~/.ai-kit against a throwaway project, as skill sdd-implement runs it (KIT-085); HOME is a
+    throwaway folder whose .ai-kit/platforms/kits/just is the kit's module folder."""
 
     def setUp(self):
         if JUST is None:  # KIT-077: the CI jobs that run this layer install the pinned just
@@ -51,8 +52,10 @@ class ModuleTest(unittest.TestCase):
         self.home = Path(tmp.name) / "home"
         (self.home / ".ai-kit" / "platforms" / "kits").mkdir(parents=True)
         (self.home / ".ai-kit" / "platforms" / "kits" / "just").symlink_to(MODULES)
-        line = f"import '~/.ai-kit/platforms/kits/just/{profile}.just'\n"
-        (root / "justfile").write_text(line + (justfile or ""), encoding="utf-8")
+        self.module = self.home / ".ai-kit" / "platforms" / "kits" / "just" / f"{profile}.just"
+        if justfile is not None:  # a project's own justfile importing the module (still works; no kit step needs it)
+            line = f"import '~/.ai-kit/platforms/kits/just/{profile}.just'\n"
+            (root / "justfile").write_text(line + justfile, encoding="utf-8")
         self.bin = root / ".stub-bin"
         self.bin.mkdir()
         self.log = root / ".stub-log"
@@ -62,7 +65,9 @@ class ModuleTest(unittest.TestCase):
         full = dict(os.environ, PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}", STUB_LOG=str(self.log),
                     HOME=str(self.home))
         full.update(env or {})
-        return subprocess.run([JUST, *args], cwd=root, capture_output=True, text=True, env=full, check=False)
+        own = (root / "justfile").exists()
+        command = [JUST, *args] if own else [JUST, "-f", str(self.module), "-d", str(root), *args]
+        return subprocess.run(command, cwd=root, capture_output=True, text=True, env=full, check=False)
 
     def calls(self):
         return self.log.read_text(encoding="utf-8").splitlines() if self.log.exists() else []
@@ -83,22 +88,22 @@ class RecipeNames(ModuleTest):
         self.assertEqual(set(result.stdout.split()), RECIPES["java"] | {"db-shell"})
 
 
-class ImportedFromTheKit(ModuleTest):
-    def test_an_imported_recipe_runs_in_the_projects_folder(self):
-        """just runs an imported recipe in the importing justfile's folder, so `--path .` is the project, never the
-        kit's module folder, and the kit's file stays where it is."""
+class RunFromTheKit(ModuleTest):
+    def test_a_recipe_runs_in_the_folder_d_names(self):
+        """KIT-085: with -f naming the kit's module, -d sets the folder a recipe runs in, so `--path .` is the
+        project, never the kit's module folder, and the project gets no file."""
         root = self.project("godot")
         executable(self.bin / "godot", '#!/usr/bin/env bash\nprintf "%s %s\\n" "$PWD" "$*" >> "$STUB_LOG"\n')
         self.assertEqual(self.just(root, "editor").returncode, 0)
         self.assertEqual(self.calls(), [f"{root.resolve()} --path . --editor"])
-        self.assertEqual([p.name for p in root.iterdir() if p.suffix == ".just"], [])
+        self.assertEqual(sorted(p.name for p in root.iterdir()), [".stub-bin", ".stub-log"])
 
-    def test_without_the_installed_kit_just_names_the_missing_import(self):
+    def test_without_the_installed_kit_just_fails(self):
         root = self.project("docs")
         (self.home / ".ai-kit" / "platforms" / "kits" / "just").unlink()
         result = self.just(root, "--summary")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("could not find source file for import", result.stderr)
+        self.assertIn("docs.just", result.stderr)
 
 
 class Godot(ModuleTest):
@@ -317,23 +322,31 @@ FIXTURES = {
         "verify: test\n"),
     "platforms/kits/just/java.just": "test:\n    ./mvnw test\n\nverify:\n    ./mvnw verify\n",
     "plugins/guardrails/templates/project-agents-java-spring.md": (
-        "# Fixture AGENTS template (java)\n\n- Tests `just test`, the gate `just verify`.\n"
-        "- A recipe java.just lacks: `just verify-all`.\n"),
+        "# Fixture AGENTS template (java)\n\n## Commands\n\nSkill `sdd-implement` runs these recipes.\n\n"
+        "| Recipe | What |\n|---|---|\n| `test` | unit |\n| `test -Dtest=X` | one |\n| `verify` | gate |\n"
+        "| `verify-all` | a recipe java.just lacks |\n\n## Boundaries\n"),
     "plugins/guardrails/templates/project-agents-godot-2d.md": (
-        "# Fixture AGENTS template (godot)\n\n- The gate `just verify` and the boot proof `just boot`; no tests.\n"),
+        "# Fixture AGENTS template (godot)\n\n## Commands\n\nSkill `sdd-implement` runs these recipes.\n\n"
+        "| Recipe | What |\n|---|---|\n| `verify` | gate |\n| `boot` | boot proof; no tests |\n\n"
+        "- KIT-085: no project justfile, so no `just boot` either.\n"),
     "platforms/kits/github/workflows/ci-godot.yml": (
         "# Fixture CI template (godot)\njobs:\n  test:\n    steps:\n"
-        "      - run: just boot\n"
-        "      - run: just boot-proof\n"
-        "      - run: just --no-deps test 2>&1 | tee test-run.log\n"
-        "      - run: just --no-deps tests\n"),
+        '      - run: just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . boot\n'
+        '      - run: just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . boot-proof\n'
+        '      - run: just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . --no-deps test 2>&1 | tee test-run.log\n'
+        '      - run: just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . --no-deps tests\n'
+        "      - run: just verify\n"),
     "platforms/kits/github/workflows/ci-java.yml": (
-        "# Fixture CI template (java)\njobs:\n  verify:\n    steps:\n      - run: just verify\n"),
+        "# Fixture CI template (java)\njobs:\n  verify:\n    steps:\n"
+        '      - run: just -f "$AI_KIT_DIR/platforms/kits/just/java.just" -d . verify\n'
+        '      - run: just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . test\n'),
 }
 
 
 class TemplatesNameKitRecipes(unittest.TestCase):
-    """check_kit.py fails when an AGENTS or CI template names a recipe its profile module lacks."""
+    """check_kit.py fails when an AGENTS or CI template names a recipe its profile module lacks, when an AGENTS
+    template names a `just <recipe>` command or lacks `test` or `verify` in its Commands table, and when a CI template
+    runs a recipe without -f naming its profile's kit module and -d (KIT-085: no project justfile)."""
 
     @classmethod
     def setUpClass(cls):
@@ -365,9 +378,13 @@ class TemplatesNameKitRecipes(unittest.TestCase):
             "project-agents-java-spring.md: names just recipe 'verify-all', which platforms/kits/just/java.just "
             "does not define",
             "ci-godot.yml: names just recipe 'boot-proof', which platforms/kits/just/godot.just does not define",
-            # #283 item 7: ci-godot runs `just --no-deps test` after `just boot`; the recipe after the option counts
+            # #283 item 7: ci-godot runs `--no-deps test` after `boot`; the recipe after the option counts
             "ci-godot.yml: names just recipe 'tests', which platforms/kits/just/godot.just does not define",
-            "project-agents-godot-2d.md: names no `just test`",
+            "project-agents-godot-2d.md: names no recipe `test` in its Commands table",
+            # KIT-085: a project keeps no justfile
+            "project-agents-godot-2d.md: names `just boot`; a project keeps no justfile (KIT-085)",
+            "ci-godot.yml: runs just recipe 'verify' without -f naming the kit's godot.just and -d naming the folder",
+            "ci-java.yml: runs just recipe 'test' without -f naming the kit's java.just and -d naming the folder",
         ]
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         for text in expected:
@@ -377,6 +394,7 @@ class TemplatesNameKitRecipes(unittest.TestCase):
         self.assertEqual(len(lines), len(expected), result.stderr)
         self.assertNotIn("names just recipe 'boot'", result.stderr)  # #283 item 8: a default parameter is defined
         self.assertNotIn("names just recipe 'test'", result.stderr)  # the recipe after --no-deps is read whole
+        self.assertNotIn("names no skill", result.stderr)  # both AGENTS fixtures name skill `sdd-implement`
 
 
 if __name__ == "__main__":

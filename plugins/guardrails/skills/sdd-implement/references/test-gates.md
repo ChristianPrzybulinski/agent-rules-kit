@@ -27,7 +27,7 @@ Optional, by hand and outside the local TDD loop of § 3: before a PR that touch
 
 Size the proof by what the change can affect, never by file extension: agent instructions, permissions, workflows and executable config are code when they change runtime or security behavior. Unknown impact takes the higher row.
 
-Locally the implementer runs only the TDD loop (the unit and integration tests covering the changed files) and the linters. CI runs the broad suite and every other layer on the pushed head, and its result is the proof the review reads; where the repository runs no CI on each push, the project's gate command or its loop's gate stands in.
+Locally the implementer runs only the TDD loop (the unit and integration tests covering the changed files) and the linters, through the folder's stack recipes (`recipes.md`). CI runs the broad suite and every other layer on the pushed head, and its result is the proof the review reads; where the repository runs no CI on each push, the project's gate command or its loop's gate stands in.
 
 | Impact | Proof before "done" |
 |---|---|

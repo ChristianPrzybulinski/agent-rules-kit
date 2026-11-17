@@ -1,10 +1,10 @@
 name: ci-godot
 
 # Reusable Godot CI: the project copies this file to .github/workflows/ and calls it from its own
-# workflow (`uses: ./.github/workflows/ci-godot.yml` — see README.md). Each step runs a recipe the project's justfile
-# imports from the kit's godot module (agent-rules-kit sync-project.sh, godot profile at the repository root), so CI and
-# a developer run the same command (KIT-074); the spec-tools action links that module's kit, at the commit it pins, to
-# ~/.ai-kit, the path the import names (KIT-081 stage 1b: no copy in the project). The `changes` job decides what
+# workflow (`uses: ./.github/workflows/ci-godot.yml` — see README.md). Each step runs a recipe of the kit's godot just
+# module with the project at the repository root, `just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . <recipe>`,
+# the command skill sdd-implement runs for a developer, so both run the same recipe (KIT-074; KIT-085: no project
+# justfile). The spec-tools action exports AI_KIT_DIR, the kit at the commit it pins (KIT-081: no copy in the project). The `changes` job decides what
 # the diff needs: a docs-only diff skips import and tests; a diff it cannot compute (schedule,
 # workflow_dispatch, new branch) runs everything (fail-open).
 
@@ -102,11 +102,11 @@ jobs:
           key: lfs-${{ hashFiles('.lfs-assets-id') }}
       - name: Pull LFS objects
         run: git lfs pull
-      - name: Link the pinned kit to ~/.ai-kit, where the justfile imports its recipes (KIT-081 stage 1b)
+      - name: The pinned kit, home of the recipe modules (AI_KIT_DIR; KIT-085)
         uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@b38e84c9ec113399a61461c111e320def78cd0b0  # v15.0.0
         with:
           checks: none
-      - name: Install just (pinned, sha-256 checked; the justfile imports the kit's recipes)
+      - name: Install just (pinned, sha-256 checked; it runs the kit's recipes)
         shell: bash
         env:
           JUST_VERSION: 1.58.0
@@ -119,20 +119,20 @@ jobs:
           mkdir -p "$RUNNER_TEMP/just-bin"
           tar -xzf "$RUNNER_TEMP/just.tar.gz" -C "$RUNNER_TEMP/just-bin" just
           echo "$RUNNER_TEMP/just-bin" >> "$GITHUB_PATH"
-      - name: Import and boot proof (just boot; the exit code of --quit is 0 after a script error, so the log decides)
+      - name: Import and boot proof (the boot recipe; the exit code of --quit is 0 after a script error, so the log decides)
         # `--quit` skips the import scan, so the recipe imports first: class_name scripts such as gdUnit4's
         # GdUnitTestCIRunner stay unregistered on a fresh checkout otherwise and the runner fails to load
         shell: bash
-        run: just boot
-      - name: Unit tests (just test; a missing runner, no suite or zero executed test cases fails)
-        # container jobs default to `sh -e`; dash rejects `set -o pipefail` (exit 2). --no-deps: `just boot` above
+        run: just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . boot
+      - name: Unit tests (the test recipe; a missing runner, no suite or zero executed test cases fails)
+        # container jobs default to `sh -e`; dash rejects `set -o pipefail` (exit 2). --no-deps: the boot recipe above
         # ran the `import` both recipes depend on, and just runs a dependency once per invocation only
         shell: bash
         env:
           GODOT_TEST_RUNNER: ${{ inputs.test-runner }}
         run: |
           set -euo pipefail
-          just --no-deps test 2>&1 | tee test-run.log
+          just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . --no-deps test 2>&1 | tee test-run.log
       - name: Upload test reports (JUnit XML and runner log)
         # gdUnit4 tees the run to test-run.log and writes reports/report_<n>/results.xml; the GUT branch leaves neither
         if: always()
@@ -158,11 +158,11 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements-gdtoolkit.txt
-      - name: Link the pinned kit to ~/.ai-kit, where the justfile imports its recipes (KIT-081 stage 1b)
+      - name: The pinned kit, home of the recipe modules (AI_KIT_DIR; KIT-085)
         uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@b38e84c9ec113399a61461c111e320def78cd0b0  # v15.0.0
         with:
           checks: none
-      - name: Install just (pinned, sha-256 checked; the justfile imports the kit's recipes)
+      - name: Install just (pinned, sha-256 checked; it runs the kit's recipes)
         shell: bash
         env:
           JUST_VERSION: 1.58.0
@@ -175,5 +175,5 @@ jobs:
           mkdir -p "$RUNNER_TEMP/just-bin"
           tar -xzf "$RUNNER_TEMP/just.tar.gz" -C "$RUNNER_TEMP/just-bin" just
           echo "$RUNNER_TEMP/just-bin" >> "$GITHUB_PATH"
-      - name: gdformat --check and gdlint (just lint; project scripts, addons/ and .godot/ left out)
-        run: just lint
+      - name: gdformat --check and gdlint (the lint recipe; project scripts, addons/ and .godot/ left out)
+        run: just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . lint

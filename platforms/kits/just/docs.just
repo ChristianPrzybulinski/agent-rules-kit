@@ -21,7 +21,7 @@ lint:
 # the gate before a commit or PR
 verify: lint
 
-# move the changelog.d fragments into CHANGELOG.md → ## [Unreleased] (KIT-084); `just changelog --check` writes nothing
+# move the changelog.d fragments into CHANGELOG.md → ## [Unreleased] (KIT-084); `changelog --check` writes nothing
 changelog *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail

@@ -53,7 +53,7 @@ runs:
     - name: Install the validators' modules (pyyaml and jsonschema, for the full check)
       shell: bash
       run: python3 -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
-    # AI_KIT_DIR lets a later step of the job (just lint, pr_gates.py) run the kit at the pinned commit. zizmor's
+    # AI_KIT_DIR lets a later step of the job (a kit just module, pr_gates.py) run the kit at the pinned commit. zizmor's
     # github-env audit flags every write to GITHUB_ENV; a documented false positive here (CONTRIBUTING): the name is
     # fixed and the value is this action's own path on the runner, which no event payload or input reaches.
     - name: Export AI_KIT_DIR, the kit at this action's commit
@@ -71,7 +71,8 @@ runs:
         json="$(python3 "$GITHUB_ACTION_PATH/../../../tools/profile.py" resolve --json --file "$PROFILE" .)"
         delim="ai_kit_profile_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
         { echo "AI_KIT_PROFILE_JSON<<$delim"; printf '%s\n' "$json"; echo "$delim"; } >> "$GITHUB_ENV"
-    # A project's justfile imports the kit's just modules from ~/.ai-kit (KIT-081 stage 1b): just reads no variable in
+    # A project justfile of its own may import a kit just module from ~/.ai-kit (KIT-081 stage 1b; the kit's templates
+    # run the module from AI_KIT_DIR with -f, KIT-085): just reads no variable in
     # an import path, so the kit at this commit is linked there, unless the runner already holds a kit at that path.
     # Such a kit passes only at this action's commit (KIT-083): the HEAD of the action's checkout, or the SHA the caller
     # pins (github.action_ref), since a runner downloads an action as an archive without .git.

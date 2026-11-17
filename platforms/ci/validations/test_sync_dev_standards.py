@@ -1,8 +1,9 @@
-"""sync-project.sh and the KIT-074 dev standards, which run from the installed kit since KIT-081 stage 1b: each profile
-folder's justfile imports the kit's just module, and the godot profile's keyed-CSV merge driver runs from the kit
-(the sync prints the one-time git config step). The copies older syncs wrote go: a marked kit.just or vendored driver
-is removed, an unmarked one stays, and --check names what is left. The opt-in doc-structure check runs from the kit
-since KIT-081 stage 1 (no copy to write)."""
+"""sync-project.sh and the KIT-074 dev standards, which run from the installed kit since KIT-081 stage 1b: a project
+keeps no justfile for the kit's recipes (KIT-085; skill sdd-implement runs the kit's just module with -f and -d), and
+the godot profile's keyed-CSV merge driver runs from the kit (the sync prints the one-time git config step). The
+files older syncs wrote go: a starter justfile, a marked kit.just or vendored driver is removed, a project's own file
+stays, and --check names what is left. The opt-in doc-structure check runs from the kit since KIT-081 stage 1 (no
+copy to write)."""
 import os
 import shutil
 import subprocess
@@ -26,7 +27,6 @@ from test_sync_project import KIT, SCRIPT, SPEC_MD  # noqa: E402
 
 JUST = shutil.which("just")
 DRIVER = KIT / "platforms" / "kits" / "godot" / "scripts" / "keyed_csv_merge.py"
-SYNC_JUST = KIT / "platforms" / "tools" / "sync_just.py"
 MARKED = ("# agent-rules-kit: generated from platforms/kits/just/docs.just by platforms/tools/sync-project.sh; kit 13.1.0;"
           " do not edit\nlint:\n    echo copy\n")
 KIT_DRIVER = "python3 ~/.ai-kit/platforms/kits/godot/scripts/keyed_csv_merge.py --marker-size %L --path %P %O %A %B"
@@ -70,34 +70,60 @@ class Base(unittest.TestCase):
 
 
 class JustModules(Base):
-    # The import logic alone (the starter justfile, a project's justfile and its import line, the migration, a folder
-    # with several profiles, a missing folder) is tested in-process in test_sync_just.py (KIT-077).
+    # The logic alone (no justfile written, the starters removed, a project's justfile kept, the migration) is tested
+    # in-process in test_sync_just.py (KIT-077).
 
-    def summary(self, folder):
-        """`just --summary` in a folder, with a throwaway HOME whose ~/.ai-kit is this kit, as the action links it."""
+    def home(self):
+        """A throwaway HOME whose ~/.ai-kit is this kit, as the spec-tools action links it."""
         home = Path(self.tmp.name) / "home"
         if not home.exists():
             home.mkdir()
             (home / ".ai-kit").symlink_to(KIT)
-        return subprocess.run([JUST, "--summary"], cwd=self.repo / folder, capture_output=True, text=True,
-                              env=dict(os.environ, HOME=str(home)))
+        return home
 
-    def test_each_profile_folder_imports_the_installed_kit_module_and_holds_no_copy(self):
+    def summary(self, folder):
+        """`just --summary` in a folder's own justfile."""
+        return subprocess.run([JUST, "--summary"], cwd=self.repo / folder, capture_output=True, text=True,
+                              env=dict(os.environ, HOME=str(self.home())))
+
+    def test_no_profile_folder_gets_a_justfile_and_the_kit_module_runs_without_one(self):
+        """KIT-085: skill sdd-implement runs `just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d <folder> <recipe>`;
+        the sync writes no justfile and --check needs none."""
         for folder in ("client", "server"):
             (self.repo / folder).mkdir()
-        self.ok("--profile", "docs,godot:client,java:server,python:platform")
-        for folder, profile in ((".", "docs"), ("client", "godot"), ("server", "java")):
+        result = self.ok("--profile", "docs,godot:client,java:server,python:platform")
+        self.assertIn("sync: just: no project justfile; skill sdd-implement runs the kit's modules", result.stdout)
+        for folder in (".", "client", "server"):
             with self.subTest(folder=folder):
-                self.assertEqual(self.text(f"{folder}/justfile").splitlines()[-1], imports(profile))
-                self.assertFalse((self.repo / folder / "kit.just").exists())
-        self.assertFalse((self.repo / "platform").exists())  # no folder, no justfile: the sync creates none
+                self.assertEqual([p.name for p in (self.repo / folder).iterdir() if "just" in p.name.lower()], [])
+        self.assertFalse((self.repo / "platform").exists())  # no folder: the sync creates none
         self.ok("--check", "--profile", "docs,godot:client,java:server,python:platform")
         if JUST:
-            for folder, recipe in ((".", "lint"), ("client", "boot"), ("server", "dependency-check")):
+            home = self.home()
+            for folder, stack, recipe in ((".", "docs", "lint"), ("client", "godot", "boot"),
+                                          ("server", "java", "dependency-check")):
                 with self.subTest(folder=folder):
-                    result = self.summary(folder)
+                    module = home / ".ai-kit" / "platforms" / "kits" / "just" / f"{stack}.just"
+                    result = subprocess.run([JUST, "-f", str(module), "-d", str(self.repo / folder), "--summary"],
+                                            capture_output=True, text=True, env=dict(os.environ, HOME=str(home)))
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIn(recipe, result.stdout.split())
+
+    def test_the_starter_an_older_sync_wrote_goes(self):
+        (self.repo / "client").mkdir()
+        starter = ("# This folder's recipes for just (https://just.systems). The import runs the godot recipes of the\n"
+                   "# installed agent-rules-kit (~/.ai-kit; in CI the kit's spec-tools action links it), with no copy"
+                   " in the\n# project. Add this folder's own recipes below it.\n" + imports("godot") + "\n")
+        (self.repo / "client" / "justfile").write_text(starter)
+        (self.repo / "justfile").write_text(imports("docs") + "\n\nown:\n    echo own\n")
+        check = self.failing("--check", "--profile", "docs,godot:client").stdout
+        self.assertIn("sync: client/justfile is the starter justfile an older sync wrote", check)
+        result = self.ok("--profile", "docs,godot:client")
+        self.assertIn("sync: removed client/justfile (", result.stdout)
+        self.assertIn("sync: kept justfile (the project's own;", result.stdout)
+        self.assertFalse((self.repo / "client" / "justfile").exists())
+        self.assertEqual(self.text("justfile"), imports("docs") + "\n\nown:\n    echo own\n")
+        self.ok("--check", "--profile", "docs,godot:client")
 
     def test_the_sync_migrates_the_generated_copies(self):
         """KIT-081 stage 1b: a marked kit.just goes and the line importing it names the kit's module; an unmarked
@@ -123,45 +149,16 @@ class JustModules(Base):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(set(result.stdout.split()), {"changelog", "lint", "own", "verify"})  # KIT-084: changelog
 
-    def test_a_symlinked_profile_folder_refuses_the_sync(self):
+    def test_a_symlinked_profile_folder_and_justfile_links_are_never_written_through(self):
+        """KIT-085: the sync writes no justfile, so a link is no refusal; it is never read, written or removed."""
         outside = tempfile.TemporaryDirectory()
         self.addCleanup(outside.cleanup)
         (self.repo / "client").symlink_to(outside.name)
-        result = self.failing("--profile", "docs,godot:client")
-        self.assertIn("client goes through a symbolic link", result.stdout + result.stderr)
+        (self.repo / "justfile").symlink_to(Path(outside.name) / "justfile")  # dangling
+        result = self.run_sync("--profile", "docs,godot:client")
+        self.assertNotIn("justfile", result.stdout.replace("no project justfile", "") + result.stderr)
         self.assertEqual(os.listdir(outside.name), [])
-
-    def sync_just(self, mode, profiles):
-        """sync_just.py alone, as a write after a skipped preflight would run it."""
-        return subprocess.run([sys.executable, str(SYNC_JUST), mode, str(self.repo), profiles],
-                              capture_output=True, text=True, check=False)
-
-    def test_a_dangling_justfile_link_refuses_the_sync_and_writes_nothing_outside(self):
-        outside = tempfile.TemporaryDirectory()
-        self.addCleanup(outside.cleanup)
-        (self.repo / "client").mkdir()
-        (self.repo / "client" / "justfile").symlink_to(Path(outside.name) / "justfile")  # dangling
-        message = "sync: client/justfile is a symbolic link; the sync writes no justfile through it"
-        self.assertIn(message, self.failing("--profile", "docs,godot:client").stdout)
-        for mode in ("preflight", "write"):
-            with self.subTest(mode=mode):
-                result = self.sync_just(mode, "docs,godot:client")
-                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-                self.assertIn(message, result.stdout)
-        self.assertEqual(os.listdir(outside.name), [])
-
-    def test_a_justfile_that_is_a_directory_refuses_the_sync(self):
-        (self.repo / "justfile").mkdir()
-        message = "sync: justfile is not a regular file; the sync writes no starter justfile there"
-        self.assertIn(message, self.failing().stdout)
-        for mode in ("preflight", "write"):
-            with self.subTest(mode=mode):
-                result = self.sync_just(mode, "docs")
-                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-                self.assertIn(message, result.stdout)
-                self.assertNotIn("Traceback", result.stderr)
-        self.assertFalse((self.repo / "CLAUDE.md").exists())
-
+        self.assertTrue((self.repo / "justfile").is_symlink())
 
 class MergeDriver(Base):
     """KIT-081 stage 1b: the driver runs from the installed kit; the copy older syncs vendored is a leftover."""

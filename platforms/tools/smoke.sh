@@ -938,9 +938,11 @@ if ! "$SOURCE/platforms/tools/sync-project.sh" "$ROOT/proj" >"$ROOT/sync-install
 fi
 grep -Fq 'sync: profile=godot (inferred)' "$ROOT/sync-install.out" \
   || fail "sync-project did not infer the godot profile"
-# KIT-081 stage 1b: the justfile imports the installed kit's module; no just module or merge driver is copied.
-[[ "$(tail -n 1 "$ROOT/proj/justfile")" == "import '~/.ai-kit/platforms/kits/just/godot.just'" ]] \
-  || fail "sync-project did not write the kit's godot import into the starter justfile"
+# KIT-085: no project justfile (skill sdd-implement runs the kit's module); KIT-081 stage 1b: no just module or merge
+# driver is copied.
+[[ ! -e "$ROOT/proj/justfile" ]] || fail "sync-project wrote a justfile into the repo (KIT-085)"
+grep -Fq "just -f ~/.ai-kit/platforms/kits/just/godot.just -d . <recipe>" "$ROOT/sync-install.out" \
+  || fail "sync-project did not name the kit's godot module command"
 [[ ! -e "$ROOT/proj/kit.just" && ! -e "$ROOT/proj/.github/merge-drivers" ]] \
   || fail "sync-project copied a kit just module or the merge driver into the repo (KIT-081 stage 1b)"
 grep -Fq "git config merge.keyed-csv.driver 'python3 ~/.ai-kit/platforms/kits/godot/scripts/keyed_csv_merge.py " \

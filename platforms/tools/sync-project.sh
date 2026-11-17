@@ -46,14 +46,16 @@
 # Codex reads only AGENTS.md, and a Codex equivalent of the hook waits for a Codex probe. A rule named after a profile
 # (godot, java, python) gets that block only when $PROFILE has that profile or sdd.rule_paths lists it. A folder
 # that does not exist gets no block; --check reports a missing, diverging or stale block.
-# The kit's just modules and keyed-CSV merge driver run from the installed kit (KIT-081 stage 1b; KIT-074): the
-# justfile of each profile folder imports ~/.ai-kit/platforms/kits/just/<profile>.just (platforms/tools/sync_just.py);
-# a folder without a justfile gets a starter one with that line, and a line importing the kit.just older syncs
-# generated is rewritten in place. Install removes the kit-marked kit.just and kit-<profile>.just copies and the marked
-# .github/merge-drivers/keyed_csv_merge.py, keeps an unmarked file with a "sync: kept" line, and for a godot profile
-# prints the one-time git config step that runs the installed kit's driver (never run here). --check fails on a marked
-# copy left, a justfile without the import or still importing the removed kit.just, and a clone whose git config still
-# runs the removed driver copy.
+# The kit's just modules and keyed-CSV merge driver run from the installed kit (KIT-081 stage 1b; KIT-074). A project
+# keeps no justfile for the kit's recipes (KIT-085): skill sdd-implement runs
+# `just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d <folder> <recipe>` for the folder's stack in the project
+# profile. Install writes no justfile; platforms/tools/sync_just.py removes the starter justfile an older sync wrote
+# (recognized by its whole text), rewrites a line importing the kit.just older syncs generated, and removes the
+# kit-marked kit.just and kit-<profile>.just copies and the marked .github/merge-drivers/keyed_csv_merge.py; a
+# justfile with any other content and an unmarked file stay, with a "sync: kept" line, and nothing is read or removed
+# through a symbolic link. For a godot profile it prints the one-time git config step that runs the installed kit's
+# driver (never run here). --check fails on a starter or marked copy left, a justfile line still importing the removed
+# kit.just, and a clone whose git config still runs the removed driver copy.
 # The spec tools run from the kit (KIT-081 stage 1, platforms/tools/sync_spec_tools.py): sessions call the installed
 # kit's validators, and the project's CI the composite action platforms/ci/actions/spec-tools pinned by commit SHA.
 # Install removes the .github/spec-lint/ copy an older sync generated (its README marker, kit-named files only; any
@@ -562,9 +564,6 @@ fi
 # A target AGENTS.md that is a symbolic link, or one whose path-rule block markers are broken, refuses here too.
 AGENTS_RULES="$(render_agents_rules)"
 python3 "$KIT_DIR/platforms/tools/sync_agents_md.py" preflight "$REPO" "$version" "$AGENTS_RULES" || exit 1
-# A profile folder reached through a symbolic link, or a justfile that is a link or no regular file, refuses here
-# (KIT-074): the sync may write a starter justfile or rewrite its kit import line.
-python3 "$KIT_DIR/platforms/tools/sync_just.py" preflight "$REPO" "$PROFILE" || exit 1
 
 mkdir -p "$REPO/.claude"
 # Plugin names arrive through AI_KIT_PLUGINS: the heredoc occupies stdin.
@@ -605,8 +604,8 @@ PY
 # only AGENTS.md, so the blocks stay after KIT-081 stage 3 until a Codex probe shows another way.
 python3 "$KIT_DIR/platforms/tools/sync_agents_md.py" write "$REPO" "$version" "$AGENTS_RULES"
 
-# Each profile folder's justfile imports the installed kit's module (KIT-074, KIT-081 stage 1b: no copy); the
-# kit.just copies older syncs generated go.
+# No project justfile (KIT-085): the starter justfiles and kit.just copies older syncs generated go; a justfile with
+# the project's own content stays.
 python3 "$KIT_DIR/platforms/tools/sync_just.py" write "$REPO" "$PROFILE"
 
 # The keyed-CSV merge driver runs from the installed kit (KIT-081 stage 1b). The copy older syncs vendored goes; a

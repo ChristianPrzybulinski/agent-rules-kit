@@ -376,20 +376,21 @@ class LayeredGate(unittest.TestCase):
                 self.assertIn(f"pip install -r {requirements}", runs)
 
     def test_the_godot_template_imports_once(self):
-        """#283 item 7: `just boot` and `just test` both depend on `import`; two invocations imported twice, so the
-        test step skips the dependency the boot step just ran."""
+        """#283 item 7: the `boot` and `test` recipes both depend on `import`; two invocations imported twice, so the
+        test step skips the dependency the boot step just ran. KIT-085: each runs the kit's module with -f and -d."""
         job = load("ci-godot.yml", TEMPLATES)["jobs"]["import-and-test"]
         calls = [line.strip() for step in job["steps"] for line in step.get("run", "").splitlines()
                  if re.match(r"\s*just ", line)]
         self.assertEqual(len(calls), 2, calls)
-        self.assertEqual(calls[0], "just boot")
-        self.assertRegex(calls[1], r"^just --no-deps test(?=\s|$)")  # the import `just boot` ran is not run again
+        module = 'just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d .'
+        self.assertEqual(calls[0], f"{module} boot")
+        self.assertTrue(calls[1].startswith(f"{module} --no-deps test "), calls[1])  # the import boot ran is not rerun
         self.assertRegex(calls[1], r"\|\s*tee\s+test-run\.log(?=\s|$)")  # the log the upload step keeps
 
-    def test_a_template_job_that_runs_just_links_the_kit_first(self):
-        """KIT-081 stage 1b: a project's justfile imports the kit's module from ~/.ai-kit, so each template job that
-        runs a just recipe calls the spec-tools action (checks: none), which links the pinned kit there, before its
-        first just step."""
+    def test_a_template_job_that_runs_just_gets_the_kit_first(self):
+        """KIT-085: a project keeps no justfile, so each template job that runs a just recipe calls the spec-tools
+        action (checks: none), which exports AI_KIT_DIR, the pinned kit, before its first just step, and every just
+        line runs the kit's module from there with -f and -d."""
         action = "ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@"
         found = 0
         for path in sorted(TEMPLATES.glob("*.yml")):
@@ -402,6 +403,11 @@ class LayeredGate(unittest.TestCase):
                     links = [i for i, s in enumerate(job["steps"]) if s.get("uses", "").startswith(action)]
                     self.assertTrue(links and links[0] < runs[0], "no spec-tools step before the first just step")
                     self.assertEqual(job["steps"][links[0]].get("with", {}).get("checks"), "none")
+                    for step in job["steps"]:
+                        for line in step.get("run", "").splitlines():
+                            if re.match(r"\s*just ", line):
+                                self.assertRegex(line.strip(), r'^just -f "\$AI_KIT_DIR/platforms/kits/just/'
+                                                               r'(godot|java)\.just" -d \. ')
         self.assertEqual(found, 4)  # ci-godot import-and-test and lint, ci-java build and dependency-check
 
     def test_the_templates_pin_one_kit_release_that_has_the_spec_tools_action(self):
