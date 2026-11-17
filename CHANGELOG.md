@@ -6,6 +6,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Fixed
 - The workflow templates pin the kit actions at v16.0.0 (61aca2e) instead of v15.0.0, so a project copying them gets the 16.0.0 spec tools (KIT-090 to KIT-101).
+- `spec_trace.py governance` (and so sdd-check C25) prints one `FAIL: <path>: …` line per record it cannot read and exits 1, instead of a traceback: a decision, debt or FEAT whose frontmatter is not valid YAML, or a printed value (`title`, `trigger`, `severity`, `kind`, `deciders`, `owner`) of a decision, debt or process that YAML reads as a number, list or map (#360). A record that `load_enablers` reads first, with `enablers/` present, still stops there until #356.
+- A `kind: tech` process step a person runs, with no FEAT behind it, holds `—` in Implemented by for good when its Proven by is a `manual: <check>` alone; before, `—` held only while an open NEED listed the process, so a manual runbook had to cite a task row (#360). `validate` counts such a step as filled. The `security` example `vulnerability-process.md` drops its placeholder `FEAT-nnn Tn` citations for `—`, and `spec-process.md` and `sdd-clarify/references/processes.md` state the rule.
 
 ## [16.0.0] - 2026-11-17
 
