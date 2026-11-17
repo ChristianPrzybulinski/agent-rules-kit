@@ -19,7 +19,7 @@ jobs:
       - name: diagnose
         shell: bash
         run: |
-          set -x
+          set +eo pipefail; set -x
           cat /etc/os-release | head -2; ldd --version | head -1
           command -v -a python3 || true; ls /usr/bin/python3* || true
           python3 -VV
