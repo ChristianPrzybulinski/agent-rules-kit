@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Fixed
+- The workflow templates pin the kit actions at v16.0.0 (61aca2e) instead of v15.0.0, so a project copying them gets the 16.0.0 spec tools (KIT-090 to KIT-101).
+
 ## [16.0.0] - 2026-11-17
 
 ### Added

@@ -79,7 +79,7 @@ jobs:
           java-version: ${{ inputs.java-version }}
           cache: maven
       - name: The pinned kit, home of the recipe modules (AI_KIT_DIR; KIT-085)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@b38e84c9ec113399a61461c111e320def78cd0b0  # v15.0.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@61aca2e5faccd91bbe5d4677686e725f39c99843  # v16.0.0
         with:
           checks: none
       - name: Install just (pinned, sha-256 checked; it runs the kit's recipes)
@@ -135,7 +135,7 @@ jobs:
           key: ${{ runner.os }}-dc-nvd-${{ github.run_id }}
           restore-keys: ${{ runner.os }}-dc-nvd-
       - name: The pinned kit, home of the recipe modules (AI_KIT_DIR; KIT-085)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@b38e84c9ec113399a61461c111e320def78cd0b0  # v15.0.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@61aca2e5faccd91bbe5d4677686e725f39c99843  # v16.0.0
         with:
           checks: none
       - name: Install just (pinned, sha-256 checked; it runs the kit's recipes)
