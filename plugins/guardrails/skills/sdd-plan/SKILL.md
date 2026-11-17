@@ -37,16 +37,18 @@ Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs
 
 ## 4. Write the Plan sections
 
-`## Plan` holds one `### <section>` per name in `plan_sections`, in this order: Design, Contract, Data, UI, Flag, Tests, Observability, Risks, Dependencies (`Risks` and `Tests` always). Each holds its content or one line `— <why it does not apply>`. What each section holds: `references/plan-sections.md`. The standards each section applies:
+`## Plan` holds one `### <section>` per name in `plan_sections`, in this order: Design, Contract, Data, UI, Assets, Flag, Tests, Observability, Risks, Dependencies (`Risks` and `Tests` always; `Assets` only when listed). Each holds its content or one line `— <why it does not apply>`. What each section holds: `references/plan-sections.md`. The standards each section applies:
 
 | Section | Reference |
 |---|---|
 | Design | `references/architecture.md` (blocks: `references/pattern-catalog.md`); a trust boundary `references/security-design.md`; a service `references/twelve-factor.md`; a Godot client `references/godot/README.md` |
 | Contract | `references/contract.md` |
 | Data | `references/data.md` (versions `references/postgres-18.md`, `references/redis-7.md`) |
+| Assets | `references/plan-sections.md` § Assets rows; the import: skill `sdd-implement`, reference `assets.md` |
 | Tests | skill `sdd-implement`, references `tdd.md` and `test-gates.md` |
 
 - The Plan is the design: every choice the rows need is made here, so a task cell points to `Plan § <section>` and never restates it.
+- Assets: one row per asset the delivery needs (for a game, animations with frame counts, particles and sounds; for a business project, e-mail templates, copy, icons and translations), each with its source, its license and the REQ or mock it serves, so the art is made or bought before the cut.
 - Contract: every changed message, endpoint, schema or table another FEAT reads passes the four checks of `references/contract.md`.
 - Name real rooted files and the architecture areas of `docs/spec/spec.md` § Architecture each change lands in.
 

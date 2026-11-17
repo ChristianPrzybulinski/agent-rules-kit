@@ -74,6 +74,14 @@ updated: "YYYY-MM-DD"
 
 ### UI
 
+### Assets
+<!-- only when sdd.plan_sections lists Assets (off by default): one row per asset the delivery needs before the cut;
+     Kind with its frame count or duration, Source made / licensed / legacy with its path or URL, License, Serves a
+     REQ id or the REQ mock it matches. -->
+
+| Asset | Kind | Source | License | Serves |
+|---|---|---|---|---|
+
 ### Flag
 
 ### Tests
