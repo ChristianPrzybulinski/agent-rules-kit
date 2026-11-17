@@ -231,6 +231,37 @@ class BlockStatusTest(VersionCase):
         self.assertIn("### 0.2.0\n\nStatus: delivered\n", self.text())
 
 
+class NeedAndLintTest(VersionCase):
+    NEED = ('---\nid: NEED-001\ntitle: "Fixture need"\ntype: improvement\nstatus: refined\norigin: "owner"\n'
+            'requirements: [REQ-F-002]\nfeatures: [FEAT-001]\ncreated: "2026-11-17"\n---\n\n# NEED-001\n')
+
+    def need_status(self):
+        text = (self.spec / "needs" / "NEED-001-fixture.md").read_text(encoding="utf-8")
+        return text.split("status: ")[1].split("\n")[0]
+
+    def test_delivering_the_block_that_holds_the_need_reqs_delivers_the_need(self):
+        write(self.root, "docs/spec/needs/NEED-001-fixture.md", self.NEED)
+        self.feat(t3="done", closure="\n- closed at def5678.\n")
+        run(["validate", str(self.spec), "FEAT-001", "--at", "def5678"])
+        self.assertEqual(self.need_status(), "delivered")
+
+    def test_a_need_whose_reqs_no_delivered_block_holds_stays_open(self):
+        write(self.root, "docs/spec/needs/NEED-001-fixture.md", self.NEED)
+        self.feat(t3="done", closure="\n- closed at def5678.\n", old="Scope: REQ-F-002", new="Scope: —")
+        run(["validate", str(self.spec), "FEAT-001", "--at", "def5678"])
+        self.assertEqual(self.need_status(), "refined")
+
+    def test_lint_counts_the_open_block_rows(self):
+        self.feat(status="delivered", t3="done", old="## Versions", new="## Plan\n\n### Tests\n\n- 1 task rows planned.\n\n"
+                                                                          "## Versions")
+        code, out, err = run(["lint", str(self.spec), "FEAT-001"])
+        self.assertNotIn("Plan says", err)
+        self.feat(status="delivered", t3="done", old="## Versions", new="## Plan\n\n### Tests\n\n- 3 task rows.\n\n"
+                                                                          "## Versions")
+        code, out, err = run(["lint", str(self.spec), "FEAT-001"])
+        self.assertIn("FEAT-001: Plan says 3 rows, the open version block 0.2.0 has 1", err)
+
+
 class AntiBucketTest(VersionCase):
     def test_a_versioned_feat_inside_its_steps_passes(self):
         self.assertEqual(self.check(), [])

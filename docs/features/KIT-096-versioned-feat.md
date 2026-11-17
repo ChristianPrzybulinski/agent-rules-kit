@@ -46,6 +46,18 @@ and one process holds N FEATs (§ 15); greybox and polish are two version blocks
   of each process (one process, N use cases) and the sdd-check C17 findings it reads from git: a REQ that joined a
   block's Scope after the block's first committed `planned` version, a row added after the block's first committed
   version with rows at `planned` or later, unless a History line names the row and a defect or a REQ of that Scope.
+- Review fixes (02378a1 review): one shared reader of a FEAT's task-table sections, `check_spec.task_sections(text)`
+  (the `## Tasks` section, or each version block's `#### Tasks`, the last one the open block's), which
+  `row_checks.py parse_rows` now uses: before it, rules a–k never ran on a FEAT made from the template, since
+  `pr_gates.sections(...).get("Tasks")` splits on `## ` headings only, and the check passed with "no Tasks table".
+  `row_checks.py` lints the open block's rows; every block's rows answer a `Depends on`. `check_spec.task_table`
+  skips a table inside an HTML comment (a comment inside a cell stays). A NEED counts as delivered by a versioned
+  FEAT only when its REQs that the FEAT lists sit in a delivered block's Scope (`check_spec.delivered_for`,
+  `spec_trace.delivered_by_its_feats`, so `deliver_needs` too). `spec_trace.py lint` compares a Plan row count with
+  the open block's rows.
+- External consumer to change the same way (not edited here): dev-game-studio/review-loop
+  `platform/review-loop/cut.py:46`, whose `cut_command` reads `sections(text).get("Tasks")` and so finds no rows in a
+  versioned FEAT; it should read `check_spec.task_sections`.
 - Skills, body lines only: `sdd-plan` (one FEAT per use case, the next block instead of a second FEAT, `processes`,
   block `Status: planned`), `sdd-tasks` (rows in the open block, ids continue, additions after planned), `sdd-check`
   (row C17 and the `versions=` argument), `sdd-review` (the block's Closure), `sdd-release` (the block named by
@@ -64,10 +76,12 @@ Choices:
 
 - Red first: `test_check_spec_versions.py` (24 tests) and `test_spec_trace_versions.py` (22 tests) failed 35 of 45
   before the change (the 10 that passed guard behavior that must not change); green after, under `python3.12` and
-  `/usr/bin/python3` 3.9.
+  `/usr/bin/python3` 3.9. Review fixes: `test_row_checks_versions.py` (6 tests) and 5 more version tests: 10 of the 11 failed
+  before the fix (the one that passed guards a NEED delivered through its block), green after under both Pythons.
 - Byte for byte: `check_spec.py` (full and `-S`), `spec_trace.py check`, `status`, `lint`, `enablers` and the rendered
   matrix on `platforms/ci/fixtures/consumer` and on a copy of Stratics' `docs/spec`, under both Pythons, before and
-  after: 50 outputs, no difference (the clone-name list of the copy's sibling folders normalized).
+  after: 50 outputs, no difference (the clone-name list of the copy's sibling folders normalized); `row_checks.py
+  check --all --all-rows` on both, both Pythons: 8 outputs, no difference.
 - `bash platforms/tools/check.sh`, `bash platforms/tools/check.sh --links`,
   `python3.12 platforms/tools/run_tests.py --layer unit,contract`, `--layer integration --changed-from origin/main`.
 

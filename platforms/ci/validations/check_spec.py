@@ -627,7 +627,8 @@ def as_list(value):
     return [] if value in (None, "") else [value]
 
 
-def check_needs(spec_dir: Path, needs: dict, ids: dict, kind_of: dict, feat_status: dict, dec_status: dict) -> None:
+def check_needs(spec_dir: Path, needs: dict, ids: dict, kind_of: dict, feat_status: dict, dec_status: dict,
+                scope: dict = None) -> None:
     """A NEED links forward only: listed ids exist with the right kind; status refined/delivered is backed by links."""
     journeys = set()
     if (spec_dir / "journeys").is_dir():
@@ -660,7 +661,7 @@ def check_needs(spec_dir: Path, needs: dict, ids: dict, kind_of: dict, feat_stat
                 fail(f"{path}: status delivered needs the features that delivered it "
                      f"(a decision NEED with no FEAT: an approved decision)", "need-status", path)
             for fid in delivered_by:
-                if fid in feat_status and feat_status[fid] != "delivered":
+                if fid in feat_status and not delivered_for(fid, feat_status[fid], data, scope):
                     fail(f"{path}: status delivered, but {fid} is {feat_status[fid]}", "need-status", path)
 
 
@@ -771,10 +772,13 @@ TASK_CELL_MAX = 1000
 
 
 def task_table(path):
-    """The FEAT's task rows: {row id: {column: cell}} from every table whose header starts `| ID | Task |`."""
+    """The FEAT's task rows: {row id: {column: cell}} from every table whose header starts `| ID | Task |`; a table
+    inside an HTML comment is not read (KIT-096), while a comment inside a row's cell stays part of it."""
     header, rows = None, {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        text = line.strip()
+    original = path.read_text(encoding="utf-8")
+    lines, blanked = original.splitlines(), blank_comments(original).splitlines()
+    for line, seen in zip(lines, blanked) if len(lines) == len(blanked) else zip(blanked, blanked):
+        text = line.strip() if seen.strip() else ""
         if not text.startswith("|"):
             header = None
             continue
@@ -893,12 +897,54 @@ REQ_REF = re.compile(r"\bREQ-(?:F|NF)-\d{3,}\b")
 FEAT_PROCESS = re.compile(r"^(PROC-\d{3,})(?: ([SA]\d+)(?:\s*[–-]\s*([SA]\d+))?)?$")  # a FEAT `processes` item
 
 
+def blank_comments(text):
+    """text with every HTML comment blanked to its newlines, so line numbers stay."""
+    return re.sub(r"(?s)<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), text)
+
+
+TASKS_HEADING = re.compile(r"^##\s+Tasks\s*$")
+SECTION_HEADING = re.compile(r"^##\s+(.+?)\s*$")
+
+
+def task_sections(text):
+    """A FEAT's task-table sections for every tool that reads its rows (row_checks.py; KIT-096): a list of (version
+    block name or None, line index of the section's first line, section text), [] without one. A FEAT without
+    `## Versions` gives its `## Tasks` section, stripped, as pr_gates.sections reads it (the index is the heading's
+    plus 2, the position row_checks.py has always reported); a versioned FEAT gives each block's `#### Tasks`
+    subsection in file order, HTML comments blanked, so the last one is the open block's and the others answer a
+    `Depends on`."""
+    blocks = version_blocks(text)
+    if blocks is not None:
+        out = []
+        for block in blocks:
+            if block["tasks"] is None:
+                continue
+            body = [pair for pair in block["tasks"] if pair[1].strip()]
+            if not body:
+                out.append((block["name"], block["line"], ""))
+                continue
+            lines = block["tasks"][block["tasks"].index(body[0]):block["tasks"].index(body[-1]) + 1]
+            out.append((block["name"], body[0][0], "\n".join(line for _, line in lines)))
+        return out
+    lines = re.split(r"\r\n|\r|\n", text)
+    start = next((n for n, line in enumerate(lines) if TASKS_HEADING.match(line)), None)
+    if start is None:
+        return []
+    body = []
+    for line in lines[start + 1:]:
+        if SECTION_HEADING.match(line):
+            break
+        body.append(line)
+    return [(None, start + 2, "\n".join(body).strip())]
+
+
 def version_blocks(text):
     """KIT-096: the `### <version>` blocks under a FEAT's `## Versions`, in file order; None without that section.
-    Each is {"name", "line" (0-based, in text), "status", "status_line", "scope", "rows", "closure", "text"}: its
-    `Status:` and `Scope:` lines, the task row ids its tables hold, whether its `#### Closure` holds a line, and its
-    text. HTML comments are blanked first, keeping the line count."""
-    lines = re.sub(r"(?s)<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), text).split("\n")
+    Each is {"name", "line" (0-based, in text), "status", "status_line", "scope", "rows", "closure", "text", "tasks"}:
+    its `Status:` and `Scope:` lines, the task row ids its tables hold, whether its `#### Closure` holds a line, its
+    text, and the (line index, line) pairs of its `#### Tasks` subsection (None without one). HTML comments are
+    blanked first, keeping the line count."""
+    lines = blank_comments(text).split("\n")
     start = next((n for n, line in enumerate(lines) if VERSIONS_HEADING.match(line)), None)
     if start is None:
         return None
@@ -910,7 +956,7 @@ def version_blocks(text):
         heading = BLOCK_HEADING.match(line)
         if heading:
             blocks.append({"name": heading.group(1), "line": n, "status": None, "status_line": None, "scope": "",
-                           "rows": [], "closure": False, "text": ""})
+                           "rows": [], "closure": False, "text": "", "tasks": None})
             sub = None
             continue
         if not blocks:
@@ -919,7 +965,11 @@ def version_blocks(text):
         block["text"] += line + "\n"
         if line.startswith("#### "):
             sub = line[5:].strip()
+            if sub == "Tasks" and block["tasks"] is None:
+                block["tasks"] = []
             continue
+        if sub == "Tasks" and isinstance(block["tasks"], list):
+            block["tasks"].append((n, line))
         field = BLOCK_LINE.match(line)
         if field and sub is None and field.group(1) == "Status" and block["status_line"] is None:
             block["status"], block["status_line"] = field.group(2), n
@@ -1007,11 +1057,22 @@ def check_block_rows(fid, path, label, rows, every_row, params):
                  f"instead of restating it", "task-cell")
 
 
-def delivered_once(feat_status, versions):
-    """The FEAT statuses check_needs reads: a versioned FEAT with a delivered block counts as delivered, so the NEED
-    an earlier block delivered stays valid while the next block is open (KIT-096)."""
-    return {fid: "delivered" if any(b["status"] == "delivered" for b in versions.get(fid) or ()) else status
-            for fid, status in feat_status.items()}
+def delivered_scope(versions, feats):
+    """{versioned FEAT id: (the REQs it lists, the REQs its delivered blocks' Scope names)} (KIT-096)."""
+    return {fid: ({str(r) for r in feats.get(fid) or []},
+                  {r for b in blocks if b["status"] == "delivered" for r in REQ_REF.findall(b["scope"])})
+            for fid, blocks in versions.items() if blocks}
+
+
+def delivered_for(fid, status, need, scope):
+    """A FEAT delivered for this NEED: its status is delivered, or (a versioned FEAT) every REQ of the NEED that the
+    FEAT lists sits in the Scope of a delivered block, so the NEED an earlier block delivered stays valid while the
+    next block is open, and a NEED waiting on an open block does not (KIT-096)."""
+    if status == "delivered" or fid not in (scope or {}):
+        return status == "delivered"
+    listed, done = scope[fid]
+    wanted = {str(r) for r in as_list(need.get("requirements"))} & listed
+    return bool(wanted) and wanted <= done
 
 
 def check_feature_processes(linked, kind_of):
@@ -1030,7 +1091,7 @@ def check_feature_processes(linked, kind_of):
 
 
 BASELINE = "baseline.json"
-CHECK_ROW =re.compile(r"^[CQ]\d+$")  # sdd-check rows; sdd-check all compares them
+CHECK_ROW = re.compile(r"^[CQ]\d+$")  # sdd-check rows; sdd-check all compares them
 
 
 def read_baseline(path):
@@ -1254,7 +1315,7 @@ def main():
 
     progress_files = check_progress(spec_dir / "progress", progress_schema, feats)
     check_conflict_markers(spec_dir)
-    check_needs(spec_dir, needs, ids, kind_of, delivered_once(feat_status, versions), dec_status)
+    check_needs(spec_dir, needs, ids, kind_of, feat_status, dec_status, delivered_scope(versions, feats))
     check_task_items(tasks, tables, ids)
     check_enablers(linked, kind_of)
     check_feature_processes(linked, kind_of)

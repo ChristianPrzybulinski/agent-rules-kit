@@ -190,6 +190,12 @@ class BlockStructureTest(VersionCase):
         self.assert_fails("## Versions holds no `### <version>` block", "[version-block]")
 
 
+class CommentedRowTest(VersionCase):
+    def test_a_row_inside_an_html_comment_is_not_a_row(self):
+        self.feat(old="## History", new=f"<!--\n{TABLE}| T9 | stray | `z/**` | — | todo |\n-->\n\n## History")
+        self.assert_passes("spec: OK")
+
+
 class BlockTasksTest(VersionCase):
     def test_an_open_block_above_max_feat_tasks_fails(self):
         self.index("sdd:\n  max_feat_tasks: 3\n")
@@ -274,6 +280,11 @@ class NeedDeliveredByAnEarlierBlockTest(VersionCase):
     def test_a_need_delivered_by_an_earlier_block_stays_valid(self):
         (self.spec / "needs" / "NEED-001-fixture.md").write_text(NEED)
         self.assert_passes()
+
+    def test_a_need_whose_reqs_no_delivered_block_holds_fails(self):
+        (self.spec / "needs" / "NEED-001-fixture.md").write_text(NEED.replace("requirements: [REQ-F-001]",
+                                                                              "requirements: [REQ-F-002]"))
+        self.assert_fails("status delivered, but FEAT-001 is in-progress", "[need-status]")
 
     def test_a_need_on_a_feat_with_no_delivered_block_fails(self):
         (self.spec / "needs" / "NEED-001-fixture.md").write_text(NEED)

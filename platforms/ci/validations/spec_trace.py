@@ -374,9 +374,9 @@ def delivered_by_its_feats(spec: Spec, need: dict) -> bool:
     """A NEED whose listed FEATs are all delivered and cover every REQ it lists no longer holds a step's `—`, even
     before its own status moves to delivered (validate or deliver moves it, KIT-069; older NEEDs may lag)."""
     feats = listed(need, "features")
-    if not feats or any(spec.feats.get(f, {}).get("status") != "delivered" for f in feats):
+    if not feats or any(not feat_delivered(spec.feats.get(f, {})) for f in feats):
         return False
-    covered = {str(r) for f in feats for r in spec.feats[f]["requirements"]}
+    covered = {str(r) for f in feats for r in delivered_reqs(spec.feats[f])}
     return set(listed(need, "requirements")) <= covered
 
 
@@ -1144,6 +1144,28 @@ def set_block_status(feat, status):
     block["status"] = status
 
 
+def feat_delivered(feat):
+    """A FEAT that has delivered something: status delivered, or a versioned FEAT with a delivered block."""
+    if feat.get("versions"):
+        return any(b["status"] == "delivered" for b in feat["versions"])
+    return feat.get("status") == "delivered"
+
+
+def delivered_reqs(feat):
+    """The REQs a FEAT has delivered: its `requirements`, or a versioned FEAT's delivered blocks' Scope REQs."""
+    if feat.get("versions"):
+        return {r for b in feat["versions"] if b["status"] == "delivered" for r in REQ_ID.findall(b["scope"])}
+    return feat["requirements"]
+
+
+def planned_rows(feat):
+    """(rows, what holds them) a Plan row count is compared with: the task table, or the open version block."""
+    block = open_block(feat)
+    if block is None:
+        return len(feat["tasks"]), "the task table"
+    return len(block["rows"]), f"the open version block {block['name']}"
+
+
 def closure_record_gaps(fid, feat):
     """The closure record sdd-review writes before validate: `## Closure`, or a versioned FEAT's block `#### Closure`."""
     block = open_block(feat)
@@ -1679,8 +1701,9 @@ def lint_feat(spec, fid):
                              "the current fact or delete it")
     for m in ROW_COUNT.finditer(secs.get("Plan", "")):
         said = int(m.group(1)) if m.group(1).isdigit() else NUMBER_WORDS[m.group(1).lower()]
-        if said != len(feat["tasks"]):
-            found.append(f"{fid}: Plan says {said} rows, the task table has {len(feat['tasks'])}")
+        counted, where = planned_rows(feat)
+        if said != counted:
+            found.append(f"{fid}: Plan says {said} rows, {where} has {counted}")
     if spec.journeys or spec.processes:
         for rid in feat["requirements"]:
             if rid not in spec.reqs:
