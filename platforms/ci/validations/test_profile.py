@@ -70,7 +70,7 @@ class Defaults(Project):
                                              "expected_red_checks": {}})
         self.assertEqual(resolved["tracker"]["labels"], {"blocked": ["blocked"], "progress": ["status:in-progress"]})
         self.assertEqual(resolved["models"], {"tiers": {"small": "small", "mid": "mid", "top": "top"}})
-        self.assertEqual(resolved["sdd"]["task_cut"]["longest_chain_max_complexity"], "High")
+        self.assertEqual(resolved["sdd"]["task_cut"]["longest_chain_max_complexity"], "Med")
         self.assertEqual(resolved["sdd"]["decision_folding"], {"marker": "→ folded into"})
         self.assertEqual(resolved["project"], {"kind": "business"})
         self.assertEqual(resolved["spec_root"], "docs/spec")

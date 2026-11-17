@@ -13,7 +13,7 @@ allowed-tools:
 
 # SDD 5 — Tasks
 
-Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Parameters, from `check_spec.py --params`: `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`). The cut changes GitHub or repository state: run it only on user invocation and never print a token.
+Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Parameters, from `check_spec.py --params`: `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`); from the project profile (`python3 ~/.ai-kit/platforms/tools/profile.py resolve --section sdd`), `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token.
 
 ## 1. Gate
 
@@ -25,7 +25,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 - The Task cell names the outcome and points to `Plan § <section>`; it never restates the Plan (`check_spec.py` warns above 1000 characters).
 - Split a title needing “and also”. Tests travel with behavior, never in an end-of-feature test row; a business rule's first row writes the failing domain test.
 - Order contract/types → domain/tests → persistence/migration → adapters/integration → client → flag/docs.
-- Dependencies are explicit only: `Depends on` names each row whose merged output this row reads (`T<n>`, or `FEAT-nnn T<n>` in another FEAT), never “the previous one”. The longest chain of own rows is at most `max_chain`; `check_spec.py` fails a longer chain or a cycle. More rows than `max_feat_tasks` go back to `sdd-plan` to split the NEED.
+- Dependencies are explicit only: `Depends on` names each row whose merged output this row reads (`T<n>`, or `FEAT-nnn T<n>` in another FEAT), never “the previous one”, and never an edge that stands only for an order (a migration number, a shared file). The longest chain of own rows is at most `max_chain` (`check_spec.py` fails a longer chain or a cycle), and a row on it carries at most `task_cut.longest_chain_max_complexity`. More rows than `max_feat_tasks` go back to `sdd-plan` to split the NEED.
 
 ## 3. Write the table (spec PR)
 
@@ -37,17 +37,19 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 
 - Files: rooted paths or directory globs, tests included; generated neighbours (`*.uid`, `*.import`, `*.translation`) are implicit and never listed. `Status` (`todo`, `doing`, `blocked`, `done`, `cancelled`) is derived from the item, never edited by hand. `Complexity`, `Model` and `Wave`: `references/waves-and-models.md`. `Item` is `—` until the cut.
 - Coverage: every acceptance criterion appears in a row's `Covers` (each CA already cites the REQs it proves); every row covers a criterion or says it is infrastructure; run `sdd-check` row C8.
+- Cut checklist: every row passes `references/task-cut.md` (owned areas, protected labels, required test folders, hotspots, chains, bundle exclusions).
 - Row checks: every row passes `references/row-checks.md`; run `row_check` (`null`: the kit's `python3 ~/.ai-kit/platforms/ci/validations/row_checks.py check FEAT-nnn`) and fix the rows until it exits 0.
+- Fold first: each settled `[DECISION]` of the FEAT's Open questions folds where it belongs with the `decision_folding.marker` (`sdd-plan` § 5).
 - Commit the table with a FEAT History line in a spec PR. The architect reviews that PR; the cut waits for its approval or merge.
 
 ## 4. Cut
 
 When `cut_command` is set, run it on the FEAT and paste its output; otherwise cut here, in wave order:
 - Items: `tracker: github` cuts one GitHub issue per item in the project's backlog repository; `tracker: none` writes one `docs/spec/tasks/TASK-nnn-slug.md` per item from `../../templates/spec-task.md`, `status: todo`. Both carry the rows verbatim: `references/task-issue.md`.
-- Bundle: new rows of one repository that share a Files path go into one item within `bundle` (`rows`, `points` with Low 1, Med 2, High 3, `high_rows`); the default `rows: 1` cuts one item per row.
+- Bundle: new rows of one repository that share a Files path go into one item within `bundle` (`rows`, `points` with Low 1, Med 2, High 3, `high_rows`); the default `rows: 1` cuts one item per row. A row whose Files match a `task_cut.bundle_exclude` glob is its own item.
 - Labels: a row whose Files match a `protected_paths` entry gives its item that label.
 - Write each item (`#N` or `TASK-nnn`) into its rows' `Item` cell.
-- Journeys (`journeys`; absent = on when `docs/spec/journeys/` exists): fill every `—` step of the journeys this FEAT's NEED lists, a step with `Rules` `—` included: `Implemented by` takes the `FEAT-nnn Tn` rows that build it, `Proven by` the test rows, never a path to a test file that does not exist yet; add any `P<n>` row with its task and run `spec_trace.py check`.
+- Journeys and processes (`journeys`; absent = on when `docs/spec/journeys/` exists): fill every `—` step of the journeys this FEAT's NEED lists, a step with `Rules` `—` included: `Implemented by` takes the `FEAT-nnn Tn` rows that build it, `Proven by` the test rows, never a path to a test file that does not exist yet; add any `P<n>` row with its task and run `spec_trace.py check`. A step that cites a process (`PROC-nnn`, processes KIT-090) gets no cells of its own: the process's steps carry them.
 - Commit the Item and journey cells together; `check_spec.py` passes.
 
 ## 5. Resync
@@ -58,4 +60,4 @@ When `cut_command` is set, run it on the FEAT and paste its output; otherwise cu
 
 Read each item as a fresh session would: if it cannot start from that text alone, add the missing fact to the row (the file to start in, a real input or output sample) and resync. An executor's “done” is not evidence; the diff and the re-run proofs are.
 
-Done when: the rows are sized, explicitly ordered within `max_chain`, mapped both ways to criteria and pass the row checks in a merged or approved spec PR; every row's `Item` names its cut item; journey cells are filled; `check_spec.py` passes.
+Done when: the rows are sized, pass the cut checklist, are explicitly ordered within `max_chain`, mapped both ways to criteria and pass the row checks in a merged or approved spec PR; every row's `Item` names its cut item; journey cells are filled; `check_spec.py` passes.

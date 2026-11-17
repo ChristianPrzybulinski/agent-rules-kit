@@ -26,7 +26,7 @@ Read the NEED, `docs/spec/spec.md` and the REQs and journeys its Triage names. W
 - reuse: an existing REQ already states it; nothing changes;
 - amend: an existing REQ states it differently; edit that REQ and add a History line;
 - new: write a REQ-F or REQ-NF with `status: proposed` and `source: NEED-nnn S<n>` (next unused id, or the session's reserved block);
-- journey: the Situations add, change, reorder or remove a step of a flow of two or more screens or interactions, and the project keeps journeys (`sdd.journeys`; absent = on when `docs/spec/journeys/` exists) → `references/journeys.md`; a new step holds `—` in `Implemented by` and `Proven by` until `sdd-tasks` fills them, and the NEED lists the journey in `journeys`;
+- journey: the Situations add, change, reorder or remove a step of a flow of two or more screens or interactions, and the project keeps journeys (`sdd.journeys`; absent = on when `docs/spec/journeys/` exists) → `references/journeys.md` (journeys and processes: a step reused from another flow cites its process, `PROC-nnn` or `PROC-nnn S<a>–S<b>`, once the kit has processes, KIT-090); a new step holds `—` in `Implemented by` and `Proven by` until `sdd-tasks` fills them, and the NEED lists the journey in `journeys`;
 - decision: product must choose between two or more reasonable options → a product decision record with `status: proposed`, cited in each REQ's Rationale;
 - cut: out of scope, with where it goes.
 
@@ -36,7 +36,7 @@ Each REQ: one rule sentence and a Values table for the numbers the actor experie
 
 Collect clarification markers, undefined glossary terms and vague quantities ("fast", "many", "safe") as a tree: each question hangs off the answers it needs. The frontier is every open question whose prerequisites are settled; ask only from it, the question most others depend on first, and recompute it after each answer, never asking one whose answer hinges on a question still open. A fact you can look up (code, files, the spec) is yours to find, never a question. Ask one question per call of the runtime's ask tool (`AskUserQuestion`, `ask_user_question`), else in text: one line of context with a concrete example, two to four options with consequences, and a marked recommendation. Never answer a product, cost or risk choice yourself; a technical question waits for `sdd-plan`.
 
-Put each answer where it belongs (REQ, NEED, glossary), never in an answers section, and record `YYYY-MM-DD clarify: <question> → <answer>` in the NEED's History. A vague quantity becomes a number or a `[HYPOTHESIS]` with its measurement method. An answer that reveals a new Situation returns the NEED to `sdd-specify` part 2.
+Put each answer where it belongs (REQ, NEED, glossary), never in an answers section, and record `YYYY-MM-DD clarify: <question> → <answer>` in the NEED's History. An answer that settles a FEAT's open `[DECISION]` amends the REQ and folds that line with the profile's `decision_folding.marker` (`sdd-plan` § 5). A vague quantity becomes a number or a `[HYPOTHESIS]` with its measurement method. An answer that reveals a new Situation returns the NEED to `sdd-specify` part 2.
 
 ## 3. Record and check
 

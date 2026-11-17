@@ -15,7 +15,7 @@ allowed-tools:
 
 # SDD 4 — Plan
 
-The technical refinement: cuts a refined NEED into deliveries, creates one FEAT per delivery and plans it. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-feature.md`. It reads the parameters `plan_sections` and `max_feat_tasks` from `check_spec.py --params` (`../sdd-constitution/references/sdd-parameters.md`).
+The technical refinement: cuts a refined NEED into deliveries, creates one FEAT per delivery and plans it. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-feature.md`. It reads the parameters `plan_sections` and `max_feat_tasks` from `check_spec.py --params` (`../sdd-constitution/references/sdd-parameters.md`), and `decision_folding` from the project profile (`python3 ~/.ai-kit/platforms/tools/profile.py resolve --section sdd`).
 
 ## 1. Confirm readiness
 
@@ -55,6 +55,8 @@ Require a NEED with `status: refined` whose REQs are `approved`; with `sdd.needs
 ## 5. Record decisions
 
 A technical choice with a rejected reasonable alternative that outlives the FEAT (other FEATs or later work rely on it) gets a decision record (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`) with `status: proposed`. A choice that matters only inside this delivery stays in its Plan section, the rejected alternative in one line. A product choice is not made here: it returns to `sdd-clarify`. Several open choices form a tree, as the questions of `sdd-clarify` § 2 do: settle only from its frontier, the choice the others depend on first, one choice per question when it needs the owner, and never one whose answer hinges on a choice still open. Do not hide a kit-rule exception in prose—record a blocker or explicit decision.
+
+Fold settled decisions (the `decision_folding.marker` of the project profile, default `→ folded into`): a `[DECISION]` line settled in the FEAT's `## Open questions` is not edited or deleted. The next spec PR that touches the FEAT (a Plan amendment, the `sdd-tasks` rows, a resync) writes the decision where it belongs, as a Scope bullet, an acceptance criterion with its Given/When/Then, or the REQ (a REQ change goes through `sdd-clarify`), and appends the marker and the target to the line: `→ folded into CA-3`. Open questions lists the unfolded lines first. Task `Status` needs no folding: it is derived from the items (`sdd-tasks` § 5).
 
 ## 6. Check restraint and consistency
 
