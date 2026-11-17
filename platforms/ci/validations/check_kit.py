@@ -446,6 +446,7 @@ checklist_commands = []
 attribution_commands = []
 rule_load_commands = []
 path_rule_commands = []
+path_rule_start_commands = []  # #325: the same script on SessionStart `compact`
 GIT_CONTEXT_MARKER = "ai-kit git, after this "
 CHECKLIST_MARKER = "ai-kit session start:"
 ATTRIBUTION_MARKER = "ai-kit attribution:"
@@ -567,13 +568,17 @@ if hooks_path.exists():
                     fail(rel(hooks_path), f"SessionStart[{group_index}] must be an object")
                     continue
                 matcher = group.get("matcher")
-                try:
-                    matches_startup = isinstance(matcher, str) and re.fullmatch(matcher, "startup") is not None
-                except re.error:
-                    matches_startup = False
-                if not matches_startup:
-                    fail(rel(hooks_path), f"SessionStart[{group_index}] matcher must match startup")
                 hooks = group.get("hooks")
+                # #325: the path-rule hook runs on compaction only, to give the session's rules again
+                path_rule_group = isinstance(hooks, list) and any(
+                    isinstance(hook, dict) and PATH_RULE_MARKER in str(hook.get("command", "")) for hook in hooks)
+                wanted_source = "compact" if path_rule_group else "startup"
+                try:
+                    matches_source = isinstance(matcher, str) and re.fullmatch(matcher, wanted_source) is not None
+                except re.error:
+                    matches_source = False
+                if not matches_source:
+                    fail(rel(hooks_path), f"SessionStart[{group_index}] matcher must match {wanted_source}")
                 if not isinstance(hooks, list):
                     fail(rel(hooks_path), f"SessionStart[{group_index}].hooks must be an array")
                     continue
@@ -593,6 +598,8 @@ if hooks_path.exists():
                     elif isinstance(timeout, (int, float)) and not isinstance(timeout, bool) and timeout <= 10:
                         if CHECKLIST_MARKER in command:
                             checklist_commands.append((command, timeout))
+                        elif PATH_RULE_MARKER in command:
+                            path_rule_start_commands.append((command, timeout))
                         else:
                             session_start_commands.append((command, timeout))
         # KIT-071: SessionStart context never reaches a subagent, so the attribution line repeats at SubagentStart.
@@ -973,19 +980,25 @@ for command, timeout in rule_load_commands:
 
 # KIT-081 stage 3: the path-rule hook gives a kit rule in a synced project once per session, and nothing elsewhere.
 # A case is (name, CLAUDE.md profile or None, session, tool name, tool input, the rules it gives or None for silence);
-# the cases run in order in one project and one data folder, so the repeat proves the once-per-session promise.
+# the cases run in order in one project and one data folder, so the repeat proves the once-per-session promise. A
+# SessionStart case runs the SessionStart path-rule hook with that source (#325: a compaction gives the rules again).
 PATH_RULE_CONTEXT = "ai-kit path rule"
 PATH_RULE_CASES = (
     ("a Read in a godot project", "godot", "s1", "Read", {"file_path": "main.gd"}, ("code", "godot")),
     ("the same session again", "godot", "s1", "Read", {"file_path": "main.gd"}, None),
     ("a Bash read in a new session", "godot", "s2", "Bash", {"command": "cat -n ./main.gd | head"}, ("code", "godot")),
     ("a profile without the rule", "docs", "s3", "Read", {"file_path": "main.gd"}, None),
+    ("a compaction", "godot", "s1", "SessionStart", "compact", None),
+    ("the first session after its compaction", "godot", "s1", "Read", {"file_path": "main.gd"}, ("code", "godot")),
     ("a repository the sync did not generate", None, "s4", "Read", {"file_path": "main.gd"}, None),
     ("malformed input", "godot", "s5", None, "not json", None),
 )
 if hooks_path.exists() and len(path_rule_commands) != 1:
     fail(rel(hooks_path), f"PostToolUse needs one path-rule hook (a command running '{PATH_RULE_MARKER}')")
+if hooks_path.exists() and len(path_rule_start_commands) != 1:
+    fail(rel(hooks_path), f"SessionStart needs one path-rule hook on compact (a command running '{PATH_RULE_MARKER}')")
 for command, timeout in path_rule_commands:
+    start_command, start_timeout = (path_rule_start_commands or [("true", timeout)])[0]
     with tempfile.TemporaryDirectory() as path_rule_tmp:
         project, data = Path(path_rule_tmp) / "project", Path(path_rule_tmp) / "data"
         project.mkdir()
@@ -999,12 +1012,18 @@ for command, timeout in path_rule_commands:
                                                    encoding="utf-8")
             elif (project / "CLAUDE.md").exists():
                 (project / "CLAUDE.md").unlink()
-            payload = tool_input if isinstance(tool_input, str) else json.dumps(
-                {"session_id": session, "cwd": str(project), "hook_event_name": "PostToolUse", "tool_name": tool,
-                 "tool_input": tool_input})
+            case_command, case_timeout = command, timeout
+            if tool == "SessionStart":
+                case_command, case_timeout = start_command, start_timeout
+                payload = json.dumps({"session_id": session, "cwd": str(project), "hook_event_name": "SessionStart",
+                                      "source": tool_input})
+            else:
+                payload = tool_input if isinstance(tool_input, str) else json.dumps(
+                    {"session_id": session, "cwd": str(project), "hook_event_name": "PostToolUse", "tool_name": tool,
+                     "tool_input": tool_input})
             try:
-                result = subprocess.run(["bash", "-c", command], input=payload, text=True, capture_output=True,
-                                        timeout=timeout, cwd=str(project), env=env, check=False)
+                result = subprocess.run(["bash", "-c", case_command], input=payload, text=True, capture_output=True,
+                                        timeout=case_timeout, cwd=str(project), env=env, check=False)
             except subprocess.TimeoutExpired:
                 fail(rel(hooks_path), f"path-rule hook case '{name}' timed out")
                 continue
@@ -1027,9 +1046,9 @@ for command, timeout in path_rule_commands:
             reasons = [json.loads(line).get("load_reason") for line in log.read_text(encoding="utf-8").splitlines()]
         except (OSError, ValueError, AttributeError):
             reasons = []
-        if reasons != ["kit_hook_path_match"] * 4:
+        if reasons != ["kit_hook_path_match"] * 6:
             fail(rel(hooks_path), "path-rule hook must log each delivery to instructions-loaded.jsonl with load_reason "
-                 f"kit_hook_path_match (4 expected, got {reasons})")
+                 f"kit_hook_path_match (6 expected, got {reasons})")
 
 
 # --- 6. Skills ---

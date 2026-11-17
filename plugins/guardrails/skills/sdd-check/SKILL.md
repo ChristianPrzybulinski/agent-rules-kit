@@ -20,7 +20,7 @@ Process: `../sdd-constitution/references/sdd-process.md`. Read-only: this tool e
 
 Scope, chosen by the argument:
 - functional (`NEED-nnn`, called by `sdd-clarify` before `refined`): the NEED, its REQs, journeys and product decisions; rows C1, C2, C4, C5, C6, C11, the journey links and checklist Q1 (read against each REQ's Verification), Q2–Q4 and Q7; a block stops `refined`.
-- full (`FEAT-nnn`, called by `sdd-plan` before `planned`): the functional scope again on the FEAT's REQs and its NEED, plus the FEAT, its Plan, Tasks once cut and decisions with rows C3, C7, C8, C9, C10, the task cut and decision folding (§ 1 d, e) and checklist Q1 (read against the FEAT's criteria), Q5, Q6 and Q8–Q11; a block stops `planned`.
+- full (`FEAT-nnn`, called by `sdd-plan` before `planned`): the functional scope again on the FEAT's REQs and its NEED, plus the FEAT, its Plan, Tasks once cut and decisions with rows C3, C7, C8, C9, C10, the task cut and decision folding (§ 1 d, e), C15 and checklist Q1 (read against the FEAT's criteria), Q5, Q6 and Q8–Q11; a block stops `planned`.
 - With `sdd.needs: false` (no NEED file) there is no functional run: the full scope reads the FEAT's Problem section where it reads the NEED (C1 checks the FEAT→REQ link and a Problem Situation with no REQ).
 - `all` (an audit): the full scope on every artifact. `docs/spec/baseline.json` may hold old findings per row (`C<n>`, `Q<n>`) and artifact id with a count: a finding within its count is listed under `Baseline` and does not block; one above it, or on an artifact the file does not hold, is reported as usual; an entry that finds less than its count is listed as `lower: <row> <artifact> <count> → <found>`. The file only shrinks: never propose adding an entry (`check_spec.py` keeps its own rows the same way).
 
@@ -45,6 +45,7 @@ c. Consistency table. Load the artifacts of the scope, then check its rows:
 | C9 | plan violating kit/repository rule | critical |
 | C10 | invalid frontmatter | high |
 | C11 | a REQ states how instead of what (algorithm, message, table, framework); rule: `../sdd-clarify/references/req-scope.md` | medium |
+| C15 | a Plan § Assets row without its source, its license or the REQ or mock it serves (full scope); rows: `../sdd-plan/references/plan-sections.md` | medium |
 
 d. Task cut (full scope, while the FEAT has rows not yet `done` or `cancelled`). The calling session pastes after `rows=` the row check's output (`row_check`, else `row_checks.py check FEAT-nnn`) and the `task_cut` block of `profile.py resolve --section sdd`; each `FAIL` line is one `high` finding, a `WARN` goes in the notes, and a missing `rows=` is `high | row check not run`. Then read each row against `../sdd-tasks/references/task-cut.md` with those values: an owned area outside `owned_area_form`, a code path without its `required_test_folders`, a protected path whose item lacks its label, a hotspot edited where an additive registry fits, an ordering-only `Depends on` edge, a row on the longest chain above `longest_chain_max_complexity`, or a bundled item holding a `bundle_exclude` row is one `medium` finding each (`high` for a missing label or test folder).
 
