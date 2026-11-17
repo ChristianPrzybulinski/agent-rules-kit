@@ -1282,6 +1282,9 @@ def governance_command(spec, fid):
     if spec.param_errors or errors:  # profile.py validates the whole file, so both lists may hold one error
         return report([refused_section(error) for error in dict.fromkeys(spec.param_errors + errors)], "")
     print("\n".join(render_governance(spec, profile, fid)))
+    return 0
+
+
 # --------------------------------------------------------------------------- our pattern (KIT-098)
 # sdd-constitution/references/pattern.md: SysML link names, DDD content, Backstage names for ENBs, SAFe work items.
 
