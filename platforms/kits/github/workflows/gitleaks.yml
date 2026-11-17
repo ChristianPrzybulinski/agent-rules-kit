@@ -43,6 +43,6 @@ jobs:
           fetch-depth: 0  # the whole history, and a pull request's base commit
           persist-credentials: false
       - name: gitleaks (the kit's action; pinned CLI, sha-256 checked; values redacted)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/gitleaks@b38e84c9ec113399a61461c111e320def78cd0b0  # v15.0.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/gitleaks@61aca2e5faccd91bbe5d4677686e725f39c99843  # v16.0.0
         with:
           config: ${{ inputs.config }}

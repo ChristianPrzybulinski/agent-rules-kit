@@ -67,7 +67,7 @@ jobs:
           persist-credentials: false  # the API reads below pass GATES_TOKEN as GH_TOKEN
       # Python 3.12 and AI_KIT_DIR, the kit at the pinned commit, whose pr_gates.py the steps below run.
       - name: The kit's spec tools at the pinned commit (pr_gates.py)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@b38e84c9ec113399a61461c111e320def78cd0b0  # v15.0.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@61aca2e5faccd91bbe5d4677686e725f39c99843  # v16.0.0
         with:
           checks: none
       - name: Gate report (step summary + job result)
