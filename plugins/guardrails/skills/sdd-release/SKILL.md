@@ -49,7 +49,7 @@ Under `release: merge` (the default `sdd:` value) `sdd-review` already moved eac
 
 ## 6. Deliver
 
-- `TRACE deliver <spec_root> FEAT-nnn --in X.Y.Z` per FEAT: `validated` to `delivered` with its History line, and each NEED whose listed FEATs are now all delivered and cover its REQs to `delivered`.
+- `TRACE deliver <spec_root> FEAT-nnn --in X.Y.Z` per FEAT: `validated` to `delivered` with its History line, and each NEED whose listed FEATs are now all delivered and cover its REQs to `delivered`. In a FEAT with `## Versions` it moves the open block, whose heading names the version `release.versioning` gives (`0.3.0`, or `M5`); a later version of that use case is the FEAT's next block.
 - Never set `status` by hand: `check_spec.py` requires the line `deliver` writes.
 
 ## 7. Route the feedback

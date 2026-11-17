@@ -27,7 +27,7 @@ Fields: the date, `playtest:`, the block's heading name, the closure commit, the
 
 | Outcome | Then |
 |---|---|
-| `go` | `validate` the greybox block; the polish block may now be written and cut (skill `sdd-tasks` § 1) |
+| `go` | `validate` the greybox block. `check_spec.py` (KIT-096) accepts a polish block only once every earlier block is delivered: under `release: merge` `validate` delivers the greybox block at once; under `release: manual` it stays `validated` until `sdd-release` delivers it, whose § 4 acceptance is this line (no second playtest, no captures), and only then is the polish block added, written and cut (skill `sdd-tasks` § 1) |
 | `retune` | new values inside each tunable's range need no spec change: a task row in the greybox block names the REQ and the values (a defect of its feel, with its History line), and the owner plays again once it merges |
 | `rule` | a rule or a range is wrong: `sdd-clarify` amends the REQ, and the block does not validate until a later play says `go`, or the owner cancels it |
 

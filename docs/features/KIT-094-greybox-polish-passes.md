@@ -47,10 +47,13 @@ Choices:
 - Version blocks are the only shape. The two-FEAT form (a polish FEAT that `depends_on` its greybox FEAT) is dropped:
   the owner chose blocks, E § 17.1 has C23 forbid two FEATs with one actor and goal, and supporting both would need a FEAT-level
   pass marker (a schema change) for a form no project uses.
-- KIT-096's block reader (`check_spec.version_blocks`) is not on `main`, so `row_checks.py` carries `pass_rows`, a
-  minimal reader of the `### <version> <pass>` headings, kept apart so that reader can replace it. On `main`,
-  `parse_rows` reads only a `## Tasks` table, so the exemption reaches rows once the KIT-096 task-table helper makes
-  `parse_rows` read block tables; `mark_passes` maps by task id, which KIT-096 keeps unique per FEAT.
+- `pass_rows` reads the blocks and their row ids with KIT-096's `check_spec.version_blocks` (merged from `main`
+  `b45e998`) and takes the pass from the heading's last word; `parse_rows` reads the open block's rows through
+  `check_spec.task_sections`, and `mark_passes` maps by task id, which KIT-096 keeps unique per FEAT.
+- Greybox to polish under `release: manual`: KIT-096's `check_spec.py` rule `version-block` accepts a later block
+  only once every earlier one is delivered or cancelled, so the greybox block goes `validated` at its closure and
+  `delivered` by `sdd-release`, whose § 4 acceptance for it is the playtest line already written (no second
+  playtest, no captures); only then is the polish block added. Under `release: merge`, `validate` delivers it at once.
 - C16 is a judgment row, not a script rule, and no script checks the playtest line (`playtest.md` § Checks).
 - `passes: []`, the default, changes nothing: no block is exempt, and the skills' new text applies only under the key.
   Not a project.kind fork: every skill reads `sdd.passes` and `sdd.acceptance`, never `project.kind`.
@@ -59,6 +62,9 @@ Choices:
 
 - Red first: `test_row_checks_passes.py` (10 tests) failed 7 before the change (1 assertion: rule j warned on a
   greybox row; 6 on the missing `pass_rows`/`mark_passes`), green after under `python3.12` and `/usr/bin/python3`.
+  After the merge of `main` `b45e998` (KIT-096), 12 tests: two `Cli` tests run `row_checks.py check` on a versioned
+  FEAT (an open `### 0.3 greybox` block row with no `evidence:` clause: no rule j warning; the same row in an open
+  `### 0.3 polish` block: the warning); the greybox one fails with `mark_passes` stubbed out.
 - Byte for byte: `row_checks.py check --all --all-rows` and `check_spec.py` on `platforms/ci/fixtures/consumer` and
   on a copy of Stratics' `docs/spec`, under both Pythons, before and after: 8 outputs, no difference.
 - `bash platforms/tools/check.sh`, `bash platforms/tools/check.sh --links`,

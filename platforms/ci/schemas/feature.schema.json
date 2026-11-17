@@ -23,6 +23,12 @@
       "items": { "type": "string", "pattern": "^ENB-[0-9]{3,}$" },
       "uniqueItems": true
     },
+    "processes": {
+      "description": "The process steps this use case realizes (KIT-096): PROC-nnn, PROC-nnn S<a>–S<b>, PROC-nnn S<n> or PROC-nnn A<n>",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^PROC-[0-9]{3,}( [SA][0-9]+(\\s*[–-]\\s*[SA][0-9]+)?)?$" },
+      "uniqueItems": true
+    },
     "depends_on": {
       "type": "array",
       "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },

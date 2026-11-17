@@ -1,5 +1,7 @@
 """row_checks under sdd.passes (KIT-094): a greybox version block's rows are exempt from rule j, since a greybox of
 placeholder art has no mock to match and the owner's playtest line is its acceptance; `passes: []` changes nothing."""
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
@@ -80,6 +82,35 @@ class WithPasses(Base):
         got = rc.rule_j(self.row("polish"), self.cfg)
         self.assertEqual([f.rule for f in got], ["j"])
         self.assertIn("no `evidence:` clause", got[0].message)
+
+
+class Cli(Base):
+    """`row_checks.py check` on a versioned FEAT: parse_rows reads the open block's rows (KIT-096), and rule j skips
+    them when that block is the greybox one."""
+    profile = "sdd:\n  passes: [greybox, polish]\n"
+
+    def check(self, blocks):
+        text = ("---\nid: FEAT-902\ntitle: \"Dash\"\nstatus: planned\nrequirements: []\ncreated: \"2026-11-17\"\n"
+                "---\n\n") + versioned(blocks)
+        (self.root / "docs/spec/features/FEAT-902.md").write_text(text, encoding="utf-8")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = rc.main(["check", "--spec", str(self.root / "docs/spec"), "FEAT-902"])
+        return code, out.getvalue()
+
+    def test_a_greybox_open_block_row_gets_no_rule_j_warning(self):
+        code, out = self.check([("0.3 greybox", [line("T1")])])
+        self.assertEqual(code, 0, out)
+        self.assertIn("row-checks: 1 rows", out)
+        self.assertNotIn("[j]", out)
+
+    def test_the_same_row_in_a_polish_open_block_is_warned(self):
+        code, out = self.check([("0.3 greybox", [line("T1").replace("| todo |", "| done |")]),
+                                ("0.3 polish", [line("T2")])])
+        self.assertEqual(code, 0, out)
+        self.assertIn("row-checks: 1 rows", out)
+        self.assertIn("FEAT-902 T2: Files entry 'client/ui/battle/dash.tscn' is a visual or motion path", out)
+        self.assertIn("[j]", out)
 
 
 class WithoutPasses(Base):
