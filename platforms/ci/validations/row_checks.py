@@ -23,7 +23,8 @@ Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty i
   h WARN  a message type the Task sends exists as `row_checks.protocol.schemas`/<type>.json
   i WARN  a row that changes the policy of an artifact in the `row_checks.artifacts` registry cites its decision
   j WARN  with `visual_approval` owner or reviewer, a `row_checks.visual` path needs an `evidence:` clause; each clause
-          parses, and its catalog file exists on origin/main or is covered by Files
+          parses, and its catalog file exists on origin/main or is covered by Files; a row of a greybox version block
+          is exempt while `sdd.passes` lists greybox (KIT-094: the owner's playtest line is its acceptance)
   k WARN  a todo or doing row that owns the protocol folder has, per consumer, an open row that depends on it and
           covers one of that consumer's tables (the contract row itself counts)
 
@@ -123,6 +124,7 @@ class Row:
     header: list
     siblings: dict = field(default_factory=dict)
     cfg: Config | None = None
+    pass_name: str = ""  # KIT-094: the pass (greybox, polish) of the version block that holds the row, else ""
 
     def get(self, name: str) -> str:
         if name not in self.header:
@@ -364,6 +366,7 @@ def parse_rows(feat: str, text: str, cfg: Config) -> list | None:
         return None
     for r in table.values():
         r.siblings = table
+    mark_passes(rows, text)
     return rows
 
 
@@ -801,6 +804,8 @@ def rule_j(row: Row, cfg: Config | None = None) -> list:
     visual = cfg.visual
     if not visual:
         return []
+    if greybox_exempt(row, cfg):
+        return []
     f = lambda cell, msg: Finding(LEVELS["j"], row.feat, row.task_id, cell, msg, "j")  # noqa: E731
     proof = row.get("Proof of completion")
     clauses = split_clauses(proof)
@@ -825,6 +830,36 @@ def rule_j(row: Row, cfg: Config | None = None) -> list:
             out.append(f("Proof of completion", f"clause '{c['kind']} `{c['id']}`' has no catalog file {rel} on "
                                                 f"{cfg.catalog_ref}, and no Files entry covers it"))
     return out
+
+
+# --------------------------------------------------------------------------- passes (KIT-094)
+
+PASSES = ("greybox", "polish")  # profile.schema.json sdd.passes items
+
+
+def pass_rows(text: str) -> dict:
+    """{task id: pass} for the rows of each `### <version> <pass>` block under `## Versions` (`### 0.3 greybox`,
+    `### M5 polish`): the pass is the heading's last word when it is one of PASSES. Blocks and their row ids come from
+    check_spec.version_blocks (KIT-096); a FEAT without `## Versions` has none."""
+    out = {}
+    for block in check_spec.version_blocks(text) or []:
+        words = block["name"].split()
+        if len(words) > 1 and words[-1] in PASSES:
+            out.update({tid: words[-1] for tid in block["rows"]})
+    return out
+
+
+def mark_passes(rows: list, text: str) -> None:
+    """Set each row's pass_name from the version block that holds it (pass_rows); task ids are unique per FEAT."""
+    passes = pass_rows(text)
+    for row in rows:
+        row.pass_name = passes.get(row.task_id, "")
+
+
+def greybox_exempt(row: Row, cfg: Config) -> bool:
+    """A greybox block's row, while `sdd.passes` lists greybox, has no mock to match: rule j does not apply, and the
+    owner's playtest line (sdd-review, references/playtest.md) accepts it. `passes: []` exempts nothing."""
+    return row.pass_name == "greybox" and "greybox" in (cfg.params.get("passes") or [])
 
 
 def covers_tables(row: Row, consumer: str) -> bool:
