@@ -726,6 +726,104 @@ class RedTwoPhaseTest(StubCase):
         self.assertEqual(code, 1, out)
         self.assertIn("red: NONE", out)
 
+    # ------------------------------------------------------------------ --sides-from reads only DIR's own files
+
+    def hand_sides(self, base_output="E\n", head_output="OK\n", head=None):
+        """A sides folder written by hand for a PR adding `sub`, and that PR's head (committed once)."""
+        head = head or self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        sides = Path(self.tmp.name) / "hand"
+        for side, code_text, output in (("base", "1\n", base_output), ("head", "0\n", head_output)):
+            (sides / side).mkdir(parents=True)
+            (sides / side / "exit_code").write_text(code_text, encoding="utf-8")
+            (sides / side / "output.txt").write_text(output, encoding="utf-8")
+        return head, sides
+
+    def outside(self, name, text):
+        path = Path(self.tmp.name) / "outside" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_sides_refuse_a_symlinked_output(self):
+        head, sides = self.hand_sides()
+        secret = self.outside("secret.txt", "SECRET-OUTSIDE-DIR\n")
+        (sides / "base" / "output.txt").unlink()
+        os.symlink(secret, sides / "base" / "output.txt")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("base/output.txt", out)
+        self.assertNotIn("SECRET-OUTSIDE-DIR", out)
+
+    def test_sides_refuse_a_symlinked_exit_code_and_echo_no_bad_value(self):
+        head, sides = self.hand_sides()
+        secret = self.outside("token", "SECRET-TOKEN-VALUE\n")
+        (sides / "head" / "exit_code").unlink()
+        os.symlink(secret, sides / "head" / "exit_code")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("head/exit_code", out)
+        self.assertNotIn("SECRET-TOKEN-VALUE", out)
+        (sides / "head" / "exit_code").unlink()
+        (sides / "head" / "exit_code").write_text("SECRET-NOT-AN-INTEGER", encoding="utf-8")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("exit_code", out)
+        self.assertNotIn("SECRET-NOT-AN-INTEGER", out)
+
+    def test_sides_refuse_a_file_that_is_not_regular(self):
+        head, sides = self.hand_sides()
+        (sides / "base" / "output.txt").unlink()
+        (sides / "base" / "output.txt").mkdir()
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("base/output.txt", out)
+
+    def test_sides_refuse_a_symlinked_folder_or_report_under_reports(self):
+        report = ('<testsuite name="T"><testcase classname="Leak" name="SECRET-REPORT-CASE">'
+                  '<failure message="x">x</failure></testcase></testsuite>')
+        target = self.outside("TEST-Leak.xml", report).parent
+        head = None
+        for kind in ("dirlink", "filelink", "reportslink"):
+            with self.subTest(kind=kind):
+                shutil.rmtree(Path(self.tmp.name) / "hand", ignore_errors=True)
+                head, sides = self.hand_sides(head=head)
+                reports = sides / "base" / "reports"
+                if kind == "reportslink":
+                    os.symlink(target, reports)
+                else:
+                    reports.mkdir()
+                    if kind == "dirlink":
+                        os.symlink(target, reports / "dirlink")
+                    else:
+                        os.symlink(target / "TEST-Leak.xml", reports / "TEST-Leak.xml")
+                code, out = self.judge(head, sides)
+                self.assertEqual(code, 2, out)
+                self.assertIn("base/reports", out)
+                self.assertNotIn("SECRET-REPORT-CASE", out)
+
+    def test_sides_read_at_most_the_output_cap_from_the_end(self):
+        """output.txt over SIDE_OUTPUT_MAX_BYTES: only its last bytes are read, so a missing-symbol line before
+        them is not seen and the run is judged as a whole."""
+        cap = 8 * 1024 * 1024
+        base_output = ("E\n" + "=" * 70 + "\nERROR: test_sub (tests.test_sub.SubTest.test_sub)\n" + "-" * 70
+                       + "\nAttributeError: module 'calc' has no attribute 'sub'\n" + ("x" * 99 + "\n") * (cap // 100 + 10)
+                       + "-" * 70 + "\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n")
+        head, sides = self.hand_sides(base_output=base_output)
+        code, out = self.judge(head, sides)
+        self.assertIn(f"base/output.txt holds {len(base_output.encode())} bytes; reading the last {cap}", out)
+        self.assertEqual(code, 3, out)
+        self.assertIn("(whole run): runtime", out)
+
+    def test_sides_refuse_a_report_over_the_cap(self):
+        head, sides = self.hand_sides()
+        (sides / "base" / "reports").mkdir()
+        (sides / "base" / "reports" / "TEST-Big.xml").write_text("<testsuite>" + " " * (8 * 1024 * 1024) + "</testsuite>",
+                                                                  encoding="utf-8")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("TEST-Big.xml", out)
+        self.assertIn("bytes", out)
+
     # ------------------------------------------------------------------ equivalence
 
     def test_the_same_sides_give_the_same_verdict_as_the_one_process_run(self):

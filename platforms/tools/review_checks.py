@@ -17,14 +17,17 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
       quoted in a message, is skipped, and a reported failure is an assertion whatever its message quotes.
   review_checks.py red   ... --plan OUT.json | --sides-from DIR
       The same check in two phases (KIT-102), for a runner that must start the test run itself (a sealed VM). --plan
-      makes the selection above and writes OUT.json: {"status": run|exempt|none, "base", "head" (full SHAs),
+      makes the selection above and writes OUT.json: {"status": run|exempt|none|error, "base", "head" (full SHAs),
       "test_files" (repository-relative, to copy from head onto base), "classes" (the `{classes}` string), "command"
       (the template filled in), "cwd" (where the command starts, relative to the repository), "run_folder" (cwd plus
       a leading `cd <folder> &&`), "junit" (the --junit globs)}; it runs nothing and exits as red does with no run
-      due (EXEMPT 0, NONE 1, no command 2), else 0. --sides-from reads DIR/base/ and DIR/head/: `exit_code` (an
-      integer as text), `output.txt` (stdout and stderr together) and the optional `reports/` (every JUnit XML file
-      under it), and gives the one-process verdict, lines and exit code, from the same judge; it runs nothing and
-      makes no worktree. Both take one test command: several gates `red` entries claiming the tests are exit 2.
+      due (EXEMPT 0, NONE 1, no command for a test 2 with status error), else 0. --sides-from reads DIR/base/ and
+      DIR/head/: `exit_code` (an integer as text), `output.txt` (stdout and stderr together; its last
+      SIDE_OUTPUT_MAX_BYTES at most) and the optional `reports/` (every JUnit XML file under it, each at most
+      SIDE_REPORT_MAX_BYTES), and gives the one-process verdict, lines and exit code, from the same judge; it runs
+      nothing and makes no worktree. It reads regular files inside DIR only: a symbolic link (a side folder,
+      `reports/`, or any file or folder under them) or a non-regular file is exit 2, and an error names the path,
+      never the content. Both take one test command: several gates `red` entries claiming the tests are exit 2.
   review_checks.py scope --base B --head H --files GLOB ... [--body PR.md] [--gates gates.json]
       Changed paths outside the task's Files cell. `## Files widened` may add existing test paths only, and none of
       them may change an assertion line (the falsifier: an assertion changed to pass is a stop).
@@ -85,6 +88,7 @@ import re
 import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -156,6 +160,10 @@ PYTEST_CASE = re.compile(r"^(FAILED|ERROR) ([^\s(]\S*?)(?: - (.*))?$", re.M)  # 
 RED_CLASSES = ("assertion", "new-symbol")
 # A leading `cd <folder> &&` in a --run command: the folder the command runs in (KIT-102 --plan's run_folder), read as
 # the Stratics loop engine reads it.
+# --sides-from reads at most this many bytes of a side's output.txt (its last bytes, where a run's summary is) and
+# refuses a JUnit report under reports/ that holds more (KIT-102).
+SIDE_OUTPUT_MAX_BYTES = 8 * 1024 * 1024
+SIDE_REPORT_MAX_BYTES = 8 * 1024 * 1024
 CD_PREFIX = re.compile(r"^cd\s+(?:--\s+)?([A-Za-z0-9._/-]+)\s*&&\s*(.+)$")
 EXCERPT_LINES = 15
 
@@ -436,18 +444,22 @@ def no_test_ran(parts, stacks: dict) -> str:
     return ""
 
 
-def junit_cases(tree: Path, globs) -> list[tuple[str, str, str]]:
-    """(test id, kind, text) per testcase of the JUnit reports a run wrote; kind is failure, error or pass."""
+def report_cases(root) -> list[tuple[str, str, str]]:
+    """(test id, kind, text) per testcase of one parsed JUnit report; kind is failure, error or pass."""
     cases = []
-    for pattern in globs or []:
-        for report in sorted(glob.glob(str(tree / pattern), recursive=True)):
-            for case in ET.parse(report).getroot().iter("testcase"):
-                tid = ".".join(x for x in (case.get("classname"), case.get("name")) if x)
-                node = case.find("failure") if case.find("failure") is not None else case.find("error")
-                kind = "pass" if node is None else node.tag
-                text = "" if node is None else f"{node.get('type', '')} {node.get('message', '')} {node.text or ''}"
-                cases.append((tid, kind, text))
+    for case in root.iter("testcase"):
+        tid = ".".join(x for x in (case.get("classname"), case.get("name")) if x)
+        node = case.find("failure") if case.find("failure") is not None else case.find("error")
+        kind = "pass" if node is None else node.tag
+        text = "" if node is None else f"{node.get('type', '')} {node.get('message', '')} {node.text or ''}"
+        cases.append((tid, kind, text))
     return cases
+
+
+def junit_cases(tree: Path, globs) -> list[tuple[str, str, str]]:
+    """The cases of the JUnit reports a run wrote in its own worktree (report_cases)."""
+    return [case for pattern in globs or [] for report in sorted(glob.glob(str(tree / pattern), recursive=True))
+            for case in report_cases(ET.parse(report).getroot())]
 
 
 def in_run(tid: str, files) -> bool:
@@ -599,25 +611,79 @@ def red_plan(args) -> int:
     return 0 if status is None else status
 
 
+def side_file(folder: Path, rel: str, limit: int, tail: bool = False) -> bytes:
+    """The bytes of DIR/`rel`, a regular file inside DIR: opened with O_NOFOLLOW and checked by fstat, so a symbolic
+    link (to a file or a folder anywhere on the host) or a device, FIFO or folder is a usage error and never read.
+    Over `limit` bytes: the last `limit` with `tail`, else a usage error. An error names the path, never its content."""
+    where = f"--sides-from {folder}: {rel}"
+    path = folder / rel
+    try:
+        if stat.S_ISLNK(os.lstat(path).st_mode):
+            usage_error(f"{where} is a symbolic link; the runner writes regular files only")
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    except OSError as error:
+        usage_error(f"{where}: {error.strerror}")
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode):
+        os.close(fd)
+        usage_error(f"{where} is not a regular file")
+    with os.fdopen(fd, "rb") as handle:
+        if info.st_size > limit:
+            if not tail:
+                usage_error(f"{where} holds {info.st_size} bytes, more than {limit}")
+            print(f"red: {rel} holds {info.st_size} bytes; reading the last {limit}")
+            handle.seek(info.st_size - limit)
+        return handle.read(limit)
+
+
+def side_reports(folder: Path, side: str) -> list[tuple[str, str, str]]:
+    """The cases of every *.xml under DIR/<side>/reports/, walked without following a link: any symbolic link there
+    (the folder itself, a folder or a file under it) or a non-regular entry is a usage error, and each report must
+    resolve inside DIR."""
+    rel = f"{side}/reports"
+    try:
+        mode = os.lstat(folder / rel).st_mode
+    except FileNotFoundError:
+        return []
+    except OSError as error:
+        usage_error(f"--sides-from {folder}: {rel}: {error.strerror}")
+    if stat.S_ISLNK(mode) or not stat.S_ISDIR(mode):
+        usage_error(f"--sides-from {folder}: {rel} is a symbolic link or not a folder")
+    inside, cases = folder.resolve(), []
+    for top, dirs, names in os.walk(folder / rel, followlinks=False):
+        for name in sorted(dirs + names):
+            entry = Path(top) / name
+            mode = os.lstat(entry).st_mode
+            shown = entry.relative_to(folder).as_posix()
+            if stat.S_ISLNK(mode) or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+                usage_error(f"--sides-from {folder}: {shown} is a symbolic link or not a regular file or folder")
+            if stat.S_ISREG(mode) and name.endswith(".xml"):
+                if not entry.resolve().is_relative_to(inside):
+                    usage_error(f"--sides-from {folder}: {shown} resolves outside {folder}")
+                try:
+                    root = ET.fromstring(side_file(folder, shown, SIDE_REPORT_MAX_BYTES))
+                except ET.ParseError as error:
+                    usage_error(f"--sides-from {folder}: {shown} is not XML ({error})")
+                cases += report_cases(root)
+    return cases
+
+
 def red_sides_read(args, groups) -> dict:
     """Phase 2 input (--sides-from DIR, KIT-102): per side, `DIR/<side>/exit_code` (an integer as text),
-    `output.txt` (stdout and stderr together) and the optional `reports/` (every JUnit XML file under it). A missing
-    or unreadable file is a usage error: no verdict."""
+    `output.txt` (stdout and stderr together; at most its last SIDE_OUTPUT_MAX_BYTES are read) and the optional
+    `reports/` (every JUnit XML file under it, each at most SIDE_REPORT_MAX_BYTES). Only regular files inside DIR are
+    read: a symbolic link, a missing or unreadable file is a usage error, no verdict."""
     if len(groups) != 1:
         sys.exit(several_commands(groups))
     folder, results, command = Path(args.sides_from), {}, groups[0][1]
     for side, rev in (("base", args.base), ("head", args.head)):
-        where = folder / side
-        try:
-            code_text = (where / "exit_code").read_text(encoding="utf-8").strip()
-            output = (where / "output.txt").read_bytes().decode("utf-8", "replace")
-        except OSError as error:
-            usage_error(f"--sides-from {folder}: {side}: {error.strerror}: {error.filename}")
+        if os.path.islink(folder / side):
+            usage_error(f"--sides-from {folder}: {side} is a symbolic link; the runner writes a folder")
+        code_text = side_file(folder, f"{side}/exit_code", 64).decode("utf-8", "replace").strip()
         if not re.fullmatch(r"-?\d+", code_text):
-            usage_error(f"--sides-from {folder}: {side}/exit_code must hold an integer, not {code_text[:40]!r}")
-        reports = where / "reports"
-        cases = junit_cases(reports, ["**/*.xml"]) if reports.is_dir() else []
-        results[side] = (int(code_text), output, cases, [(command, int(code_text), output)])
+            usage_error(f"--sides-from {folder}: {side}/exit_code must hold an integer")
+        output = side_file(folder, f"{side}/output.txt", SIDE_OUTPUT_MAX_BYTES, tail=True).decode("utf-8", "replace")
+        results[side] = (int(code_text), output, side_reports(folder, side), [(command, int(code_text), output)])
         side_line(args.repo, side, rev, int(code_text))
     return results
 
