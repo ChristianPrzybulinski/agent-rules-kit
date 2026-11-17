@@ -34,6 +34,9 @@
   spec_trace.py enablers SPEC [--feat FEAT-NNN] [--catalog GLOB ...]
                                        the C18 and C19 findings of sdd-check over the ENBs (KIT-095); off, exit 0,
                                        without SPEC/enablers/
+  spec_trace.py versions SPEC [--feat FEAT-NNN]
+                                       each version block's status and rows, the FEATs of each process, and the C17
+                                       findings of sdd-check (KIT-096); off, exit 0, without a `## Versions` FEAT
   spec_trace.py governance SPEC [--feat FEAT-NNN]
                                        read-only view (KIT-099): approval keys and protected paths of the profile,
                                        decisions by kind, owners, tech processes with trigger and last run (latest
@@ -93,6 +96,19 @@ and the Contracts view, and is required. `enablers` reports, over the open FEATs
               the walk never enters a folder whose name starts with `.`;
   C19 medium  a provided contract no ENB requires whose Consumers cell is empty or `—`.
 It exits 1 on a finding. A spec without enablers/ checks and renders as before.
+
+Versioned FEATs (KIT-096): a FEAT with `## Versions` is one use case (one actor, one goal) for the project's life,
+with one `### <version>` block per project version (check_spec.py checks the blocks' shape). Its last block is the
+open one: `status`, `status --write`, `sync-status`, `validate` and `deliver` derive and write the FEAT's status from
+that block's rows alone and keep the block's `Status:` line equal to it, and `validate` reads the block's `#### Closure`.
+`check` adds, for each versioned FEAT, its `processes` step ranges (`PROC-nnn`, `PROC-nnn S<a>–S<b>` as a journey
+citation expands, `PROC-nnn S<n>`, `PROC-nnn A<n>` or `A<a>–A<b>`), each block name against the profile's
+`release.versioning` (`semver`: `0.3.0`, `0.3 greybox`; `milestone`: `M5`) and the anti-bucket rule on each open block:
+a block row that a process step outside the declared steps cites, a Scope REQ that only such steps cite, or an ENB the
+FEAT's `enablers` omits fails. `versions` reads the FEAT file's git history: a REQ in a block's Scope that the block's
+first committed `planned` (or later) version did not hold, and a row its first committed version with rows at `planned`
+or later did not hold, are C17 findings, unless a History line names the row and a defect or a REQ of that Scope. A spec
+without a versioned FEAT checks and renders as before.
 
 A test path's first segment names the clone it lives in: the spec's own repository (its directory name)
 or a directory beside it — clones sit side by side on the machine that writes journeys — plus any
@@ -348,6 +364,7 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
                                       "tasks": task_rows(body), "status": data.get("status"),
                                       "task_status": task_statuses(body), "task_item": task_items(body),
                                       "title": data.get("title", data["id"])}
+            spec.feats[data["id"]].update(feat_versions(data, body))
     for path in sorted((spec_dir / "requirements").rglob("REQ-*.md")):
         data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
         if data and data.get("id"):
@@ -371,9 +388,10 @@ def delivered_by_its_feats(spec: Spec, need: dict) -> bool:
     """A NEED whose listed FEATs are all delivered and cover every REQ it lists no longer holds a step's `—`, even
     before its own status moves to delivered (validate or deliver moves it, KIT-069; older NEEDs may lag)."""
     feats = listed(need, "features")
-    if not feats or any(spec.feats.get(f, {}).get("status") != "delivered" for f in feats):
+    if not feats or any(f not in spec.feats or not check_spec.feat_delivered_for(
+            need, spec.feats[f]["status"], spec.feats[f]["requirements"], spec.feats[f].get("versions")) for f in feats):
         return False
-    covered = {str(r) for f in feats for r in spec.feats[f]["requirements"]}
+    covered = {str(r) for f in feats for r in delivered_reqs(spec.feats[f])}
     return set(listed(need, "requirements")) <= covered
 
 
@@ -1097,6 +1115,247 @@ def enablers_command(spec, fid, globs):
     return 0
 
 
+# KIT-096: the versioned FEAT, one use case (one actor, one goal) for the project's life with one `### <version>` block
+# per project version under `## Versions` (check_spec.version_blocks reads them; check_spec.py checks their shape).
+BLOCK_PLANNED = ("planned", "in-progress", "validated", "delivered")  # a block whose Scope and rows C17 freezes
+ENABLER_REF = re.compile(r"\bENB-\d{3,}\b")
+VERSION_NAME = {"semver": re.compile(r"^\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?(?:\s|$)"),
+                "milestone": re.compile(r"^M\d{1,2}(?:\s|$)")}
+
+
+def feat_versions(data, body):
+    """The FEAT record's KIT-096 fields: its version blocks (None without `## Versions`) and declared scope."""
+    return {"versions": check_spec.version_blocks(body), "declared_processes": listed(data, "processes"),
+            "declared_enablers": listed(data, "enablers")}
+
+
+def open_block(feat):
+    """The last version block, whose status is the FEAT's; None for a FEAT without `## Versions`."""
+    blocks = feat.get("versions")
+    return blocks[-1] if blocks else None
+
+
+def block_view(feat):
+    """The FEAT as its status derivation reads it: a versioned FEAT's rows are its last block's only."""
+    block = open_block(feat)
+    if block is None:
+        return feat
+    rows = set(block["rows"])
+    return {**feat, "task_status": {t: s for t, s in feat["task_status"].items() if t in rows}}
+
+
+def set_block_status(feat, status):
+    """Rewrite the `Status:` line of a versioned FEAT's last block, beside the frontmatter `status`."""
+    block = open_block(feat)
+    if block is None or not status or block["status"] == status:
+        return
+    text = feat["path"].read_text(encoding="utf-8")
+    blocks = check_spec.version_blocks(text)
+    line = blocks[-1]["status_line"] if blocks else None
+    if line is None:
+        return  # check_spec.py fails a block without its Status line
+    lines = text.split("\n")
+    lines[line] = f"Status: {status}"
+    feat["path"].write_text("\n".join(lines), encoding="utf-8")
+    block["status"] = status
+
+
+def delivered_reqs(feat):
+    """The REQs a FEAT has delivered: its `requirements`, or a versioned FEAT's delivered blocks' Scope REQs."""
+    if feat.get("versions"):
+        return {r for b in feat["versions"] if b["status"] == "delivered" for r in REQ_ID.findall(b["scope"])}
+    return feat["requirements"]
+
+
+def planned_rows(feat):
+    """(rows, what holds them) a Plan row count is compared with: the task table, or the open version block."""
+    block = open_block(feat)
+    if block is None:
+        return len(feat["tasks"]), "the task table"
+    return len(block["rows"]), f"the open version block {block['name']}"
+
+
+def closure_record_gaps(fid, feat):
+    """The closure record sdd-review writes before validate: `## Closure`, or a versioned FEAT's block `#### Closure`."""
+    block = open_block(feat)
+    if block is None:
+        return [] if has_closure(feat["path"]) else [f"{fid} has no `## Closure` record: sdd-review writes it before "
+                                                     "validate"]
+    return [] if block["closure"] else [f"{fid} {block['name']} has no `#### Closure` record in its version block: "
+                                        "sdd-review writes it before validate"]
+
+
+def step_range(steps, first, last):
+    """(step ids, problem) a FEAT `processes` item selects: every step without a range; main steps S<a>–S<b> in table
+    order with the alternatives at them, as a journey citation expands; alternatives A<a>–A<b> in table order."""
+    if first is None:
+        return [s.id for s in steps], ""
+    if first[0] != last[0]:
+        return [], "both ends are main steps or both are alternatives"
+    kind = [s.id for s in steps if s.id.startswith(first[0])]
+    unknown = [end for end in (first, last) if end not in kind]
+    if unknown:
+        return [], f"{unknown[0]} is not a step of"
+    a, b = kind.index(first), kind.index(last)
+    if a > b:
+        return [], "the range runs backwards"
+    chosen = kind[a:b + 1]
+    if first[0] == "S":
+        chosen += [s.id for s in steps if s.id.startswith("A") and s.at in chosen]
+    return chosen, ""
+
+
+def declared_steps(spec, fid, feat):
+    """({`PROC-nnn Sn`}, errors): the process steps a FEAT's `processes` declares, its use case's slice."""
+    steps, errors = set(), []
+    for item in feat["declared_processes"]:
+        m = check_spec.FEAT_PROCESS.match(item)
+        if not m:
+            errors.append(f"{fid}: processes {item!r}: write PROC-nnn, PROC-nnn S<a>–S<b>, PROC-nnn S<n> or "
+                          "PROC-nnn A<n>")
+            continue
+        pid = m.group(1)
+        if pid not in spec.processes:
+            errors.append(f"{fid}: processes {item}: {pid} does not exist")
+            continue
+        chosen, problem = step_range(spec.processes[pid]["steps"], m.group(2), m.group(3) or m.group(2))
+        if problem:
+            errors.append(f"{fid}: processes {item}: {problem}" + (f" {pid}" if problem.endswith(" of") else ""))
+        steps |= {f"{pid} {sid}" for sid in chosen}
+    return steps, errors
+
+
+def bucket_errors(spec, fid, feat, block, declared):
+    """The anti-bucket rule on an open block (KIT-096): its rows serve, and its Scope REQs are cited by, only process
+    steps the FEAT declares, and it names only ENBs the FEAT's `enablers` lists."""
+    label, rows, errors = f"{fid} {block['name']}", set(block["rows"]), []
+    shown = ", ".join(feat["declared_processes"]) or "none"
+    for step in spec.process_steps:
+        built = [ref for ref in dict.fromkeys(step.tasks + [t for t in step.tests if TASK_REF.fullmatch(t)])
+                 if ref.split()[0] == fid and ref.split()[1] in rows]
+        if built and step.ref not in declared:
+            errors.append(f"{label}: {', '.join(built)} serve{'s' if len(built) == 1 else ''} {step.ref}, outside the "
+                          f"FEAT's processes ({shown}): one FEAT is one use case; declare the step or move the rows to "
+                          "the FEAT whose use case it is")
+    for rid in dict.fromkeys(REQ_ID.findall(block["scope"])):
+        citing = [s for s in spec.process_steps if rid in s.rules]
+        if citing and not any(s.ref in declared for s in citing):
+            errors.append(f"{label}: Scope names {rid}, which only {step_list(citing)} "
+                          f"cite{'s' if len(citing) == 1 else ''}, outside the FEAT's processes ({shown})")
+    for eid in dict.fromkeys(ENABLER_REF.findall(block["text"])):
+        if eid not in feat["declared_enablers"]:
+            errors.append(f"{label} names {eid}, which the FEAT's enablers do not list: declare it or move the work to "
+                          "the FEAT that changes it")
+    return errors
+
+
+def version_errors(spec):
+    """`check` on the versioned FEATs: their `processes` steps, block names by the profile's release.versioning, and
+    the anti-bucket rule on each open block; [] when no FEAT has `## Versions`, so such a spec checks as before."""
+    versioned = {fid: feat for fid, feat in spec.feats.items() if feat.get("versions")}
+    if not versioned:
+        return []
+    scheme = check_spec.load_release(spec.spec_dir, schemas_dir()).get("versioning", "semver")
+    errors = []
+    for fid in sorted(versioned, key=natural_key):
+        feat = versioned[fid]
+        declared, problems = declared_steps(spec, fid, feat)
+        errors += problems
+        for block in feat["versions"]:
+            if scheme in VERSION_NAME and not VERSION_NAME[scheme].match(block["name"]):
+                errors.append(f"{fid}: version block {block['name']!r} does not start with a {scheme} version "
+                              f"(release.versioning: {scheme})")
+            if block["status"] not in STATUS_FROZEN:
+                errors += bucket_errors(spec, fid, feat, block, declared)
+    return errors
+
+
+def justified(history, tid, in_scope):
+    """A History line names the row and a defect, or a REQ of the block's Scope at planned (sdd-tasks resync)."""
+    named = re.compile(rf"\b{tid}\b")
+    return any(named.search(line) and (re.search(r"\bdefect\b", line, re.I) or set(REQ_ID.findall(line)) & in_scope)
+               for line in history)
+
+
+def c17_findings(spec, fid, feat):
+    """sdd-check C17 on one versioned FEAT, from git: a REQ in a block's Scope that its first committed `planned` (or
+    later) version did not hold, and a row its first committed version with rows at `planned` or later did not hold,
+    unless a History line justifies the row. Returns (findings, note); the note says why C17 did not run."""
+    try:
+        rel = feat["path"].relative_to(spec.root).as_posix()
+    except ValueError:
+        return [], f"C17 not run on {fid}: {feat['path']} is outside {spec.root}"
+    log = git(spec.root, "log", "--format=%H", "--reverse", "--", rel)
+    if log.returncode != 0:
+        return [], f"C17 not run on {fid}: no git history for {rel} (git log failed)"
+    commits = log.stdout.split()
+    if not commits:
+        return [], f"C17: {fid} has no commit yet, so no block reached planned before this change"
+    scope_at, rows_at = {}, {}
+    for sha in commits:
+        for block in check_spec.version_blocks(file_at(spec.root, sha, feat["path"])) or []:
+            if block["status"] not in BLOCK_PLANNED:
+                continue
+            scope_at.setdefault(block["name"], (sha[:7], set(REQ_ID.findall(block["scope"]))))
+            if block["rows"]:
+                rows_at.setdefault(block["name"], (sha[:7], set(block["rows"])))
+    history = section(split_frontmatter(feat["path"].read_text(encoding="utf-8"))[1], "History").splitlines()
+    found = []
+    for block in feat["versions"]:
+        label = f"C17 high: {fid} {block['name']}"
+        sha, planned = scope_at.get(block["name"], ("", None))
+        for rid in dict.fromkeys(REQ_ID.findall(block["scope"])) if planned is not None else ():
+            if rid not in planned:
+                found.append(f"{label}: {rid} joined the block's Scope after it reached planned ({sha}): a new or "
+                             "amended REQ goes to the next version block")
+        cut, rows = rows_at.get(block["name"], ("", None))
+        for tid in block["rows"] if rows is not None else ():
+            if tid not in rows and not justified(history, tid, planned or set()):
+                found.append(f"{label}: {tid} was added after the block's rows were planned ({cut}) and no History "
+                             "line names it as a defect fix or as work for a REQ in the block's Scope")
+    return found, ""
+
+
+def process_feats(spec):
+    """`PROC-nnn: FEAT-001 (S1–S2), FEAT-002 (S3–S4)`: the FEATs whose `processes` name each process (one process,
+    N use cases)."""
+    lines = []
+    for pid in sorted(spec.processes, key=natural_key):
+        named = []
+        for fid in sorted(spec.feats, key=natural_key):
+            parts = [item[len(pid):].strip() or "all" for item in spec.feats[fid].get("declared_processes", ())
+                     if item == pid or item.startswith(pid + " ")]
+            if parts:
+                named.append(f"{fid} ({', '.join(parts)})")
+        if named:
+            lines.append(f"{pid}: {', '.join(named)}")
+    return lines
+
+
+def versions_command(spec, fid):
+    """`spec_trace.py versions`: each version block's status and rows, the FEATs of each process, then the C17
+    findings; exit 1 on a finding, 0 when clean, when C17 could not run (a note says why) or off."""
+    if fid and fid not in spec.feats:
+        return report([f"{fid} does not exist in features/"], "")
+    feats = {f: feat for f, feat in spec.feats.items() if feat.get("versions") and fid in (None, f)}
+    if not feats:
+        print("versions: off (no FEAT has a `## Versions` block; C17 applies to version blocks)")
+        return 0
+    findings = []
+    for f in sorted(feats, key=natural_key):
+        for block in feats[f]["versions"]:
+            rows = block["rows"]
+            span = f" ({rows[0]}–{rows[-1]})" if len(rows) > 1 else f" ({rows[0]})" if rows else ""
+            print(f"{f} {block['name']}: {block['status']}, {len(rows)} row{'' if len(rows) == 1 else 's'}{span}")
+        found, note = c17_findings(spec, f, feats[f])
+        findings += found
+        if note:
+            print(note)
+    for line in process_feats(spec) + findings:
+        print(line)
+    return 1 if findings else 0
+
+
 RUN_LINE = re.compile(r"^- (\d{4}-\d{2}-\d{2}): run\b", re.M)  # a tech process's History line for one run
 DECISION_STATUSES = ("proposed", "approved", "rejected", "superseded")  # decision.schema.json `status`, in order
 
@@ -1136,9 +1395,9 @@ def refused_section(error):
 
 
 def task_table(text):
-    """The rows of a FEAT file's `## Tasks` table, the only place a task row pays a debt (C25)."""
-    _, body = split_frontmatter(text)
-    return "\n".join(task_rows(section(body, "Tasks")).values())
+    """The rows of a FEAT file's task tables, the only place a task row pays a debt (C25): its `## Tasks` table, or
+    every version block's `#### Tasks` (KIT-096), read through check_spec.task_sections."""
+    return "\n".join(row for _, _, part in check_spec.task_sections(text) for row in task_rows(part).values())
 
 
 def decider_names(text):
@@ -1440,6 +1699,7 @@ def journeys_on(spec) -> bool:
 
 def check(spec):
     errors = spec.errors + symmetry_errors(spec)
+    errors += version_errors(spec)
     if spec.params.get("spec_index"):
         errors += index_errors(spec)
     matrix = spec.spec_dir / MATRIX
@@ -1502,6 +1762,7 @@ def derived_status(feat):
     """Return the status the task rows imply (in-progress at most), or the current one when they imply none: a
     `doing` or `done` row means the work has begun. A validated FEAT with an open row (a refused release filed one)
     goes back to in-progress, so sdd-review runs again."""
+    feat = block_view(feat)
     if feat["status"] == "validated" and open_rows(feat):
         return "in-progress"
     if feat["status"] in STATUS_FROZEN or not started_rows(feat):
@@ -1551,10 +1812,12 @@ def rewrite_status(spec, today):
     """Rewrite `status` and `updated` of every FEAT whose rows imply another status; return the ids."""
     changed = []
     for fid, feat in spec.feats.items():
+        feat = block_view(feat)
         new = derived_status(feat)
         if new == feat["status"]:
             continue
         set_status(feat["path"], new, today)
+        set_block_status(feat, new)
         if feat["status"] == "validated":
             append_history(feat["path"], f"- {today} status: validated -> in-progress (reopened: "
                                          f"{', '.join(open_rows(feat))})")
@@ -1610,8 +1873,7 @@ def closure_gaps(spec, fid, needs):
     gaps = [] if feat["task_status"] else [f"{fid} has no task row with a Status cell"]
     gaps += [f"{fid} {tid} is {state}: every row is done before sdd-review"
              for tid, state in feat["task_status"].items() if state not in ROW_CLOSED]
-    if not has_closure(feat["path"]):
-        gaps.append(f"{fid} has no `## Closure` record: sdd-review writes it before validate")
+    gaps += closure_record_gaps(fid, feat)
     for nid, (_, need) in needs.items():
         if fid not in listed(need, "features"):
             continue
@@ -1683,6 +1945,7 @@ def validate(spec, fid, ref, today, check_only):
         print(f"{fid}: already {target} without its History line; added it (sdd-review at {ref})")
         return 0
     set_status(feat["path"], target, today)
+    set_block_status(feat, target)
     append_history(feat["path"], f"- {today} sdd-review: {target} at {ref}{suffix}")
     print(f"{fid}: {feat['status']} -> {target} (sdd-review at {ref}, release: {mode})")
     for line in deliver_needs(spec, fid, "sdd-review", today, needs) if target == "delivered" else []:
@@ -1782,8 +2045,9 @@ def lint_feat(spec, fid):
                              "the current fact or delete it")
     for m in ROW_COUNT.finditer(secs.get("Plan", "")):
         said = int(m.group(1)) if m.group(1).isdigit() else NUMBER_WORDS[m.group(1).lower()]
-        if said != len(feat["tasks"]):
-            found.append(f"{fid}: Plan says {said} rows, the task table has {len(feat['tasks'])}")
+        counted, where = planned_rows(feat)
+        if said != counted:
+            found.append(f"{fid}: Plan says {said} rows, {where} has {counted}")
     if spec.journeys or spec.processes:
         for rid in feat["requirements"]:
             if rid not in spec.reqs:
@@ -1818,6 +2082,7 @@ def deliver(spec, fid, ref, today):
     if feat["status"] != "validated":
         return report([f"{fid} is {feat['status']}: sdd-review validates it first (spec_trace.py validate)"], "")
     set_status(feat["path"], "delivered", today)
+    set_block_status(feat, "delivered")
     append_history(feat["path"], f"- {today} sdd-release: delivered in {ref}")
     print(f"{fid}: validated -> delivered (sdd-release in {ref})")
     for line in deliver_needs(spec, fid, "sdd-release", today, load_needs(spec.spec_dir)):
@@ -2271,6 +2536,7 @@ def apply_sync(spec, changed, today):
         if new_status and new_status != feat["status"]:
             feat["status"] = new_status
         feat["path"].write_text(rewrite_frontmatter(text, new_status, today), encoding="utf-8")
+        set_block_status(feat, new_status)
         if fid in changed:
             detail = "; ".join(f"{tid} {old} -> {new}" + (f" via {', '.join(via)}" if via else "")
                                for tid, old, new, via in changed[fid])
@@ -2419,6 +2685,9 @@ def main(argv=None):
     enb.add_argument("--feat", metavar="FEAT-NNN", help="one FEAT's scope (default: every open FEAT)")
     enb.add_argument("--catalog", action="append", default=[], metavar="GLOB",
                      help="files the catalog must cover, rooted at the repository (repeatable; a migration folder)")
+    ver = sub.add_parser("versions", help="version blocks and sdd-check C17 (KIT-096)")
+    ver.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    ver.add_argument("--feat", metavar="FEAT-NNN", help="one FEAT (default: every FEAT with `## Versions`)")
     cat = sub.add_parser("catalog", help="the ENBs as Backstage catalog-info.yaml (KIT-098)")
     cat.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     cat.add_argument("--out", required=True, help="the catalog-info.yaml to write (never inside the kit)")
@@ -2488,6 +2757,8 @@ def main(argv=None):
         return lint(spec, args.feat)
     if args.command == "enablers":
         return enablers_command(spec, args.feat, args.catalog)
+    if args.command == "versions":
+        return versions_command(spec, args.feat)
     if args.command == "governance":
         return governance_command(spec, args.feat)
     if args.command == "catalog":

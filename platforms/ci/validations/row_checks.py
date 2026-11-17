@@ -349,12 +349,26 @@ def split_cells(line: str) -> list:
 
 
 def parse_rows(feat: str, text: str, cfg: Config) -> list | None:
-    """The rows of the `## Tasks` table (header starting `| ID |`); None when the FEAT has no such table."""
-    body = pr_gates.sections(text).get("Tasks")
-    if body is None:
+    """The rows a check lints (header starting `| ID |`): the `## Tasks` table, or a versioned FEAT's open (last)
+    version block `#### Tasks` table, whose `Depends on` the earlier blocks' rows answer too (KIT-096); the sections
+    come from check_spec.task_sections. None when that section holds no such table."""
+    sections = check_spec.task_sections(text)
+    blocks = check_spec.version_blocks(text)
+    if not sections or (blocks and blocks[-1]["tasks"] is None):
+        return None  # a versioned FEAT whose open block has no `#### Tasks` has no open rows
+    table, rows, header = {}, None, None
+    for _, first, body in sections:
+        rows, header = section_rows(feat, first, body, cfg)
+        table.update({r.task_id: r for r in rows})
+    if header is None:
         return None
-    lines = text.splitlines()
-    start = next((i for i, ln in enumerate(lines) if re.match(r"^##\s+Tasks\s*$", ln)), 0)
+    for r in table.values():
+        r.siblings = table
+    return rows
+
+
+def section_rows(feat: str, first: int, body: str, cfg: Config) -> tuple:
+    """(rows, header) of the task table in one section whose first line has index `first`."""
     rows, header = [], None
     for offset, line in enumerate(body.splitlines()):
         if not line.startswith("|"):
@@ -366,13 +380,8 @@ def parse_rows(feat: str, text: str, cfg: Config) -> list | None:
         if header is None or (cells and set(cells[0]) <= set("-: ")):
             continue
         if cells and re.fullmatch(r"T\d+", cells[0]):
-            rows.append(Row(feat, start + 2 + offset, cells, header, cfg=cfg))
-    if header is None:
-        return None
-    table = {r.task_id: r for r in rows}
-    for r in rows:
-        r.siblings = table
-    return rows
+            rows.append(Row(feat, first + offset, cells, header, cfg=cfg))
+    return rows, header
 
 
 def parse_feat(path: Path, cfg: Config) -> list | None:
