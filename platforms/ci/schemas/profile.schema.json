@@ -629,13 +629,13 @@
               "x-read-by": "sdd"
             },
             "longest_chain_max_complexity": {
-              "description": "Highest Complexity a row on a FEAT's longest Depends on chain may carry; High = no limit",
+              "description": "Highest Complexity a row on a FEAT's longest Depends on chain may carry; default Med, the kit's rule before the key (waves-and-models.md); High = no limit",
               "enum": [
                 "Low",
                 "Med",
                 "High"
               ],
-              "default": "High",
+              "default": "Med",
               "x-read-by": "sdd"
             }
           },

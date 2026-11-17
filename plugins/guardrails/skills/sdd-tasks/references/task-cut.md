@@ -32,7 +32,7 @@ What makes a task out of a FEAT row: the area it owns, the labels it needs and h
 - `Depends on` names a code or contract dependency only: a row whose merged output this row reads. An edge that stands only for an order (the next migration number, a generated table, a shared file) is not written; the merge resolves it.
 - A consumer row depends on the merged contract and its fixtures, never on the producer row that fills them.
 - The longest chain of own rows is at most `max_chain`; `check_spec.py` fails a longer chain or a cycle.
-- A row on the longest chain carries at most `longest_chain_max_complexity` (`High`: no limit). A row above it is split along the Plan steps it implements, so each dependent waits only for the part it reads.
+- A row on the longest chain carries at most `longest_chain_max_complexity` (default `Med`; `High`: no limit). A row above it is split along the Plan steps it implements, so each dependent waits only for the part it reads.
 
 ## Bundles
 
