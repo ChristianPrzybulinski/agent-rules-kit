@@ -48,7 +48,7 @@ Resolve the project profile first (`../session/references/project-profile.md`): 
 - An author's or worker's report is a claim until a recorded result naming the commit backs it; a claim nothing backs is re-run once on a clean checkout, and one that the record or that run contradicts makes the verdict `NOT READY`.
 - A proof must be able to fail: a gate that passes on empty input proves nothing. A dropped test count against the base, a deleted or skipped test or a loosened assertion the PR does not name is a weakened check (agent `reviewer` step 4).
 - An approval binds to the head it reviewed, never to a later one; an acceptance no reviewer gave is never recorded.
-- `visual_approval` (`owner` or `reviewer`) names who compares a screen or motion change's captures with its REQ's mock; with `owner`, the verdict waits for that approval.
+- `visual_approval` (`owner` or `reviewer`) names who compares a screen or motion change's captures with its REQ's mock; with `owner`, the verdict waits for that approval. A row of a greybox version block under `sdd.passes` is exempt: placeholder art has no mock, and the owner's playtest line accepts it (skill `sdd-review`, reference `playtest.md`).
 - A change of a kind listed in `owner_approvals` is never READY on the reviewer's word: the verdict names the kind and waits for the owner.
 
 ## 3. Pick the depth

@@ -24,7 +24,7 @@ A default is the kit's behavior before the key existed, except `max_chain` and `
 | `github` | map: `repo` (`null` = the origin remote), `pr_repos`, `aliases` (earlier names PR bodies cite), `blocked_labels`, `progress_labels` | `{repo: null, pr_repos: [], aliases: [], blocked_labels: [blocked], progress_labels: [status:in-progress]}` | `spec_trace.py sync-status` (`tracker: github`): where task issues and closing PRs live, which labels mean `blocked` or `doing` |
 | `cut_command` | command or `null` | `null` (the kit cut, `sdd-tasks` § 4) | `sdd-tasks`: cuts and resyncs the approved rows |
 | `max_chain` | integer ≥ 1 | `4` | `sdd-tasks`, `check_spec.py` (fails above it): longest chain of a FEAT's own `Depends on` rows |
-| `max_feat_tasks` | integer ≥ 1 | `30` | `sdd-plan` (splits a NEED above it), `check_spec.py` (warns only): task rows in one FEAT |
+| `max_feat_tasks` | integer ≥ 1 | `30` | `sdd-plan` (splits a NEED above it), `check_spec.py` (fails an open `## Versions` block above it, KIT-096; warns on a FEAT without blocks): task rows in one FEAT or version block |
 | `release` | `merge`, `manual` | `merge` (delivered once on `main`, flag on or none) | `sdd-review`, `sdd-release` |
 | `review_rounds` | integer ≥ 1 | `3` (`review` § 4) | `review`: a ceiling, not a target; the escalation cap for a PR whose fix delta adds a new mechanism, in rounds that end `NOT READY` on one criterion before the owner decides |
 | `commits_by` | `executor`, `orchestrator` | `executor` | `sdd-implement`: who commits a task's work |

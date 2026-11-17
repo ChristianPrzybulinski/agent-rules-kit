@@ -5,7 +5,7 @@ kind: detail
 
 # Closure record
 
-`sdd-review` writes it into the FEAT under `## Closure` (the `spec-feature.md` template carries the heading), then runs `spec_trace.py validate`, which refuses a FEAT whose closure holds no line.
+`sdd-review` writes it into the FEAT under `## Closure`, or, in a FEAT with `## Versions`, under the open block's `#### Closure` (the `spec-feature.md` template carries the heading), then runs `spec_trace.py validate`, which refuses a FEAT whose closure holds no line.
 
 ## Shape
 
@@ -24,6 +24,7 @@ Main: 1a2b3c4 · 2026-11-20 · reviewer provider=claude tier=opus session=<id> �
 | REQ-NF-003 p95 latency ≤ 50 ms | measured 31 ms, `k6 run trade.js` on hml, 2026-11-20 | pass |
 | REQ clauses → tests | model reading, each "untested" grep-checked | 2 missing tests filed as T11, T12 |
 | J-12 S5 manual | owner, 2026-11-20 | pass |
+| Playtest (with `sdd.passes`, greybox block) | the History line `- 2026-11-20 playtest: 0.3 greybox at 1a2b3c4 — go — owner: "…"` (`playtest.md`) | go |
 
 Retro: blocked rows 1 (T5, spec gap) · review rounds 9 over 6 PRs, max 3 on T4 · REQs amended after planned 1 (REQ-F-015)
 ```

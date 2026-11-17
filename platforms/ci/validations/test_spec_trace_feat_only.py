@@ -63,6 +63,41 @@ pr: "#4"
 """
 
 
+VERSIONED = """\
+---
+id: KIT-104
+title: "Fixture use case KIT-104"
+status: planned
+pr: "#12"
+created: "2026-11-17"
+---
+
+# KIT-104
+
+## Versions
+
+### 1.0.0
+
+Status: delivered
+Scope: the first delivery.
+
+#### Closure
+
+- closed by its PR.
+
+### 1.1.0
+
+Status: planned
+Scope: the second delivery.
+
+#### Closure
+
+## History
+
+- 2026-11-17 pr: delivered (tool#11 merged)
+"""
+
+
 def write(root, rel, text):
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -183,6 +218,34 @@ class FeatOnlySyncTest(unittest.TestCase):
         _, output = self.sync(self.routes())
         self.assertIn("KIT-101: planned (no PR)", output)
         self.assertEqual(self.frontmatter(path)["status"], "planned")
+
+    def test_a_pr_outside_the_backlog_repositories_warns(self):
+        path = self.feat(extra='pr: "elsewhere/other#12"\n')
+        _, output = self.sync(self.routes())
+        self.assertIn("WARN KIT-101: other#12 is outside the backlog repositories; status not synced", output)
+        self.assertEqual(self.frontmatter(path)["status"], "planned")
+
+    def test_a_pr_with_non_ascii_digits_never_reaches_gh(self):
+        """`\\d` matches Arabic-Indic digits; the field takes ASCII digits only, as check_spec.py's ITEM_REF does."""
+        path = self.feat(extra='pr: "#\u0663"\n')
+        other = self.feat("KIT-105", extra='pr: "#12"\n')
+        code, output = self.sync(self.routes(single={12: pull(12)}))
+        self.assertEqual(code, 0, output)
+        self.assertIn("WARN KIT-101: pr '#\u0663' is not #N or OWNER/NAME#N; status not synced", output)
+        self.assertEqual(self.frontmatter(path)["status"], "planned")
+        self.assertEqual(self.frontmatter(other)["status"], "delivered")
+
+    def test_a_versioned_lite_feat_delivers_its_open_block(self):
+        """KIT-096 coexistence: a lite FEAT with `## Versions` follows its PR in its last block, which check_spec.py
+        then accepts with no REQ."""
+        path = write(self.root, "docs/spec/features/KIT-104-fixture.md", VERSIONED)
+        _, output = self.sync(self.routes(single={12: pull(12)}))
+        self.assertIn("KIT-104: planned -> delivered (tool#12 merged)", output)
+        text = path.read_text(encoding="utf-8")
+        self.assertEqual(self.frontmatter(path)["status"], "delivered")
+        self.assertEqual(text.count("Status: delivered"), 2, text)
+        result = self.check_spec()
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_the_full_flow_ignores_the_pr_field(self):
         self.profile("sdd:\n  github: {repo: org/tool}\n")

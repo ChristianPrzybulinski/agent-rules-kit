@@ -13,11 +13,11 @@ allowed-tools:
 
 # SDD 5 — Tasks
 
-Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Resolve the project profile first (`../session/references/project-profile.md`) and read `spec_root` and the `sdd` parameters `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`), `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token. With `sdd.task_table: false` (the `tooling` preset, set with `sdd.flow: feat-only`; KIT-100) this step does not run: the FEAT is the item, one issue and one PR, and its status follows that PR (`TRACE sync-status`); say so and stop.
+Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Resolve the project profile first (`../session/references/project-profile.md`) and read `spec_root` and the `sdd` parameters `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`), `passes`, `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token. With `sdd.task_table: false` (the `tooling` preset, set with `sdd.flow: feat-only`; KIT-100) this step does not run: the FEAT is the item, one issue and one PR, and its status follows that PR (`TRACE sync-status`); say so and stop.
 
 ## 1. Gate
 
-Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`sdd-plan` § 4); a resync also runs on `in-progress`. Anything else goes back to `sdd-plan`.
+Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`sdd-plan` § 4); a resync also runs on `in-progress`. Anything else goes back to `sdd-plan`. Under `sdd.passes` (KIT-094), a polish block's rows are written and cut only once the FEAT's History holds its greybox block's playtest line with outcome `go` (`../sdd-review/references/playtest.md`); without it the polish waits. A greybox block's rows need no `evidence:` clause (`references/row-checks.md` rule j).
 
 ## 2. Size each row
 
@@ -26,7 +26,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 - The Task cell names the outcome and points to `Plan § <section>`; it never restates the Plan (`check_spec.py` warns above 1000 characters).
 - Split a title needing “and also”. Tests travel with behavior, never in an end-of-feature test row; a business rule's first row writes the failing domain test.
 - Order contract/types → domain/tests → persistence/migration → adapters/integration → client → flag/docs.
-- Dependencies are explicit only: `Depends on` names each row whose merged output this row reads (`T<n>`, or `FEAT-nnn T<n>` in another FEAT), never “the previous one”, and never an edge that stands only for an order (a migration number, a shared file). The longest chain of own rows is at most `max_chain` (`check_spec.py` fails a longer chain or a cycle), and a row on it carries at most `task_cut.longest_chain_max_complexity`. More rows than `max_feat_tasks` go back to `sdd-plan` to split the NEED.
+- Dependencies are explicit only: `Depends on` names each row whose merged output this row reads (`T<n>`, or `FEAT-nnn T<n>` in another FEAT), never “the previous one”, and never an edge that stands only for an order (a migration number, a shared file). The longest chain of own rows is at most `max_chain` (`check_spec.py` fails a longer chain or a cycle), and a row on it carries at most `task_cut.longest_chain_max_complexity`. More rows than `max_feat_tasks` go back to `sdd-plan` to split the NEED, or, in a FEAT with `## Versions`, to the next block (`check_spec.py` fails an open block above it).
 
 ## 3. Write the table (spec PR)
 
@@ -36,6 +36,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 | T1 | Define the MoveRequest contract: Plan § Contract | `protocol/move.json`, `protocol/examples/move.json` | `python3 tools/validate.py protocol` | CA-1 | — | todo | Low | small | 0 | — |
 ```
 
+- In a FEAT with `## Versions` the table goes in the open block's `#### Tasks`; row ids continue across blocks and are never reused. Once the block's rows are planned, a row is added only for a defect or a missing step of a REQ in the block's Scope, with a History line naming the row and the defect or REQ (`sdd-check` C17); other new work goes to the next block.
 - Files: rooted paths or directory globs, tests included; generated neighbours (`*.uid`, `*.import`, `*.translation`) are implicit and never listed. `Status` (`todo`, `doing`, `blocked`, `done`, `cancelled`) is derived from the item, never edited by hand. `Complexity`, `Model` and `Wave`: `references/waves-and-models.md`. `Item` is `—` until the cut.
 - Walk table (with `docs/spec/enablers/`): write into each row of Plan § Design's walk table the row ids that build its ENB contract; a walk row with no task row is a gap to fix here.
 - Coverage: every acceptance criterion appears in a row's `Covers` (each CA already cites the REQs it proves); every row covers a criterion or says it is infrastructure; run `sdd-check` row C8.
