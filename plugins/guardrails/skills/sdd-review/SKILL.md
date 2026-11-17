@@ -53,6 +53,8 @@ Scripts do the mechanical part; the model reads only what they flag. `TRACE` is 
 
 Write the FEAT's `## Closure` before running `validate` without `--check`: the `main` commit, one row per script and judgment with its command and result, the fixes made, the missing-test rows filed, the outcome and the retro numbers (blocked rows, review rounds, REQs amended after `planned`). Format and counts: `references/closure-record.md`.
 
+With `docs/spec/enablers/`, the record adds an Enablers row: `TRACE enablers docs/spec --feat FEAT-nnn` and `TRACE check docs/spec` on that commit, both clean (a gap goes back as a row or to `sdd-plan`). After `validate` moves the status, run `TRACE generate docs/spec` and commit `traceability.md` with the closure: § Enablers is each ENB's generated History, which then lists the FEAT with its new status; never write it into the ENB file.
+
 ## Rules
 
 - Never fix code here and never edit a REQ directly; never set `status` by hand: `TRACE validate` writes it with its History line, which `check_spec.py` requires.

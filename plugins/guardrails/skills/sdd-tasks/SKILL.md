@@ -22,6 +22,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 ## 2. Size each row
 
 - One row is one verifiable outcome: at most 5 areas (the `spec.md` § Architecture areas, else rooted top folders) and one proof, finished by one fresh agent context within `task_minutes`. A mechanical change across the codebase (rename, retype) is one row; a spec value a row needs (version, name, limit) is copied in verbatim.
+- With `docs/spec/enablers/`, size by ENB: a row changes the code of one ENB (its Code paths) and the contracts that ENB provides or requires; work across two ENBs splits at the contract between them, the provider's row first and the consumer's `Depends on` it. A part outside every ENB (build, tooling) counts by its area row.
 - The Task cell names the outcome and points to `Plan § <section>`; it never restates the Plan (`check_spec.py` warns above 1000 characters).
 - Split a title needing “and also”. Tests travel with behavior, never in an end-of-feature test row; a business rule's first row writes the failing domain test.
 - Order contract/types → domain/tests → persistence/migration → adapters/integration → client → flag/docs.
@@ -36,6 +37,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 ```
 
 - Files: rooted paths or directory globs, tests included; generated neighbours (`*.uid`, `*.import`, `*.translation`) are implicit and never listed. `Status` (`todo`, `doing`, `blocked`, `done`, `cancelled`) is derived from the item, never edited by hand. `Complexity`, `Model` and `Wave`: `references/waves-and-models.md`. `Item` is `—` until the cut.
+- Walk table (with `docs/spec/enablers/`): write into each row of Plan § Design's walk table the row ids that build its ENB contract; a walk row with no task row is a gap to fix here.
 - Coverage: every acceptance criterion appears in a row's `Covers` (each CA already cites the REQs it proves); every row covers a criterion or says it is infrastructure; run `sdd-check` row C8.
 - Cut checklist: every row passes `references/task-cut.md` (owned areas, protected labels, required test folders, hotspots, chains, bundle exclusions).
 - Row checks: every row passes `references/row-checks.md`; run `row_check` (`null`: the kit's `python3 ~/.ai-kit/platforms/ci/validations/row_checks.py check FEAT-nnn`) and fix the rows until it exits 0.
