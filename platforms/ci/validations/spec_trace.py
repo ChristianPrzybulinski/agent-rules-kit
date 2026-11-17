@@ -34,6 +34,14 @@
   spec_trace.py enablers SPEC [--feat FEAT-NNN] [--catalog GLOB ...]
                                        the C18 and C19 findings of sdd-check over the ENBs (KIT-095); off, exit 0,
                                        without SPEC/enablers/
+  spec_trace.py catalog SPEC --out FILE [--force]
+                                       the ENBs as Backstage catalog-info.yaml (KIT-098), written to FILE (never inside
+                                       the kit); off, exit 0, without SPEC/enablers/
+  spec_trace.py diagram SPEC PROC-NNN  a Mermaid flowchart of the process's main and alternative steps, to stdout
+
+Our pattern (KIT-098, skill sdd-constitution references/pattern.md): with processes or enablers, traceability.md
+ends with the Links (SysML) view, naming each link derive, refine, satisfy, verify or allocate; a spec with neither
+renders it as before.
 
 SPEC is optional everywhere and defaults to docs/spec under the working directory, so `impact BASE HEAD`
 and `sync-status` run as a review loop calls them. Options (before the command): `--repo NAME` (repeatable)
@@ -746,6 +754,7 @@ def render_matrix(spec):
         lines += process_views(spec)
     if spec.enablers:
         lines += enabler_views(spec)
+    lines += link_views(spec)  # KIT-098: only with processes or enablers
     return "\n".join(lines) + "\n"
 
 
@@ -1079,6 +1088,136 @@ def enablers_command(spec, fid, globs):
         return 1
     contracts = sum(len(e["provides"]) for e in spec.enablers.values())
     print(f"enablers: OK ({len(spec.enablers)} enablers, {contracts} contracts)")
+    return 0
+
+
+# --------------------------------------------------------------------------- our pattern (KIT-098)
+# sdd-constitution/references/pattern.md: SysML link names, DDD content, Backstage names for ENBs, SAFe work items.
+
+BACKSTAGE_VERSION = "backstage.io/v1alpha1"
+LIFECYCLE = {"proposed": "experimental", "approved": "production", "retired": "deprecated"}  # from ENB status
+API_TYPES = {"api": "openapi", "message": "asyncapi", "event": "asyncapi"}  # every other contract kind: a Resource
+DOMAIN_ANNOTATION = "agent-rules-kit/domain"  # a Backstage Component has no `domain`; the portal's System holds one
+KIT_ROOT = HERE.parents[2]
+
+
+def ids(values):
+    return ", ".join(sorted(values, key=natural_key)) or PENDING
+
+
+def link_views(spec):
+    """The Links (SysML) view: each link, written once elsewhere, named by its SysML relation. Only with processes or
+    enablers, so a spec with neither renders its matrix as before."""
+    if not (spec.processes or spec.enablers):
+        return []
+    refined, allocated = {}, {}
+    for fid, feat in spec.feats.items():
+        for rid in feat["requirements"]:
+            refined.setdefault(str(rid), set()).add(fid)
+    for eid, links in spec.enabler_links.items():
+        for fid, _ in links["feature"]:
+            allocated.setdefault(fid, set()).add(eid)
+    lines = [
+        "",
+        "## Links (SysML)",
+        "",
+        "Each link by its SysML name (skill sdd-constitution, `pattern.md`): `derive`, the journey or process steps",
+        "whose Rules cite the REQ; `refine`, the FEATs (use cases) whose `requirements` list it; `satisfy`, the ENBs whose",
+        "Aggregates or Qualities cite it; `verify`, the tests at those steps; `allocate`, the ENBs a FEAT's `enablers`",
+        "names.",
+        "",
+        "| Rule | derive (steps) | refine (FEATs) | satisfy (ENBs) | verify (tests) |",
+        "|---|---|---|---|---|",
+    ]
+    for rid in sorted(spec.reqs, key=natural_key):
+        steps = [s for s in spec.all_steps if rid in s.rules]
+        satisfy = [eid for eid, enabler in spec.enablers.items() if rid in enabler["satisfies"]]
+        lines.append(f"| {rid} | {step_list(steps)} | {ids(refined.get(rid, ()))} | {ids(satisfy)} | "
+                     f"{tests_of(steps)} |")
+    lines += ["", "| FEAT (use case) | refine (REQs) | allocate (ENBs) |", "|---|---|---|"]
+    for fid in sorted(spec.feats, key=natural_key):
+        reqs = [str(r) for r in spec.feats[fid]["requirements"]]
+        lines.append(f"| {fid} | {ids(reqs)} | {ids(allocated.get(fid, ()))} |")
+    return lines
+
+
+def catalog_entities(spec):
+    """The Backstage entities of the ENBs: a Component per ENB, an API per api, message or event contract and a
+    Resource per other contract, in ENB then table order."""
+    docs = []
+    for eid, enabler in spec.enablers.items():
+        data, _ = split_frontmatter(enabler["path"].read_text(encoding="utf-8"))
+        lifecycle = LIFECYCLE.get(enabler["status"], "experimental")
+        system = {"system": str(data["system"])} if data.get("system") else {}
+        owner = {"owner": str(enabler["owner"]), **system}
+        metadata = {"name": eid, "title": str(enabler["title"])}
+        if data.get("domain"):
+            metadata["annotations"] = {DOMAIN_ANNOTATION: str(data["domain"])}
+        provides = [api for api, row in enabler["provides"].items() if row.get("Kind") in API_TYPES]
+        consumes = [api for api, row in enabler["requires"].items() if row.get("Kind") in API_TYPES]
+        depends = [f"component:{e}" for e in listed(data, "dependsOn")]
+        depends += [f"resource:{api}" for api, row in enabler["requires"].items() if row.get("Kind") not in API_TYPES]
+        fields = {"type": "service", "lifecycle": lifecycle, **owner}
+        for key, values in (("providesApis", provides), ("consumesApis", consumes), ("dependsOn", depends)):
+            if values:
+                fields[key] = values
+        docs.append({"apiVersion": BACKSTAGE_VERSION, "kind": "Component", "metadata": metadata, "spec": fields})
+        for api, row in enabler["provides"].items():
+            about = {"name": api, "description": f"{row.get('Kind')} contract of {eid}"}
+            if row.get("Kind") in API_TYPES:
+                definition = "".join(f"{key}: {row.get(key, '')}\n" for key in ("Accessed at", "Schema or file", "Version"))
+                docs.append({"apiVersion": BACKSTAGE_VERSION, "kind": "API", "metadata": about, "spec": {
+                    "type": API_TYPES[row["Kind"]], "lifecycle": lifecycle, **owner, "definition": definition}})
+            else:
+                docs.append({"apiVersion": BACKSTAGE_VERSION, "kind": "Resource", "metadata": about, "spec": {
+                    "type": row.get("Kind"), **owner, "dependencyOf": [f"component:{eid}"]}})
+    return docs
+
+
+def inside_kit(path):
+    """True when path resolves inside the kit checkout this script runs from; a synced copy has no kit around it."""
+    if not (KIT_ROOT / "plugins" / "guardrails").is_dir():
+        return False
+    try:
+        Path(os.path.realpath(path)).relative_to(os.path.realpath(KIT_ROOT))
+    except ValueError:
+        return False
+    return True
+
+
+def catalog_command(spec, out, force):
+    """`spec_trace.py catalog`: write the ENBs as Backstage catalog-info.yaml to `out`; off, exit 0, without enablers/."""
+    if not (spec.spec_dir / "enablers").is_dir():
+        print("catalog: off (no enablers/ folder; nothing to export)")
+        return 0
+    errors = list(spec.errors) + [f"{eid}: owner is empty" for eid, e in spec.enablers.items() if not e["owner"]]
+    if inside_kit(out):
+        errors.append(f"{out} is inside the kit checkout; name a path in the project or the portal's repository")
+    elif Path(out).exists() and not force:
+        errors.append(f"{out} exists; pass --force to overwrite it")
+    if errors:
+        return report(errors, "")
+    docs = catalog_entities(spec)
+    header = "# Generated by spec_trace.py catalog from the spec's enablers/ (KIT-098); never edit by hand.\n"
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    Path(out).write_text(header + yaml.safe_dump_all(docs, sort_keys=False, allow_unicode=True, explicit_start=True),
+                         encoding="utf-8")
+    print(f"catalog: wrote {out} ({len(docs)} entities from {len(spec.enablers)} enablers)")
+    return 0
+
+
+def diagram_command(spec, pid):
+    """`spec_trace.py diagram`: a Mermaid flowchart of one process's main and alternative steps, to stdout."""
+    process = spec.processes.get(pid or "")
+    if process is None:
+        return report([f"{pid}: unknown process in processes/"], "")
+    steps = [s for s in process["steps"] if not s.id.startswith("P")]
+    main = [s for s in steps if s.id.startswith("S")]
+    lines = ["```mermaid", "flowchart TD"]
+    lines += ['  {0}["{0} {1}"]'.format(s.id, s.action.replace('"', "#quot;")) for s in steps]
+    lines += [f"  {a.id} --> {b.id}" for a, b in zip(main, main[1:])]
+    lines += [f"  {s.at} -.-> {s.id}" for s in steps if s.id.startswith("A")]
+    print("\n".join(lines + ["```"]))
     return 0
 
 
@@ -2068,6 +2207,13 @@ def main(argv=None):
     enb.add_argument("--feat", metavar="FEAT-NNN", help="one FEAT's scope (default: every open FEAT)")
     enb.add_argument("--catalog", action="append", default=[], metavar="GLOB",
                      help="files the catalog must cover, rooted at the repository (repeatable; a migration folder)")
+    cat = sub.add_parser("catalog", help="the ENBs as Backstage catalog-info.yaml (KIT-098)")
+    cat.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    cat.add_argument("--out", required=True, help="the catalog-info.yaml to write (never inside the kit)")
+    cat.add_argument("--force", action="store_true", help="overwrite --out when it exists")
+    mmd = sub.add_parser("diagram", help="a Mermaid flowchart of one process's steps, to stdout (KIT-098)")
+    mmd.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    mmd.add_argument("process", nargs="?", metavar="PROC-NNN")
     chk = sub.add_parser("checklist", help="owner checklist of approved journeys, to stdout")
     chk.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     chk.add_argument("journeys", nargs="*", metavar="J-NN")
@@ -2079,6 +2225,8 @@ def main(argv=None):
         args.journeys, args.spec = [str(args.spec), *args.journeys], None
     if args.spec is not None and re.fullmatch(r"FEAT-\d{3,}", str(args.spec)) and args.command == "lint":
         args.feat, args.spec = str(args.spec), None
+    if args.spec is not None and PROCESS_ID.match(str(args.spec)) and args.command == "diagram":
+        args.process, args.spec = str(args.spec), None
     spec_dir = args.spec or DEFAULT_SPEC
     if not spec_dir.is_dir():
         return report([f"spec dir does not exist: {spec_dir}"], "")
@@ -2128,6 +2276,10 @@ def main(argv=None):
         return lint(spec, args.feat)
     if args.command == "enablers":
         return enablers_command(spec, args.feat, args.catalog)
+    if args.command == "catalog":
+        return catalog_command(spec, args.out, args.force)
+    if args.command == "diagram":
+        return diagram_command(spec, args.process)
     if args.command == "impact":
         print(render_impact(changes(spec, args.base, args.head)), end="")
         return 0

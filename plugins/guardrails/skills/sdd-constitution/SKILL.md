@@ -15,7 +15,7 @@ allowed-tools:
 
 # SDD 0 — Constitution
 
-Process: `references/sdd-process.md`. Parameters: `references/sdd-parameters.md`. Templates: `../../templates/spec-index-business.md`, `../../templates/spec-index-game.md` and `../../templates/project-agents-*.md`.
+Process: `references/sdd-process.md`. Parameters: `references/sdd-parameters.md`. Our pattern (SysML link names, DDD, Backstage for ENBs, SAFe): `references/pattern.md`. Templates: `../../templates/spec-index-business.md`, `../../templates/spec-index-game.md` and `../../templates/project-agents-*.md`.
 
 ## 1. Inspect before creating
 
