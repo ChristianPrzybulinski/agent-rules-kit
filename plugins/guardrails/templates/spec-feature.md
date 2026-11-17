@@ -69,10 +69,13 @@ updated: "YYYY-MM-DD"
      each holds its content or one line "— <why it does not apply>". Task cells point to "Plan § <section>". -->
 
 ### Design
+<!-- cites each process state the FEAT implements (PROC-nnn and the state) and what holds it. -->
 
 ### Contract
 
 ### Data
+<!-- one line per tunable of the FEAT's REQs (Tunable not `fixed`): REQ and value, range and unit, and its exposure
+     (content key, config entry or debug control); sdd-check C14. -->
 
 ### UI
 

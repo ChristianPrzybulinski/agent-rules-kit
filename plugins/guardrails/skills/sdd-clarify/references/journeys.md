@@ -7,7 +7,7 @@ kind: detail
 
 Only for a project that keeps `docs/spec/journeys/` (`sdd.journeys`). A journey is one user-visible flow of two or more screens or interactions, written as an ordered set of steps; it cites rule ids, processes, task rows and tests, never rule values. A process (`PROC-nnn`) holds one reusable functional flow, such as a mechanic or a flow no user sees, and a journey step may cite it whole (`PROC-nnn`) or a range of its steps (`PROC-nnn S<a>–S<b>`) instead of copying them. Template: `../../../templates/spec-journey.md`.
 
-A process lives in `docs/spec/processes/PROC-nnn-slug.md` (template `../../../templates/spec-process.md`, `kind: product` or `tech`); `check_spec.py` validates it and `spec_trace.py` checks its steps by the rules below and expands a cited range (KIT-090). A step reused from another flow cites its process, never "as in J-nn" in place of its own links.
+When to write a process, its states, decisions and feedback, and the soundness `sdd-check` C12 reads: `processes.md`; its steps follow the rules below. A step reused from another flow cites its process, never "as in J-nn" in place of its own links.
 
 ## When
 
