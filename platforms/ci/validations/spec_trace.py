@@ -100,8 +100,8 @@ without a versioned FEAT checks and renders as before.
 
 Duplicates (KIT-097): `similar` compares words after one normalization (casefold, claim tags and punctuation removed,
 stop words dropped, order ignored) and prints one line per pair, then a summary line. Findings, exit 1: C21 a contract
-id two ENBs provide; C24 a REQ in two open blocks (a versioned FEAT's last block, or a FEAT without `## Versions`, while
-not validated, delivered or cancelled: its Scope REQs, or its `requirements`). Candidates a reader judges, exit 0: C20
+id two ENBs provide; C24 a REQ in the Scope of two open blocks (a versioned FEAT's last block while not validated,
+delivered or cancelled; a FEAT without `## Versions` takes no part). Candidates a reader judges, exit 0: C20
 two REQs with the same actor, trigger and result (a statement "The system must <result>, when <trigger>, for
 <actor>."), else the same statement words, else the same title words; C22 two processes with the same Trigger words and
 an Actors line in common; C23 two FEATs with the same `- Use case:` words in Scope, or a process step both declare.
@@ -1471,20 +1471,16 @@ def c21_findings(spec):
 
 
 def c24_findings(spec):
-    """C24: one REQ in two open blocks: a versioned FEAT's last block while not validated, delivered or cancelled
-    (its Scope REQs), or a FEAT without `## Versions` in that state (its `requirements`)."""
+    """C24: one REQ in the Scope of two open blocks, each a versioned FEAT's last block while not validated, delivered
+    or cancelled. Blocks are KIT-096's: a FEAT without `## Versions` takes no part, since FEATs written before the
+    use-case model share REQs by design."""
     holders = {}
     for fid in sorted(spec.feats, key=natural_key):
-        feat = spec.feats[fid]
-        block = open_block(feat)
-        if block is not None:
-            label, status, reqs = f"{fid} {block['name']}", block["status"], REQ_ID.findall(block["scope"])
-        else:
-            label, status, reqs = fid, feat.get("status"), [str(r) for r in feat["requirements"]]
-        if status in STATUS_FROZEN:
+        block = open_block(spec.feats[fid])
+        if block is None or block["status"] in STATUS_FROZEN:
             continue
-        for rid in dict.fromkeys(reqs):
-            holders.setdefault(rid, []).append(label)
+        for rid in dict.fromkeys(REQ_ID.findall(block["scope"])):
+            holders.setdefault(rid, []).append(f"{fid} {block['name']}")
     return [f"C24 high: {rid} is in the open blocks {', '.join(labels[:-1])} and {labels[-1]}"
             for rid, labels in sorted(holders.items(), key=lambda item: natural_key(item[0])) if len(labels) > 1]
 

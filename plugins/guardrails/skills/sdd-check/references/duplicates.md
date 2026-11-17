@@ -17,7 +17,7 @@ Words compare after one deterministic normalization: casefold, claim tags (`[FAC
 | C21 | `C21 high: contract <id> is provided by ENB-a and ENB-b` | each ENB's Provided contracts (`check_spec.py` fails it too, rule `enabler-contract`) | mechanical |
 | C22 | `C22 candidate: PROC-a ~ PROC-b: same trigger and actor (<actor>)` | the Trigger section's words, and one Actors line in common | judgment |
 | C23 | `C23 candidate: FEAT-a ~ FEAT-b: same actor and goal` or `same steps PROC-nnn Sn, …` | the Scope line `- Use case: <actor> <goal>`, and the process steps both FEATs' `processes` declare | judgment |
-| C24 | `C24 high: REQ-x is in the open blocks FEAT-a 0.3.0 and FEAT-b` | the open block's Scope REQs of a versioned FEAT (its last block, not validated, delivered or cancelled), or the `requirements` of an open FEAT without `## Versions` | mechanical |
+| C24 | `C24 high: REQ-x is in the open blocks FEAT-a 0.3.0 and FEAT-b M5` | the Scope REQs of each versioned FEAT's open block (its last block, not validated, delivered or cancelled); a FEAT without `## Versions` takes no part, since FEATs written before the use-case model (KIT-096) share REQs by design | mechanical |
 
 The tool exits 1 on a C21 or C24 line and 0 with candidates only, so its exit code says whether a mechanical finding exists, not whether a candidate is a duplicate.
 
@@ -34,6 +34,8 @@ A judged duplicate is one `high` finding on the newer artifact; a candidate judg
 ## Fix a finding
 
 - C21: one ENB provides the contract; the other lists it in Required contracts with `From` naming the provider.
-- C24: the REQ stays in one open block; the other FEAT drops it from its Scope or `requirements`, or waits for the first block's delivery (`Depends on`). A legacy spec with many open FEATs may list old collisions in `docs/spec/baseline.json` under `C24` per FEAT id, as the skill's `all` scope reads it; the file only shrinks.
+- C24: the REQ stays in one open block; the other block drops it from its Scope (it goes to that FEAT's next block), or its rows wait for the first block's delivery (`Depends on`).
+
+A missing `similar=` blocks only where C21–C24 can fire: with `docs/spec/processes/`, `docs/spec/enablers/` or a FEAT with `## Versions` (skill § 1 g).
 
 Routing: skill § 4.

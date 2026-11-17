@@ -1,6 +1,6 @@
 """spec_trace.py `similar` (KIT-097): the duplicate checks of sdd-check C20-C24. Mechanical findings, which exit 1:
-C21 one contract provided by two ENBs, C24 one REQ in two open FEAT blocks (a versioned FEAT's open block, or an open
-FEAT without `## Versions`). Candidates for judgment, which keep exit 0: C20 two REQs with the same actor, trigger and
+C21 one contract provided by two ENBs, C24 one REQ in the open blocks of two versioned FEATs (a FEAT without `## Versions` takes
+no part). Candidates for judgment, which keep exit 0: C20 two REQs with the same actor, trigger and
 result, the same statement words or the same title words, C22 two processes with the same trigger and a shared actor, C23 two FEATs with the same
 use case (actor and goal) or a shared process step. Retired REQs and processes and cancelled FEATs take no part. The
 words are compared after a deterministic normalization: casefold, punctuation and claim tags removed, stop words
@@ -303,21 +303,39 @@ class MechanicalTest(SimilarCase):
         self.assertIn("C21 high: contract battle-wire is provided by ENB-001 and ENB-002", lines)
         self.assertFalse([line for line in lines if "battle-table" in line], lines)
 
-    def test_a_req_in_two_open_blocks_fails(self):
+    def test_a_req_in_the_open_blocks_of_two_versioned_feats_fails(self):
         self.req("REQ-F-001", "Lock the move", "The system must lock the move, when picked, for the player.")
         self.feat("FEAT-001", "the player picks a move", status="planned", reqs="REQ-F-001, REQ-F-002",
                   block=("planned", "REQ-F-001"))
-        self.feat("FEAT-002", "the player ends the turn", reqs="REQ-F-001")
-        self.feat("FEAT-003", "the server logs the turn", status="delivered", reqs="REQ-F-001")
+        self.feat("FEAT-002", "the player ends the turn", reqs="REQ-F-001, REQ-F-002",
+                  block=("in-progress", "REQ-F-001"))
+        self.feat("FEAT-003", "the server logs the turn", status="delivered", reqs="REQ-F-001, REQ-F-002",
+                  block=("delivered", "REQ-F-001"))
         code, lines, _ = self.similar()
         self.assertEqual(code, 1)
-        self.assertIn("C24 high: REQ-F-001 is in the open blocks FEAT-001 0.2.0 and FEAT-002", lines)
+        self.assertIn("C24 high: REQ-F-001 is in the open blocks FEAT-001 0.2.0 and FEAT-002 0.2.0", lines)
         self.assertFalse([line for line in lines if "FEAT-003" in line], lines)
+
+    def test_two_unversioned_open_feats_with_one_req_take_no_part(self):
+        self.feat("FEAT-001", "the player picks a move", reqs="REQ-F-001")
+        self.feat("FEAT-002", "the player ends the turn", status="planned", reqs="REQ-F-001")
+        code, lines, _ = self.similar()
+        self.assertEqual(code, 0, lines)
+        self.assertFalse([line for line in lines if line.startswith("C24")], lines)
+
+    def test_a_versioned_and_an_unversioned_feat_with_one_req_take_no_part(self):
+        self.feat("FEAT-001", "the player picks a move", status="planned", reqs="REQ-F-001, REQ-F-002",
+                  block=("planned", "REQ-F-001"))
+        self.feat("FEAT-002", "the player ends the turn", reqs="REQ-F-001")
+        code, lines, _ = self.similar()
+        self.assertEqual(code, 0, lines)
+        self.assertFalse([line for line in lines if line.startswith("C24")], lines)
 
     def test_a_req_of_a_delivered_block_is_not_open(self):
         self.feat("FEAT-001", "the player picks a move", status="planned", reqs="REQ-F-001, REQ-F-002",
                   block=("planned", "REQ-F-001"))
-        self.feat("FEAT-002", "the player ends the turn", reqs="REQ-F-002")
+        self.feat("FEAT-002", "the player ends the turn", reqs="REQ-F-001, REQ-F-002",
+                  block=("planned", "REQ-F-002"))
         code, lines, _ = self.similar()
         self.assertEqual(code, 0, lines)
         self.assertFalse([line for line in lines if line.startswith("C24")], lines)
