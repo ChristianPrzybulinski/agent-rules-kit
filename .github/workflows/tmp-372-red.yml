@@ -1,0 +1,38 @@
+name: tmp-372-red
+on:
+  push:
+    branches: [claude/kit-372-red]
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: barichello/godot-ci:4.7.2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: diagnose
+        shell: bash
+        run: |
+          set -x
+          cat /etc/os-release | head -2; ldd --version | head -1
+          command -v -a python3 || true; ls /usr/bin/python3* || true
+          python3 -VV
+          python3 -c 'import ssl' || true
+          python3 -c 'import _ssl' || true
+          python3 -c 'import _hashlib' || true
+          ls "$pythonLocation/lib/python3.12/lib-dynload/" | grep -E 'ssl|hashlib' || true
+          for f in "$pythonLocation"/lib/python3.12/lib-dynload/_ssl*.so "$pythonLocation"/lib/python3.12/lib-dynload/_hashlib*.so; do ldd "$f"; done || true
+          ls -la /usr/lib/x86_64-linux-gnu/ | grep -E 'libssl|libcrypto' || true
+          dpkg -l | grep -E 'libssl|openssl|python3' || true
+          ls /__t/Python || true
+          id; ls -ld /github/home /github/home/.cache || true
+      - name: the current spec-tools action (expected to fail)
+        uses: ./platforms/ci/actions/spec-tools
+        with:
+          checks: none
