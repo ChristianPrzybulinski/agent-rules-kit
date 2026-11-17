@@ -59,7 +59,7 @@ Feat mode runs the FEAT wave by wave: `references/parallel-waves.md` (wave 0 alo
 ## 5. Close
 
 - Each choice the spec did not fix gets one line in the FEAT's `## Decisions`: `YYYY-MM-DD T<n> (<PR>): chose X over Y because Z`; the action log stays in the PR body.
-- Update CHANGELOG, README and API docs in the same PR (`references/living-docs.md`; a new dependency: `references/dependency-search.md`).
+- Update CHANGELOG, README and API docs in the same PR (`references/living-docs.md`; a new dependency: `references/dependency-search.md`); a PR that changes a contract updates its ENB catalog row when the project keeps `docs/spec/enablers/`.
 - Never push to `main`, force-push, rebase or merge your own PR. After the FEAT's last row merges, `sdd-review` closes the FEAT.
 
 Done when: each row's test failed first (or `## Red` names the exception), each Proof and DoD command passes with literal output in its PR, every diff stays inside Files plus declared widenings, each item is in review or blocked with its reason, and incomplete merged behavior is flagged with expiry handling.

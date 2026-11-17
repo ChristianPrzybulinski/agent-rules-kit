@@ -17,6 +17,7 @@ An outdated document is worse than a missing one: the agent trusts it. Written a
 | exported GDScript/autoload script | `##` docstring above `class_name`, `@export`, signals |
 | user-visible behavior | `CHANGELOG.md` `Unreleased` section |
 | client↔server contract message | protocol doc + example + `protocol_version` if incompatible |
+| a contract (endpoint, message, event, job, file layout, table or migration, content key, config), with `docs/spec/enablers/` | its row in the owning ENB's Provided contracts (and `providesApis`), or Required contracts on the consumer side, in the same PR; then `spec_trace.py enablers --feat FEAT-nnn` (C18, C19) and `spec_trace.py generate` |
 | decision with trade-off | a decision record in `docs/spec/decisions/` (`DEC-nnn`, or the prefix of its kind when `docs/spec/spec.md` declares `decision_kinds`; state `proposed` until approved) |
 | feature status | status, history and frontmatter of `docs/spec/features/FEAT-xxx.md` |
 | consciously assumed debt | `docs/spec/debts/DEBT-xxx.md` with a payment trigger |

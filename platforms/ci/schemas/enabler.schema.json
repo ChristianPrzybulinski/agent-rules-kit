@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ChristianPrzybulinski/agent-rules-kit/schemas/enabler.schema.json",
+  "title": "Frontmatter of ENB-nnn (an enabler: a bounded context or technical capability and its contracts)",
+  "type": "object",
+  "required": ["id", "title", "status", "owner"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^ENB-[0-9]{3,}$" },
+    "title": { "type": "string", "minLength": 3, "maxLength": 100 },
+    "status": { "type": "string", "enum": ["proposed", "approved", "retired"] },
+    "owner": { "type": "string", "minLength": 1 },
+    "system": { "type": "string", "minLength": 1 },
+    "domain": { "type": "string", "minLength": 1 },
+    "providesApis": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*$", "maxLength": 63 },
+      "uniqueItems": true
+    },
+    "consumesApis": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*$", "maxLength": 63 },
+      "uniqueItems": true
+    },
+    "dependsOn": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^ENB-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
+    "created": { "type": "string", "format": "date" },
+    "updated": { "type": "string", "format": "date" }
+  }
+}

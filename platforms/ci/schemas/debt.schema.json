@@ -16,6 +16,11 @@
       "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
       "uniqueItems": true
     },
+    "enablers": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^ENB-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
     "created": { "type": "string", "format": "date" },
     "card": { "type": ["integer", "null"], "minimum": 1 }
   }

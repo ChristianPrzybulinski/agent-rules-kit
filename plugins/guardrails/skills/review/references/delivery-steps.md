@@ -28,7 +28,7 @@ kind: detail
 - Compare the collected test count at head with base (the summary line of the recorded runs) and read the diff of every test file.
 - Read the diff in risk order (security, input validation, control flow, public interfaces); report cited files absent from the diff, changed behavior no criterion asked for and changed code no test exercises.
 - In Claude Code (Claude-specific) the calling session runs `/code-review <base>...HEAD` on the pushed head of any change above docs-only, in the background, and waits for its findings before the verdict (a forked review without the Skill tool asks the parent to run it). Confirm each finding at `path:line` in the head's code; an unconfirmed one goes under Unverified. Other executors apply `REVIEW.md` by hand; `/code-review` reads `CLAUDE.md`, not `REVIEW.md` (code.claude.com/docs/en/code-review, checked 2026-10-06).
-- Closure records: the `living-docs.md` reference in skill `sdd-implement` — CHANGELOG, command-facing README changes, public API docs, FEAT status (derived, never typed), DEC/DEBT (the diff contradicts no accepted DEC) and an incomplete feature's flag.
+- Closure records: the `living-docs.md` reference in skill `sdd-implement` — CHANGELOG, command-facing README changes, public API docs, FEAT status (derived, never typed), DEC/DEBT (the diff contradicts no accepted DEC), the ENB catalog row of each changed contract (where `docs/spec/enablers/` exists) and an incomplete feature's flag.
 - When the change touches `.java` or `.gd`, run `python3 ~/.ai-kit/platforms/tools/complexity.py --base <base>` (it reads the code, runs none of it) and copy its lines to `Advisory:`; they never change the verdict.
 
 ## Verdict

@@ -17,6 +17,12 @@
       "items": { "type": "string", "pattern": "^REQ-(F|NF)-[0-9]{3,}$" },
       "uniqueItems": true
     },
+    "kind": { "type": "string", "enum": ["feature", "enabler"] },
+    "enablers": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^ENB-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
     "depends_on": {
       "type": "array",
       "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },

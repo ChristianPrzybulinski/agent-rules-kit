@@ -31,6 +31,9 @@
                                        [PROPOSAL] in Scope, [HYPOTHESIS] in Open questions or a done row,
                                        "until/once Tn" with Tn done, a Plan row count that differs from the
                                        table) and each listed REQ's proving test missing from its trace row
+  spec_trace.py enablers SPEC [--feat FEAT-NNN] [--catalog GLOB ...]
+                                       the C18 and C19 findings of sdd-check over the ENBs (KIT-095); off, exit 0,
+                                       without SPEC/enablers/
 
 SPEC is optional everywhere and defaults to docs/spec under the working directory, so `impact BASE HEAD`
 and `sync-status` run as a review loop calls them. Options (before the command): `--repo NAME` (repeatable)
@@ -59,6 +62,23 @@ main steps S<a> to S<b> in table order and the alternatives whose `At` is one of
 Rules, Implemented by and Proven by: it takes the cited steps' rules, tasks and tests, so the matrix, the impact and
 the closure expand it, and the checklist lists each cited step as its own row (KIT-092). A prerequisite or a process step never cites a process. With processes, traceability.md adds
 the Processes, Rules → processes → tests and Tasks → processes views; a spec without processes/ renders it as before.
+
+Enablers (KIT-095) live in <spec>/enablers/ENB-nnn[-slug].md (check_spec.py checks the frontmatter). Each holds the
+tables Aggregates (`Rules`: REQ-F ids), Events (`Direction` publishes or consumes, `Contract` an own contract or `—`),
+Provided contracts (`Contract`, `Kind` among CONTRACT_KINDS, `Accessed at`, `Schema or file`, `Version`, `Consumers`),
+Required contracts (`Contract`, `Kind`, `From`: the ENB that provides it, `Used for`) and Qualities (`Rules`: REQ-NF
+ids). `providesApis` and `consumesApis` hold exactly the ids of the two contract tables. An ENB satisfies the REQs its
+Aggregates and Qualities rows cite. With enablers, traceability.md adds the Enablers view (each ENB's contracts, the
+REQs it satisfies, and the FEATs, decisions and debts whose `enablers` names it: its generated History and Decisions)
+and the Contracts view, and is required. `enablers` reports, over the open FEATs or the one --feat names:
+  C18 high    a REQ of the FEAT, or a process step whose Rules cite REQs, that no ENB satisfies;
+  C19 high    a Plan § Contract reference `ENB-nnn:<contract>` the catalog lacks, or to an ENB the FEAT's `enablers`
+              does not list; a file under sdd.row_checks.protocol.schemas or matching a --catalog glob (a migration
+              folder, for example) that no `Schema or file` cell covers. Both are globs rooted at the repository
+              (no leading `/`, no `..`; a bad one fails with exit 1), a trailing `**` covers the files under it, and
+              the walk never enters a folder whose name starts with `.`;
+  C19 medium  a provided contract no ENB requires whose Consumers cell is empty or `—`.
+It exits 1 on a finding. A spec without enablers/ checks and renders as before.
 
 A test path's first segment names the clone it lives in: the spec's own repository (its directory name)
 or a directory beside it — clones sit side by side on the machine that writes journeys — plus any
@@ -92,11 +112,13 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import os
 import re
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Iterable
 
@@ -147,6 +169,11 @@ COUNTS_BEGIN, COUNTS_END = "<!-- sync-counts:begin -->", "<!-- sync-counts:end -
 FEAT_STATUSES = ("proposed", "clarified", "planned", "in-progress", "validated", "delivered", "cancelled")
 COUNTS_LISTED = ("proposed", "cancelled")
 REMOTE = re.compile(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
+ENABLER_ID = re.compile(r"^ENB-\d{3,}$")  # KIT-095
+CONTRACT_ID = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")  # enabler.schema.json providesApis items
+CONTRACT_REF = re.compile(r"\b(ENB-\d{3,}):([a-z0-9]+(?:[._-][a-z0-9]+)*)")  # a Plan § Contract reference
+CONTRACT_KINDS = ("api", "message", "event", "job", "file", "table", "content", "config")
+EVENT_DIRECTIONS = ("publishes", "consumes")
 
 
 @dataclass
@@ -178,6 +205,8 @@ class Spec:
     processes: dict = field(default_factory=dict)  # PROC id -> {"path", "title", "status", "kind", "steps"}
     open_needs: dict = field(default_factory=dict)  # J or PROC id -> ids of the open NEEDs whose `journeys` or
     # `processes` list it
+    enablers: dict = field(default_factory=dict)  # ENB id -> load_enabler's record (KIT-095)
+    enabler_links: dict = field(default_factory=dict)  # ENB id -> {"feature"|"decision"|"debt": [(id, status)]}
     errors: list = field(default_factory=list)
     params: dict = field(default_factory=dict)      # the resolved `sdd` block of spec.md (check_spec.py)
     param_errors: list = field(default_factory=list)
@@ -311,6 +340,7 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
         load_process(spec, path)  # before the journeys, whose steps may cite a process
     for path in sorted((spec_dir / "journeys").glob("J-*.md"), key=lambda p: natural_key(p.name)):
         load_journey(spec, path)
+    load_enablers(spec)
     return spec
 
 
@@ -710,6 +740,8 @@ def render_matrix(spec):
         lines.append(f"| {ref} | {step_list(by_task[ref])} |")
     if spec.processes:
         lines += process_views(spec)
+    if spec.enablers:
+        lines += enabler_views(spec)
     return "\n".join(lines) + "\n"
 
 
@@ -768,6 +800,282 @@ def process_views(spec):
     return lines
 
 
+def section_rows(body, name, first):
+    """The rows, as {header: cell}, of every table under `## name` whose first header cell is `first`."""
+    return [dict(zip(header, cells)) for header, rows in markdown_tables(section(body, name))
+            if header and header[0] == first for cells in rows]
+
+
+def rule_ids(spec, eid, table, cell, prefix):
+    """The REQ ids of an ENB Rules cell (`—` or empty: none); text other than ids, an unknown id or an id of the other
+    REQ type is an error."""
+    tokens = [t for t in SEPARATORS.split(cell) if t]
+    ids = [t for t in tokens if REQ_ID.fullmatch(t)]
+    if len(ids) != len(tokens):
+        spec.errors.append(f"{eid}: {table} Rules holds more than REQ ids: {cell!r}")
+    for rid in ids:
+        if not rid.startswith(prefix):
+            spec.errors.append(f"{eid}: {table} cites {rid}; it holds {prefix[:-1]} ids only")
+        elif rid not in spec.reqs:
+            spec.errors.append(f"{eid}: {table} cites {rid}, which does not exist")
+    return {rid for rid in ids if rid.startswith(prefix)}
+
+
+def contract_rows(spec, eid, data, body, table, field_name):
+    """{contract id: row} of one contract table, checked against its frontmatter list (the same ids both sides)."""
+    rows = {}
+    for row in section_rows(body, table, "Contract"):
+        api = row.get("Contract", "")
+        if not CONTRACT_ID.match(api):
+            spec.errors.append(f"{eid}: {table} contract id {api!r} does not match {CONTRACT_ID.pattern}")
+            continue
+        if api in rows:
+            spec.errors.append(f"{eid}: {table} lists {api} twice")
+        if row.get("Kind") not in CONTRACT_KINDS:
+            spec.errors.append(f"{eid}: {api} kind {row.get('Kind')!r} is not one of {', '.join(CONTRACT_KINDS)}")
+        rows[api] = row
+    declared = listed(data, field_name)
+    for api in declared:
+        if api not in rows:
+            spec.errors.append(f"{eid}: {field_name} lists {api}, which no {table} row holds")
+    for api in rows:
+        if api not in declared:
+            spec.errors.append(f"{eid}: {table} row {api} is missing from {field_name}")
+    return rows
+
+
+def load_enabler(spec, path):
+    """An ENB-nnn file (KIT-095): its contract tables, events and the REQs its Aggregates and Qualities satisfy."""
+    data, body = split_frontmatter(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        spec.errors.append(f"{path.relative_to(spec.root)}: frontmatter missing, not closed by --- or not a mapping")
+        return
+    eid = str(data.get("id", ""))
+    if not ENABLER_ID.match(eid) or eid in spec.enablers:
+        return  # check_spec.py reports the id and the duplicate
+    provides = contract_rows(spec, eid, data, body, "Provided contracts", "providesApis")
+    requires = contract_rows(spec, eid, data, body, "Required contracts", "consumesApis")
+    satisfies = set()
+    for row in section_rows(body, "Aggregates", "Aggregate"):
+        satisfies |= rule_ids(spec, eid, "Aggregates", row.get("Rules", ""), "REQ-F-")
+    for row in section_rows(body, "Qualities", "Quality"):
+        satisfies |= rule_ids(spec, eid, "Qualities", row.get("Rules", ""), "REQ-NF-")
+    for row in section_rows(body, "Events", "Event"):
+        direction, api = row.get("Direction", ""), row.get("Contract", "")
+        if direction not in EVENT_DIRECTIONS:
+            spec.errors.append(f"{eid}: event {row.get('Event')} direction {direction!r} is not publishes or consumes")
+        elif api not in ("", PENDING) and api not in (provides if direction == "publishes" else requires):
+            table = "Provided" if direction == "publishes" else "Required"
+            spec.errors.append(f"{eid}: event {row.get('Event')} {direction} {api}, which is not a {table} contract")
+    catalog = [p for row in provides.values() for p in BACKTICKED.findall(row.get("Schema or file", ""))]
+    spec.enablers[eid] = {"path": path, "title": data.get("title", ""), "status": data.get("status"),
+                          "owner": data.get("owner", ""), "domain": data.get("domain") or PENDING,
+                          "provides": provides, "requires": requires, "satisfies": satisfies, "catalog": catalog}
+
+
+def load_enablers(spec):
+    """enablers/ (KIT-095): every ENB, the provider of each required contract, and the FEATs, decisions and debts
+    whose `enablers` names each ENB; nothing without the folder."""
+    folder = spec.spec_dir / "enablers"
+    if not folder.is_dir():
+        return
+    for path in sorted(folder.glob("ENB-*.md"), key=lambda p: natural_key(p.name)):
+        load_enabler(spec, path)
+    providers = {api: eid for eid, enabler in spec.enablers.items() for api in enabler["provides"]}
+    for eid, enabler in spec.enablers.items():
+        for api, row in enabler["requires"].items():
+            source = row.get("From", "")
+            if api in providers and source != providers[api]:
+                spec.errors.append(f"{eid}: Required contract {api} is From {source}, but {providers[api]} provides it")
+    spec.enabler_links = {eid: {"feature": [], "decision": [], "debt": []} for eid in spec.enablers}
+    for sub, kind in (("features", "feature"), ("decisions", "decision"), ("debts", "debt")):
+        for path in sorted((spec.spec_dir / sub).rglob("*.md"), key=lambda p: natural_key(p.name)):
+            data, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or not data.get("id"):
+                continue
+            for eid in listed(data, "enablers"):
+                if eid in spec.enabler_links:
+                    spec.enabler_links[eid][kind].append((str(data["id"]), data.get("status")))
+
+
+def enabler_views(spec):
+    """The matrix sections a spec with enablers adds (KIT-095): Enablers, with each ENB's generated History (FEATs)
+    and Decisions (decisions and debts), and Contracts, the catalog across ENBs."""
+    lines = [
+        "",
+        "## Enablers",
+        "",
+        "`FEATs` (History), `Decisions` and `Debts`: the records whose `enablers` names the ENB.",
+        "",
+        "| Enabler | Title | Owner | Domain | Provides | Consumes | Satisfies | FEATs | Decisions | Debts |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for eid, enabler in spec.enablers.items():
+        links = spec.enabler_links[eid]
+        link = enabler["path"].relative_to(spec.spec_dir).as_posix()
+        feats = ", ".join(f"{fid} ({status})" for fid, status in sorted(links["feature"], key=lambda f: natural_key(f[0])))
+        lines.append(" ".join([
+            f"| [{eid}]({link}) | {enabler['title']} | {enabler['owner']} | {enabler['domain']} |",
+            f"{', '.join(sorted(enabler['provides'])) or PENDING} |",
+            f"{', '.join(sorted(enabler['requires'])) or PENDING} |",
+            f"{', '.join(sorted(enabler['satisfies'], key=natural_key)) or PENDING} |",
+            f"{feats or PENDING} |",
+            f"{', '.join(sorted((d for d, _ in links['decision']), key=natural_key)) or PENDING} |",
+            f"{', '.join(sorted((d for d, _ in links['debt']), key=natural_key)) or PENDING} |"]))
+    lines += [
+        "",
+        "## Contracts",
+        "",
+        "Every provided contract; `Consumed by`: the ENBs whose Required contracts list it.",
+        "",
+        "| Contract | Kind | Provided by | Consumed by | Accessed at | Schema or file | Version |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    rows = sorted((api, eid, row) for eid, enabler in spec.enablers.items() for api, row in enabler["provides"].items())
+    for api, eid, row in rows:
+        consumers = [other for other, enabler in spec.enablers.items() if api in enabler["requires"]]
+        lines.append(f"| {api} | {row.get('Kind', '')} | {eid} | {', '.join(consumers) or PENDING} | "
+                     f"{row.get('Accessed at', '')} | {row.get('Schema or file', '')} | {row.get('Version', '')} |")
+    return lines
+
+
+def plan_contract(body):
+    """The text of a FEAT's `### Contract` Plan section, up to the next `### ` or `## ` heading."""
+    lines, found = [], False
+    for line in body.splitlines():
+        if line.startswith(("## ", "### ")):
+            if found:
+                break
+            found = line.strip() == "### Contract"
+        elif found:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def glob_segments(pattern):
+    """The segments of a glob rooted at the repository (`.` segments dropped; a trailing `**` covers the files under
+    it, as `dir/**/*` does), or None when it is empty, absolute, holds `..` or a backslash."""
+    if not isinstance(pattern, str) or not pattern.strip() or pattern.startswith("/") or "\\" in pattern:
+        return None
+    parts = [p for p in pattern.split("/") if p not in ("", ".")]
+    if not parts or ".." in parts:
+        return None
+    return parts + ["*"] if parts[-1] == "**" else parts
+
+
+def catalog_patterns(spec, globs):
+    """([(source, pattern)], [error]): sdd.row_checks.protocol.schemas as `<folder>/**/*`, then each --catalog glob;
+    a pattern that is not rooted at the repository is an error, never a traceback."""
+    protocol = (spec.params.get("row_checks") or {}).get("protocol") or {}
+    sources = []
+    if protocol.get("schemas"):
+        folder = protocol["schemas"]
+        ok = glob_segments(folder) is not None or folder == "."
+        sources.append(("sdd.row_checks.protocol.schemas", f"{folder.rstrip('/')}/**/*" if ok else folder, folder))
+    sources += [("--catalog", g, g) for g in globs]
+    patterns, errors = [], []
+    for source, pattern, given in sources:
+        if glob_segments(pattern) is None:
+            errors.append(f"{source} {given!r} must be a glob rooted at the repository (no leading /, no ..)")
+        else:
+            patterns.append(pattern)
+    return patterns, errors
+
+
+def match_segments(parts, segments):
+    """True when the path segments match the glob segments; `**` matches zero or more segments."""
+    if not segments:
+        return not parts
+    if segments[0] == "**":
+        return any(match_segments(parts[i:], segments[1:]) for i in range(len(parts) + 1))
+    return bool(parts) and fnmatchcase(parts[0], segments[0]) and match_segments(parts[1:], segments[1:])
+
+
+def catalog_files(spec, patterns):
+    """Repository paths the catalog must cover: every file a rooted pattern matches. The walk starts at the pattern's
+    literal prefix and never enters a folder whose name starts with `.` (.git included)."""
+    found = set()
+    for pattern in patterns:
+        segments = glob_segments(pattern)
+        prefix = []
+        for segment in segments[:-1]:
+            if any(ch in segment for ch in "*?["):
+                break
+            prefix.append(segment)
+        start = spec.root.joinpath(*prefix)
+        if any(p.startswith(".") for p in prefix) or not start.is_dir():
+            continue
+        for folder, dirs, files in os.walk(start):
+            dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+            rel = Path(folder).relative_to(spec.root).parts
+            for name in files:
+                if not name.startswith(".") and match_segments(list(rel) + [name], segments):
+                    found.add("/".join(list(rel) + [name]))
+    return sorted(found)
+
+
+def covered(path, catalog):
+    return any(fnmatchcase(path, p) or path == p or path.startswith(p.rstrip("/") + "/") for p in catalog)
+
+
+def enabler_findings(spec, fid=None, patterns=()):
+    """C18 and C19 (KIT-095) over the open FEATs, or the one `fid` names; each finding is `C<n> <severity>: text`."""
+    scope = [fid] if fid else [f for f, feat in spec.feats.items() if feat["status"] not in STATUS_FROZEN]
+    satisfied = {rid for enabler in spec.enablers.values() for rid in enabler["satisfies"]}
+    findings = []
+    for f in scope:
+        for rid in spec.feats[f]["requirements"]:
+            if rid not in satisfied:
+                findings.append(f"C18 high: {rid} ({f}) has no ENB that satisfies it in Aggregates or Qualities")
+    in_scope = {r for f in scope for r in spec.feats[f]["requirements"]}
+    for step in spec.process_steps:
+        if not step.rules or any(r in satisfied for r in step.rules):
+            continue
+        if fid is None or in_scope & set(step.rules) or any(t.startswith(f"{fid} ") for t in step.tasks):
+            findings.append(f"C18 high: {step.ref} cites {', '.join(step.rules)}, which no ENB satisfies")
+    for f in scope:
+        data, body = split_frontmatter(spec.feats[f]["path"].read_text(encoding="utf-8"))
+        names = listed(data or {}, "enablers")
+        for eid, api in dict.fromkeys(CONTRACT_REF.findall(plan_contract(body))):
+            ref = f"{eid}:{api}"
+            if eid not in spec.enablers:
+                findings.append(f"C19 high: {f} Plan § Contract cites {ref}, which is not an existing enabler")
+            elif api not in spec.enablers[eid]["provides"]:
+                findings.append(f"C19 high: {f} Plan § Contract cites {ref}, which {eid} Provided contracts lacks")
+            if eid not in names:
+                findings.append(f"C19 high: {f} Plan § Contract cites {ref}, but {f} enablers does not list {eid}")
+    consumed = {api for enabler in spec.enablers.values() for api in enabler["requires"]}
+    for eid, enabler in spec.enablers.items():
+        for api, row in enabler["provides"].items():
+            if api not in consumed and row.get("Consumers", "").strip() in ("", PENDING):
+                findings.append(f"C19 medium: {eid} {api} has no consumer and no public mark")
+    catalog = [p for enabler in spec.enablers.values() for p in enabler["catalog"]]
+    for path in catalog_files(spec, patterns):
+        if not covered(path, catalog):
+            findings.append(f"C19 high: {path} is in no ENB catalog (Schema or file)")
+    return findings
+
+
+def enablers_command(spec, fid, globs):
+    """`spec_trace.py enablers`: print the C18 and C19 findings; exit 1 on any, 0 when clean or off."""
+    if not (spec.spec_dir / "enablers").is_dir():
+        print("enablers: off (no enablers/ folder; C18 and C19 apply once it exists)")
+        return 0
+    if fid and fid not in spec.feats:
+        return report([f"{fid} does not exist in features/"], "")
+    patterns, errors = catalog_patterns(spec, globs)
+    if errors:
+        return report(errors, "")
+    findings = enabler_findings(spec, fid, patterns)
+    for finding in findings:
+        print(finding)
+    if findings:
+        return 1
+    contracts = sum(len(e["provides"]) for e in spec.enablers.values())
+    print(f"enablers: OK ({len(spec.enablers)} enablers, {contracts} contracts)")
+    return 0
+
+
 def journeys_on(spec) -> bool:
     """`sdd.journeys`; absent = on when the spec has a journeys/ folder."""
     value = spec.params.get("journeys")
@@ -780,7 +1088,8 @@ def check(spec):
         errors += index_errors(spec)
     matrix = spec.spec_dir / MATRIX
     # The matrix is required with journeys or processes and kept fresh once it exists; a project with none needs none.
-    if (journeys_on(spec) or (spec.spec_dir / "processes").is_dir() or matrix.exists()) and (
+    if (journeys_on(spec) or (spec.spec_dir / "processes").is_dir() or (spec.spec_dir / "enablers").is_dir()
+            or matrix.exists()) and (
             not matrix.exists() or matrix.read_text(encoding="utf-8") != render_matrix(spec)):
         errors.append(f"{matrix} is stale or missing: run spec_trace.py generate on the spec directory")
     return errors
@@ -1748,6 +2057,11 @@ def main(argv=None):
     sync.add_argument("--write", action="store_true")
     sync.add_argument("--backlog", metavar="OWNER/NAME", help="the backlog repository (default: sdd.github.repo, "
                                                                "else the origin remote)")
+    enb = sub.add_parser("enablers", help="sdd-check C18 and C19 over the ENBs (KIT-095)")
+    enb.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    enb.add_argument("--feat", metavar="FEAT-NNN", help="one FEAT's scope (default: every open FEAT)")
+    enb.add_argument("--catalog", action="append", default=[], metavar="GLOB",
+                     help="files the catalog must cover, rooted at the repository (repeatable; a migration folder)")
     chk = sub.add_parser("checklist", help="owner checklist of approved journeys, to stdout")
     chk.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     chk.add_argument("journeys", nargs="*", metavar="J-NN")
@@ -1807,6 +2121,8 @@ def main(argv=None):
         return deliver(spec, args.feat, args.version, today)
     if args.command == "lint":
         return lint(spec, args.feat)
+    if args.command == "enablers":
+        return enablers_command(spec, args.feat, args.catalog)
     if args.command == "impact":
         print(render_impact(changes(spec, args.base, args.head)), end="")
         return 0

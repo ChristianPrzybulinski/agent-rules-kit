@@ -25,6 +25,13 @@ Processes (KIT-090): docs/spec/processes/PROC-nnn-slug.md (top level), checked a
 `product` or `tech`. A NEED's `processes` lists existing processes, as its `journeys` lists journeys. Their step tables
 are spec_trace.py's. A spec without processes/ is checked as before.
 
+Enablers (KIT-095): docs/spec/enablers/ENB-nnn-slug.md (top level), checked against enabler.schema.json (Backstage's
+field names `owner`, `system`, `domain`, `providesApis`, `consumesApis`, `dependsOn`). A FEAT, decision or debt's
+`enablers` and an ENB's `dependsOn` name existing ENBs (rule enabler-link); a contract id is provided by one ENB only
+and each id in `consumesApis` is provided by another ENB (enabler-contract); a FEAT with `kind: enabler` names at least
+one ENB and lists no REQ-F (enabler-kind). The ENB tables and the C18 and C19 tool are spec_trace.py's. A spec without
+enablers/ and without `enablers` fields is checked as before.
+
 A FEAT at `validated` or `delivered` carries the History line of the step that moved it (KIT-069, rule
 feature-closure), written by spec_trace.py: `sdd-review: validated`, then `sdd-release: delivered` or, under
 `release: merge`, `sdd-review: delivered`; a FEAT delivered before that step existed carries `delivered before
@@ -65,7 +72,8 @@ SPEC_DIR = None  # set by main(); a finding's key is relative to it
 # Rule ids a baseline may hold; each fail() call names one.
 RULES = ("frontmatter", "schema", "id-file", "id-duplicate", "decision-kinds", "sdd-params", "conflict-marker",
          "need-link", "need-status", "progress", "link-missing", "link-one-sided", "req-unlisted", "task-file",
-         "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure", "needs-off")
+         "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure", "needs-off", "enabler-link",
+         "enabler-kind", "enabler-contract")
 MEASURED = ("task-chain",)  # the baseline holds the longest chain in rows, not a count of findings
 
 
@@ -294,7 +302,8 @@ STRUCT = {
     "spec": {"req": ["project", "version", "updated"], "enums": {}, "id": None},
     "feature": {"req": ["id", "title", "status", "requirements", "created"],
                 "enums": {"status": ["proposed", "clarified", "planned", "in-progress",
-                                     "validated", "delivered", "cancelled"]},
+                                     "validated", "delivered", "cancelled"],
+                          "kind": ["feature", "enabler"]},
                 "id": r"^FEAT-\d{3,}$"},
     "requirement": {"req": ["id", "title", "type", "priority", "features", "created"],
                     "enums": {"type": ["functional", "non-functional"],
@@ -319,6 +328,9 @@ STRUCT = {
     "process": {"req": ["id", "title", "status", "owner", "kind"],
                 "enums": {"status": ["proposed", "approved", "retired"], "kind": ["product", "tech"]},
                 "id": r"^PROC-\d{3,}$"},
+    "enabler": {"req": ["id", "title", "status", "owner"],
+                "enums": {"status": ["proposed", "approved", "retired"]},
+                "id": r"^ENB-\d{3,}$"},
 }
 
 ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|[A-Z][A-Z0-9]{1,7})-(\d+)")
@@ -327,7 +339,7 @@ ID_PREFIX = re.compile(r"^(REQ-NF|REQ-F|[A-Z][A-Z0-9]{1,7})-(\d+)")
 DEFAULT_DECISION_PREFIX = "DEC"
 DECISION_KIND = re.compile(r"^[a-z][a-z0-9-]*$")
 DECISION_PREFIX = re.compile(r"^[A-Z][A-Z0-9]{1,7}$")
-RESERVED_PREFIXES = {"FEAT", "REQ", "DEBT", "J", "NEED", "TASK", "PROC"}
+RESERVED_PREFIXES = {"FEAT", "REQ", "DEBT", "J", "NEED", "TASK", "PROC", "ENB"}
 
 
 def decision_kinds(path, data):
@@ -601,6 +613,42 @@ def check_needs(spec_dir: Path, needs: dict, ids: dict, kind_of: dict, feat_stat
             for fid in delivered_by:
                 if fid in feat_status and feat_status[fid] != "delivered":
                     fail(f"{path}: status delivered, but {fid} is {feat_status[fid]}", "need-status", path)
+
+
+ENABLER_LINKED = ("feature", "decision", "debt", "enabler")  # the kinds whose frontmatter may name ENBs (KIT-095)
+
+
+def check_enablers(linked: dict, kind_of: dict) -> None:
+    """KIT-095 frontmatter links: `enablers` and `dependsOn` name existing ENBs, a contract id has one provider and
+    every consumed id another ENB's, and a FEAT of kind enabler names an ENB and implements no REQ-F."""
+    providers = {}
+    for eid, (path, kind, data) in sorted(linked.items()):
+        if kind != "enabler":
+            continue
+        for api in map(str, as_list(data.get("providesApis"))):
+            if api in providers:
+                fail(f"{path}: providesApis lists {api}, which {providers[api]} provides too", "enabler-contract", path)
+            else:
+                providers[api] = eid
+    for lid, (path, kind, data) in sorted(linked.items()):
+        field = "dependsOn" if kind == "enabler" else "enablers"
+        for link in map(str, as_list(data.get(field))):
+            if kind == "enabler" and link == lid:
+                fail(f"{path}: dependsOn lists the enabler itself", "enabler-link", path)
+            elif kind_of.get(link) != "enabler":
+                fail(f"{path}: {field} lists {link}, which is not an existing enabler", "enabler-link", path)
+        if kind == "enabler":
+            for api in map(str, as_list(data.get("consumesApis"))):
+                if providers.get(api, lid) == lid:
+                    fail(f"{path}: consumesApis lists {api}, which no other enabler provides", "enabler-contract",
+                         path)
+        if kind == "feature" and data.get("kind") == "enabler":
+            if not as_list(data.get("enablers")):
+                fail(f"{path}: kind enabler needs at least one ENB in enablers", "enabler-kind", path)
+            functional = [str(r) for r in as_list(data.get("requirements")) if str(r).startswith("REQ-F-")]
+            if functional:
+                fail(f"{path}: kind enabler implements no REQ-F, but requirements lists {', '.join(functional)}",
+                     "enabler-kind", path)
 
 
 PROGRESS_TASK_KEYS = ("id", "title", "files", "proof", "passes", "notes")
@@ -945,13 +993,14 @@ def main():
         targets.append((spec_dir / "spec.md", "spec"))
     for sub, kind in [("features", "feature"), ("requirements", "requirement"),
                       ("decisions", "decision"), ("debts", "debt"), ("needs", "need"), ("tasks", "task"),
-                      ("processes", "process")]:
+                      ("processes", "process"), ("enablers", "enabler")]:
         d = spec_dir / sub
         if d.is_dir():
-            for f in sorted(d.glob("*.md") if sub in ("needs", "tasks", "processes") else d.rglob("*.md")):
+            for f in sorted(d.glob("*.md") if sub in ("needs", "tasks", "processes", "enablers") else d.rglob("*.md")):
                 targets.append((f, kind))
 
     ids, kind_of = {}, {}
+    linked = {}  # id -> (path, kind, frontmatter) of each FEAT, decision, debt and ENB (KIT-095)
     feats, reqs, feat_status, dec_status, needs, tasks, tables = {}, {}, {}, {}, {}, {}, {}
     kinds = None  # spec.md is the first target, so its decision_kinds is read before any decision
     params = sdd_params(spec_dir / "spec.md", {}, spec_schema, spec_dir)
@@ -987,6 +1036,8 @@ def main():
                 fail(f"{path}: duplicate id {fid} (also in {ids[fid]})", "id-duplicate", path)
             ids[fid] = path
             kind_of[str(fid)] = kind
+        if kind in ENABLER_LINKED and fid:
+            linked[str(fid)] = (path, kind, data)
         if kind == "decision" and fid:
             check_decision(path, data, fid, kinds)
             dec_status[str(fid)] = data.get("status")
@@ -1007,6 +1058,7 @@ def main():
     check_conflict_markers(spec_dir)
     check_needs(spec_dir, needs, ids, kind_of, feat_status, dec_status)
     check_task_items(tasks, tables, ids)
+    check_enablers(linked, kind_of)
     needs_off = params.get("needs") is False  # KIT-075: the front chain runs without NEED files
     if needs_off:
         for path, kind in targets:
