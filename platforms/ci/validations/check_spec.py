@@ -23,7 +23,9 @@ or one that keeps only NEED-nnn-data/ evidence, passes.
 
 Processes (KIT-090): docs/spec/processes/PROC-nnn-slug.md (top level), checked against process.schema.json: `kind` is
 `product` or `tech`. A NEED's `processes` lists existing processes, as its `journeys` lists journeys. Their step tables
-are spec_trace.py's. A spec without processes/ is checked as before.
+are spec_trace.py's. A spec without processes/ is checked as before. Both tools read processes/PROC-*.md and
+enablers/ENB-*.md only (NAMED_FILES, #356): a folder README.md is no record, and another Markdown file there fails
+(rule id-file), since neither tool would read it. A spec file that is not UTF-8 is one `frontmatter` failure.
 
 Enablers (KIT-095): docs/spec/enablers/ENB-nnn-slug.md (top level), checked against enabler.schema.json (Backstage's
 field names `owner`, `system`, `domain`, `providesApis`, `consumesApis`, `dependsOn`). A FEAT, decision or debt's
@@ -283,8 +285,37 @@ def mini_yaml(text):
     return data
 
 
+NAMED_FILES = {"processes": "PROC-*.md", "enablers": "ENB-*.md"}  # #356: the files both tools read in these folders
+
+
+def named_files(spec_dir, sub):
+    """The record files of processes/ or enablers/ (top level), as check_spec.py and spec_trace.py both read them; a
+    folder README.md is no record."""
+    folder = Path(spec_dir) / sub
+    return sorted(folder.glob(NAMED_FILES[sub])) if folder.is_dir() else []
+
+
+UNREADABLE = set()  # the paths read_spec_text failed, each once
+
+
+def read_spec_text(path):
+    """A spec file's text, or None after one `not UTF-8` or `unreadable` failure for it (#356: never a traceback)."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        if path not in UNREADABLE:
+            UNREADABLE.add(path)
+            why = f"not UTF-8 ({e.reason} at byte {e.start})" if isinstance(e, UnicodeDecodeError) else \
+                f"unreadable ({e.strerror or e})"
+            fail(f"{path}: {why}", "frontmatter", path)
+        return None
+
+
 def frontmatter(path):
-    lines = path.read_text(encoding="utf-8").splitlines()
+    text = read_spec_text(path)
+    if text is None:
+        return None
+    lines = text.splitlines()
     if not lines or lines[0] != "---":
         fail(f"{path}: frontmatter does not start with --- on line 1", "frontmatter", path)
         return None
@@ -592,7 +623,7 @@ CONFLICT_MARKER = re.compile(r"^(<{7}|\|{7}|>{7})(?: |$)")
 def check_conflict_markers(spec_dir):
     """Fails on a merge-conflict marker in any Markdown file under the spec dir (journeys and guides included)."""
     for path in sorted(spec_dir.rglob("*.md")):
-        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        for n, line in enumerate((read_spec_text(path) or "").splitlines(), 1):
             if CONFLICT_MARKER.match(line):
                 fail(f"{path}:{n}: merge-conflict marker {line[:7]!r} left in the file", "conflict-marker", path)
 
@@ -1309,8 +1340,14 @@ def main():
                       ("decisions", "decision"), ("debts", "debt"), ("needs", "need"), ("tasks", "task"),
                       ("processes", "process"), ("enablers", "enabler")]:
         d = spec_dir / sub
-        if d.is_dir():
-            for f in sorted(d.glob("*.md") if sub in ("needs", "tasks", "processes", "enablers") else d.rglob("*.md")):
+        if d.is_dir() and sub in NAMED_FILES:
+            files = named_files(spec_dir, sub)
+            for f in sorted(set(d.glob("*.md")) - set(files)):
+                if f.name != "README.md":
+                    fail(f"{f}: not read: {sub}/ holds {NAMED_FILES[sub]} files only", "id-file", f)
+            targets += [(f, kind) for f in files]
+        elif d.is_dir():
+            for f in sorted(d.glob("*.md") if sub in ("needs", "tasks") else d.rglob("*.md")):
                 targets.append((f, kind))
 
     ids, kind_of = {}, {}

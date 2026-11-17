@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Fixed
+- #356: `spec_trace.py` and `check_spec.py` no longer stop with a Python traceback on a spec file they cannot read. In `spec_trace.py`, every command prints one `FAIL: <file>: <why>` line and exits 2, not the 1 of a finding, when a spec file is not UTF-8 or its frontmatter is no YAML or no mapping. In `check_spec.py`, a file that is not UTF-8 is one `frontmatter` failure. `spec_trace.py enablers` now fails the ENB table errors that `check` fails, such as a row missing from `providesApis`, as `FAIL:` lines with exit 1, so the two commands no longer give different verdicts on one spec. `sdd-check` § 1 f still runs both and counts such an error once. Both tools read the same files through `check_spec.NAMED_FILES`: `processes/PROC-*.md` and `enablers/ENB-*.md`. A folder `README.md` is no longer checked as a record, and `check_spec.py` fails any other Markdown file there (rule `id-file`), because neither tool would read it.
 - The workflow templates pin the kit actions at v16.0.0 (61aca2e) instead of v15.0.0, so a project copying them gets the 16.0.0 spec tools (KIT-090 to KIT-101).
 
 ## [16.0.0] - 2026-11-17

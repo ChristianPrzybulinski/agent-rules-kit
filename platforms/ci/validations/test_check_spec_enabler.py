@@ -224,5 +224,33 @@ class FeatureKindTest(EnablerCase):
         self.assert_passes()
 
 
+
+class SpecFileErrorTest(EnablerCase):
+    """#356 item 1: a spec file that is not UTF-8 is one `FAIL:` line that names it, never a traceback."""
+
+    def test_non_utf8_enabler_fails_cleanly(self):
+        path = self.spec / "enablers" / "ENB-001-fixture.md"
+        path.write_bytes(path.read_bytes() + b"\xff\xfe\n")
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn(f"FAIL: {path}: not UTF-8", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+
+class NamedFilesTest(EnablerCase):
+    """#356 item 3: check_spec.py reads processes/PROC-*.md and enablers/ENB-*.md, the files spec_trace.py reads, so a
+    folder README is no record; another Markdown file there fails, since neither tool would read it."""
+
+    def test_folder_readme_is_no_record(self):
+        (self.spec / "processes").mkdir()
+        for sub in ("enablers", "processes"):
+            (self.spec / sub / "README.md").write_text("# Index\n")
+        self.assert_passes()
+
+    def test_misnamed_file_fails(self):
+        self.enabler("ENB-003", name="enb-003-other")
+        self.assert_fails("enb-003-other.md: not read: enablers/ holds ENB-*.md files only")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -438,5 +438,62 @@ class MigrationsFromProfileTest(EnablerCase):
         self.assertIn("migrations", err)
         self.assertNotIn("Traceback", err)
 
+
+class SpecFileErrorTest(EnablerCase):
+    """#356 item 1: a spec file that cannot be read (bad YAML, not UTF-8, frontmatter that is no mapping) is one
+    `FAIL:` line that names it and exit 2, never a traceback or the exit 1 of a finding."""
+
+    def assert_unreadable(self, rel, data, *argv):
+        path = self.root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        for args in (argv or (["check", str(self.spec)], ["enablers", str(self.spec)])):
+            code, out, err = run(list(args))
+            self.assertEqual(code, 2, out + err)
+            self.assertIn(f"FAIL: {rel}: ", err)
+            self.assertNotIn("Traceback", err)
+
+    def test_bad_yaml_enabler(self):
+        self.assert_unreadable("docs/spec/enablers/ENB-001-battle.md", b"---\nid: [ENB-001\n---\n\n# ENB-001\n")
+
+    def test_non_utf8_enabler(self):
+        self.assert_unreadable("docs/spec/enablers/ENB-001-battle.md", ENB_1.encode("utf-8") + b"\xff\xfe\n")
+
+    def test_bad_yaml_feat(self):
+        self.assert_unreadable("docs/spec/features/FEAT-001.md", b"---\nid: FEAT-001\ntitle: [x\n---\n")
+
+    def test_non_utf8_feat(self):
+        self.assert_unreadable("docs/spec/features/FEAT-001.md", b"---\nid: FEAT-001\n---\n\xff\n")
+
+    def test_frontmatter_that_is_no_mapping(self):
+        self.assert_unreadable("docs/spec/features/FEAT-001.md", b"---\n- FEAT-001\n---\n")
+
+    def test_non_utf8_decision(self):
+        self.assert_unreadable("docs/spec/decisions/DEC-001-server-battle.md", b"---\nid: DEC-001\n---\n\xff\n")
+
+
+class OneVerdictTest(EnablerCase):
+    """#356 item 2: `enablers` fails an ENB table error that `check` fails, so the two commands never disagree."""
+
+    def test_table_error_fails_the_enablers_command(self):
+        self.enabler(old="providesApis: [battle-wire, battle-table]", new="providesApis: [battle-wire]")
+        code, out, err = self.enablers()
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("FAIL: ENB-001: Provided contracts row battle-table is missing from providesApis", err)
+        self.assertNotIn("enablers: OK", out)
+
+
+class NamedFilesTest(EnablerCase):
+    """#356 item 3: spec_trace.py and check_spec.py read the same files of processes/ and enablers/."""
+
+    def test_both_tools_read_the_shared_patterns(self):
+        import check_spec
+        self.assertEqual(check_spec.NAMED_FILES, {"processes": "PROC-*.md", "enablers": "ENB-*.md"})
+        write(self.root, "docs/spec/enablers/README.md", "# Enablers\n")
+        self.assertEqual([p.name for p in check_spec.named_files(self.spec, "enablers")],
+                         ["ENB-001-battle.md", "ENB-002-shop.md"])
+        self.assertEqual(sorted(trace.load(self.spec).enablers), ["ENB-001", "ENB-002"])
+
+
 if __name__ == "__main__":
     unittest.main()
