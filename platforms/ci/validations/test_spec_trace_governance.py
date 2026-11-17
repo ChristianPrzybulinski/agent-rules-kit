@@ -14,6 +14,7 @@ COVERS = ("platforms/ci/validations/spec_trace.py",)
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import test_spec_trace_enabler as enb  # noqa: E402  (the ENB fixture: FEAT-001 on ENB-001, FEAT-002 on ENB-002)
+import spec_trace  # noqa: E402
 
 DEBT = """\
 ---
@@ -280,3 +281,21 @@ class WithoutGovernanceArtifactsTest(enb.EnablerCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VersionedFeatTasksTest(unittest.TestCase):
+    """KIT-096 × KIT-099: a row inside a version block's `#### Tasks` pays a debt; the block's Scope does not."""
+
+    TEXT = ("---\nid: FEAT-001\nstatus: in-progress\n---\n# FEAT-001\n\n## Versions\n\n### 0.1.0\n\n"
+            "Status: delivered\nScope: REQ-F-001; DEBT-002 is out of scope.\n\n#### Tasks\n\n"
+            "| ID | Task | Status |\n|---|---|---|\n| T1 | pay DEBT-001 | done |\n\n### 0.2.0\n\n"
+            "Status: in-progress\nScope: REQ-F-001\n\n#### Tasks\n\n"
+            "| ID | Task | Status |\n|---|---|---|\n| T2 | pay DEBT-003 | todo |\n")
+
+    def test_rows_of_every_block_are_read(self):
+        rows = spec_trace.task_table(self.TEXT)
+        self.assertIn("DEBT-001", rows)
+        self.assertIn("DEBT-003", rows)
+
+    def test_scope_text_does_not_pay(self):
+        self.assertNotIn("DEBT-002", spec_trace.task_table(self.TEXT))
