@@ -61,6 +61,7 @@
 - `spec-index-game.md`
 - `spec-journey.md`
 - `spec-need.md`
+- `spec-process.md`
 - `spec-requirement-functional.md`
 - `spec-requirement-non-functional.md`
 - `spec-task.md`

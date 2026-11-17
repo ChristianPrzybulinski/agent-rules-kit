@@ -25,6 +25,11 @@
       "items": { "type": "string", "pattern": "^J-[0-9]{2,}$" },
       "uniqueItems": true
     },
+    "processes": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^PROC-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
     "decisions": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{1,7}-[0-9]{3,}$" },
