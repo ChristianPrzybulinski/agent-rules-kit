@@ -39,13 +39,13 @@ the writing register; § 17 (G3b) adds C26 next to C12, C14 and Q12.
   tunable to its exposure (`plan-sections.md`, and comments in `spec-feature.md` under Design and Data).
 - No tool change: C12, C14, C26 and Q12 are judgment rows. `spec_trace.py check` already fails a non-REQ `Rules` cell,
   the mechanical half of C12.
-- Out of scope: the NEED template's `processes: []` line (`templates/spec-need.md`, outside this issue's file list; the
-  schema already accepts the field), a process row in `sdd-constitution/references/sdd-process.md` § Register (C26 cites
+- The NEED template gains its `processes: []` line (`templates/spec-need.md`); the schema already accepted the field.
+- Out of scope: a process row in `sdd-constitution/references/sdd-process.md` § Register (C26 cites
   `processes.md` § Write for it), and the skills that use and verify processes (KIT-092).
 
 ## Proof
 
-`bash platforms/ci/check.sh`, `bash platforms/ci/check.sh --links`, `python3.12 platforms/tools/run_tests.py --layer
+`bash platforms/tools/check.sh`, `bash platforms/tools/check.sh --links`, `python3.12 platforms/tools/run_tests.py --layer
 unit,contract` and `--layer integration --changed-from origin/main`. No code changes, so no red test. Evals: see the PR
 body's `Evals:` line.
 

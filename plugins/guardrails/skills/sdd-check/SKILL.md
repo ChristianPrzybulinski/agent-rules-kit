@@ -19,7 +19,7 @@ allowed-tools:
 Process: `../sdd-constitution/references/sdd-process.md`. Read-only: this tool edits no specification. It is not a step of the chain: `sdd-clarify` and `sdd-plan` call it before their status move, and anyone may run it as an audit. Checklist: `references/check-list.md`.
 
 Scope, chosen by the argument:
-- functional (`NEED-nnn`, called by `sdd-clarify` before `refined`): the NEED, its REQs, journeys, processes and product decisions; rows C1, C2, C4, C5, C6, C11, C12, C13, C14 (range and unit), C26, the journey and process links and checklist Q1 (read against each REQ's Verification), Q2–Q4, Q7 and Q12; a block stops `refined`.
+- functional (`NEED-nnn`, called by `sdd-clarify` before `refined`): the NEED, its REQs, journeys, processes and product decisions; rows C1, C2, C4, C5, C6, C11, C12, C13, C14 (range, unit and exposure), C26, the journey and process links and checklist Q1 (read against each REQ's Verification), Q2–Q4, Q7 and Q12; a block stops `refined`.
 - full (`FEAT-nnn`, called by `sdd-plan` before `planned`): the functional scope again on the FEAT's REQs and its NEED, plus the FEAT, its Plan, Tasks once cut and decisions with rows C3, C7, C8, C9, C10, the task cut and decision folding (§ 1 d, e), C14 (exposure), C15 and checklist Q1 (read against the FEAT's criteria), Q5, Q6 and Q8–Q11; a block stops `planned`.
 - With `sdd.needs: false` (no NEED file) there is no functional run: the full scope reads the FEAT's Problem section where it reads the NEED (C1 checks the FEAT→REQ link and a Problem Situation with no REQ).
 - `all` (an audit): the full scope on every artifact. `docs/spec/baseline.json` may hold old findings per row (`C<n>`, `Q<n>`) and artifact id with a count: a finding within its count is listed under `Baseline` and does not block; one above it, or on an artifact the file does not hold, is reported as usual; an entry that finds less than its count is listed as `lower: <row> <artifact> <count> → <found>`. The file only shrinks: never propose adding an entry (`check_spec.py` keeps its own rows the same way).
@@ -45,7 +45,7 @@ c. Consistency table. Load the artifacts of the scope, then check its rows:
 | C9 | plan violating kit/repository rule | critical |
 | C10 | invalid frontmatter | high |
 | C11 | a REQ states how instead of what (algorithm, message, table, framework); rule: `../sdd-clarify/references/req-scope.md` | medium |
-| C12 | a process state with no exit (unless the Postconditions name it final), a state no step or state enters, a decision point without a row per outcome, or a step whose rule is prose instead of a REQ id; rule: `../sdd-clarify/references/processes.md` § Soundness | high |
+| C12 | a process state with no exit (unless the Postconditions name it final), a state that neither the Trigger, a step nor another state enters, a decision point without a row per outcome, or a step whose rule is prose instead of a REQ id; rule: `../sdd-clarify/references/processes.md` § Soundness | high |
 | C13 | a NEED that names no pillar (`new`, `improvement`, `content` or `decision`) or a pillar `spec.md` does not list, while `spec.md` has `## Pillars`; or a NEED that matches a `spec.md` Out of scope line and is not closed `rejected` or `parked` citing it; rule: `../sdd-specify/SKILL.md` § 1 | high |
 | C14 | a REQ-F Values row whose `Tunable` cell is empty, or neither `fixed` nor a range with its unit and exposure; in the full scope, a non-`fixed` tunable of the FEAT's REQs with no line in Plan § Data naming where it is exposed (content key, config, a debug control); rule: `../sdd-clarify/references/req-scope.md` § 1 | medium |
 | C15 | a Plan § Assets row without its source, its license or the REQ or mock it serves (full scope); rows: `../sdd-plan/references/plan-sections.md` | medium |
@@ -65,6 +65,6 @@ One format. Line one: `validator: OK (N artifacts[; M held]) | FAIL (n lines) | 
 
 ## 4. Route findings
 
-Ambiguity, a C12, C26 or Q12 finding and a C14 tunable without range or unit go to `sdd-clarify`, a missing Situation or a C13 finding to `sdd-specify`, a plan or task gap (a C14 tunable with no Plan § Data exposure included) to `sdd-plan` or `sdd-tasks`, a kit-rule violation to a decision record or a blocker.
+Ambiguity, a C12, C26 or Q12 finding and a C14 tunable without range, unit or exposure go to `sdd-clarify`, a missing Situation or a C13 finding to `sdd-specify`, a plan or task gap (a C14 tunable with no Plan § Data exposure included) to `sdd-plan` or `sdd-tasks`, a kit-rule violation to a decision record or a blocker.
 
 Done when: every finding cites `path:line`, the validator verdict is on line one, and the report states its scope and whether the next status is blocked.
