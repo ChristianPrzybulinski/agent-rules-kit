@@ -493,6 +493,373 @@ class RedTest(StubCase):
         self.assertNotIn("test_add.py", out)
 
 
+class RedTwoPhaseTest(StubCase):
+    """KIT-102: the red check in two phases, for a runner that cannot start the test run itself (a sealed VM one job
+    per run, stratics#4687). `--plan OUT.json` selects the tests and writes the command without running anything;
+    the engine runs it on base (plus the PR's test files) and on head and writes `DIR/<side>/exit_code`, `output.txt`
+    and the optional `reports/`; `--sides-from DIR` judges those sides with the same judge as the one-process run."""
+
+    def plan(self, head, *extra, base=None, run=RUN, name="plan.json"):
+        path = Path(self.tmp.name) / name
+        code, out = self.run_tool("red", "--base", base or self.base, "--head", head, "--run", run,
+                                  "--plan", str(path), *extra)
+        return code, out, (json.loads(path.read_text(encoding="utf-8")) if path.exists() else None)
+
+    def engine(self, head, *extra, base=None, run=RUN, reports="reports"):
+        """What the loop engine does between the phases: the plan's command on base with the PR's test files copied
+        in, then on head, each side's exit code, combined output and JUnit reports written under one folder."""
+        base = base or self.base
+        code, out, plan = self.plan(head, *extra, base=base, run=run)
+        self.assertEqual(code, 0, out)
+        sides = Path(self.tmp.name) / "sides"
+        for side, rev in (("base", base), ("head", head)):
+            tree = Path(self.tmp.name) / f"tree-{side}"
+            git(self.repo.root, "worktree", "add", "--detach", "-q", str(tree), rev)
+            try:
+                if side == "base":
+                    for rel in plan["test_files"]:
+                        (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+                        (tree / rel).write_bytes(subprocess.run(["git", "show", f"{head}:{rel}"], cwd=self.repo.root,
+                                                                check=True, capture_output=True).stdout)
+                done = subprocess.run(["/bin/sh", "-c", plan["command"]], cwd=tree / plan["cwd"],
+                                      capture_output=True, text=True, timeout=120)
+                folder = sides / side
+                folder.mkdir(parents=True)
+                (folder / "exit_code").write_text(f"{done.returncode}\n", encoding="utf-8")
+                (folder / "output.txt").write_text(done.stdout + done.stderr, encoding="utf-8")
+                if (tree / plan["cwd"] / reports).is_dir():
+                    shutil.copytree(tree / plan["cwd"] / reports, folder / "reports")
+            finally:
+                git(self.repo.root, "worktree", "remove", "--force", str(tree))
+        return sides
+
+    def judge(self, head, sides, *extra, base=None, run=RUN):
+        return self.run_tool("red", "--base", base or self.base, "--head", head, "--run", run,
+                             "--sides-from", str(sides), *extra)
+
+    def both(self, head, *extra, base=None, run=RUN):
+        """(one-process exit code and output, two-phase exit code and output) for the same PR."""
+        one = self.run_tool("red", "--base", base or self.base, "--head", head, "--run", run, *extra)
+        sides = self.engine(head, *extra, base=base, run=run)
+        return one, self.judge(head, sides, *extra, base=base, run=run)
+
+    @staticmethod
+    def verdict_lines(out):
+        return [line for line in out.splitlines() if line.startswith("red: ")]
+
+    # ------------------------------------------------------------------ --plan
+
+    def test_plan_writes_the_selection_and_the_command_and_runs_nothing(self):
+        marker = Path(self.tmp.name) / "ran"
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB,
+                                          "tests__test_sub_more.py": TEST_SUB.replace("SubTest", "More")})
+        before = self.worktrees()
+        code, out, plan = self.plan(head, run=f"touch {marker} && python3 -m unittest {{tests}} -k {{classes}}")
+        self.assertEqual(code, 0, out)
+        self.assertFalse(marker.exists(), "the plan ran the test command")
+        self.assertEqual(self.worktrees(), before)
+        self.assertEqual(plan["test_files"], ["tests/test_sub.py", "tests/test_sub_more.py"])
+        self.assertEqual(plan["classes"], "test_sub,test_sub_more")
+        self.assertEqual(plan["command"], f"touch {marker} && python3 -m unittest tests/test_sub.py "
+                                          "tests/test_sub_more.py -k test_sub,test_sub_more")
+        self.assertEqual(plan["cwd"], ".")
+        self.assertEqual(plan["base"], git(self.repo.root, "rev-parse", self.base))
+        self.assertEqual(plan["head"], head)
+        self.assertEqual(plan["status"], "run")
+        self.assertIn("red: PR test files: tests/test_sub.py, tests/test_sub_more.py", out)
+
+    def test_plan_takes_the_run_folder_from_the_leading_cd_and_classes_for_maven(self):
+        head = self.repo.commit("widget", **{
+            "server__src__main__Widget.java": "public class Widget { int sum() { return 3; } }\n",
+            "server__src__test__WidgetTest.java": WIDGET_TEST,
+            "server__src__test__GadgetTest.java": WIDGET_TEST.replace("WidgetTest", "GadgetTest")})
+        code, out, plan = self.plan(head, run="cd server && ./mvnw -q test -Dtest={classes}")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(plan["test_files"], ["server/src/test/GadgetTest.java", "server/src/test/WidgetTest.java"])
+        self.assertEqual(plan["classes"], "GadgetTest,WidgetTest")
+        self.assertEqual(plan["command"], "cd server && ./mvnw -q test -Dtest=GadgetTest,WidgetTest")
+        self.assertEqual(plan["run_folder"], "server")
+
+    def test_plan_with_no_pr_test_file_exits_as_none_does(self):
+        head = self.repo.commit("code only", **{"calc.py": CALC_SUB})
+        code, out, plan = self.plan(head)
+        self.assertEqual(code, 1, out)
+        self.assertIn("red: NONE", out)
+        self.assertEqual(plan["status"], "none")
+        self.assertEqual(plan["test_files"], [])
+        self.assertIsNone(plan["command"])
+
+    def test_plan_of_a_test_only_pr_is_exempt_with_nothing_to_run(self):
+        head = self.repo.commit("more tests", **{"tests__test_add_again.py": TEST_ADD.replace("AddTest", "Again")})
+        code, out, plan = self.plan(head)
+        self.assertEqual(code, 0, out)
+        self.assertIn("red: EXEMPT", out)
+        self.assertEqual(plan["status"], "exempt")
+        self.assertIsNone(plan["command"])
+
+    def test_plan_and_sides_from_together_are_a_usage_error(self):
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        code, out = self.run_tool("red", "--base", self.base, "--head", head, "--run", RUN,
+                                  "--plan", str(Path(self.tmp.name) / "p.json"), "--sides-from", self.tmp.name)
+        self.assertEqual(code, 2, out)
+        self.assertIn("not allowed with argument", out)
+
+    # ------------------------------------------------------------------ --sides-from, each verdict class
+
+    def test_sides_new_symbol_is_red(self):
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        code, out = self.judge(head, self.engine(head))
+        self.assertEqual(code, 0, out)
+        self.assertIn("new-symbol (sub)", out)
+        self.assertIn("red: OK", out)
+
+    def test_sides_assertion_is_red(self):
+        base = self.repo.commit("mul bug", **{"calc.py": CALC_MUL_BUG})
+        head = self.repo.commit("mul fix", **{"calc.py": CALC_MUL, "tests__test_mul.py": TEST_MUL})
+        code, out = self.judge(head, self.engine(head, base=base), base=base)
+        self.assertEqual(code, 0, out)
+        self.assertIn("MulTest.test_mul: assertion", out)
+
+    def test_sides_missing_symbol_is_flagged(self):
+        base = self.repo.commit("build", **{"build.py": BUILD.format(symbol="Gadget")})
+        head = self.repo.commit("widget", **{"src__Widget.java": "public class Widget { int sum() { return 3; } }\n",
+                                              "src__test__WidgetTest.java": WIDGET_TEST})
+        run = f"{sys.executable} build.py"
+        code, out = self.judge(head, self.engine(head, base=base, run=run), base=base, run=run)
+        self.assertEqual(code, 3, out)
+        self.assertIn("missing-symbol (Gadget)", out)
+
+    def test_sides_runtime_is_flagged(self):
+        base = self.repo.commit("first bug", **{"calc.py": CALC_FIRST_BUG})
+        head = self.repo.commit("first fix", **{"calc.py": CALC_FIRST, "tests__test_first.py": TEST_FIRST})
+        code, out = self.judge(head, self.engine(head, base=base), base=base)
+        self.assertEqual(code, 3, out)
+        self.assertIn("runtime", out)
+        self.assertIn("red: FLAG", out)
+
+    def test_sides_every_test_passing_on_base_is_flagged(self):
+        head = self.repo.commit("sub, add test only", **{
+            "calc.py": CALC_SUB, "tests__test_add_again.py": TEST_ADD.replace("AddTest", "Again")})
+        code, out = self.judge(head, self.engine(head))
+        self.assertEqual(code, 3, out)
+        self.assertIn("every test passes on base", out)
+
+    def test_sides_data_only_red_is_flagged(self):
+        base = self.repo.commit("names", **{"known.py": KNOWN.format(names="'a', 'b'"),
+                                             "tests__test_names.py": TEST_NAMES.format(names="'a', 'b'")})
+        head = self.repo.commit("add c", **{"known.py": KNOWN.format(names="'a', 'b', 'c'"),
+                                             "tests__test_names.py": TEST_NAMES.format(names="'a', 'b', 'c'")})
+        code, out = self.judge(head, self.engine(head, base=base), base=base)
+        self.assertEqual(code, 3, out)
+        self.assertIn("made only of data entries", out)
+
+    def test_sides_head_failure_is_a_finding(self):
+        head = self.repo.commit("wrong sub", **{"calc.py": CALC_SUB.replace("a - b", "a + b"),
+                                                 "tests__test_sub.py": TEST_SUB})
+        code, out = self.judge(head, self.engine(head))
+        self.assertEqual(code, 1, out)
+        self.assertIn("head failed", out)
+
+    def test_sides_where_the_command_could_not_start_are_no_verdict(self):
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        run = "no-such-runner {tests}"
+        code, out = self.judge(head, self.engine(head, run=run), run=run)
+        self.assertEqual(code, 2, out)
+        self.assertIn("red: ERROR — no test ran on base (exit 127", out)
+
+    def test_sides_where_no_test_was_collected_are_no_verdict(self):
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        run = f"{sys.executable} -B -m unittest -q -k no_such_test {{tests}}"
+        code, out = self.judge(head, self.engine(head, run=run), run=run)
+        self.assertEqual(code, 2, out)
+        self.assertIn("no test ran", out)
+
+    def test_sides_junit_reports_give_a_class_per_test(self):
+        base = self.repo.commit("runner", **{"junit_run.py": JUNIT_RUN})
+        head = self.repo.commit("widget", **{"src__Widget.java": "public class Widget { int sum() { return 3; } }\n",
+                                              "src__test__WidgetTest.java": WIDGET_TEST})
+        run = f"{sys.executable} junit_run.py"
+        code, out = self.judge(head, self.engine(head, base=base, run=run), base=base, run=run)
+        self.assertEqual(code, 0, out)
+        self.assertIn("WidgetTest.sums: assertion", out)
+        self.assertIn("WidgetTest.loads: runtime", out)
+
+    def test_sides_from_hand_written_files_runs_nothing_and_adds_no_worktree(self):
+        """The folder format alone: exit_code as text, output.txt as the combined output, no reports/."""
+        marker = Path(self.tmp.name) / "ran"
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        sides = Path(self.tmp.name) / "hand"
+        for side, code_text, output in (
+                ("base", "1\n", "E\n" + "=" * 70 + "\nERROR: test_sub (tests.test_sub.SubTest.test_sub)\n" + "-" * 70
+                 + "\nAttributeError: module 'calc' has no attribute 'sub'\n\n" + "-" * 70
+                 + "\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"),
+                ("head", "0", "." + "\n" + "-" * 70 + "\nRan 1 test in 0.000s\n\nOK\n")):
+            (sides / side).mkdir(parents=True)
+            (sides / side / "exit_code").write_text(code_text, encoding="utf-8")
+            (sides / side / "output.txt").write_text(output, encoding="utf-8")
+        before = self.worktrees()
+        code, out = self.judge(head, sides, run=f"touch {marker} && {RUN}")
+        self.assertEqual(code, 0, out)
+        self.assertIn("red: test tests.test_sub.SubTest.test_sub: new-symbol (sub)", out)
+        self.assertFalse(marker.exists(), "--sides-from ran the test command")
+        self.assertEqual(self.worktrees(), before)
+
+    def test_sides_folder_missing_a_file_is_a_usage_error(self):
+        head = self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        sides = Path(self.tmp.name) / "partial"
+        (sides / "base").mkdir(parents=True)
+        (sides / "base" / "exit_code").write_text("1", encoding="utf-8")
+        (sides / "base" / "output.txt").write_text("", encoding="utf-8")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("head", out)
+        (sides / "head").mkdir()
+        (sides / "head" / "exit_code").write_text("zero", encoding="utf-8")
+        (sides / "head" / "output.txt").write_text("", encoding="utf-8")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("exit_code", out)
+
+    def test_sides_from_a_pr_with_no_test_file_is_none_without_reading_the_folder(self):
+        head = self.repo.commit("code only", **{"calc.py": CALC_SUB})
+        code, out = self.judge(head, Path(self.tmp.name) / "absent")
+        self.assertEqual(code, 1, out)
+        self.assertIn("red: NONE", out)
+
+    # ------------------------------------------------------------------ --sides-from reads only DIR's own files
+
+    def hand_sides(self, base_output="E\n", head_output="OK\n", head=None):
+        """A sides folder written by hand for a PR adding `sub`, and that PR's head (committed once)."""
+        head = head or self.repo.commit("sub", **{"calc.py": CALC_SUB, "tests__test_sub.py": TEST_SUB})
+        sides = Path(self.tmp.name) / "hand"
+        for side, code_text, output in (("base", "1\n", base_output), ("head", "0\n", head_output)):
+            (sides / side).mkdir(parents=True)
+            (sides / side / "exit_code").write_text(code_text, encoding="utf-8")
+            (sides / side / "output.txt").write_text(output, encoding="utf-8")
+        return head, sides
+
+    def outside(self, name, text):
+        path = Path(self.tmp.name) / "outside" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_sides_refuse_a_symlinked_output(self):
+        head, sides = self.hand_sides()
+        secret = self.outside("secret.txt", "SECRET-OUTSIDE-DIR\n")
+        (sides / "base" / "output.txt").unlink()
+        os.symlink(secret, sides / "base" / "output.txt")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("base/output.txt", out)
+        self.assertNotIn("SECRET-OUTSIDE-DIR", out)
+
+    def test_sides_refuse_a_symlinked_exit_code_and_echo_no_bad_value(self):
+        head, sides = self.hand_sides()
+        secret = self.outside("token", "SECRET-TOKEN-VALUE\n")
+        (sides / "head" / "exit_code").unlink()
+        os.symlink(secret, sides / "head" / "exit_code")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("head/exit_code", out)
+        self.assertNotIn("SECRET-TOKEN-VALUE", out)
+        (sides / "head" / "exit_code").unlink()
+        (sides / "head" / "exit_code").write_text("SECRET-NOT-AN-INTEGER", encoding="utf-8")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("exit_code", out)
+        self.assertNotIn("SECRET-NOT-AN-INTEGER", out)
+
+    def test_sides_refuse_a_file_that_is_not_regular(self):
+        head, sides = self.hand_sides()
+        (sides / "base" / "output.txt").unlink()
+        (sides / "base" / "output.txt").mkdir()
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("base/output.txt", out)
+
+    def test_sides_refuse_a_symlinked_folder_or_report_under_reports(self):
+        report = ('<testsuite name="T"><testcase classname="Leak" name="SECRET-REPORT-CASE">'
+                  '<failure message="x">x</failure></testcase></testsuite>')
+        target = self.outside("TEST-Leak.xml", report).parent
+        head = None
+        for kind in ("dirlink", "filelink", "reportslink"):
+            with self.subTest(kind=kind):
+                shutil.rmtree(Path(self.tmp.name) / "hand", ignore_errors=True)
+                head, sides = self.hand_sides(head=head)
+                reports = sides / "base" / "reports"
+                if kind == "reportslink":
+                    os.symlink(target, reports)
+                else:
+                    reports.mkdir()
+                    if kind == "dirlink":
+                        os.symlink(target, reports / "dirlink")
+                    else:
+                        os.symlink(target / "TEST-Leak.xml", reports / "TEST-Leak.xml")
+                code, out = self.judge(head, sides)
+                self.assertEqual(code, 2, out)
+                self.assertIn("base/reports", out)
+                self.assertNotIn("SECRET-REPORT-CASE", out)
+
+    def test_sides_read_at_most_the_output_cap_from_the_end(self):
+        """output.txt over SIDE_OUTPUT_MAX_BYTES: only its last bytes are read, so a missing-symbol line before
+        them is not seen and the run is judged as a whole."""
+        cap = 8 * 1024 * 1024
+        base_output = ("E\n" + "=" * 70 + "\nERROR: test_sub (tests.test_sub.SubTest.test_sub)\n" + "-" * 70
+                       + "\nAttributeError: module 'calc' has no attribute 'sub'\n" + ("x" * 99 + "\n") * (cap // 100 + 10)
+                       + "-" * 70 + "\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n")
+        head, sides = self.hand_sides(base_output=base_output)
+        code, out = self.judge(head, sides)
+        self.assertIn(f"base/output.txt holds {len(base_output.encode())} bytes; reading the last {cap}", out)
+        self.assertEqual(code, 3, out)
+        self.assertIn("(whole run): runtime", out)
+
+    def test_sides_refuse_a_report_over_the_cap(self):
+        head, sides = self.hand_sides()
+        (sides / "base" / "reports").mkdir()
+        (sides / "base" / "reports" / "TEST-Big.xml").write_text("<testsuite>" + " " * (8 * 1024 * 1024) + "</testsuite>",
+                                                                  encoding="utf-8")
+        code, out = self.judge(head, sides)
+        self.assertEqual(code, 2, out)
+        self.assertIn("TEST-Big.xml", out)
+        self.assertIn("bytes", out)
+
+    # ------------------------------------------------------------------ equivalence
+
+    def test_the_same_sides_give_the_same_verdict_as_the_one_process_run(self):
+        """Each verdict class, once through the one-process run and once through --plan, the engine and
+        --sides-from: the same `red: ` lines and the same exit code."""
+        scenarios = {
+            "new-symbol": lambda: (None, self.repo.commit("sub", **{"calc.py": CALC_SUB,
+                                                                     "tests__test_sub.py": TEST_SUB}), RUN, ()),
+            "assertion": lambda: (self.repo.commit("mul bug", **{"calc.py": CALC_MUL_BUG}),
+                                  self.repo.commit("mul fix", **{"calc.py": CALC_MUL, "tests__test_mul.py": TEST_MUL}),
+                                  RUN, ()),
+            "runtime": lambda: (self.repo.commit("first bug", **{"calc.py": CALC_FIRST_BUG}),
+                                self.repo.commit("first fix", **{"calc.py": CALC_FIRST,
+                                                                 "tests__test_first.py": TEST_FIRST}), RUN, ()),
+            "head-failed": lambda: (None, self.repo.commit("wrong", **{"calc.py": CALC_SUB.replace("a - b", "a + b"),
+                                                                        "tests__test_sub.py": TEST_SUB}), RUN, ()),
+            "no-test-ran": lambda: (None, self.repo.commit("sub", **{"calc.py": CALC_SUB,
+                                                                      "tests__test_sub.py": TEST_SUB}),
+                                    "no-such-runner {tests}", ()),
+            "junit": lambda: (self.repo.commit("runner", **{"junit_run.py": JUNIT_RUN}),
+                              self.repo.commit("widget", **{
+                                  "src__Widget.java": "public class Widget { int sum() { return 3; } }\n",
+                                  "src__test__WidgetTest.java": WIDGET_TEST}),
+                              f"{sys.executable} junit_run.py", ("--junit", "reports/*.xml")),
+        }
+        for name, make in scenarios.items():
+            with self.subTest(scenario=name):
+                git(self.repo.root, "checkout", "-q", "--detach", self.base)
+                base, head, run, extra = make()
+                sides_dir = Path(self.tmp.name) / "sides"
+                shutil.rmtree(sides_dir, ignore_errors=True)
+                (one_code, one_out), (two_code, two_out) = self.both(head, *extra, base=base or self.base, run=run)
+                self.assertEqual(two_code, one_code, f"one-process:\n{one_out}\ntwo-phase:\n{two_out}")
+                self.assertEqual(self.verdict_lines(two_out), self.verdict_lines(one_out))
+
+
 class ScopeTest(ToolCase):
     def scope(self, head, *extra):
         return self.run_tool("scope", "--base", self.base, "--head", head,

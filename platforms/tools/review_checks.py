@@ -15,6 +15,19 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
       ERROR, exit 2, never a verdict. --junit reads the run's JUnit XML reports (surefire, gdUnit, pytest); without
       them the unittest or pytest text is read. A case naming no test file of the run, such as another runner's report
       quoted in a message, is skipped, and a reported failure is an assertion whatever its message quotes.
+  review_checks.py red   ... --plan OUT.json | --sides-from DIR
+      The same check in two phases (KIT-102), for a runner that must start the test run itself (a sealed VM). --plan
+      makes the selection above and writes OUT.json: {"status": run|exempt|none|error, "base", "head" (full SHAs),
+      "test_files" (repository-relative, to copy from head onto base), "classes" (the `{classes}` string), "command"
+      (the template filled in), "cwd" (where the command starts, relative to the repository), "run_folder" (cwd plus
+      a leading `cd <folder> &&`), "junit" (the --junit globs)}; it runs nothing and exits as red does with no run
+      due (EXEMPT 0, NONE 1, no command for a test 2 with status error), else 0. --sides-from reads DIR/base/ and
+      DIR/head/: `exit_code` (an integer as text), `output.txt` (stdout and stderr together; its last
+      SIDE_OUTPUT_MAX_BYTES at most) and the optional `reports/` (every JUnit XML file under it, each at most
+      SIDE_REPORT_MAX_BYTES), and gives the one-process verdict, lines and exit code, from the same judge; it runs
+      nothing and makes no worktree. It reads regular files inside DIR only: a symbolic link (a side folder,
+      `reports/`, or any file or folder under them) or a non-regular file is exit 2, and an error names the path,
+      never the content. Both take one test command: several gates `red` entries claiming the tests are exit 2.
   review_checks.py scope --base B --head H --files GLOB ... [--body PR.md] [--gates gates.json]
       Changed paths outside the task's Files cell. `## Files widened` may add existing test paths only, and none of
       them may change an assertion line (the falsifier: an assertion changed to pass is a stop).
@@ -75,6 +88,7 @@ import re
 import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -144,6 +158,13 @@ HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 UNITTEST_CASE = re.compile(r"^(FAIL|ERROR): (\w+) \(([\w.]+)\)", re.M)
 PYTEST_CASE = re.compile(r"^(FAILED|ERROR) ([^\s(]\S*?)(?: - (.*))?$", re.M)  # not unittest's FAILED (failures=N)
 RED_CLASSES = ("assertion", "new-symbol")
+# A leading `cd <folder> &&` in a --run command: the folder the command runs in (KIT-102 --plan's run_folder), read as
+# the Stratics loop engine reads it.
+# --sides-from reads at most this many bytes of a side's output.txt (its last bytes, where a run's summary is) and
+# refuses a JUnit report under reports/ that holds more (KIT-102).
+SIDE_OUTPUT_MAX_BYTES = 8 * 1024 * 1024
+SIDE_REPORT_MAX_BYTES = 8 * 1024 * 1024
+CD_PREFIX = re.compile(r"^cd\s+(?:--\s+)?([A-Za-z0-9._/-]+)\s*&&\s*(.+)$")
 EXCERPT_LINES = 15
 
 
@@ -423,18 +444,22 @@ def no_test_ran(parts, stacks: dict) -> str:
     return ""
 
 
-def junit_cases(tree: Path, globs) -> list[tuple[str, str, str]]:
-    """(test id, kind, text) per testcase of the JUnit reports a run wrote; kind is failure, error or pass."""
+def report_cases(root) -> list[tuple[str, str, str]]:
+    """(test id, kind, text) per testcase of one parsed JUnit report; kind is failure, error or pass."""
     cases = []
-    for pattern in globs or []:
-        for report in sorted(glob.glob(str(tree / pattern), recursive=True)):
-            for case in ET.parse(report).getroot().iter("testcase"):
-                tid = ".".join(x for x in (case.get("classname"), case.get("name")) if x)
-                node = case.find("failure") if case.find("failure") is not None else case.find("error")
-                kind = "pass" if node is None else node.tag
-                text = "" if node is None else f"{node.get('type', '')} {node.get('message', '')} {node.text or ''}"
-                cases.append((tid, kind, text))
+    for case in root.iter("testcase"):
+        tid = ".".join(x for x in (case.get("classname"), case.get("name")) if x)
+        node = case.find("failure") if case.find("failure") is not None else case.find("error")
+        kind = "pass" if node is None else node.tag
+        text = "" if node is None else f"{node.get('type', '')} {node.get('message', '')} {node.text or ''}"
+        cases.append((tid, kind, text))
     return cases
+
+
+def junit_cases(tree: Path, globs) -> list[tuple[str, str, str]]:
+    """The cases of the JUnit reports a run wrote in its own worktree (report_cases)."""
+    return [case for pattern in globs or [] for report in sorted(glob.glob(str(tree / pattern), recursive=True))
+            for case in report_cases(ET.parse(report).getroot())]
 
 
 def in_run(tid: str, files) -> bool:
@@ -478,8 +503,10 @@ def classify(kind: str, text: str, stacks: dict, adds) -> str:
     return "runtime"
 
 
-def red(args) -> int:
-    repo, out = args.repo, Findings("red")
+def red_select(args) -> tuple[int | None, list[str], list[str], list]:
+    """The selection both red phases share: (an exit code when no run is due, else None; the PR's test files; its
+    non-test changes under the code roots; the (cwd, rendered command, tests) groups). It prints today's lines."""
+    repo = args.repo
     paths = changed(repo, args.base, args.head)
     test_globs = args.tests or TEST_GLOBS
     tests = [p for p in changed(repo, args.base, args.head, deleted=False) if matches(p, test_globs)]
@@ -488,20 +515,38 @@ def red(args) -> int:
     if not code:
         print(f"red: EXEMPT — no non-test change under the code roots ({len(tests)} test files): base plus the PR's "
               "tests equals head, so the tests are not run")
-        return 0
+        return 0, tests, code, []
     if not tests:
         print("red: NONE — no test file added or changed; the PR's ## Red section must name its exception "
               "(a characterization test or a manual proof with why no honest test exists)")
-        return 1
+        return 1, tests, code, []
     print(f"red: PR test files: {', '.join(tests)}")
     groups, uncovered = red_groups(tests, gates_config(args).get("red", []), args.run)
     if uncovered:
         print(f"red: ERROR — no test command for {', '.join(uncovered)}: add a `red` entry (glob, cwd, command) "
               "to the gates config, or pass --run")
-        return 2
+        return 2, tests, code, groups
     for cwd, command, _ in groups:
         print(f"red: run in {cwd}: {command}")
+    return None, tests, code, groups
+
+
+def side_line(repo: Path, side: str, rev: str, exit_code) -> None:
+    sha = git(repo, "rev-parse", "--short", rev).strip()
+    print(f"red: {side} {sha}{' + PR test files' if side == 'base' else ''}: exit {exit_code}")
+
+
+def red(args) -> int:
+    """One process: select, run both sides in temporary worktrees, judge. --plan and --sides-from split it."""
+    if args.plan:
+        return red_plan(args)
+    status, tests, code, groups = red_select(args)
+    if status is not None:
+        return status
     stacks = load_stacks(args)
+    if args.sides_from:
+        return red_judge(args, tests, code, red_sides_read(args, groups), stacks)
+    repo, out = args.repo, Findings("red")
     tmp, trees, results, unplaced = Path(tempfile.mkdtemp(prefix="review-red-")), [], {}, []
     try:
         for side, rev in (("base", args.base), ("head", args.head)):
@@ -524,8 +569,7 @@ def red(args) -> int:
                     break
             exit_code, output, parts = run_side(tree, groups, args.timeout)
             results[side] = (exit_code, output, junit_cases(tree, args.junit), parts)
-            sha = git(repo, "rev-parse", "--short", rev).strip()
-            print(f"red: {side} {sha}{' + PR test files' if side == 'base' else ''}: exit {exit_code}")
+            side_line(repo, side, rev, exit_code)
     finally:
         for tree in trees:
             subprocess.run(["git", "worktree", "remove", "--force", str(tree)], cwd=repo, capture_output=True)
@@ -535,6 +579,120 @@ def red(args) -> int:
         for text in unplaced:
             out.add(text)
         return out.close("")
+    return red_judge(args, tests, code, results, stacks)
+
+
+def several_commands(groups) -> int:
+    """The two phases carry one test command: a side's exit code and output belong to one run. Exit 2, no verdict."""
+    print(f"red: ERROR — --plan and --sides-from take one test command, but {len(groups)} gates `red` entries claim "
+          "the PR's tests: run red without them")
+    return 2
+
+
+def red_plan(args) -> int:
+    """Phase 1 (--plan OUT.json, KIT-102): the selection as `red` makes it, written as JSON for a runner that runs the
+    command itself on base (plus `test_files`, copied from head) and on head; nothing runs and no worktree is made.
+    Exit as `red` does when no run is due (EXEMPT 0, NONE 1, no command 2), else 0."""
+    status, tests, _, groups = red_select(args)
+    if status is None and len(groups) != 1:
+        return several_commands(groups)
+    cwd, command, _ = groups[0] if status is None else (None, None, [])
+    folder = cwd
+    if command and (prefix := CD_PREFIX.match(command.strip())):
+        folder = os.path.normpath(os.path.join(cwd, prefix.group(1)))
+    plan = {"status": {None: "run", 0: "exempt", 1: "none"}.get(status, "error"),
+            "base": git(args.repo, "rev-parse", "--verify", f"{args.base}^{{commit}}").strip(),
+            "head": git(args.repo, "rev-parse", "--verify", f"{args.head}^{{commit}}").strip(),
+            "test_files": tests,
+            "classes": render("{classes}", ".", tests) if status is None else "",
+            "command": command, "cwd": cwd, "run_folder": folder, "junit": args.junit or []}
+    Path(args.plan).write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+    print(f"red: plan written to {args.plan} ({plan['status']}); nothing was run")
+    return 0 if status is None else status
+
+
+def side_file(folder: Path, rel: str, limit: int, tail: bool = False) -> bytes:
+    """The bytes of DIR/`rel`, a regular file inside DIR: opened with O_NOFOLLOW and checked by fstat, so a symbolic
+    link (to a file or a folder anywhere on the host) or a device, FIFO or folder is a usage error and never read.
+    Over `limit` bytes: the last `limit` with `tail`, else a usage error. An error names the path, never its content."""
+    where = f"--sides-from {folder}: {rel}"
+    path = folder / rel
+    try:
+        if stat.S_ISLNK(os.lstat(path).st_mode):
+            usage_error(f"{where} is a symbolic link; the runner writes regular files only")
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    except OSError as error:
+        usage_error(f"{where}: {error.strerror}")
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode):
+        os.close(fd)
+        usage_error(f"{where} is not a regular file")
+    with os.fdopen(fd, "rb") as handle:
+        if info.st_size > limit:
+            if not tail:
+                usage_error(f"{where} holds {info.st_size} bytes, more than {limit}")
+            print(f"red: {rel} holds {info.st_size} bytes; reading the last {limit}")
+            handle.seek(info.st_size - limit)
+        return handle.read(limit)
+
+
+def side_reports(folder: Path, side: str) -> list[tuple[str, str, str]]:
+    """The cases of every *.xml under DIR/<side>/reports/, walked without following a link: any symbolic link there
+    (the folder itself, a folder or a file under it) or a non-regular entry is a usage error, and each report must
+    resolve inside DIR."""
+    rel = f"{side}/reports"
+    try:
+        mode = os.lstat(folder / rel).st_mode
+    except FileNotFoundError:
+        return []
+    except OSError as error:
+        usage_error(f"--sides-from {folder}: {rel}: {error.strerror}")
+    if stat.S_ISLNK(mode) or not stat.S_ISDIR(mode):
+        usage_error(f"--sides-from {folder}: {rel} is a symbolic link or not a folder")
+    inside, cases = folder.resolve(), []
+    for top, dirs, names in os.walk(folder / rel, followlinks=False):
+        for name in sorted(dirs + names):
+            entry = Path(top) / name
+            mode = os.lstat(entry).st_mode
+            shown = entry.relative_to(folder).as_posix()
+            if stat.S_ISLNK(mode) or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+                usage_error(f"--sides-from {folder}: {shown} is a symbolic link or not a regular file or folder")
+            if stat.S_ISREG(mode) and name.endswith(".xml"):
+                if not entry.resolve().is_relative_to(inside):
+                    usage_error(f"--sides-from {folder}: {shown} resolves outside {folder}")
+                try:
+                    root = ET.fromstring(side_file(folder, shown, SIDE_REPORT_MAX_BYTES))
+                except ET.ParseError as error:
+                    usage_error(f"--sides-from {folder}: {shown} is not XML ({error})")
+                cases += report_cases(root)
+    return cases
+
+
+def red_sides_read(args, groups) -> dict:
+    """Phase 2 input (--sides-from DIR, KIT-102): per side, `DIR/<side>/exit_code` (an integer as text),
+    `output.txt` (stdout and stderr together; at most its last SIDE_OUTPUT_MAX_BYTES are read) and the optional
+    `reports/` (every JUnit XML file under it, each at most SIDE_REPORT_MAX_BYTES). Only regular files inside DIR are
+    read: a symbolic link, a missing or unreadable file is a usage error, no verdict."""
+    if len(groups) != 1:
+        sys.exit(several_commands(groups))
+    folder, results, command = Path(args.sides_from), {}, groups[0][1]
+    for side, rev in (("base", args.base), ("head", args.head)):
+        if os.path.islink(folder / side):
+            usage_error(f"--sides-from {folder}: {side} is a symbolic link; the runner writes a folder")
+        code_text = side_file(folder, f"{side}/exit_code", 64).decode("utf-8", "replace").strip()
+        if not re.fullmatch(r"-?\d+", code_text):
+            usage_error(f"--sides-from {folder}: {side}/exit_code must hold an integer")
+        output = side_file(folder, f"{side}/output.txt", SIDE_OUTPUT_MAX_BYTES, tail=True).decode("utf-8", "replace")
+        results[side] = (int(code_text), output, side_reports(folder, side), [(command, int(code_text), output)])
+        side_line(args.repo, side, rev, int(code_text))
+    return results
+
+
+def red_judge(args, tests: list[str], code: list[str], results: dict, stacks: dict) -> int:
+    """The verdict on both sides' results ({side: (exit code, output, JUnit cases, [(command, exit code, output)])}),
+    the one copy both the one-process run and --sides-from use: no test ran, head failed, each failing base test's
+    class, the data-only flag, and exit 0, 1, 2 or 3."""
+    repo, out = args.repo, Findings("red")
     base_code, base_out, base_cases, base_parts = results["base"]
     head_code, head_out, _, head_parts = results["head"]
     print(f"red: base output, last {EXCERPT_LINES} lines")
@@ -943,6 +1101,11 @@ def main(argv=None) -> int:
     p.add_argument("--junit", action="append", help="glob of the run's JUnit XML reports, relative to the checkout")
     p.add_argument("--patterns", help="JSON file that extends the per-stack patterns")
     p.add_argument("--timeout", type=positive_seconds, default=900)
+    phase = p.add_mutually_exclusive_group()
+    phase.add_argument("--plan", metavar="OUT.json", help="phase 1 (KIT-102): write the selection and the command as "
+                                                          "JSON and run nothing")
+    phase.add_argument("--sides-from", metavar="DIR", help="phase 2 (KIT-102): judge DIR/base and DIR/head "
+                                                           "(exit_code, output.txt, reports/) and run nothing")
     p = sub.add_parser("scope")
     p.add_argument("--base", required=True)
     p.add_argument("--head", required=True)
