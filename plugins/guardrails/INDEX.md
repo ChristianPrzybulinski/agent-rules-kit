@@ -84,6 +84,7 @@
 
 ## `hooks/`
 
+- `hook_profile.py`
 - `hooks.json`
 - `path_rules.py`
 - `sync-profiles.txt`

@@ -229,6 +229,99 @@ class KindPresets(Project):
         self.assertIn("profile: sdd.tracker from legacy specs/spec.md", notes)
 
 
+class P2aFollowUps(Project):
+    """KIT-087 P2a: the review follow-ups of #327 and #344."""
+
+    def test_spec_root_refuses_dot_segments_empty_segments_and_backslashes(self):
+        for value in ("./a", "a//b", "a\\..\\b", "a\\b", "a/./b", ".", "a/"):
+            with self.subTest(value=value):
+                self.write(".ai-kit.yaml", f"spec_root: '{value}'\n")
+                errors = "\n".join(self.resolve(["spec_root"])[2])
+                self.assertIn("spec_root", errors)
+                self.assertIn("does not match", errors)
+        for value in ("docs/spec", "specs", "a/b_c/d-e", ".specs/x"):
+            with self.subTest(value=value):
+                self.write(".ai-kit.yaml", f"spec_root: '{value}'\n")
+                self.assertEqual(self.resolve(["spec_root"])[2], [])
+
+    def test_spec_root_through_a_link_that_leaves_the_root_fails(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        (self.root / "specs").symlink_to(outside.name)
+        self.write(".ai-kit.yaml", "spec_root: specs\n")
+        errors = "\n".join(self.resolve(["sdd"])[2])
+        self.assertIn("spec_root specs resolves outside", errors)
+
+    def test_preset_falls_back_to_the_default_kind_when_the_kind_is_invalid(self):
+        resolver = profile.Resolver(self.root)
+        resolver.new = {"project": {"kind": "library"}}
+        self.assertEqual(resolver.preset("sdd"), PRESETS["business"].get("sdd", {}))
+
+    def test_the_stacks_root_legacy_note_names_the_root_key(self):
+        self.write("CLAUDE.md", MARKER.format("docs,godot:client"))
+        notes = self.resolve(["stacks"])[1]
+        self.assertIn("profile: stacks['.'] from legacy CLAUDE.md", notes)
+        self.assertIn("profile: stacks.client from legacy CLAUDE.md", notes)
+        self.assertFalse(any("stacks.." in note for note in notes), notes)
+
+
+class DuplicateKeys(Project):
+    """KIT-087 P2a: review.rounds and evidence.visual_approval are the homes; sdd.review_rounds and
+    sdd.visual_approval stay as legacy aliases during the dual read, always equal to their home."""
+
+    def test_the_home_alone_sets_the_alias(self):
+        self.write(".ai-kit.yaml", "review: {rounds: 2}\nevidence: {visual_approval: owner}\n")
+        resolved, notes, errors = self.resolve()
+        self.assertEqual((errors, notes), ([], []))
+        self.assertEqual((resolved["review"]["rounds"], resolved["sdd"]["review_rounds"]), (2, 2))
+        self.assertEqual((resolved["evidence"]["visual_approval"], resolved["sdd"]["visual_approval"]),
+                         ("owner", "owner"))
+        self.assertEqual(self.resolve(["sdd"])[0]["sdd"]["review_rounds"], 2, "a single section still mirrors")
+
+    def test_the_legacy_alias_alone_sets_the_home_with_a_note(self):
+        self.spec("sdd:\n  review_rounds: 2\n  visual_approval: reviewer\n")
+        resolved, notes, errors = self.resolve()
+        self.assertEqual(errors, [])
+        self.assertEqual((resolved["review"]["rounds"], resolved["sdd"]["review_rounds"]), (2, 2))
+        self.assertEqual((resolved["evidence"]["visual_approval"], resolved["sdd"]["visual_approval"]),
+                         ("reviewer", "reviewer"))
+        self.assertIn("profile: review.rounds from alias sdd.review_rounds", notes)
+        self.assertIn("profile: evidence.visual_approval from alias sdd.visual_approval", notes)
+        self.assertEqual(self.resolve(["review"])[0]["review"]["rounds"], 2, "a single section reads the alias")
+
+    def test_the_alias_in_the_new_file_counts_too(self):
+        self.write(".ai-kit.yaml", "sdd: {review_rounds: 4}\n")
+        resolved, _, errors = self.resolve(["review"])
+        self.assertEqual((errors, resolved["review"]["rounds"]), ([], 4))
+
+    def test_the_two_set_differently_fail_once(self):
+        self.spec("sdd:\n  review_rounds: 2\n")
+        self.write(".ai-kit.yaml", "review: {rounds: 3}\nevidence: {visual_approval: owner}\n"
+                                   "sdd: {visual_approval: reviewer}\n")
+        for sections in (None, ["sdd"], ["review"], ["evidence"]):
+            with self.subTest(sections=sections):
+                errors = self.resolve(sections)[2]
+                text = "\n".join(errors)
+                if sections in (None, ["sdd"], ["review"]):
+                    self.assertEqual(text.count("review.rounds is 3"), 1, errors)
+                    self.assertIn("sdd.review_rounds is 2", text)
+                if sections in (None, ["sdd"], ["evidence"]):
+                    self.assertEqual(text.count('evidence.visual_approval is "owner"'), 1, errors)
+
+    def test_equal_values_agree(self):
+        self.spec("sdd:\n  review_rounds: 2\n")
+        self.write(".ai-kit.yaml", "review: {rounds: 2}\n")
+        self.assertEqual(self.resolve()[2], [])
+
+    def test_the_kind_preset_reaches_the_alias(self):
+        self.write(".ai-kit.yaml", "project: {kind: game}\n")
+        resolved = self.resolve()[0]
+        self.assertEqual(resolved["sdd"]["visual_approval"], "owner")
+        resolver = profile.Resolver(self.root)
+        resolver.resolve()
+        self.assertEqual(resolver.defaults("sdd")["visual_approval"], "owner")
+
+
 class LegacyHomes(Project):
     def test_the_sdd_block_is_the_legacy_home_of_sdd(self):
         self.spec("sdd:\n  tracker: none\n  max_chain: 6\n")
@@ -535,6 +628,40 @@ class CommandLine(Project):
                                              str(SCHEMAS)], capture_output=True, text=True, check=False, env=env)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertEqual(result.stdout, json.dumps(expected, indent=2, sort_keys=True) + "\n")
+
+    def test_file_must_stay_under_the_root(self):
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(outside))
+        (outside / "p.yaml").write_text("ci: {trigger: auto}\n", encoding="utf-8")
+        for value in (str(outside / "p.yaml"), "../" + outside.name + "/p.yaml", "a/../../x.yaml"):
+            with self.subTest(value=value):
+                result = self.run_tool("resolve", "--file", value, "--json", str(self.root))
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("--file must name a file under", result.stderr)
+        self.write("ci/p.yaml", "ci: {trigger: auto}\n")
+        inside = self.run_tool("resolve", "--file", "ci/p.yaml", "--section", "ci", "--json", str(self.root))
+        self.assertEqual(inside.returncode, 0, inside.stderr)
+        self.assertEqual(json.loads(inside.stdout)["trigger"], "auto")
+
+    def test_params_prints_one_summary_line_for_a_legacy_project(self):
+        self.spec("sdd:\n  tracker: none\n  max_chain: 6\n  needs: false\n")
+        result = subprocess.run([sys.executable, "-B", str(CHECK_SPEC), "--params", str(self.root / "docs" / "spec"),
+                                 str(SCHEMAS)], capture_output=True, text=True, check=False,
+                                env={k: v for k, v in os.environ.items() if k != "CI"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lines = [line for line in result.stderr.splitlines() if line.startswith("profile:")]
+        self.assertEqual(len(lines), 1, result.stderr)
+        self.assertIn("3 sdd keys from legacy docs/spec/spec.md (tracker, max_chain, needs)", lines[0])
+        self.assertIn("no .ai-kit.yaml", lines[0])
+
+    def test_migrate_writes_only_the_home_of_a_duplicate_key(self):
+        self.spec("sdd:\n  review_rounds: 2\n  visual_approval: owner\n")
+        written = self.run_tool("migrate", str(self.root))
+        self.assertEqual(written.returncode, 0, written.stderr)
+        data = profile.check_spec().mini_yaml((self.root / ".ai-kit.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(data, {"review": {"rounds": 2}, "evidence": {"visual_approval": "owner"}})
+        after = self.run_tool("resolve", "--json", str(self.root))
+        self.assertEqual(after.returncode, 0, after.stderr)
 
     def test_params_reads_the_new_file_first(self):
         self.spec()

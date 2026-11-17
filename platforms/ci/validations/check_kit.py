@@ -758,7 +758,11 @@ else:
                     result = subprocess.run(
                         [shutil.which("bash"), "-c", command], input=payload, text=True,
                         capture_output=True, timeout=timeout, cwd=tmp,
-                        env={"PATH": str(bin_dir), "AI_KIT_DIR": str(root / "kit")}, check=False)
+                        # CLAUDE_PLUGIN_ROOT: the hook loads hook_profile.py beside it (KIT-087 P2a); with no
+                        # profile in the throwaway repo it keeps docs/spec and lints every .gd file
+                        env={"PATH": str(bin_dir), "AI_KIT_DIR": str(root / "kit"),
+                             "CLAUDE_PLUGIN_ROOT": str(plugins.get(KIT_PLUGIN, PLUGINS_ROOT / KIT_PLUGIN))},
+                        check=False)
                 except subprocess.TimeoutExpired:
                     fail(rel(post_edit_cases_path), f"post-edit case '{name}' timed out")
                     continue

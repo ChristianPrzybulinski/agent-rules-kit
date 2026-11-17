@@ -73,11 +73,39 @@ Four phases, one PR each, plus P1b, the kit's own profile (#322):
      that every key it sets is off its default.
   3. Protection: `.github/CODEOWNERS` already assigns every path (`*`) to the owner; the kit has no protected-paths
      list of its own, so nothing was added.
-- **P2 — the kit's skills, hooks and docs read the profile: open.** Each skill's first step resolves it; the hooks read
-  `stacks`; the kit's direct script calls in skills take their paths from the resolver and those in docs, templates
-  and the rendered rules become "skill X"; the `test-gates.md` coverage policy becomes `quality` values a project
-  sets; `load_params` (row_checks.py, spec_trace.py) reads the profile; the duplicates `sdd.review_rounds` and
-  `review.rounds`, and `sdd.visual_approval` and `evidence.visual_approval`, get one home.
+- **P2 — the kit's skills, hooks and docs read the profile**, in two parts:
+  - **P2a — the tools, hooks and sync: done on branch `feat/kit-087-p2a-tools-read-profile`.**
+    1. Hooks: the post-edit hook took `docs/spec/` and every `.gd` file as given; it now runs `check_spec.py` on
+       `spec_root` and lints a `.gd` file only in a folder whose `stacks` include `godot` (every `.gd` file when no
+       stacks are set), from the git top level. The path-rule hook selects the rules by the resolved `stacks`, the
+       marker's list when the resolver gives none. Both read the profile through the new
+       `plugins/guardrails/hooks/hook_profile.py`: the resolver (`$AI_KIT_DIR`, the plugin's own kit checkout, then
+       `~/.ai-kit`) runs as `python3 -B -S profile.py resolve --json` with a 3 s timeout, and the view is cached per
+       session in `${CLAUDE_PLUGIN_DATA}/profile/<session_id>.json`, keyed by the modification time and size of
+       `.ai-kit.yaml`, `CLAUDE.md` (the legacy home of `stacks`) and the resolver; a failure is cached as no view, and
+       the hook keeps its behaviour from before the profile. Both stay exit 0 on any profile error.
+    2. Sync: `sync-project.sh --migrate-profile <repo>` runs `profile.py migrate` alone; a sync takes the profile list
+       from the `stacks` `.ai-kit.yaml` sets (read from the file only, since the marker is what the run rewrites),
+       else `--profile`, else the marker; a `--profile` that names another list, or a refused profile, exits 2 before
+       any write.
+    3. Duplicate keys: `review.rounds` and `evidence.visual_approval` are the homes (the sections the schema gives
+       their reader phases, and where the KIT-088 `game` preset already sets `visual_approval`); `sdd.review_rounds`
+       and `sdd.visual_approval` stay as legacy aliases until P4, because the legacy `sdd:` block and
+       `check_spec.py --params` (row_checks.py rule j) use those names. An alias set where its home is not gives the
+       home its value with a note; the two set differently fail once; the resolved alias always equals its home, kind
+       preset included; `migrate` writes only the home. The pairs live in `profile.py` `ALIASES`, so
+       `profile.schema.json` keeps `sdd` equal to `spec.schema.json`.
+    4. Review follow-ups (#327, #344): `spec_root` matches
+       `^(?!(.*/)?\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$` (no `./a`, `a//b` or backslash) and fails when
+       it resolves outside the root through a link; a test pins `preset()` falling back to the default kind; the root
+       key's note reads `stacks['.']`; `--file` must stay under ROOT (exit 2); `check_spec.py --params` prints its
+       notes as one stderr line.
+    5. The spec-tools action: `checks` defaults to empty, and the checks step, now after the profile step, then reads
+       `ci.spec_tools_checks` from `AI_KIT_PROFILE_JSON` (default `["spec"]`, the old input default).
+  - **P2b — the skill text: open.** Each skill's first step resolves the profile; the kit's direct script calls in
+    skills take their paths from the resolver and those in docs, templates and the rendered rules become "skill X";
+    the `test-gates.md` coverage policy becomes `quality` values a project sets; `load_params` (row_checks.py,
+    spec_trace.py) reads the profile.
 - **P3 — the consumer project moves its keys to `.ai-kit.yaml`: open.** Its `sdd:` block and marker stack list go,
   and its direct calls become "skill X".
 - **P4 — the legacy readers go (MAJOR): open.** In the first release after P3 runs clean.
@@ -111,6 +139,18 @@ Four phases, one PR each, plus P1b, the kit's own profile (#322):
   `test_profile.py` under `/usr/bin/python3` 3.9.6: `Ran 29 tests`, OK.
 - Not run here: the static job on a GitHub runner.
 
+[FACT] P2a, on its branch, macOS:
+
+- Red first, then green: `test_profile.py` `P2aFollowUps` and `DuplicateKeys` and three command-line tests (`--file`,
+  the `--params` summary, `migrate` writing only the home); `test_hooks_profile.py` (new: the helper, the post-edit
+  hook through bash with stub tools, the path-rule hook with the real resolver); `test_sync_project.py` (the profile's
+  stacks, a differing `--profile`, a refused profile, `--migrate-profile`); `test_spec_tools_action.py` (checks from
+  the profile). Pins that passed before the change: `preset()` falling back, equal alias values, a profile without
+  `stacks`, the hook without a view.
+- Hook latency, system `/usr/bin/python3` 3.9.6, 10 sessions each, medians: the post-edit hook on `README.md` 53 ms
+  before, 130 ms on a session's first call (one resolver run), 58 ms cached; the path-rule hook 45 ms before, 55 ms
+  cached; `test_hooks_profile.py` `Latency` (Python 3.12): uncached view 94-98 ms, cached 0.1 ms.
+
 ## What would prove it wrong
 
 - A consumer's gates JSON whose `repos` entries or `protected_paths` do not fit the `gates` schema would fail the dual
@@ -126,3 +166,5 @@ Four phases, one PR each, plus P1b, the kit's own profile (#322):
 - 2026-11-16: P1 implemented on `feat/kit-087-p1-profile-resolver`.
 - 2026-11-16: owner scope addition (#322): the kit carries its own profile; P1b implemented on
   `feat/kit-087-p1b-kit-profile`.
+- 2026-11-16: P2 split into P2a (tools, hooks, sync) and P2b (skill text); P2a implemented on
+  `feat/kit-087-p2a-tools-read-profile`.

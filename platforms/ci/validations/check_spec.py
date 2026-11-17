@@ -492,13 +492,16 @@ def profile_module():
 def print_params(spec_dir, schemas_dir):
     """check_spec.py --params: the resolved `sdd` block as JSON on stdout; exit 1 when the block is invalid. It prints
     profile.py's `sdd` section (KIT-087): `.ai-kit.yaml` first when spec_dir is <root>/docs/spec, then the legacy
-    `sdd:` block in spec.md, each key read from the legacy home named on stderr. The output keeps the keys
-    spec.schema.json defines; `profile.py resolve --section sdd` also prints the profile-only ones."""
+    `sdd:` block in spec.md. The notes go to stderr as one line (KIT-087 P2a): a legacy project's keys are counted
+    and named there, not printed one per line. The output keeps the keys spec.schema.json defines; `profile.py resolve
+    --section sdd` also prints the profile-only ones."""
     spec_dir = spec_dir.resolve()
     root = spec_dir.parents[1] if spec_dir.parts[-2:] == ("docs", "spec") else None
-    resolved, notes, errors = profile_module().resolve(root, ["sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
-    for note in notes:
-        print(note, file=sys.stderr)
+    module = profile_module()
+    resolved, notes, errors = module.resolve(root, ["sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
+    if notes:
+        print("; ".join(note[len("profile: "):] if n and note.startswith("profile: ") else note
+                        for n, note in enumerate(module.summary(notes))), file=sys.stderr)
     if errors:
         for error in errors:
             print(f"FAIL: {error} [sdd-params]", file=sys.stderr)

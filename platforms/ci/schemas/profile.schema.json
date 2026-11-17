@@ -92,9 +92,9 @@
       "x-read-by": "session"
     },
     "spec_root": {
-      "description": "The folder that holds the SDD spec (spec.md, needs/, features/, journeys/ ...), relative to the git top level (KIT-088); the resolver reads the legacy sdd: block from <spec_root>/spec.md",
+      "description": "The folder that holds the SDD spec (spec.md, needs/, features/, journeys/ ...), relative to the git top level (KIT-088): folder names of letters, digits, dot, underscore and hyphen joined by single slashes, with no . or .. segment and no backslash (KIT-087 P2a); the resolver reads the legacy sdd: block from <spec_root>/spec.md and fails when the folder resolves outside the root",
       "type": "string",
-      "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\s]*[^\\s/]$",
+      "pattern": "^(?!(.*/)?\\.{1,2}(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
       "default": "docs/spec",
       "x-read-by": "sdd"
     },

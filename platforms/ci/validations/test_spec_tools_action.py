@@ -140,10 +140,38 @@ class SpecToolsActionRuns(unittest.TestCase):
         refused = self.run_step(name, CHECKS="spec,*")
         self.assertEqual(refused.returncode, 2, refused.stdout + refused.stderr)
         self.assertIn("unknown check '*'", refused.stdout)
-        self.assertEqual(action()["inputs"]["checks"]["default"], "spec")
+        # KIT-087 P2a: the input is empty by default, and the profile's ci.spec_tools_checks, default spec, decides
+        self.assertEqual(action()["inputs"]["checks"]["default"], "")
+        self.assertEqual(self.run_step(name, CHECKS="", AI_KIT_PROFILE_JSON='{"ci": {"spec_tools_checks": ["spec"]}}')
+                         .files["GITHUB_OUTPUT"], "spec=true\n")
         for check in ("spec", "trace", "rows"):
             self.assertTrue(any(f"steps.checks.outputs.{check} == 'true'" in str(s.get("if", ""))
                                 for s in action()["runs"]["steps"]), check)
+
+    def test_without_the_checks_input_the_profile_selects_them(self):
+        """KIT-087 P2a: an empty checks input reads ci.spec_tools_checks from the resolved profile, which the step
+        before it exported; the profile default ["spec"] is the old input default."""
+        self.assertEqual(action()["inputs"]["checks"]["default"], "")
+        names = [s.get("name") for s in action()["runs"]["steps"]]
+        self.assertLess(names.index("Resolve the project profile and export AI_KIT_PROFILE_JSON"),
+                        names.index("Resolve the requested checks"))
+        name = "Resolve the requested checks"
+        view = '{"ci": {"spec_tools_checks": ["spec", "trace", "rows"], "trigger": "auto"}}'
+        self.assertEqual(self.run_step(name, CHECKS="", AI_KIT_PROFILE_JSON=view).files["GITHUB_OUTPUT"],
+                         "spec=true\ntrace=true\nrows=true\n")
+        self.assertEqual(self.run_step(name, CHECKS="trace", AI_KIT_PROFILE_JSON=view).files["GITHUB_OUTPUT"],
+                         "trace=true\n", "the input wins when given")
+        self.assertEqual(self.run_step(name, CHECKS="", AI_KIT_PROFILE_JSON='{"ci": {"spec_tools_checks": []}}')
+                         .files["GITHUB_OUTPUT"], "")
+        broken = self.run_step(name, CHECKS="", AI_KIT_PROFILE_JSON="")
+        self.assertNotEqual(broken.returncode, 0)
+        self.assertIn("spec-tools: no checks input and no resolved profile", broken.stdout + broken.stderr)
+        (self.repo / ".ai-kit.yaml").write_text("ci:\n  spec_tools_checks: [spec, rows]\n", encoding="utf-8")
+        exported = self.run_step("Resolve the project profile and export AI_KIT_PROFILE_JSON", PROFILE=".ai-kit.yaml")
+        self.assertEqual(exported.returncode, 0, exported.stderr)
+        lines = exported.files["GITHUB_ENV"].splitlines()
+        result = self.run_step(name, CHECKS="", AI_KIT_PROFILE_JSON="\n".join(lines[1:-1]))
+        self.assertEqual(result.files["GITHUB_OUTPUT"], "spec=true\nrows=true\n")
 
     def test_it_exports_the_kit_at_its_own_commit_as_ai_kit_dir(self):
         result = self.run_step("Export AI_KIT_DIR, the kit at this action's commit")

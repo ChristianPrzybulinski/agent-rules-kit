@@ -9,9 +9,12 @@ NotebookEdit, Bash and Grep.
 - Gate: the project root is $CLAUDE_PROJECT_DIR, else the event's cwd. The hook acts only when the first line of that
   root's CLAUDE.md is the marker sync-project.sh writes; in any other repository it prints nothing, since the plugin
   is enabled for the user everywhere.
-- Rules: the profiles of the marker's list (`docs,godot:client` gives docs and godot) select the rules through
-  sync-profiles.txt next to this file, as they selected the copies. A rule's globs are the kit's own: the :<dir> and
-  sdd.rule_paths folder scopes the copies carried only narrowed them, and the Codex AGENTS.md blocks keep them.
+- Rules: the project's stacks select the rules through sync-profiles.txt next to this file, as they selected the
+  copies: the profile's `stacks` (KIT-087 P2a: `.ai-kit.yaml`, else the marker, through the kit resolver; read by
+  hook_profile.py beside this file, cached per session), else, when the resolver is missing or refuses the profile,
+  the profiles of the marker's list (`docs,godot:client` gives docs and godot). A rule's globs are the kit's own:
+  the :<dir> and sdd.rule_paths folder scopes the copies carried only narrowed them, and the Codex AGENTS.md blocks
+  keep them.
 - Match: the candidates are tool_input file_path, notebook_path and path, and the path-like words of a Bash command
   (`cat a.gd`, `sed -n '1,20p' ./src/a.gd`, the files of a `for f in ...` loop, `b.gd:12` as grep prints it). Each is
   made relative to the root; one that resolves outside it is also matched as written. A glob supports `**/`, `**`,
@@ -112,6 +115,22 @@ def marker_profiles(root):
     if not found:
         return None
     return {entry.split(":", 1)[0] for entry in found.group(1).split(",") if entry}
+
+
+def profile_stacks(root, env, session):
+    """The stack names the project's resolved profile gives (hook_profile.py, KIT-087 P2a), or None when it gives
+    none: no resolver, a refused profile, or no stacks."""
+    import importlib.util
+    sys.dont_write_bytecode = True  # no __pycache__ in the plugin folder
+    spec = importlib.util.spec_from_file_location("ai_kit_hook_profile", Path(__file__).resolve().parent /
+                                                  "hook_profile.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    found = module.view(root, env, session)
+    names = set()
+    for value in ((found or {}).get("stacks") or {}).values():
+        names.update([value] if isinstance(value, str) else value if isinstance(value, list) else [])
+    return names or None
 
 
 def selected_rules(profiles):
@@ -272,6 +291,11 @@ def run(text, env):
     raws = candidates(event) if profiles and data else []
     if not raws:
         return ""
+    session = event.get("session_id") if isinstance(event.get("session_id"), str) else ""
+    try:
+        profiles = profile_stacks(root, env, session) or profiles
+    except Exception:  # noqa: BLE001 - the profile only refines the marker's list
+        pass
     root = os.path.realpath(root)
     forms = [match_forms(raw, root, cwd) for raw in raws]
     # rule name -> (globs, the trigger as shown: relative, or as written outside the root; its real path; the body):
@@ -286,7 +310,6 @@ def run(text, env):
                 break
     if not hits:
         return ""
-    session = event.get("session_id") if isinstance(event.get("session_id"), str) else ""
     state = state_file(data, session)
     folder = state.parent
     folder.mkdir(parents=True, exist_ok=True)
