@@ -5,7 +5,7 @@ kind: detail
 
 # Asset import
 
-A task that brings sprites, tilesets or maps into a Godot project. Always/never (originals read-only, approved transforms, reproducible output, provenance): rule `assets.md`. Drawing or retouching art is out of scope.
+A task that brings sprites, tilesets or maps into a Godot project. Always/never (originals read-only, approved transforms, reproducible output, provenance): rule `assets.md`. Drawing or retouching art is out of scope. The assets to import are the rows of the FEAT's Plan § Assets when the project lists that section (`../../sdd-plan/references/plan-sections.md`); each row's source and license start the provenance below.
 
 ## 1. Establish provenance
 
