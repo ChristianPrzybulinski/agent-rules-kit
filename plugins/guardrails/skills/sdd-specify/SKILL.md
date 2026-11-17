@@ -21,15 +21,15 @@ With `sdd.needs: false` (`check_spec.py --params`; `../sdd-constitution/referenc
 
 ## 1. Decide (after intake, now or later; a recorded NEED may wait)
 
-Read `docs/spec/spec.md` and only the REQs, journeys and FEATs the NEED touches; look in `docs/spec/needs/` for a NEED with the same request. Classify, first match wins:
+Read `docs/spec/spec.md` and only the REQs, journeys, processes and FEATs the NEED touches; look in `docs/spec/needs/` for a NEED with the same request. Classify, first match wins:
 
 | Type | Rule | Route |
 |---|---|---|
-| fix | a REQ, journey or decision already states the right behavior and the code does not | `routed`: a fix task row cites that artifact and the origin |
+| fix | a REQ, journey, process or decision already states the right behavior and the code does not (a process states it in its steps, state exits and branches) | `routed`: a fix task row cites that artifact and the origin |
 | content | only data changes, no rule | `routed`: the project's data-change flow |
 | decision | a choice with nothing to deliver | `refine` to a decision record only |
-| improvement | changes behavior an existing REQ or journey describes | `refine`: the REQ or journey changes |
-| new | no REQ or journey covers it | `refine` |
+| improvement | changes behavior an existing REQ, journey or process describes | `refine`: the REQ, journey or process changes |
+| new | no REQ, journey or process covers it | `refine` |
 | platform | process, tooling, CI or the kit | `refine` in the project's platform track |
 
 - A problem with no artifact stating the right behavior is an improvement, never a fix. A duplicate closes `merged`, naming the NEED kept; a refused NEED closes `rejected` with its reason.
