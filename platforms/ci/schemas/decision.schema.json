@@ -17,6 +17,11 @@
       "items": { "type": "string", "pattern": "^FEAT-[0-9]{3,}$" },
       "uniqueItems": true
     },
+    "enablers": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^ENB-[0-9]{3,}$" },
+      "uniqueItems": true
+    },
     "supersedes": { "type": ["string", "null"], "pattern": "^[A-Z][A-Z0-9]{1,7}-[0-9]{3,}$" },
     "superseded_by": { "type": ["string", "null"], "pattern": "^[A-Z][A-Z0-9]{1,7}-[0-9]{3,}$" }
   },

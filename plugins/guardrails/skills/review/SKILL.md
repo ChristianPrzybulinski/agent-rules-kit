@@ -37,7 +37,7 @@ A `record` step reads the result recorded for the exact pushed head (CI checks, 
 | 3 | Red check | record, then judgment | `red`'s result recorded for the head by CI or the project's gate record, else `red` run once on the clean checkout (the PR's `## Red` is the author's claim): Red is a test failing on base on an assertion or on a symbol the PR adds, head passing; a test-only PR is exempt; judge only what it flags, or the `## Red` exception |
 | 4 | Scope | script | `scope`: paths inside Files, `## Files widened` only existing tests with no assertion changed, `protected_paths` labels |
 | 5 | Acceptance | record, then judgment | `proof` lints the block; a line with no result recorded for the head is re-run (`--run`); each CA the row covers has code, test and doc at `path:line` |
-| 6 | Design | judgment | the diff follows the Plan § (layers, contract, data, flag); a deviation the Plan lacks is a `spec` finding |
+| 6 | Design | judgment | the diff follows the Plan § (layers, contract, data, flag); a deviation the Plan lacks is a `spec` finding; with `docs/spec/enablers/`, a contract change (endpoint, message, event, job, file layout, migration, content key, config) with no edit of its ENB catalog row is a `spec` finding |
 | 7 | DoD | script, then judgment | `dod`: grep-able `REVIEW.md` lines and dropped assertions; then the lines no script checks |
 | 8 | Verdict | judgment | § 4 |
 | 9 | Re-check | judgment | after a blocker's fix (§ 4): a small delta with no new mechanism is the coordinator's to verify, with no new round; recorded results whose inputs are unchanged carry over |

@@ -113,5 +113,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-089-vision-pillars.md`](KIT-089-vision-pillars.md) | spec.md templates per kind, pillars and out-of-scope triage | in-progress | #330 | |
 | [`KIT-090-process-artifact.md`](KIT-090-process-artifact.md) | process artifact PROC-nnn and its trace tools | in-progress | #331 | |
 | [`KIT-093-plan-assets.md`](KIT-093-plan-assets.md) | Assets Plan section and sdd-check C15 | in-progress | #334 | |
+| [`KIT-095-enabler-artifact.md`](KIT-095-enabler-artifact.md) | enabler artifact ENB-nnn per bounded context and its catalog tools | in-progress | #337 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

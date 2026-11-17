@@ -56,6 +56,7 @@
 - `project-agents-java-spring.md`
 - `spec-debt.md`
 - `spec-decision.md`
+- `spec-enabler.md`
 - `spec-feature.md`
 - `spec-index-business.md`
 - `spec-index-game.md`
