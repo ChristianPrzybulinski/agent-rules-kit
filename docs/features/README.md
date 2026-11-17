@@ -118,6 +118,7 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-094-greybox-polish-passes.md`](KIT-094-greybox-polish-passes.md) | greybox and polish passes as version blocks, owner playtest gate, sdd-check C16 | in-progress | #335 | |
 | [`KIT-095-enabler-artifact.md`](KIT-095-enabler-artifact.md) | enabler artifact ENB-nnn per bounded context and its catalog tools | done | #337 | #355 |
 | [`KIT-096-versioned-feat.md`](KIT-096-versioned-feat.md) | versioned FEAT as a use case: version blocks, anti-bucket rule, C17 | in-progress | #338 | |
+| [`KIT-097-duplicate-checks.md`](KIT-097-duplicate-checks.md) | duplicate checks C20-C24 and `spec_trace.py similar` | in-progress | #339 | |
 | [`KIT-098-pattern-reference.md`](KIT-098-pattern-reference.md) | our pattern: SysML links, DDD, Backstage export, SAFe | in-progress | #340 | |
 | [`KIT-099-governance-view.md`](KIT-099-governance-view.md) | governance view, C25 debt payment and the vulnerability tech process | in-progress | #341 | |
 | [`KIT-100-feat-only-flow.md`](KIT-100-feat-only-flow.md) | FEAT-only flow: lite FEAT, no REQ, status from its PR | in-progress | #342 | |
