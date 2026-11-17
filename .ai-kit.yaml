@@ -1,13 +1,25 @@
 # The kit's own project profile (KIT-087 P1b): the kit uses the kit. Validated by
 # platforms/ci/schemas/profile.schema.json through platforms/tools/profile.py; check_kit.py fails when it does not
-# resolve. A key is set only where the kit differs from its default, and each value names its evidence. A key left
-# out takes its default:
+# resolve. A key is set only where the kit differs from its default (its kind's preset, else the schema's; the
+# KitOwnProfile contract test holds it), and each value names its evidence. A key left out takes that default:
 # - changelog.mode stays file: the kit edits CHANGELOG.md directly and bump_version.py writes its release heading.
 # - review and gates: the kit has no gates JSON, no protected-paths list and no review cap of its own; skill review's
 #   KIT-077 bar and the independent review READY (.github/CONTRIBUTING.md, CI requirements) are the defaults.
-# - sdd stays at its defaults: the kit has no docs/spec/; its features are KIT records in docs/features/ (CONTRIBUTING,
-#   Adding content), which no profile key describes yet, so the sdd-* skills do not run here.
+# - sdd.flow is feat-only from the tooling preset (KIT-100), and so is the rest of sdd (KIT-088): no NEED, no REQ, no
+#   task table, one PR per FEAT, a record for a big change only (docs/features/README.md, Process), Tests and Risks
+#   Plan sections, manual SemVer releases (.github/CONTRIBUTING.md, Versioning); tracker github, the origin remote.
 # - secrets.scanner stays gitleaks: .github/workflows/gitleaks.yml runs it with no config file.
+
+# tooling (KIT-101): the kit runs the FEAT-only flow (KIT-100) through its own sdd-* skills.
+project:
+  kind: tooling
+
+# spec_root stays at its default, docs/spec, not docs: the KIT records written before KIT-101 live in docs/features/
+# with their own frontmatter (status done or confirmed, no created) and stay as they are; under spec_root docs both
+# validators would read them (96 failures with jsonschema, 366 without, so no single baseline holds them). New records
+# are docs/spec/features/KIT-nnn-slug.md (template spec-feature-lite.md).
+sdd:
+  id_prefix: {feature: KIT}  # KIT-nnn, the numbering of docs/features/
 
 # Folder -> stack. The root is Markdown (docs/, the skills, rules and references under plugins/, README, CHANGELOG);
 # the tools, validators and the path-rule hook are Python (platforms/tools/*.py, platforms/ci/validations/*.py,

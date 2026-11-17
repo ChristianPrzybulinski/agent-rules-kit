@@ -6,20 +6,31 @@ not one of the loop's repositories, and it serves more than one project.
 
 ## Process
 
-A record is for a big change only: a hook, `plugins/guardrails/AGENTS.md`, plugin structure or manifests, a check, gate or
-script behavior change, or a new or removed skill. Any other change (a skill, rule, reference, template or doc text
-edit) needs only its `CHANGELOG.md` line, and the PR body carries the why (KIT-040). Records written before KIT-040 stay
-as they are.
+From KIT-102 on, the kit runs its own FEAT-only flow (KIT-101): its `.ai-kit.yaml` is `project.kind: tooling`, so
+the `sdd-*` skills of the `guardrails` plugin run it, and a new record is a FEAT in
+[`../spec/features/`](../spec/features/) (`spec_root: docs/spec`, id `KIT-nnn`), not a file here.
+
+A record is for a big change only (`sdd.record_when: big-change`): a hook, `plugins/guardrails/AGENTS.md`, plugin
+structure or manifests, a check, gate or script behavior change, or a new or removed skill. Any other change (a skill,
+rule, reference, template or doc text edit) needs only its `CHANGELOG.md` line, and the PR body carries the why
+(KIT-040).
 
 1. A session (a project's improvement notes, an assessment, a review) proposes a kit change with its evidence. Nothing
-   is written here until the owner confirms it.
-2. On confirmation: copy [`TEMPLATE.md`](TEMPLATE.md) to `KIT-NNN-<slug>.md` (next free number), and open one issue in
-   this repository titled `[KIT-NNN] <title>`, label `kit-feature`, that links the file.
-3. The PR that implements it closes the issue (`Closes #N`); its `CHANGELOG.md` line cites `KIT-NNN`. The file's
-   `status` becomes `done`, and the file records the PR.
-4. A confirmed improvement that is later dropped keeps its file with `status: dropped` and the reason.
+   is written until the owner confirms it.
+2. On confirmation, skill `sdd-plan` writes the FEAT from the template `spec-feature-lite.md` (Problem and evidence,
+   Scope, acceptance criteria with their proof commands, Plan § Tests and § Risks, History) with the next free
+   `KIT-nnn`, and one issue titled `[KIT-nnn] <title>`, label `kit-feature`, names it in the FEAT's `issue`. Skill
+   `sdd-check` checks it before `planned`; `sdd-clarify` and `sdd-tasks` do not run (no REQ, no task table).
+3. Skill `sdd-implement` delivers it in one PR that closes the issue (`Closes #N`); its `CHANGELOG.md` line cites
+   `KIT-nnn`, and skill `review` reviews it.
+4. Its status is derived, never typed: `spec_trace.py sync-status docs/spec --write` reads the PR (the FEAT's `pr`,
+   else the PR that closes its `issue`): `in-progress` while it is open, `delivered` once it merges. A dropped FEAT
+   becomes `cancelled` with the reason (`sdd-plan`).
 
-Statuses: `confirmed` → `done` | `dropped`.
+Statuses: `proposed` → `planned` → `in-progress` → `delivered` | `cancelled`.
+
+The records below, KIT-001 to KIT-101, stay as they are, in their own format ([`TEMPLATE.md`](TEMPLATE.md), statuses
+`confirmed` → `done` | `dropped`, set by hand); no validator reads them.
 
 ## Features
 
@@ -122,5 +133,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-098-pattern-reference.md`](KIT-098-pattern-reference.md) | our pattern: SysML links, DDD, Backstage export, SAFe | in-progress | #340 | |
 | [`KIT-099-governance-view.md`](KIT-099-governance-view.md) | governance view, C25 debt payment and the vulnerability tech process | in-progress | #341 | |
 | [`KIT-100-feat-only-flow.md`](KIT-100-feat-only-flow.md) | FEAT-only flow: lite FEAT, no REQ, status from its PR | in-progress | #342 | |
+| [`KIT-101-kit-own-flow.md`](KIT-101-kit-own-flow.md) | the kit runs its own FEAT-only flow (kind: tooling) | in-progress | #343 | |
 
-[`TEMPLATE.md`](TEMPLATE.md) is the file to copy.
+[`TEMPLATE.md`](TEMPLATE.md) is the format of the records up to KIT-101; a new record is a FEAT in [`../spec/features/`](../spec/features/).
