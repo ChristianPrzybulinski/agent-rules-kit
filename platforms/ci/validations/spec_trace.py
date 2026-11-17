@@ -34,6 +34,12 @@
   spec_trace.py enablers SPEC [--feat FEAT-NNN] [--catalog GLOB ...]
                                        the C18 and C19 findings of sdd-check over the ENBs (KIT-095); off, exit 0,
                                        without SPEC/enablers/
+  spec_trace.py governance SPEC [--feat FEAT-NNN]
+                                       read-only view (KIT-099): approval keys and protected paths of the profile,
+                                       decisions by kind, owners, tech processes with trigger and last run (latest
+                                       `- YYYY-MM-DD: run` History line), debts with payment state, and sdd-check C25
+                                       (an open FEAT on an ENB with an open debt that no row of its Tasks table cites
+                                       and no approved decision it cites accepts); exit 0 whatever C25 lists
   spec_trace.py catalog SPEC --out FILE [--force]
                                        the ENBs as Backstage catalog-info.yaml (KIT-098), written to FILE (never inside
                                        the kit); off, exit 0, without SPEC/enablers/
@@ -1088,6 +1094,194 @@ def enablers_command(spec, fid, globs):
         return 1
     contracts = sum(len(e["provides"]) for e in spec.enablers.values())
     print(f"enablers: OK ({len(spec.enablers)} enablers, {contracts} contracts)")
+    return 0
+
+
+RUN_LINE = re.compile(r"^- (\d{4}-\d{2}-\d{2}): run\b", re.M)  # a tech process's History line for one run
+DECISION_STATUSES = ("proposed", "approved", "rejected", "superseded")  # decision.schema.json `status`, in order
+
+
+def add_governance_parser(sub):
+    gov = sub.add_parser("governance", help="who decides, approves, owns and runs what, and sdd-check C25 (KIT-099)")
+    gov.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    gov.add_argument("--feat", metavar="FEAT-NNN", help="C25 on one FEAT (default: every open FEAT)")
+
+
+def governance_profile(spec):
+    """The profile's `review` and `gates` sections (KIT-087) and their errors; ({}, []) without profile.py beside the
+    kit, as in a project's synced copy, so the view then shows the `sdd` keys alone."""
+    tool = HERE.parents[1] / "tools" / "profile.py"
+    folder = schemas_dir()
+    if not tool.is_file() or not (folder / "profile.schema.json").is_file():
+        return {}, []
+    module = check_spec.profile_module()
+    root = check_spec.profile_root(spec.spec_dir)
+    resolved, _, errors = module.resolve(root, ["spec_root", "review", "gates"], spec_dir=spec.spec_dir,
+                                         schemas_dir=folder)
+    if root is not None and (root / resolved["spec_root"]).resolve() != spec.spec_dir:
+        # Not this spec's profile: its errors are not applied. load_params (spec_trace.load) already printed them in
+        # one `profile: note:` line, since profile.py validates the whole file, so they are not printed twice.
+        resolved, _, errors = module.resolve(None, ["review", "gates"], spec_dir=spec.spec_dir, schemas_dir=folder)
+    return resolved, errors
+
+
+def refused_section(error):
+    """`the profile's <section> section refused (...)` for one resolve error, by the key it names (`review.`, `gates.`;
+    any other is the sdd section's, PARAMS_REFUSED)."""
+    found = re.search(r"\b(review|gates)\.", error)
+    if not found:
+        return f"{PARAMS_REFUSED}: {error}"
+    name = found.group(1)
+    return f"the profile's {name} section refused (profile.py resolve --section {name}): {error}"
+
+
+def task_table(text):
+    """The rows of a FEAT file's `## Tasks` table, the only place a task row pays a debt (C25)."""
+    _, body = split_frontmatter(text)
+    return "\n".join(task_rows(section(body, "Tasks")).values())
+
+
+def decider_names(text):
+    """The roles a decision's free-text `deciders` names: its parts split at `,`, `;` and ` and `, without the
+    parenthesised notes or a part that opens with no letter ("architect, product (owner, 2026-10-17)" -> both roles)."""
+    plain = re.sub(r"\([^()]*\)", "", str(text or ""))
+    return {part.strip() for part in re.split(r"[,;]| and ", plain) if part.strip()[:1].isalpha()}
+
+
+def governance_records(spec, sub, pattern):
+    """(id, frontmatter, whole text, path) of each record under SPEC/sub whose frontmatter has an id."""
+    out = []
+    for path in sorted((spec.spec_dir / sub).rglob(pattern), key=lambda p: natural_key(p.name)):
+        text = path.read_text(encoding="utf-8")
+        data, _ = split_frontmatter(text)
+        if isinstance(data, dict) and data.get("id"):
+            out.append((str(data["id"]), data, text, path))
+    return out
+
+
+def cites(text, rid):
+    return re.search(rf"\b{re.escape(rid)}\b", text) is not None
+
+
+def debt_payment(debt, data, feats, decisions):
+    """A debt's Payment cell: its status, the FEATs whose Tasks rows cite it and, for an accepted one, the approved
+    decisions that name it."""
+    status = data.get("status") or PENDING
+    citing = [fid for fid, text in feats.items() if cites(task_table(text), debt)]
+    if status == "accepted":
+        accepting = [did for did, d, text, _ in decisions if d.get("status") == "approved" and cites(text, debt)]
+        return f"accepted by {', '.join(accepting)}" if accepting else "accepted; no approved decision names it"
+    if citing:
+        return f"{status}; {', '.join(citing)} plans it" if status == "open" else f"{status} by {', '.join(citing)}"
+    return status
+
+
+def tech_process_row(spec, pid, process):
+    """A tech process's row: its first Trigger line (who runs it and when) and the latest `- YYYY-MM-DD: run` line."""
+    data, body = split_frontmatter(process["path"].read_text(encoding="utf-8"))
+    trigger = next((line[2:].strip() for line in section(body, "Trigger").splitlines() if line.startswith("- ")), "")
+    trigger = re.sub(r"^\[[A-Z]+\]\s*", "", trigger)
+    runs = sorted(RUN_LINE.findall(section(body, "History")))
+    owner = str(data.get("owner") or PENDING)
+    link = process["path"].relative_to(spec.spec_dir).as_posix()
+    return (f"| [{pid}]({link}) | {cell(process['title'])} | {process['status']} | {cell(owner)} | {cell(trigger)} | "
+            f"{runs[-1] if runs else 'never'} |")
+
+
+def debt_findings(spec, debts, feats, decisions, fid=None):
+    """C25: an open FEAT (or the one fid names) whose `enablers` names an ENB with an open debt, where no row of the
+    FEAT's Tasks table cites the debt (pays it) and no approved decision the FEAT file cites names it (accepts it)."""
+    approved = {did: text for did, d, text, _ in decisions if d.get("status") == "approved"}
+    findings = []
+    for feat_id, _, text, _ in feats:
+        data, _ = split_frontmatter(text)
+        if (fid and feat_id != fid) or (not fid and data.get("status") in STATUS_FROZEN):
+            continue
+        for eid in listed(data, "enablers"):
+            for did, debt, _, _ in debts:
+                if debt.get("status") != "open" or eid not in listed(debt, "enablers") or cites(task_table(text), did):
+                    continue
+                if any(cites(text, dec) and cites(body, did) for dec, body in approved.items()):
+                    continue
+                findings.append(f"- C25: {feat_id} touches {eid}, whose {did} is open (trigger: {debt.get('trigger')}"
+                                f"): a task row pays it (cites {did}), or the FEAT cites an approved decision that "
+                                "accepts it")
+    return findings
+
+
+def render_governance(spec, profile, fid=None):
+    """The governance view (E § 14.2 item 4): every value comes from where it is kept; nothing here is a copy."""
+    review, gates, sdd = profile.get("review") or {}, profile.get("gates") or {}, spec.params
+    decisions = governance_records(spec, "decisions", "*.md")
+    debts = governance_records(spec, "debts", "DEBT-*.md")
+    feats = governance_records(spec, "features", "FEAT-*.md")
+    lines = ["# Governance", "",
+             "Generated by `spec_trace.py governance` from the profile (`.ai-kit.yaml`, else spec.md `sdd:`), the "
+             "decisions, debts, enablers and processes; never edited by hand.", "",
+             "## Approvals", "", "| Key | Value |", "|---|---|"]
+    keys = [("sdd.owner_approvals", ", ".join(sdd.get("owner_approvals") or []) or PENDING),
+            ("sdd.visual_approval", sdd.get("visual_approval")), ("sdd.commits_by", sdd.get("commits_by"))]
+    if review:
+        bars = review.get("bar_paths") or {}
+        keys += [("review.rounds", review.get("rounds")),
+                 ("review.independent_reviewer", str(review.get("independent_reviewer")).lower()),
+                 ("review.bar_paths.full", ", ".join(bars.get("full") or []) or PENDING)]
+    lines += [f"| {key} | {cell(str(value) if value is not None else '')} |" for key, value in keys]
+    lines += ["", "## Protected paths", ""]
+    paths = [(path, label, "sdd.protected_paths") for path, label in (sdd.get("protected_paths") or {}).items()]
+    paths += [(glob, label, "gates.protected_paths")
+              for label, globs in (gates.get("protected_paths") or {}).items() for glob in globs]
+    lines += (["| Path | Label | Source |", "|---|---|---|"]
+              + [f"| `{path}` | {label} | {source} |" for path, label, source in paths]) if paths else ["none"]
+    lines += ["", "## Decisions by kind", ""]
+    kinds = {}
+    for _, data, _, _ in decisions:
+        kinds.setdefault(str(data.get("kind") or PENDING), []).append(data)
+    rows = [f"| {kind} | {cell(', '.join(sorted({n for d in group for n in decider_names(d.get('deciders'))})))} | "
+            + " | ".join(str(sum(d.get("status") == s for d in group)) for s in DECISION_STATUSES) + " |"
+            for kind, group in sorted(kinds.items())]
+    lines += (["| Kind | Deciders | " + " | ".join(s.capitalize() for s in DECISION_STATUSES) + " |",
+               "|---|---|---|---|---|---|"] + rows) if rows else ["none"]
+    lines += ["", "## Owners", ""]
+    owners = {}
+    for eid, enabler in spec.enablers.items():
+        owners.setdefault(str(enabler["owner"] or PENDING), ([], []))[0].append(eid)
+    for pid, process in spec.processes.items():
+        data, _ = split_frontmatter(process["path"].read_text(encoding="utf-8"))
+        owners.setdefault(str(data.get("owner") or PENDING), ([], []))[1].append(f"{pid} ({process['kind']})")
+    lines += (["| Owner | Enablers | Processes |", "|---|---|---|"]
+              + [f"| {cell(owner)} | {', '.join(e) or PENDING} | {', '.join(p) or PENDING} |"
+                 for owner, (e, p) in sorted(owners.items())]) if owners else ["none"]
+    lines += ["", "## Tech processes", "", "`Trigger`: the first line of its Trigger section; `Last run`: its latest "
+              "`- YYYY-MM-DD: run` History line.", ""]
+    tech = [tech_process_row(spec, pid, p) for pid, p in spec.processes.items() if p["kind"] == "tech"]
+    lines += (["| Process | Title | Status | Owner | Trigger | Last run |", "|---|---|---|---|---|---|"]
+              + tech) if tech else ["none"]
+    lines += ["", "## Debts", ""]
+    texts = {feat_id: text for feat_id, _, text, _ in feats}
+    rows = [f"| [{did}]({path.relative_to(spec.spec_dir).as_posix()}) | {cell(data.get('title'))} | "
+            f"{data.get('severity') or PENDING} | {cell(data.get('trigger'))} | "
+            f"{', '.join(listed(data, 'enablers')) or PENDING} | {debt_payment(did, data, texts, decisions)} |"
+            for did, data, _, path in debts]
+    lines += (["| Debt | Title | Severity | Trigger | Enablers | Payment |", "|---|---|---|---|---|---|"]
+              + rows) if rows else ["none"]
+    lines += ["", "## Debt payment (C25)", ""]
+    if not (spec.spec_dir / "enablers").is_dir():
+        lines.append("C25: off (no enablers/ folder; it applies once debts and FEATs name ENBs)")
+    else:
+        lines += debt_findings(spec, debts, feats, decisions, fid) or ["none"]
+    return lines
+
+
+def governance_command(spec, fid):
+    """`spec_trace.py governance`: print the view; exit 0 whatever C25 finds (sdd-check judges each trigger), 1 on an
+    unknown --feat or a refused profile."""
+    if fid and fid not in spec.feats:
+        return report([f"{fid} does not exist in features/"], "")
+    profile, errors = governance_profile(spec)
+    if spec.param_errors or errors:  # profile.py validates the whole file, so both lists may hold one error
+        return report([refused_section(error) for error in dict.fromkeys(spec.param_errors + errors)], "")
+    print("\n".join(render_governance(spec, profile, fid)))
     return 0
 
 
@@ -2219,6 +2413,7 @@ def main(argv=None):
     sync.add_argument("--write", action="store_true")
     sync.add_argument("--backlog", metavar="OWNER/NAME", help="the backlog repository (default: sdd.github.repo, "
                                                                "else the origin remote)")
+    add_governance_parser(sub)
     enb = sub.add_parser("enablers", help="sdd-check C18 and C19 over the ENBs (KIT-095)")
     enb.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     enb.add_argument("--feat", metavar="FEAT-NNN", help="one FEAT's scope (default: every open FEAT)")
@@ -2293,6 +2488,8 @@ def main(argv=None):
         return lint(spec, args.feat)
     if args.command == "enablers":
         return enablers_command(spec, args.feat, args.catalog)
+    if args.command == "governance":
+        return governance_command(spec, args.feat)
     if args.command == "catalog":
         return catalog_command(spec, args.out, args.force)
     if args.command == "diagram":
