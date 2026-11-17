@@ -131,6 +131,29 @@ class SyncRulesTest(unittest.TestCase):
         self.assertEqual(self.call("remove"), (0, ""))
         self.assertTrue(own.is_file() and not_md.is_file())
 
+    def test_the_marker_counts_only_on_the_line_under_the_frontmatter(self):
+        """#325 item 4: render_rule wrote the marker on the line right after the closing `---` of a frontmatter that
+        starts on line 1; a marker line anywhere else is the project's text."""
+        marker_line = COPY.format(name="godot", plugin="guardrails").splitlines()[8] + "\n"
+        self.assertTrue(marker_line.startswith(sr.MARKER))
+        cases = {
+            "in-body.md": "---\npaths:\n  - \"x\"\n---\nmy rule\n" + marker_line,
+            "no-frontmatter.md": marker_line + "my rule\n",
+            "in-frontmatter.md": "---\n" + marker_line + "paths:\n  - \"x\"\n---\nmy rule\n",
+            "after-a-blank.md": "---\npaths:\n  - \"x\"\n---\n\n" + marker_line,
+            "unclosed.md": "---\npaths:\n  - \"x\"\n" + marker_line,
+            "late-frontmatter.md": "# title\n---\npaths:\n---\n" + marker_line,
+        }
+        for name, text in cases.items():
+            (self.rules / name).write_text(text, encoding="utf-8")
+        copy = self.copy("godot")
+        crlf = self.rules / "guardrails-tests.md"
+        crlf.write_bytes(COPY.format(name="tests", plugin="guardrails").replace("\n", "\r\n").encode("utf-8"))
+        self.assertEqual(sr.entries(self.repo), (["guardrails-godot.md", "guardrails-tests.md"], sorted(cases)))
+        self.assertEqual(self.call("remove")[0], 0)
+        self.assertFalse(copy.exists() or crlf.exists())
+        self.assertEqual(sorted(p.name for p in self.rules.iterdir()), sorted(cases))
+
     def test_a_repository_without_rules_is_clean(self):
         self.rules.rmdir()
         self.assertEqual(self.call("check"), (0, ""))

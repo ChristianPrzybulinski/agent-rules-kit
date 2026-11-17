@@ -95,6 +95,8 @@ Claude Code loads a path rule by itself only from a file in the project's `.clau
 - The marker's profiles select the rules through `plugins/guardrails/hooks/sync-profiles.txt`, the same map the copies used.
 - The globs are the kit's own: the `<profile>:<dir>` and `sdd.rule_paths` scopes only narrowed the copies, and they still shape the `AGENTS.md` blocks.
 - Each delivery adds a `kit_hook_path_match` line to the plugin's rule-load log, which `platforms/tools/skill_usage.py --rules` counts per rule.
+- Timing: the rule arrives after the tool call, as PostToolUse context, so the first Write or Edit of a matching file in a session runs before the agent has seen the rule; a Read first, the usual order, gives it before any change. The kit accepts this to keep copies out of projects: the stage 3 eval (`docs/features/KIT-081-no-copies-in-projects.md`, hook v2) scored 15/15, equal to the copies. Review the first change to a matching file against its rule when the session wrote it without reading first.
+- Compaction: a compaction summarizes the conversation, and the Claude Code docs say detailed instructions from early in it may be lost. The same script runs on `SessionStart` with source `compact` and deletes the session's record of the rules given, so the next matching call gives them again; at worst a rule the summary kept arrives twice.
 
 The `AGENTS.md` blocks stay: Codex reads only `AGENTS.md`, and a way to give Codex a rule without a file in the project waits for a Codex probe.
 

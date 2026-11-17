@@ -46,6 +46,16 @@
     ],
     "SessionStart": [
       {
+        "matcher": "^compact$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/path_rules.py\" || exit 0",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "^(startup|compact)$",
         "hooks": [
           {
