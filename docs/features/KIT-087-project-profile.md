@@ -102,10 +102,31 @@ Four phases, one PR each, plus P1b, the kit's own profile (#322):
        notes as one stderr line.
     5. The spec-tools action: `checks` defaults to empty, and the checks step, now after the profile step, then reads
        `ci.spec_tools_checks` from `AI_KIT_PROFILE_JSON` (default `["spec"]`, the old input default).
-  - **P2b — the skill text: open.** Each skill's first step resolves the profile; the kit's direct script calls in
-    skills take their paths from the resolver and those in docs, templates and the rendered rules become "skill X";
-    the `test-gates.md` coverage policy becomes `quality` values a project sets; `load_params` (row_checks.py,
-    spec_trace.py) reads the profile.
+  - **P2b — the skill text: done on branch `feat/kit-087-p2b-skills-read-profile`.**
+    1. One shared reference, `plugins/guardrails/skills/session/references/project-profile.md` (one line per skill
+       instead of a block in each, so the skills stay within 80 lines): `KIT` is the first of `$AI_KIT_DIR`, the
+       plugin's kit checkout and `~/.ai-kit` (the hooks' order, `hook_profile.py`); `profile.py resolve` runs once per
+       skill; exit 1 stops the skill; `spec_root` replaces every `docs/spec`; § 3 names the kit tools a step runs
+       (`PROFILE`, `CHECK_SPEC`, `TRACE`, `ROWS`, `RC`, `COMPLEXITY`, the GDScript tools, `AUDIT`, `SYNC`, the stack
+       recipe) with their paths from `KIT`.
+    2. Each skill that reads a profile key (15 of 18) resolves the profile in its first step, or in the preamble line
+       that already named its parameters, and names the sections its phase reads; `parallelize`, `investigate` and
+       `docker` read no key (no `x-read-by` phase is theirs) and are unchanged. Only first-step and script-call lines
+       changed, in the skills and in their references; no skill body was rewritten.
+    3. Docs, templates and rendered rules: `code.md` and `spec.md` say "skill `review`", "skill `sdd-implement`" and
+       the editing skills where they named a kit command; the project AGENTS templates name the installed kit's recipe
+       instead of the `just -f ~/.ai-kit/...` line; the `spec-index-*` frontmatter comment names skill
+       `sdd-constitution`. `check_kit.py` and `test_sync_just.py` pin the recipe line as
+       `just -f "$KIT/platforms/kits/just/<stack>.just" -d`.
+    4. `test-gates.md` § 1 and § 2: the domain floors are `quality.<stack>` (`coverage.line`, `coverage.branch`,
+       `mutation` on `domain_globs`, or `advisory`); the kit sets none (`quality` default `{}`, unchanged since
+       KIT-088), per #322 decision 4. The `java-maven` kit's `domain-gate` Maven profile still enforces 100%/80%.
+    5. `check_spec.load_params` (the `sdd` view `row_checks.py` and `spec_trace.py` read) resolves through
+       `profile.py`: `.ai-kit.yaml` at the git top level (else `x` for `x/docs/spec`) when its `spec_root` is the
+       checked folder, then the legacy `sdd:` block; the legacy reader alone without `profile.py` or its schema.
+    6. KIT-095 part 2's key: `sdd.migrations` (profile only, default `[]`, rooted folders): `spec_trace.py enablers`
+       walks each as `<folder>/**/*` for C19, beside `row_checks.protocol.schemas` and `--catalog`; `enablers` now
+       fails on a refused `sdd` section.
 - **P3 — the consumer project moves its keys to `.ai-kit.yaml`: open.** Its `sdd:` block and marker stack list go,
   and its direct calls become "skill X".
 - **P4 — the legacy readers go (MAJOR): open.** In the first release after P3 runs clean.
@@ -151,6 +172,20 @@ Four phases, one PR each, plus P1b, the kit's own profile (#322):
   before, 130 ms on a session's first call (one resolver run), 58 ms cached; the path-rule hook 45 ms before, 55 ms
   cached; `test_hooks_profile.py` `Latency` (Python 3.12): uncached view 94-98 ms, cached 0.1 ms.
 
+[FACT] P2b, on its branch, macOS:
+
+- Red first, then green: the new tests, run against an `origin/main` export with the code of `7800238`, failed 36
+  times (`test_profile.py` `LoadParams`, `SkillsReadTheProfile` and the `sdd` key contract;
+  `test_spec_trace_enabler.py` `MigrationsFromProfileTest`), and pass on the branch. Pins moved to the `"$KIT"` form
+  with the same strictness: `test_sync_just.py` `SkillNamesTheCommand`, `test_sync_project.py` (every kit path a skill
+  names exists; the rendered code rule names skill `review`), and `test_check_kit_readmes.py` (new: the fixed
+  `~/.ai-kit` recipe line alone fails `check_kit.py`).
+- `check.sh` and `check.sh --links`: `check: OK (1 plugins, 18 skills, 11 rules, 16 templates, 15 readmes, 169 links,
+  65 hook cases, 18 shell scripts)`; `run_tests.py --layer unit,contract`: `Ran 310 tests`, `OK (skipped=16)`
+  (gdtoolkit); `--layer integration --changed-from origin/main`: `Ran 615 tests`, `OK (skipped=1)`; the touched test
+  modules under `/usr/bin/python3` 3.9.6: `Ran 352 tests`, `OK (skipped=2)`.
+- Not run here: `claude plugin eval` for the edited skills, CI on a runner, and the skills on a real consumer.
+
 ## What would prove it wrong
 
 - A consumer's gates JSON whose `repos` entries or `protected_paths` do not fit the `gates` schema would fail the dual
@@ -168,3 +203,5 @@ Four phases, one PR each, plus P1b, the kit's own profile (#322):
   `feat/kit-087-p1b-kit-profile`.
 - 2026-11-16: P2 split into P2a (tools, hooks, sync) and P2b (skill text); P2a implemented on
   `feat/kit-087-p2a-tools-read-profile`.
+- 2026-11-17: P2b implemented on `feat/kit-087-p2b-skills-read-profile`, with the `sdd.migrations` key KIT-095 part 2
+  needs.

@@ -13,7 +13,7 @@ allowed-tools:
 
 # SDD 5 — Tasks
 
-Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Parameters, from `check_spec.py --params`: `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`); from the project profile (`python3 ~/.ai-kit/platforms/tools/profile.py resolve --section sdd`), `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token.
+Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Resolve the project profile first (`../session/references/project-profile.md`) and read `spec_root` and the `sdd` parameters `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`), `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token.
 
 ## 1. Gate
 
@@ -40,7 +40,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 - Walk table (with `docs/spec/enablers/`): write into each row of Plan § Design's walk table the row ids that build its ENB contract; a walk row with no task row is a gap to fix here.
 - Coverage: every acceptance criterion appears in a row's `Covers` (each CA already cites the REQs it proves); every row covers a criterion or says it is infrastructure; run `sdd-check` row C8.
 - Cut checklist: every row passes `references/task-cut.md` (owned areas, protected labels, required test folders, hotspots, chains, bundle exclusions).
-- Row checks: every row passes `references/row-checks.md`; run `row_check` (`null`: the kit's `python3 ~/.ai-kit/platforms/ci/validations/row_checks.py check FEAT-nnn`) and fix the rows until it exits 0.
+- Row checks: every row passes `references/row-checks.md`; run `row_check` (`null`: the kit's `ROWS check FEAT-nnn`) and fix the rows until it exits 0.
 - Fold first: each settled `[DECISION]` of the FEAT's Open questions folds where it belongs with the `decision_folding.marker` (`sdd-plan` § 5).
 - Commit the table with a FEAT History line in a spec PR. The architect reviews that PR; the cut waits for its approval or merge.
 
@@ -53,7 +53,7 @@ When `cut_command` is set, run it on the FEAT and paste its output; otherwise cu
 - Write each item (`#N` or `TASK-nnn`) into its rows' `Item` cell.
 - Journeys (`journeys`; absent = on when `docs/spec/journeys/` exists): fill every `—` step of the journeys this FEAT's NEED lists, a step with `Rules` `—` included: `Implemented by` takes the `FEAT-nnn Tn` rows that build it, `Proven by` the test rows, never a path to a test file that does not exist yet; add any `P<n>` row with its task. A step that cites a process (`PROC-nnn` or `PROC-nnn S<a>–S<b>`) keeps `—` in its Rules, Implemented by and Proven by: write nothing new on it, since the cited process steps carry them.
 - Processes (`docs/spec/processes/`): fill, the same way, every `—` step of the processes the NEED lists in `processes` and of the process steps a listed journey cites. A process holds the rows of several FEATs: add this FEAT's rows beside the ones a step already cites and never remove another FEAT's.
-- Run `spec_trace.py check`, then commit the Item, journey and process cells together; `check_spec.py` passes.
+- Run `TRACE check`, then commit the Item, journey and process cells together; `check_spec.py` passes.
 
 ## 5. Resync
 

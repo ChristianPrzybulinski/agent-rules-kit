@@ -17,7 +17,7 @@ allowed-tools:
 
 Specifies a NEED in two parts: decide (`proposed` → `triaged`, or closed) and describe (`triaged` → `specified`). It never writes a REQ, FEAT, decision, debt or task row. Process: `../sdd-constitution/references/sdd-process.md`. Template: `../../templates/spec-need.md`. A request with no NEED goes to `sdd-intake` first.
 
-With `sdd.needs: false` (`check_spec.py --params`; `../sdd-constitution/references/sdd-parameters.md`) there is no NEED file: decide and describe in the conversation with the same rules, and `sdd-plan` writes the outcome (the Request quote, the Triage block with `Confirmed by`, the desired outcome, the Situations, scope and constraints) into the FEAT's Problem section; a `fix` or `content` request goes straight to its route, and a refused one ends in the conversation.
+Resolve the project profile first (`../session/references/project-profile.md`): `spec_root` (every `docs/spec` here) and `sdd`. With `sdd.needs: false` (`../sdd-constitution/references/sdd-parameters.md`) there is no NEED file: decide and describe in the conversation with the same rules, and `sdd-plan` writes the outcome (the Request quote, the Triage block with `Confirmed by`, the desired outcome, the Situations, scope and constraints) into the FEAT's Problem section; a `fix` or `content` request goes straight to its route, and a refused one ends in the conversation.
 
 ## 1. Decide (after intake, now or later; a recorded NEED may wait)
 
@@ -52,7 +52,7 @@ Set `status: specified` and add `YYYY-MM-DD specify: described` to History. More
 
 ## 3. Validate
 
-Run the spec validator (`python3 ~/.ai-kit/platforms/ci/validations/check_spec.py docs/spec ~/.ai-kit/platforms/ci/schemas`; in this kit, `platforms/tools/check.sh --spec docs/spec`) and paste its literal output.
+Run the spec validator (`CHECK_SPEC`; in this kit, `platforms/tools/check.sh --spec docs/spec`) and paste its literal output.
 
 ## Rules
 

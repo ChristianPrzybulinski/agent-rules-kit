@@ -5,7 +5,7 @@ kind: detail
 
 # Task cut checklist
 
-What makes a task out of a FEAT row: the area it owns, the labels it needs and how it chains. The values come from the project profile (`python3 ~/.ai-kit/platforms/tools/profile.py resolve --section sdd`): `task_cut` (`owned_area_form`, `required_test_folders`, `longest_chain_max_complexity`, `bundle_exclude`), `protected_paths`, `max_chain` and `bundle`. A project never restates a rule here in its own guide; it sets a value. The writer runs the checklist on every row before the spec PR, beside `row-checks.md`, and again on the items at the cut; a row that fails is fixed in the spec, never in the implementing PR.
+What makes a task out of a FEAT row: the area it owns, the labels it needs and how it chains. The values come from the project profile (`PROFILE resolve --section sdd`, `../../session/references/project-profile.md`): `task_cut` (`owned_area_form`, `required_test_folders`, `longest_chain_max_complexity`, `bundle_exclude`), `protected_paths`, `max_chain` and `bundle`. A project never restates a rule here in its own guide; it sets a value. The writer runs the checklist on every row before the spec PR, beside `row-checks.md`, and again on the items at the cut; a row that fails is fixed in the spec, never in the implementing PR.
 
 ## Owned areas
 

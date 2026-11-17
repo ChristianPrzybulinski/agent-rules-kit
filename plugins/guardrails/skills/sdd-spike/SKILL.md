@@ -19,6 +19,8 @@ Process: `../sdd-constitution/references/sdd-process.md`. Report template: `../.
 
 ## 1. Qualify
 
+Resolve the project profile first (`../session/references/project-profile.md`): `spec_root` and `stacks`.
+
 The question must be about feel (motion, camera, feedback, UI) or technical feasibility (a load-bearing risk `sdd-plan` names whose cheapest test needs code), and unanswerable by reading the spec. If a FEAT already specifies it, stop and use `sdd-implement`.
 
 ## 2. Open the lane

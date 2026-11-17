@@ -73,9 +73,9 @@ REQs it satisfies, and the FEATs, decisions and debts whose `enablers` names it:
 and the Contracts view, and is required. `enablers` reports, over the open FEATs or the one --feat names:
   C18 high    a REQ of the FEAT, or a process step whose Rules cite REQs, that no ENB satisfies;
   C19 high    a Plan § Contract reference `ENB-nnn:<contract>` the catalog lacks, or to an ENB the FEAT's `enablers`
-              does not list; a file under sdd.row_checks.protocol.schemas or matching a --catalog glob (a migration
-              folder, for example) that no `Schema or file` cell covers. Both are globs rooted at the repository
-              (no leading `/`, no `..`; a bad one fails with exit 1), a trailing `**` covers the files under it, and
+              does not list; a file under sdd.row_checks.protocol.schemas or an sdd.migrations folder of the
+              profile, or matching a --catalog glob, that no `Schema or file` cell covers. All are rooted at the
+              repository (no leading `/`, no `..`; a bad one fails with exit 1), a trailing `**` covers the files under it, and
               the walk never enters a folder whose name starts with `.`;
   C19 medium  a provided contract no ENB requires whose Consumers cell is empty or `—`.
 It exits 1 on a finding. A spec without enablers/ checks and renders as before.
@@ -310,8 +310,12 @@ def schemas_dir() -> Path:
                 HERE / "schemas")
 
 
+PARAMS_REFUSED = "the profile's sdd section refused (profile.py resolve --section sdd)"
+
+
 def load_params(spec_dir: Path) -> tuple:
-    """The resolved `sdd` block and the errors check_spec.py reports on it; ({}, [why]) without the schema."""
+    """The resolved `sdd` section and its errors: check_spec.load_params reads the profile, `.ai-kit.yaml` first,
+    then the legacy `sdd:` block (KIT-087 P2b); ({}, [why]) without the schema."""
     folder = schemas_dir()
     if not (folder / "spec.schema.json").is_file():
         return {}, [f"no spec.schema.json beside {Path(__file__).name}"]
@@ -964,14 +968,16 @@ def glob_segments(pattern):
 
 
 def catalog_patterns(spec, globs):
-    """([(source, pattern)], [error]): sdd.row_checks.protocol.schemas as `<folder>/**/*`, then each --catalog glob;
-    a pattern that is not rooted at the repository is an error, never a traceback."""
+    """([(source, pattern)], [error]): sdd.row_checks.protocol.schemas and each sdd.migrations folder (KIT-087 P2b)
+    as `<folder>/**/*`, then each --catalog glob; a pattern that is not rooted at the repository is an error, never a
+    traceback."""
     protocol = (spec.params.get("row_checks") or {}).get("protocol") or {}
+    folders = [("sdd.row_checks.protocol.schemas", protocol["schemas"])] if protocol.get("schemas") else []
+    folders += [("sdd.migrations", folder) for folder in spec.params.get("migrations") or []]
     sources = []
-    if protocol.get("schemas"):
-        folder = protocol["schemas"]
+    for source, folder in folders:
         ok = glob_segments(folder) is not None or folder == "."
-        sources.append(("sdd.row_checks.protocol.schemas", f"{folder.rstrip('/')}/**/*" if ok else folder, folder))
+        sources.append((source, f"{folder.rstrip('/')}/**/*" if ok else folder, folder))
     sources += [("--catalog", g, g) for g in globs]
     patterns, errors = [], []
     for source, pattern, given in sources:
@@ -1064,8 +1070,8 @@ def enablers_command(spec, fid, globs):
     if fid and fid not in spec.feats:
         return report([f"{fid} does not exist in features/"], "")
     patterns, errors = catalog_patterns(spec, globs)
-    if errors:
-        return report(errors, "")
+    if spec.param_errors or errors:
+        return report([f"{PARAMS_REFUSED}: {error}" for error in spec.param_errors] + errors, "")
     findings = enabler_findings(spec, fid, patterns)
     for finding in findings:
         print(finding)
@@ -2099,8 +2105,7 @@ def main(argv=None):
         return report(status_errors(spec), f"spec-trace status: OK ({len(spec.feats)} FEATs)")
     if args.command == "sync-status":
         if spec.param_errors:
-            print("FAIL: spec.md sdd block refused (check_spec.py --params): " + "; ".join(spec.param_errors),
-                  file=sys.stderr)
+            print(f"FAIL: {PARAMS_REFUSED}: " + "; ".join(spec.param_errors), file=sys.stderr)
             return 2
         if spec.params.get("tracker", "github") != "github":
             print(f"FAIL: sync-status reads GitHub issues, and sdd.tracker is {spec.params.get('tracker')}: task "

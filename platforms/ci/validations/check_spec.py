@@ -480,9 +480,33 @@ def sdd_params(path, data, spec_schema, spec_dir):
     return resolved
 
 
+def profile_root(spec_dir):
+    """The project root whose `.ai-kit.yaml` may describe spec_dir: the folder above it that holds `.git`, else
+    `x` for `x/docs/spec`, else None."""
+    for folder in [spec_dir, *spec_dir.parents]:
+        if (folder / ".git").exists():
+            return folder
+    return spec_dir.parents[1] if spec_dir.parts[-2:] == ("docs", "spec") else None
+
+
 def load_params(spec_dir, schemas_dir):
-    """The resolved `sdd` block for another kit tool (row_checks.py, spec_trace.py): (params, errors), where errors
-    lists each refused key or an unreadable spec.md; nothing is printed and no failure is kept for this run."""
+    """The resolved `sdd` section for another kit tool (row_checks.py, spec_trace.py): (params, errors), where errors
+    lists each refused key, conflict or unreadable file; nothing is printed and no failure is kept for this run.
+    KIT-087 P2b: profile.py resolves it, `.ai-kit.yaml` first, then the legacy `sdd:` block, when the root's profile
+    names spec_dir as its spec_root; otherwise, or without profile.py and its schema, the legacy block alone."""
+    spec_dir = Path(spec_dir).resolve()
+    tool = Path(__file__).resolve().parents[2] / "tools" / "profile.py"
+    if tool.is_file() and (schemas_dir / "profile.schema.json").is_file():
+        module = profile_module()
+        root = profile_root(spec_dir)
+        resolved, _, errors = module.resolve(root, ["spec_root", "sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
+        if root is not None and (root / resolved["spec_root"]).resolve() != spec_dir:
+            if errors:  # not this spec's profile, but its errors stay visible: one note, never a failure here
+                print(f"profile: note: {module.FILE} describes spec_root {resolved['spec_root']}, not "
+                      f"{module.shown(spec_dir, root)}; its errors were not applied: {'; '.join(errors)}",
+                      file=sys.stderr)
+            resolved, _, errors = module.resolve(None, ["sdd"], spec_dir=spec_dir, schemas_dir=schemas_dir)
+        return resolved["sdd"], errors
     start = len(failures)
     index = spec_dir / "spec.md"
     data = frontmatter(index) if index.exists() else {}

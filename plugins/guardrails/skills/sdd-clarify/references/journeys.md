@@ -26,7 +26,7 @@ When to write a process, its states, decisions and feedback, and the soundness `
 ## Link once, generate
 
 - Journey → rule, process, task and test links are written only in the journey (or the process); no FEAT, REQ or task lists journeys, and the NEED's `journeys` field only records which journeys it changed (while the NEED is open, their `—` steps wait).
-- Regenerate the matrix with the kit's validator (`generate`, then `check` must pass) after a journey or a FEAT↔REQ link changes: `python3 ~/.ai-kit/platforms/ci/validations/spec_trace.py generate docs/spec`; never edit `traceability.md` by hand.
+- Regenerate the matrix with the kit's validator (`generate`, then `check` must pass) after a journey or a FEAT↔REQ link changes: `TRACE generate <spec_root>` (`../../session/references/project-profile.md` § 3); never edit `traceability.md` by hand.
 - Product signs the journey: `status: approved`, when its NEED is refined; a retired flow is `retired`, never deleted.
 
 ## Check a change

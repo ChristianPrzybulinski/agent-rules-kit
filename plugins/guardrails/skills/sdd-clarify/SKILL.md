@@ -17,7 +17,7 @@ allowed-tools:
 
 The functional refinement: makes each Situation of a `specified` NEED precise as REQs, a journey or process step or a product decision, and ends with the NEED `refined`. No technical choice, FEAT, debt or task row. Process: `../sdd-constitution/references/sdd-process.md`. Scope rules: `references/req-scope.md`. Templates: `../../templates/spec-requirement-functional.md`, `../../templates/spec-requirement-non-functional.md`, `../../templates/spec-process.md`.
 
-With `sdd.needs: false` (`check_spec.py --params`; `../sdd-constitution/references/sdd-parameters.md`) there is no NEED: map the Situations `sdd-specify` settled, write REQs with `source: request YYYY-MM-DD S<n>`, and put each answer in its REQ or in the FEAT's Problem section instead of a NEED's History; skip the Refinement table and `sdd-check NEED-nnn`, and hand the approved REQs to `sdd-plan`, since `check_spec.py` requires each REQ to have its FEAT: the REQs land in the change that creates it, and `sdd-plan`'s full-scope check covers them.
+Resolve the project profile first (`../session/references/project-profile.md`): `spec_root` (every `docs/spec` here) and `sdd`. With `sdd.needs: false` (`../sdd-constitution/references/sdd-parameters.md`) there is no NEED: map the Situations `sdd-specify` settled, write REQs with `source: request YYYY-MM-DD S<n>`, and put each answer in its REQ or in the FEAT's Problem section instead of a NEED's History; skip the Refinement table and `sdd-check NEED-nnn`, and hand the approved REQs to `sdd-plan`, since `check_spec.py` requires each REQ to have its FEAT: the REQs land in the change that creates it, and `sdd-plan`'s full-scope check covers them.
 
 ## 1. Map each Situation
 
@@ -42,7 +42,7 @@ Put each answer where it belongs (REQ, NEED, glossary), never in an answers sect
 ## 3. Record and check
 
 - Fill the NEED's Refinement table (one row per Situation: what it became and why) and its `requirements`, `journeys`, `processes` and `decisions` fields.
-- Run the project spec validator (and `spec_trace.py check` when journeys or processes exist; it accepts a step's `—` while an open NEED lists its journey or process), then `sdd-check NEED-nnn` (functional scope). A critical or high finding goes back to the step that owns it.
+- Run the project spec validator, `CHECK_SPEC` (and `TRACE check` when journeys or processes exist; it accepts a step's `—` while an open NEED lists its journey or process), then `sdd-check NEED-nnn` (functional scope). A critical or high finding goes back to the step that owns it.
 
 ## 4. Close
 

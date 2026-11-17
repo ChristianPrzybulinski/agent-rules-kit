@@ -256,19 +256,26 @@ class Migration(Base):
 
 class SkillNamesTheCommand(unittest.TestCase):
     """KIT-085: skill sdd-implement runs the recipes, so its text names the command shape the sync prints and the
-    profile lookup that picks the stack."""
+    profile lookup that picks the stack. KIT-087 P2b: the skill names the kit as `"$KIT"`, the folder the session
+    reference project-profile.md finds (~/.ai-kit by default, the folder the sync prints)."""
 
     SKILL = KIT / "plugins" / "guardrails" / "skills" / "sdd-implement"
 
+    @staticmethod
+    def shape(stack, folder):
+        return sj.run_line(stack, folder).replace(f"{sj.KIT_HOME}/platforms/kits/just/{stack}.just",
+                                                  f'"$KIT/platforms/kits/just/{stack}.just"')
+
     def test_the_recipes_reference_names_the_command_and_the_profile_lookup(self):
         text = (self.SKILL / "references" / "recipes.md").read_text(encoding="utf-8")
-        self.assertIn(sj.run_line("<stack>", "<repo>/<folder>").replace(" <recipe>", " <recipe> [args]"), text)
-        self.assertIn("python3 ~/.ai-kit/platforms/tools/profile.py resolve --section stacks --json <repo>", text)
+        self.assertIn(self.shape("<stack>", "<repo>/<folder>").replace(" <recipe>", " <recipe> [args]"), text)
+        self.assertIn("`PROFILE resolve --section stacks --json <repo>` (`KIT` and `PROFILE`: "
+                      "`../../session/references/project-profile.md`)", text)
         self.assertIn("profile.py resolve --section tests --json <repo>", text)
 
     def test_the_skill_and_its_test_gates_point_at_the_reference(self):
         skill = (self.SKILL / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn(sj.run_line("<stack>", "<folder>"), skill)
+        self.assertIn(self.shape("<stack>", "<folder>"), skill)
         self.assertIn("`references/recipes.md`", skill)
         self.assertIn("(`recipes.md`)", (self.SKILL / "references" / "test-gates.md").read_text(encoding="utf-8"))
 
