@@ -188,8 +188,8 @@ class SimilarCase(unittest.TestCase):
         self.tmp.cleanup()
 
     def req(self, rid, title, statement, status="approved"):
-        write(self.root, f"docs/spec/requirements/functional/{rid}.md",
-              REQ.format(rid=rid, title=title, statement=statement, status=status))
+        return write(self.root, f"docs/spec/requirements/functional/{rid}.md",
+                     REQ.format(rid=rid, title=title, statement=statement, status=status))
 
     def proc(self, pid, trigger, actors, status="approved"):
         write(self.root, f"docs/spec/processes/{pid}-fixture.md",
@@ -250,6 +250,24 @@ class RequirementTest(SimilarCase):
         code, lines, _ = self.similar()
         self.assertEqual(code, 0)
         self.assertFalse([line for line in lines if line.startswith("C20")], lines)
+
+    def test_a_title_yaml_reads_as_a_number_compares_as_text(self):
+        for rid in ("REQ-F-001", "REQ-F-002"):
+            path = self.req(rid, "x", "The system must lock the move, when picked, for the player " + rid + ".")
+            path.write_text(path.read_text(encoding="utf-8").replace('title: "x"', "title: 2024"), encoding="utf-8")
+        code, lines, err = self.similar()
+        self.assertEqual((code, err), (0, ""))
+        self.assertIn("C20 candidate: REQ-F-001 ~ REQ-F-002: same title words", lines)
+
+    def test_unfilled_template_statements_are_no_candidates(self):
+        placeholder = "The system must [observable behavior], when [condition], for [actor]."
+        self.req("REQ-F-001", "Lock the move", placeholder)
+        self.req("REQ-F-002", "Show the damage", placeholder)
+        self.req("REQ-F-003", "Charset", "The system must accept [A-Za-z0-9_] names, when typed, for the player.")
+        self.req("REQ-F-004", "Charset rule", "The system must accept [A-Za-z0-9_] names when typed, for the player")
+        _, lines, _ = self.similar()
+        c20 = [line for line in lines if line.startswith("C20")]
+        self.assertEqual(c20, ["C20 candidate: REQ-F-003 ~ REQ-F-004: same actor, trigger and result"], lines)
 
 
 class ProcessTest(SimilarCase):

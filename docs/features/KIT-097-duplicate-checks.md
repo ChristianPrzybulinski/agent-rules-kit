@@ -77,3 +77,8 @@ Choices:
   on main yet); PR pending.
 - 2026-11-17: merged `origin/main` (KIT-096 squash b45e998, KIT-098, KIT-099); the `similar=` input moved from a
   § 1 g paragraph into the C20–C24 row, as C25 holds its own, to keep `sdd-check` within 80 lines.
+- 2026-11-17: review (READY at d0efa96) follow-ups, after merging KIT-094: `similar_words` compares a title YAML reads
+  as a number as its text (it raised TypeError); an unfilled template statement (`[observable behavior]`) compares by
+  its title only; `sdd-plan` and `sdd-clarify` name `spec_trace.py similar` among the outputs they paste into
+  `sdd-check`; the full scope says C21, C23 and C24 need no `enablers/`. Two tests, red first (a TypeError, a
+  placeholder pair reported as C20), 23 green under both Pythons.

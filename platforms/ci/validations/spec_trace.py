@@ -1375,6 +1375,7 @@ SIMILAR_STOP = frozenset(
     "when then than which who whom whose what where while if once each every any all some".split())
 SIMILAR_TAG = re.compile(r"\[(?:FACT|HYPOTHESIS|DECISION|PROPOSAL)\]")
 SIMILAR_PUNCT = re.compile(r"[^\w\s]|_")
+PLACEHOLDER = re.compile(r"\[[A-Za-z][A-Za-z .…—/-]*\]")  # an unfilled template slot: "[observable behavior]"
 STATEMENT_PARTS = re.compile(r"\bmust\b(?P<result>.+?),?\s+when\b(?P<trigger>.+?),\s*for\b(?P<actor>.+?)\.?\s*$",
                              re.I | re.S)
 USE_CASE = re.compile(r"^-\s*Use case:\s*(.+)$", re.M)
@@ -1382,8 +1383,8 @@ USE_CASE = re.compile(r"^-\s*Use case:\s*(.+)$", re.M)
 
 def similar_words(text):
     """The normalized words of a text: casefolded, claim tags and punctuation removed, stop words dropped, order
-    ignored (a frozenset, empty when nothing is left)."""
-    text = SIMILAR_PUNCT.sub(" ", SIMILAR_TAG.sub(" ", text or "").casefold())
+    ignored (a frozenset, empty when nothing is left); a value YAML read as a number compares as its text."""
+    text = SIMILAR_PUNCT.sub(" ", SIMILAR_TAG.sub(" ", "" if text is None else str(text)).casefold())
     return frozenset(w for w in text.split() if w not in SIMILAR_STOP)
 
 
@@ -1417,6 +1418,8 @@ def c20_candidates(spec):
             continue
         statement = "\n".join(line for line in check_spec.blank_comments(section(body, "Statement")).splitlines()
                               if not line.lstrip().startswith("|"))
+        if PLACEHOLDER.search(SIMILAR_TAG.sub(" ", statement)):
+            statement = ""  # an unfilled template statement: only its title compares
         keys["same actor, trigger and result"][rid] = statement_parts(statement)
         keys["same statement words"][rid] = similar_words(statement)
         keys["same title words"][rid] = similar_words(req["title"])

@@ -9,7 +9,7 @@ One rule, one process, one contract and one use case each live in one place (KIT
 
 ## What the tool compares
 
-Words compare after one deterministic normalization: casefold, claim tags (`[FACT]`, `[HYPOTHESIS]`, `[DECISION]`, `[PROPOSAL]`) and punctuation removed, stop words (articles, prepositions, auxiliaries such as `must`) dropped, word order ignored. `not` and `no` count. Retired REQs and processes and cancelled FEATs take no part.
+Words compare after one deterministic normalization: casefold, claim tags (`[FACT]`, `[HYPOTHESIS]`, `[DECISION]`, `[PROPOSAL]`) and punctuation removed, stop words (articles, prepositions, auxiliaries such as `must`) dropped, word order ignored. `not` and `no` count. Retired REQs and processes and cancelled FEATs take no part, and an unfilled template statement (a slot such as `[observable behavior]`) compares by its title only. `similar` only reads: a file it cannot load (no frontmatter, no id) is skipped, and `check_spec.py` and `TRACE check` report it.
 
 | Row | Line | Compared | Kind |
 |---|---|---|---|
