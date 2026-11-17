@@ -30,9 +30,9 @@ profile holds only parameters the kit reads; another tool's settings (a review l
 
 ## Change
 
-Four phases, one PR each (#322):
+Four phases, one PR each, plus P1b, the kit's own profile (#322):
 
-- **P1 — schema and dual-read resolver (MINOR): done on branch `feat/kit-087-p1-profile-resolver`.**
+- **P1 — schema and dual-read resolver (MINOR): done in #327 (c85e381).**
   1. `platforms/ci/schemas/profile.schema.json`: a top-level `kit` pin (`">=X.Y"`, checked against `VERSION`) and the
      sections `stacks`, `sdd` (the 23 keys of `spec.schema.json`, `journeys` nullable, plus `task_cut` and
      `decision_folding` for KIT-086), `tracker` (labels limited to the two `spec_trace.py` reads), `models`, `tests`,
@@ -57,6 +57,22 @@ Four phases, one PR each (#322):
   5. Tests: `platforms/ci/validations/test_profile.py`; `test_spec_tools_action.py` gains the profile step.
   6. Docs: `docs/projects.md`, `sdd-parameters.md`, `platforms/tools/README.md`, `platforms/ci/README.md`, the action's
      README, the CHANGELOG.
+- **P1b — the kit's own profile (owner, 2026-11-16, #322 "Scope addition": the kit uses the kit): done on branch
+  `feat/kit-087-p1b-kit-profile`.**
+  1. `.ai-kit.yaml` at the kit root sets only the keys that differ from their defaults, each commented with its
+     evidence: `stacks` (`'.': docs`; `platforms/tools`, `platforms/ci` and `plugins/guardrails/hooks`: `python`) and
+     `ci.trigger: auto` (`ci.yml`, `gitleaks.yml` and `codeql.yml` run on every pull request and push to `main`,
+     KIT-076). `changelog.mode: file` is the default, so it is a comment, not a key; `review` and `gates` stay at their
+     defaults (the kit has no gates JSON, protected-paths list or review cap of its own); `sdd` stays at its defaults
+     because the kit has no `docs/spec/` and no key yet says "records in `docs/features/`" (the open point of #322,
+     left for a later phase).
+  2. `check_kit.py` § 15 fails when the file is missing or `profile.py resolve` exits non-zero or prints any note, so
+     the static job's `check.sh --links` (required through `ci`) refuses a schema or resolver change that breaks the
+     kit's own profile. Tests: `test_check_kit_readmes.py` breaks a copy (an unknown key plus a value outside the
+     schema, then a missing file); `test_profile.py` `KitOwnProfile` resolves the real file with no note and checks
+     that every key it sets is off its default.
+  3. Protection: `.github/CODEOWNERS` already assigns every path (`*`) to the owner; the kit has no protected-paths
+     list of its own, so nothing was added.
 - **P2 — the kit's skills, hooks and docs read the profile: open.** Each skill's first step resolves it; the hooks read
   `stacks`; the kit's direct script calls in skills take their paths from the resolver and those in docs, templates
   and the rendered rules become "skill X"; the `test-gates.md` coverage policy becomes `quality` values a project
@@ -85,6 +101,16 @@ Four phases, one PR each (#322):
 - Not run here: the action on a GitHub runner, the functional layer, the evals for the edited reference
   `sdd-parameters.md`, and the resolver on a real consumer checkout.
 
+[FACT] P1b, on its branch, macOS:
+
+- `platforms/tools/check.sh` (system `python3` 3.9.6) and `check.sh --links` with `python3` at 3.12: `check: OK (1
+  plugins, 18 skills, 11 rules, 13 templates, 15 readmes, 159 links, 63 hook cases, 18 shell scripts)`; `profile.py
+  resolve` on the kit exits 0 under 3.12 and under `/usr/bin/python3 -S` 3.9.6 (fallback parser).
+- `run_tests.py --layer unit,contract`: `Ran 258 tests`, `OK (skipped=16)` (gdtoolkit);
+  `run_tests.py --layer integration --changed-from origin/main`: `Ran 71 tests`, OK;
+  `test_profile.py` under `/usr/bin/python3` 3.9.6: `Ran 29 tests`, OK.
+- Not run here: the static job on a GitHub runner.
+
 ## What would prove it wrong
 
 - A consumer's gates JSON whose `repos` entries or `protected_paths` do not fit the `gates` schema would fail the dual
@@ -98,3 +124,5 @@ Four phases, one PR each (#322):
 - 2026-11-16: owner scope correction: the profile holds only parameters the kit reads; `gates` keeps the kit-read
   keys and `tracker.labels` the labels the kit's tooling uses.
 - 2026-11-16: P1 implemented on `feat/kit-087-p1-profile-resolver`.
+- 2026-11-16: owner scope addition (#322): the kit carries its own profile; P1b implemented on
+  `feat/kit-087-p1b-kit-profile`.

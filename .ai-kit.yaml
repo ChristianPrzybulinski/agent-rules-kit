@@ -1,0 +1,24 @@
+# The kit's own project profile (KIT-087 P1b): the kit uses the kit. Validated by
+# platforms/ci/schemas/profile.schema.json through platforms/tools/profile.py; check_kit.py fails when it does not
+# resolve. A key is set only where the kit differs from its default, and each value names its evidence. A key left
+# out takes its default:
+# - changelog.mode stays file: the kit edits CHANGELOG.md directly and bump_version.py writes its release heading.
+# - review and gates: the kit has no gates JSON, no protected-paths list and no review cap of its own; skill review's
+#   KIT-077 bar and the independent review READY (.github/CONTRIBUTING.md, CI requirements) are the defaults.
+# - sdd stays at its defaults: the kit has no docs/spec/; its features are KIT records in docs/features/ (CONTRIBUTING,
+#   Adding content), which no profile key describes yet, so the sdd-* skills do not run here.
+# - secrets.scanner stays gitleaks: .github/workflows/gitleaks.yml runs it with no config file.
+
+# Folder -> stack. The root is Markdown (docs/, the skills, rules and references under plugins/, README, CHANGELOG);
+# the tools, validators and the path-rule hook are Python (platforms/tools/*.py, platforms/ci/validations/*.py,
+# plugins/guardrails/hooks/path_rules.py).
+stacks:
+  '.': docs
+  platforms/tools: python
+  platforms/ci: python
+  plugins/guardrails/hooks: python
+
+# auto: ci.yml, gitleaks.yml and codeql.yml run on every pull request to main and every push to main (KIT-076), and
+# their jobs are the required checks.
+ci:
+  trigger: auto

@@ -283,6 +283,28 @@ class SchemaContract(unittest.TestCase):
         self.assertNotIn("import yaml", TOOL.read_text(encoding="utf-8"))  # it parses through check_spec.py
 
 
+class KitOwnProfile(unittest.TestCase):
+    """KIT-087 P1b: the kit carries its own .ai-kit.yaml; check_kit.py fails when it does not resolve (its integration
+    test breaks a copy). Here the real file resolves with no note, sets only keys off their defaults, and gives the kit
+    CI trigger its workflows have."""
+    LAYER = "contract"  # the kit's own profile, read in-process
+
+    def test_the_kits_profile_resolves_cleanly_and_sets_only_keys_off_their_defaults(self):
+        resolver = profile.Resolver(KIT)
+        resolved = resolver.resolve()
+        self.assertEqual((resolver.errors, resolver.notes), ([], []))
+        self.assertEqual(resolved["ci"]["trigger"], "auto")
+        given = profile.check_spec().load_yaml((KIT / ".ai-kit.yaml").read_text(encoding="utf-8"))
+        for section, value in given.items():
+            default = resolver.defaults(section)
+            for key, sub in (value.items() if isinstance(value, dict) else [(None, value)]):
+                with self.subTest(key=f"{section}.{key}"):
+                    if isinstance(default, dict) and key in default:
+                        self.assertNotEqual(sub, default[key])
+                    elif not isinstance(default, dict):
+                        self.assertNotEqual(sub, default)
+
+
 class CommandLine(Project):
     LAYER = "integration"  # starts the resolver and check_spec.py as processes, with and without pyyaml
     COVERS = ("platforms/tools/profile.py", "platforms/ci/validations/check_spec.py",

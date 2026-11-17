@@ -56,6 +56,8 @@ Only the kit reads it, through `platforms/tools/profile.py`: its skills, hooks, 
 
 During the dual read (KIT-087 P1, until the MAJOR release of P4) the older homes still count: a key the file does not set comes from the `sdd:` block in `docs/spec/spec.md` (the `sdd` section), the profile list in the root `CLAUDE.md` sync marker (`stacks`) or the gates JSON that `sdd.row_checks.gates` names (`gates`), each with a `profile: <key> from legacy <path>` line on stderr, and a key set differently in the file and an older home fails. A project without the file gets every key from its older home or default, with one warning. A kit session writes the file from that view once with `profile.py migrate <repo>`, which never overwrites one (the keys that differ from their defaults); moving each key out of its older home comes in a later phase.
 
+The kit repository carries its own `.ai-kit.yaml` too (KIT-087 P1b), and `check_kit.py` fails when it does not resolve.
+
 ## The just modules and the merge driver run from the kit (KIT-081 stage 1b)
 
 Until stage 1b, `sync-project.sh` wrote each profile's module into its folder as `kit.just` (a folder with several profiles got `kit-<profile>.just` modules and a `kit.just` that ran their shared recipes) and copied the keyed-CSV merge driver into `.github/merge-drivers/`. Now:
