@@ -182,7 +182,7 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import check_spec  # noqa: E402  (the sdd parameters, resolved against spec.schema.json)
+import check_spec  # noqa: E402  (the sdd parameters, resolved from .ai-kit.yaml)
 
 MATRIX = "traceability.md"
 
