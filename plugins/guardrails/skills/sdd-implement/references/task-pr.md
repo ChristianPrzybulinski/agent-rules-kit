@@ -39,7 +39,7 @@ One line, real values only: `Executor: provider=<claude|codex|devin|human> tier=
 
 ## PR body
 
-- Write the body to a file outside the worktree, with the sections What, Why, Red, How I tested (literal command output), Proof, and when they apply Files widened, Secrets to register and the capture of a visual change; then the executor line; last line `Closes <owner>/<docs-repo>#N` (or the TASK id under `tracker: none`).
+- Write the body to a file outside the worktree, with the sections What, Why, Red, How I tested (literal command output), Proof, and when they apply Files widened, Secrets to register and the capture of a visual change (none for a greybox block's row under `sdd.passes`); then the executor line; last line `Closes <owner>/<docs-repo>#N` (or the TASK id under `tracker: none`).
 - Commits follow Conventional Commits with `Refs: FEAT-nnn Tn`. Never push to `main`, force-push, rebase or merge; the item becomes done when its PR merges.
 
 ## Stop conditions
