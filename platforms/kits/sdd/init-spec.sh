@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
-# Initializes docs/spec/ in a repo, spec.md with the sdd: parameters included. Usage: init-spec.sh <repo-dir>
+# Initializes docs/spec/ in a repo: the folders of the profile's sdd.flow and the spec.md template of its
+# project.kind (business and game carry the sdd: parameters, tooling none). Usage: init-spec.sh <repo-dir>
 # Precondition: the repo must already have AGENTS.md (the sync generates CLAUDE.md importing it).
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 REPO="${1:?usage: init-spec.sh <repo-dir>}"
 
-# The profile's project.kind picks the template and the folders (KIT-089, KIT-100); an invalid profile stops here.
+# The profile's project.kind picks the template (KIT-089) and its resolved sdd.flow the folders (KIT-100), so a kind
+# overridden by an explicit flow still gets its flow's folders; an invalid profile stops here.
 KIND=$(python3 "$KIT_DIR/platforms/tools/profile.py" resolve --section project --json "$REPO" \
   | sed -n 's/^ *"kind": "\([a-z]*\)".*/\1/p')
+FLOW=$(python3 "$KIT_DIR/platforms/tools/profile.py" resolve --section sdd --json "$REPO" 2>/dev/null \
+  | sed -n 's/^ *"flow": "\([a-z-]*\)".*/\1/p')
 
-# tooling runs the FEAT-only flow: no NEED and no REQ folder.
+# The FEAT-only flow keeps no NEED and no REQ folder.
 FOLDERS="needs features requirements/functional requirements/non-functional decisions debts"
-if [[ "$KIND" == tooling ]]; then
+if [[ "$FLOW" == feat-only ]]; then
   FOLDERS="features decisions debts"
 fi
 for d in $FOLDERS; do

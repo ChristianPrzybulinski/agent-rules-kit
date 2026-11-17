@@ -1,6 +1,7 @@
 """init-spec.sh: the spec.md template follows the profile's project.kind (KIT-089, KIT-100)."""
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -56,6 +57,20 @@ class InitSpecTemplateTest(unittest.TestCase):
         self.assertIn("from spec-index-tooling.md (project.kind: tooling)", result.stdout)
         spec = self.repo / "docs" / "spec"
         self.assertEqual(sorted(p.name for p in spec.iterdir() if p.is_dir()), ["debts", "decisions", "features"])
+
+    def test_the_folders_follow_the_resolved_flow_not_the_kind(self):
+        """init-spec.sh reads sdd.flow: a business project on feat-only and a tooling one back on full each get the
+        folders of their flow."""
+        lite, full = ["debts", "decisions", "features"], ["debts", "decisions", "features", "needs", "requirements"]
+        for profile, folders in (("project:\n  kind: business\nsdd:\n  flow: feat-only\n", lite),
+                                 ("project:\n  kind: tooling\nsdd:\n  flow: full\n", full)):
+            with self.subTest(profile=profile):
+                spec = self.repo / "docs" / "spec"
+                if spec.exists():
+                    shutil.rmtree(spec)
+                (self.repo / ".ai-kit.yaml").write_text(profile)
+                self.init()
+                self.assertEqual(sorted(p.name for p in spec.iterdir() if p.is_dir()), folders)
 
     def test_the_tooling_spec_resolves_to_the_tooling_preset(self):
         """The spec init writes for kind tooling leaves every sdd key at the preset (#348 review note)."""

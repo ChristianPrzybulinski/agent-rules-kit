@@ -2507,7 +2507,7 @@ def sync_status(spec, settings, write, today, gh=run_gh):
 
 # FEAT-only flow (KIT-100): the FEAT is its own item, and its status follows its PR.
 FEAT_ONLY = "feat-only"
-ITEM_FIELD = re.compile(r"^(?:([\w.-]+/[\w.-]+))?#(\d+)$")
+ITEM_FIELD = re.compile(r"^(?:([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+))?#([0-9]+)$")  # check_spec.py ITEM_REF, ASCII only
 PR_OPENS = ("proposed", "clarified", "planned")  # an open PR moves these to in-progress
 PR_DELIVERS = PR_OPENS + ("in-progress",)  # a merged PR moves these to delivered; any other status stays
 
@@ -2519,20 +2519,26 @@ def feat_glob(spec):
 
 
 def feat_prs(data, settings, closing, gh):
-    """The FEAT's PRs as [{ref, state, merged}]: the one its `pr` field names, else those whose body closes its
-    `issue`; None when it names neither, and [] for a ref outside the backlog, its earlier names and PR repositories."""
-    pr = ITEM_FIELD.match(str(data.get("pr") or "").strip())
-    if pr:
-        repo = pr.group(1) or settings["repo"]
-        if repo not in {settings["repo"], *settings["aliases"], *settings["pr_repos"]}:
-            return []
-        found = gh_json(f"repos/{repo}/pulls/{pr.group(2)}", gh)
-        return [{"ref": f"{repo.split('/')[-1]}#{pr.group(2)}", "state": found.get("state"),
-                 "merged": found.get("merged_at") is not None}]
-    issue = ITEM_FIELD.match(str(data.get("issue") or "").strip())
-    if issue and (issue.group(1) or settings["repo"]) in {settings["repo"], *settings["aliases"]}:
-        return closing.get(int(issue.group(2)), [])
-    return None
+    """(PRs as [{ref, state, merged}], warning): the PR the FEAT's `pr` field names, else those whose body closes its
+    `issue`; ([], None) when it names neither. A field that is not `#N` or `OWNER/NAME#N` in ASCII digits, or a ref
+    outside the backlog, its earlier names and PR repositories, gives ([], why) and never reaches `gh`."""
+    allowed = {settings["repo"], *settings["aliases"], *settings["pr_repos"]}
+    for field in ("pr", "issue"):
+        text = str(data.get(field) or "").strip()
+        if not text:
+            continue
+        item = ITEM_FIELD.match(text)
+        if item is None:
+            return [], f"{field} {text!r} is not #N or OWNER/NAME#N; status not synced"
+        repo = item.group(1) or settings["repo"]
+        if repo not in (allowed if field == "pr" else {settings["repo"], *settings["aliases"]}):
+            return [], f"{repo.split('/')[-1]}#{item.group(2)} is outside the backlog repositories; status not synced"
+        if field == "issue":
+            return closing.get(int(item.group(2)), []), None
+        found = gh_json(f"repos/{repo}/pulls/{item.group(2)}", gh)
+        return [{"ref": f"{repo.split('/')[-1]}#{item.group(2)}", "state": found.get("state"),
+                 "merged": found.get("merged_at") is not None}], None
+    return None, None
 
 
 def pr_feat_status(spec, settings, closing, lines, today, gh=run_gh):
@@ -2544,7 +2550,10 @@ def pr_feat_status(spec, settings, closing, lines, today, gh=run_gh):
         feat = spec.feats[fid]
         if feat["status"] not in PR_DELIVERS or feat["task_status"]:
             continue
-        prs = feat_prs(split_frontmatter(feat["path"].read_text(encoding="utf-8"))[0] or {}, settings, closing, gh)
+        prs, why = feat_prs(split_frontmatter(feat["path"].read_text(encoding="utf-8"))[0] or {}, settings, closing, gh)
+        if why:
+            lines.append(f"WARN {fid}: {why}")
+            continue
         if prs is None:
             lines.append(f"{fid}: {feat['status']} (no PR)")
             continue
