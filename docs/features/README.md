@@ -107,5 +107,6 @@ Statuses: `confirmed` → `done` | `dropped`.
 | [`KIT-083-kit-081-review-follow-ups.md`](KIT-083-kit-081-review-follow-ups.md) | the small findings of the KIT-081 reviews | done | #317 | #318 |
 | [`KIT-084-changelog-fragments-and-status-sync.md`](KIT-084-changelog-fragments-and-status-sync.md) | changelog fragments, status-sync PR and gitleaks action from the kit | in-progress | #319 | |
 | [`KIT-087-project-profile.md`](KIT-087-project-profile.md) | one project profile read only by the kit | in-progress | #322 | |
+| [`KIT-088-profile-kinds.md`](KIT-088-profile-kinds.md) | profile kind presets and game and FEAT-only keys | in-progress | #329 | |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the file to copy.

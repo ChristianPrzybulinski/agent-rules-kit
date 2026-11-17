@@ -9,9 +9,14 @@ platforms/ci/schemas/profile.schema.json: every key has a default and one reader
 fails, and an `x-<name>` key at the top level or directly in a section is the project's own and is ignored. Only the
 kit's skills, hooks, sync-project.sh and the spec-tools action call this tool; a project never does.
 
+Kind presets (KIT-088): `project.kind` (business, game, tooling; default business) is a preset of defaults that no
+skill reads. A key resolves to the value the project sets (in `.ai-kit.yaml` or its legacy home), else the value the
+kind's preset gives (the schema's `project.kind` `x-presets`), else its schema default.
+
 Dual read (until KIT-087 P4): a key absent from `.ai-kit.yaml` falls back to its legacy home, with one
 `profile: <key> from legacy <path>` line on stderr per key:
-- `sdd`: the `sdd:` block of docs/spec/spec.md (checked against spec.schema.json, as check_spec.py did);
+- `sdd`: the `sdd:` block of <spec_root>/spec.md, docs/spec/spec.md by default (checked against spec.schema.json,
+  as check_spec.py did);
 - `stacks`: the profile list in the root CLAUDE.md sync marker (`docs,godot:client` -> {'.': docs, client: godot});
 - `gates`: the kit-read keys of the gates JSON that `sdd.row_checks.gates` names (`backlog_repo` -> `issue_repo`,
   and of each `repos` entry only `require_fragment`); its other keys are not the kit's.
@@ -83,12 +88,17 @@ def fill(rule, value):
     return value
 
 
-def resolve_map(rule, given, journeys_dir=None):
-    """A section resolved: every schema key at its given value or default, then the free keys (a map section's
-    entries) as given; x- keys dropped."""
-    out = {}
+def resolve_map(rule, given, journeys_dir=None, preset=None):
+    """A section resolved: every schema key at its given value, else its kind preset (KIT-088), else its default,
+    then the free keys (a map section's entries) as given; x- keys dropped."""
+    out, preset = {}, preset or {}
     for key, prop in rule.get("properties", {}).items():
-        value = fill(prop, given[key]) if key in given else default_of(prop)
+        if key in given:
+            value = fill(prop, given[key])
+        elif key in preset:
+            value = fill(prop, json.loads(json.dumps(preset[key])))
+        else:
+            value = default_of(prop)
         if key == "journeys" and value is None:
             value = journeys_dir is not None and journeys_dir.is_dir()
         out[key] = value
@@ -120,6 +130,7 @@ class Resolver:
     def __init__(self, root, spec_dir=None, schemas_dir=None, profile_file=FILE):
         self.cs = check_spec()
         self.root = root
+        self.spec_dir_given = spec_dir is not None
         self.spec_dir = spec_dir if spec_dir is not None else (root / SPEC_DIR if root is not None else None)
         self.schemas = schemas_dir if schemas_dir is not None else SCHEMAS
         self.schema = json.loads((self.schemas / "profile.schema.json").read_text(encoding="utf-8"))
@@ -165,7 +176,16 @@ class Resolver:
                 continue
             if self.checked(self.cs.check_value, self.new_path, key, value, props[key]):
                 self.new[key] = {k: v for k, v in value.items() if not private(k)} if isinstance(value, dict) else value
+        if "spec_root" in self.new and not self.spec_dir_given:
+            self.spec_dir = self.root / self.new["spec_root"]
         self.check_pin()
+
+    def preset(self, section):
+        """The values the project's kind presets in a section (KIT-088): {} for business or a section it leaves
+        alone. An invalid kind already failed in read_new, so it falls back to the default kind here."""
+        rule = self.schema["properties"]["project"]["properties"]["kind"]
+        kind = (self.new.get("project") or {}).get("kind", rule["default"])
+        return rule.get("x-presets", {}).get(kind, {}).get(section, {})
 
     def check_pin(self):
         pin = self.new.get("kit")
@@ -261,8 +281,8 @@ class Resolver:
     # --- resolution
     def resolve_section(self, section, quiet=False):
         rule = self.schema["properties"][section]
-        if section == "kit":
-            return self.new.get("kit")
+        if rule.get("type") != "object":  # a top-level scalar: kit, spec_root
+            return self.new.get(section, default_of(rule))
         new = self.new.get(section) or {}
         old, old_path = self.legacy(section)
         given = {}
@@ -282,7 +302,7 @@ class Resolver:
                 if not quiet:
                     self.notes.append(f"profile: {section}.{key} from legacy {old_path}")
         journeys = self.spec_dir / "journeys" if section == "sdd" and self.spec_dir is not None else None
-        return resolve_map(rule, given, journeys)
+        return resolve_map(rule, given, journeys, self.preset(section))
 
     def resolve(self, sections=None):
         self.read_new()
@@ -290,11 +310,12 @@ class Resolver:
         return {name: self.resolve_section(name) for name in names}
 
     def defaults(self, section):
+        """A section's values when the project sets none of its keys: its kind preset, else the schema defaults."""
         rule = self.schema["properties"][section]
-        if section == "kit":
-            return None
+        if rule.get("type") != "object":
+            return default_of(rule)
         journeys = self.spec_dir / "journeys" if section == "sdd" and self.spec_dir is not None else None
-        return resolve_map(rule, {}, journeys)
+        return resolve_map(rule, {}, journeys, self.preset(section))
 
 
 def resolve(root, sections=None, spec_dir=None, schemas_dir=None, profile_file=FILE):
