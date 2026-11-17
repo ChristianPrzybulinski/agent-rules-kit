@@ -35,8 +35,8 @@ candidate list (E § 17.3 G11, § 17.6).
     same `- Use case:` words or a process step both declare (`declared_steps`, KIT-096).
   - Retired REQs and processes and cancelled FEATs take no part. `check`, `generate` and every other command are
     unchanged.
-- `sdd-check`: one table row C20–C24, the rows in the functional (C20, C22) and full (C21, C23, C24) scopes, input
-  § 1 g `similar=` (a C21/C24 line on the scope is a `high` finding, a candidate is judged by reading both artifacts, a
+- `sdd-check`: one table row C20–C24, the rows in the functional (C20, C22) and full (C21, C23, C24) scopes, the
+  `similar=` input inside the row, as C25 holds its own (a C21/C24 line on the scope is a `high` finding, a candidate is judged by reading both artifacts, a
   missing `similar=` is `high | duplicate check not run` only when `docs/spec/processes/` or `docs/spec/enablers/`
   exists or a FEAT has `## Versions`, otherwise a note), routing in § 4 (C20, C22 to `sdd-clarify`; C21, C23, C24
   to `sdd-plan`). New reference `references/duplicates.md` (41 lines): what the tool compares per row, how to judge a
@@ -75,3 +75,5 @@ Choices:
 - 2026-11-16: confirmed (owner, E § 17, backlog G11).
 - 2026-11-17: implemented on `feat/kit-097-duplicate-checks`, cut from `feat/kit-096-versioned-feat` (KIT-096 is not
   on main yet); PR pending.
+- 2026-11-17: merged `origin/main` (KIT-096 squash b45e998, KIT-098, KIT-099); the `similar=` input moved from a
+  § 1 g paragraph into the C20–C24 row, as C25 holds its own, to keep `sdd-check` within 80 lines.

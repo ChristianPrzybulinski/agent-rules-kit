@@ -39,6 +39,20 @@
                                        findings of sdd-check (KIT-096); off, exit 0, without a `## Versions` FEAT
   spec_trace.py similar SPEC           the duplicate findings (C21, C24; exit 1) and candidates (C20, C22, C23;
                                        exit 0) of sdd-check (KIT-097)
+  spec_trace.py governance SPEC [--feat FEAT-NNN]
+                                       read-only view (KIT-099): approval keys and protected paths of the profile,
+                                       decisions by kind, owners, tech processes with trigger and last run (latest
+                                       `- YYYY-MM-DD: run` History line), debts with payment state, and sdd-check C25
+                                       (an open FEAT on an ENB with an open debt that no row of its Tasks table cites
+                                       and no approved decision it cites accepts); exit 0 whatever C25 lists
+  spec_trace.py catalog SPEC --out FILE [--force]
+                                       the ENBs as Backstage catalog-info.yaml (KIT-098), written to FILE (never inside
+                                       the kit); off, exit 0, without SPEC/enablers/
+  spec_trace.py diagram SPEC PROC-NNN  a Mermaid flowchart of the process's main and alternative steps, to stdout
+
+Our pattern (KIT-098, skill sdd-constitution references/pattern.md): with processes or enablers, traceability.md
+ends with the Links (SysML) view, naming each link derive, refine, satisfy, verify or allocate; a spec with neither
+renders it as before.
 
 SPEC is optional everywhere and defaults to docs/spec under the working directory, so `impact BASE HEAD`
 and `sync-status` run as a review loop calls them. Options (before the command): `--repo NAME` (repeatable)
@@ -385,7 +399,8 @@ def delivered_by_its_feats(spec: Spec, need: dict) -> bool:
     """A NEED whose listed FEATs are all delivered and cover every REQ it lists no longer holds a step's `—`, even
     before its own status moves to delivered (validate or deliver moves it, KIT-069; older NEEDs may lag)."""
     feats = listed(need, "features")
-    if not feats or any(not feat_delivered(spec.feats.get(f, {})) for f in feats):
+    if not feats or any(f not in spec.feats or not check_spec.feat_delivered_for(
+            need, spec.feats[f]["status"], spec.feats[f]["requirements"], spec.feats[f].get("versions")) for f in feats):
         return False
     covered = {str(r) for f in feats for r in delivered_reqs(spec.feats[f])}
     return set(listed(need, "requirements")) <= covered
@@ -774,6 +789,7 @@ def render_matrix(spec):
         lines += process_views(spec)
     if spec.enablers:
         lines += enabler_views(spec)
+    lines += link_views(spec)  # KIT-098: only with processes or enablers
     return "\n".join(lines) + "\n"
 
 
@@ -1155,13 +1171,6 @@ def set_block_status(feat, status):
     block["status"] = status
 
 
-def feat_delivered(feat):
-    """A FEAT that has delivered something: status delivered, or a versioned FEAT with a delivered block."""
-    if feat.get("versions"):
-        return any(b["status"] == "delivered" for b in feat["versions"])
-    return feat.get("status") == "delivered"
-
-
 def delivered_reqs(feat):
     """The REQs a FEAT has delivered: its `requirements`, or a versioned FEAT's delivered blocks' Scope REQs."""
     if feat.get("versions"):
@@ -1498,6 +1507,341 @@ def similar_command(spec):
           f"(C20, C22, C23); {len(spec.reqs)} REQs, {len(spec.processes)} processes, {len(spec.feats)} FEATs, "
           f"{len(spec.enablers)} ENBs")
     return 1 if findings else 0
+
+
+RUN_LINE = re.compile(r"^- (\d{4}-\d{2}-\d{2}): run\b", re.M)  # a tech process's History line for one run
+DECISION_STATUSES = ("proposed", "approved", "rejected", "superseded")  # decision.schema.json `status`, in order
+
+
+def add_governance_parser(sub):
+    gov = sub.add_parser("governance", help="who decides, approves, owns and runs what, and sdd-check C25 (KIT-099)")
+    gov.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    gov.add_argument("--feat", metavar="FEAT-NNN", help="C25 on one FEAT (default: every open FEAT)")
+
+
+def governance_profile(spec):
+    """The profile's `review` and `gates` sections (KIT-087) and their errors; ({}, []) without profile.py beside the
+    kit, as in a project's synced copy, so the view then shows the `sdd` keys alone."""
+    tool = HERE.parents[1] / "tools" / "profile.py"
+    folder = schemas_dir()
+    if not tool.is_file() or not (folder / "profile.schema.json").is_file():
+        return {}, []
+    module = check_spec.profile_module()
+    root = check_spec.profile_root(spec.spec_dir)
+    resolved, _, errors = module.resolve(root, ["spec_root", "review", "gates"], spec_dir=spec.spec_dir,
+                                         schemas_dir=folder)
+    if root is not None and (root / resolved["spec_root"]).resolve() != spec.spec_dir:
+        # Not this spec's profile: its errors are not applied. load_params (spec_trace.load) already printed them in
+        # one `profile: note:` line, since profile.py validates the whole file, so they are not printed twice.
+        resolved, _, errors = module.resolve(None, ["review", "gates"], spec_dir=spec.spec_dir, schemas_dir=folder)
+    return resolved, errors
+
+
+def refused_section(error):
+    """`the profile's <section> section refused (...)` for one resolve error, by the key it names (`review.`, `gates.`;
+    any other is the sdd section's, PARAMS_REFUSED)."""
+    found = re.search(r"\b(review|gates)\.", error)
+    if not found:
+        return f"{PARAMS_REFUSED}: {error}"
+    name = found.group(1)
+    return f"the profile's {name} section refused (profile.py resolve --section {name}): {error}"
+
+
+def task_table(text):
+    """The rows of a FEAT file's task tables, the only place a task row pays a debt (C25): its `## Tasks` table, or
+    every version block's `#### Tasks` (KIT-096), read through check_spec.task_sections."""
+    return "\n".join(row for _, _, part in check_spec.task_sections(text) for row in task_rows(part).values())
+
+
+def decider_names(text):
+    """The roles a decision's free-text `deciders` names: its parts split at `,`, `;` and ` and `, without the
+    parenthesised notes or a part that opens with no letter ("architect, product (owner, 2026-10-17)" -> both roles)."""
+    plain = re.sub(r"\([^()]*\)", "", str(text or ""))
+    return {part.strip() for part in re.split(r"[,;]| and ", plain) if part.strip()[:1].isalpha()}
+
+
+def governance_records(spec, sub, pattern):
+    """(id, frontmatter, whole text, path) of each record under SPEC/sub whose frontmatter has an id."""
+    out = []
+    for path in sorted((spec.spec_dir / sub).rglob(pattern), key=lambda p: natural_key(p.name)):
+        text = path.read_text(encoding="utf-8")
+        data, _ = split_frontmatter(text)
+        if isinstance(data, dict) and data.get("id"):
+            out.append((str(data["id"]), data, text, path))
+    return out
+
+
+def cites(text, rid):
+    return re.search(rf"\b{re.escape(rid)}\b", text) is not None
+
+
+def debt_payment(debt, data, feats, decisions):
+    """A debt's Payment cell: its status, the FEATs whose Tasks rows cite it and, for an accepted one, the approved
+    decisions that name it."""
+    status = data.get("status") or PENDING
+    citing = [fid for fid, text in feats.items() if cites(task_table(text), debt)]
+    if status == "accepted":
+        accepting = [did for did, d, text, _ in decisions if d.get("status") == "approved" and cites(text, debt)]
+        return f"accepted by {', '.join(accepting)}" if accepting else "accepted; no approved decision names it"
+    if citing:
+        return f"{status}; {', '.join(citing)} plans it" if status == "open" else f"{status} by {', '.join(citing)}"
+    return status
+
+
+def tech_process_row(spec, pid, process):
+    """A tech process's row: its first Trigger line (who runs it and when) and the latest `- YYYY-MM-DD: run` line."""
+    data, body = split_frontmatter(process["path"].read_text(encoding="utf-8"))
+    trigger = next((line[2:].strip() for line in section(body, "Trigger").splitlines() if line.startswith("- ")), "")
+    trigger = re.sub(r"^\[[A-Z]+\]\s*", "", trigger)
+    runs = sorted(RUN_LINE.findall(section(body, "History")))
+    owner = str(data.get("owner") or PENDING)
+    link = process["path"].relative_to(spec.spec_dir).as_posix()
+    return (f"| [{pid}]({link}) | {cell(process['title'])} | {process['status']} | {cell(owner)} | {cell(trigger)} | "
+            f"{runs[-1] if runs else 'never'} |")
+
+
+def debt_findings(spec, debts, feats, decisions, fid=None):
+    """C25: an open FEAT (or the one fid names) whose `enablers` names an ENB with an open debt, where no row of the
+    FEAT's Tasks table cites the debt (pays it) and no approved decision the FEAT file cites names it (accepts it)."""
+    approved = {did: text for did, d, text, _ in decisions if d.get("status") == "approved"}
+    findings = []
+    for feat_id, _, text, _ in feats:
+        data, _ = split_frontmatter(text)
+        if (fid and feat_id != fid) or (not fid and data.get("status") in STATUS_FROZEN):
+            continue
+        for eid in listed(data, "enablers"):
+            for did, debt, _, _ in debts:
+                if debt.get("status") != "open" or eid not in listed(debt, "enablers") or cites(task_table(text), did):
+                    continue
+                if any(cites(text, dec) and cites(body, did) for dec, body in approved.items()):
+                    continue
+                findings.append(f"- C25: {feat_id} touches {eid}, whose {did} is open (trigger: {debt.get('trigger')}"
+                                f"): a task row pays it (cites {did}), or the FEAT cites an approved decision that "
+                                "accepts it")
+    return findings
+
+
+def render_governance(spec, profile, fid=None):
+    """The governance view (E § 14.2 item 4): every value comes from where it is kept; nothing here is a copy."""
+    review, gates, sdd = profile.get("review") or {}, profile.get("gates") or {}, spec.params
+    decisions = governance_records(spec, "decisions", "*.md")
+    debts = governance_records(spec, "debts", "DEBT-*.md")
+    feats = governance_records(spec, "features", "FEAT-*.md")
+    lines = ["# Governance", "",
+             "Generated by `spec_trace.py governance` from the profile (`.ai-kit.yaml`, else spec.md `sdd:`), the "
+             "decisions, debts, enablers and processes; never edited by hand.", "",
+             "## Approvals", "", "| Key | Value |", "|---|---|"]
+    keys = [("sdd.owner_approvals", ", ".join(sdd.get("owner_approvals") or []) or PENDING),
+            ("sdd.visual_approval", sdd.get("visual_approval")), ("sdd.commits_by", sdd.get("commits_by"))]
+    if review:
+        bars = review.get("bar_paths") or {}
+        keys += [("review.rounds", review.get("rounds")),
+                 ("review.independent_reviewer", str(review.get("independent_reviewer")).lower()),
+                 ("review.bar_paths.full", ", ".join(bars.get("full") or []) or PENDING)]
+    lines += [f"| {key} | {cell(str(value) if value is not None else '')} |" for key, value in keys]
+    lines += ["", "## Protected paths", ""]
+    paths = [(path, label, "sdd.protected_paths") for path, label in (sdd.get("protected_paths") or {}).items()]
+    paths += [(glob, label, "gates.protected_paths")
+              for label, globs in (gates.get("protected_paths") or {}).items() for glob in globs]
+    lines += (["| Path | Label | Source |", "|---|---|---|"]
+              + [f"| `{path}` | {label} | {source} |" for path, label, source in paths]) if paths else ["none"]
+    lines += ["", "## Decisions by kind", ""]
+    kinds = {}
+    for _, data, _, _ in decisions:
+        kinds.setdefault(str(data.get("kind") or PENDING), []).append(data)
+    rows = [f"| {kind} | {cell(', '.join(sorted({n for d in group for n in decider_names(d.get('deciders'))})))} | "
+            + " | ".join(str(sum(d.get("status") == s for d in group)) for s in DECISION_STATUSES) + " |"
+            for kind, group in sorted(kinds.items())]
+    lines += (["| Kind | Deciders | " + " | ".join(s.capitalize() for s in DECISION_STATUSES) + " |",
+               "|---|---|---|---|---|---|"] + rows) if rows else ["none"]
+    lines += ["", "## Owners", ""]
+    owners = {}
+    for eid, enabler in spec.enablers.items():
+        owners.setdefault(str(enabler["owner"] or PENDING), ([], []))[0].append(eid)
+    for pid, process in spec.processes.items():
+        data, _ = split_frontmatter(process["path"].read_text(encoding="utf-8"))
+        owners.setdefault(str(data.get("owner") or PENDING), ([], []))[1].append(f"{pid} ({process['kind']})")
+    lines += (["| Owner | Enablers | Processes |", "|---|---|---|"]
+              + [f"| {cell(owner)} | {', '.join(e) or PENDING} | {', '.join(p) or PENDING} |"
+                 for owner, (e, p) in sorted(owners.items())]) if owners else ["none"]
+    lines += ["", "## Tech processes", "", "`Trigger`: the first line of its Trigger section; `Last run`: its latest "
+              "`- YYYY-MM-DD: run` History line.", ""]
+    tech = [tech_process_row(spec, pid, p) for pid, p in spec.processes.items() if p["kind"] == "tech"]
+    lines += (["| Process | Title | Status | Owner | Trigger | Last run |", "|---|---|---|---|---|---|"]
+              + tech) if tech else ["none"]
+    lines += ["", "## Debts", ""]
+    texts = {feat_id: text for feat_id, _, text, _ in feats}
+    rows = [f"| [{did}]({path.relative_to(spec.spec_dir).as_posix()}) | {cell(data.get('title'))} | "
+            f"{data.get('severity') or PENDING} | {cell(data.get('trigger'))} | "
+            f"{', '.join(listed(data, 'enablers')) or PENDING} | {debt_payment(did, data, texts, decisions)} |"
+            for did, data, _, path in debts]
+    lines += (["| Debt | Title | Severity | Trigger | Enablers | Payment |", "|---|---|---|---|---|---|"]
+              + rows) if rows else ["none"]
+    lines += ["", "## Debt payment (C25)", ""]
+    if not (spec.spec_dir / "enablers").is_dir():
+        lines.append("C25: off (no enablers/ folder; it applies once debts and FEATs name ENBs)")
+    else:
+        lines += debt_findings(spec, debts, feats, decisions, fid) or ["none"]
+    return lines
+
+
+def governance_command(spec, fid):
+    """`spec_trace.py governance`: print the view; exit 0 whatever C25 finds (sdd-check judges each trigger), 1 on an
+    unknown --feat or a refused profile."""
+    if fid and fid not in spec.feats:
+        return report([f"{fid} does not exist in features/"], "")
+    profile, errors = governance_profile(spec)
+    if spec.param_errors or errors:  # profile.py validates the whole file, so both lists may hold one error
+        return report([refused_section(error) for error in dict.fromkeys(spec.param_errors + errors)], "")
+    print("\n".join(render_governance(spec, profile, fid)))
+    return 0
+
+
+# --------------------------------------------------------------------------- our pattern (KIT-098)
+# sdd-constitution/references/pattern.md: SysML link names, DDD content, Backstage names for ENBs, SAFe work items.
+
+BACKSTAGE_VERSION = "backstage.io/v1alpha1"
+LIFECYCLE = {"proposed": "experimental", "approved": "production", "retired": "deprecated"}  # from ENB status
+API_TYPES = {"api": "openapi", "message": "asyncapi", "event": "asyncapi"}  # every other contract kind: a Resource
+DOMAIN_ANNOTATION = "agent-rules-kit/domain"  # a Backstage Component has no `domain`; the portal's System holds one
+KIT_ROOT = HERE.parents[2]
+BACKSTAGE_NAME = re.compile(r"^(?=.{1,63}$)[A-Za-z0-9]+(?:[-_.][A-Za-z0-9]+)*$")  # metadata.name
+
+
+def ids(values):
+    return ", ".join(sorted(values, key=natural_key)) or PENDING
+
+
+def link_views(spec):
+    """The Links (SysML) view: each link, written once elsewhere, named by its SysML relation. Only with processes or
+    enablers, so a spec with neither renders its matrix as before."""
+    if not (spec.processes or spec.enablers):
+        return []
+    refined, allocated = {}, {}
+    for fid, feat in spec.feats.items():
+        for rid in feat["requirements"]:
+            refined.setdefault(str(rid), set()).add(fid)
+    for eid, links in spec.enabler_links.items():
+        for fid, _ in links["feature"]:
+            allocated.setdefault(fid, set()).add(eid)
+    lines = [
+        "",
+        "## Links (SysML)",
+        "",
+        "Each link by its SysML name (skill sdd-constitution, `pattern.md`): `derive`, the journey or process steps",
+        "whose Rules cite the REQ; `refine`, the FEATs (use cases) whose `requirements` list it; `satisfy`, the ENBs whose",
+        "Aggregates or Qualities cite it; `verify`, the tests at those steps; `allocate`, the ENBs a FEAT's `enablers`",
+        "names.",
+        "",
+        "| Rule | derive (steps) | refine (FEATs) | satisfy (ENBs) | verify (tests) |",
+        "|---|---|---|---|---|",
+    ]
+    for rid in sorted(spec.reqs, key=natural_key):
+        steps = [s for s in spec.all_steps if rid in s.rules]
+        satisfy = [eid for eid, enabler in spec.enablers.items() if rid in enabler["satisfies"]]
+        lines.append(f"| {rid} | {step_list(steps)} | {ids(refined.get(rid, ()))} | {ids(satisfy)} | "
+                     f"{tests_of(steps)} |")
+    lines += ["", "| FEAT (use case) | refine (REQs) | allocate (ENBs) |", "|---|---|---|"]
+    for fid in sorted(spec.feats, key=natural_key):
+        reqs = [str(r) for r in spec.feats[fid]["requirements"]]
+        lines.append(f"| {fid} | {ids(reqs)} | {ids(allocated.get(fid, ()))} |")
+    return lines
+
+
+def api_definition(spec, row, out_dir):
+    """A `$text` reference, relative to the catalog file, when `Schema or file` names one existing file; else a stub of
+    the row (Accessed at, Schema or file, Version), which Backstage shows as text, not as a parsed spec."""
+    paths = BACKTICKED.findall(row.get("Schema or file", ""))
+    if len(paths) == 1 and not any(ch in paths[0] for ch in "*?[") and glob_segments(paths[0]) is not None:
+        target = spec.root / paths[0]
+        if target.is_file():
+            rel = os.path.relpath(os.path.realpath(target), out_dir)
+            return {"$text": rel if rel.startswith("..") else f"./{rel}"}
+    return "".join(f"{key}: {row.get(key, '')}\n" for key in ("Accessed at", "Schema or file", "Version"))
+
+
+def catalog_entities(spec, out_dir):
+    """The Backstage entities of the ENBs: a Component per ENB, an API per api, message or event contract and a
+    Resource per other contract, in ENB then table order."""
+    docs = []
+    for eid, enabler in spec.enablers.items():
+        data, _ = split_frontmatter(enabler["path"].read_text(encoding="utf-8"))
+        lifecycle = LIFECYCLE.get(enabler["status"], "experimental")
+        system = {"system": str(data["system"])} if data.get("system") else {}
+        owner = {"owner": str(enabler["owner"]), **system}
+        metadata = {"name": eid, "title": str(enabler["title"])}
+        if data.get("domain"):
+            metadata["annotations"] = {DOMAIN_ANNOTATION: str(data["domain"])}
+        provides = [api for api, row in enabler["provides"].items() if row.get("Kind") in API_TYPES]
+        consumes = [api for api, row in enabler["requires"].items() if row.get("Kind") in API_TYPES]
+        depends = [f"component:{e}" for e in listed(data, "dependsOn")]
+        depends += [f"resource:{api}" for api, row in enabler["requires"].items() if row.get("Kind") not in API_TYPES]
+        fields = {"type": "service", "lifecycle": lifecycle, **owner}
+        for key, values in (("providesApis", provides), ("consumesApis", consumes), ("dependsOn", depends)):
+            if values:
+                fields[key] = values
+        docs.append({"apiVersion": BACKSTAGE_VERSION, "kind": "Component", "metadata": metadata, "spec": fields})
+        for api, row in enabler["provides"].items():
+            about = {"name": api, "description": f"{row.get('Kind')} contract of {eid}"}
+            if row.get("Kind") in API_TYPES:
+                definition = api_definition(spec, row, out_dir)
+                docs.append({"apiVersion": BACKSTAGE_VERSION, "kind": "API", "metadata": about, "spec": {
+                    "type": API_TYPES[row["Kind"]], "lifecycle": lifecycle, **owner, "definition": definition}})
+            else:
+                docs.append({"apiVersion": BACKSTAGE_VERSION, "kind": "Resource", "metadata": about, "spec": {
+                    "type": row.get("Kind"), **owner, "dependencyOf": [f"component:{eid}"]}})
+    return docs
+
+
+def inside_kit(path):
+    """True when path resolves inside the kit checkout this script runs from; a synced copy has no kit around it."""
+    if not (KIT_ROOT / "plugins" / "guardrails").is_dir():
+        return False
+    try:
+        Path(os.path.realpath(path)).relative_to(os.path.realpath(KIT_ROOT))
+    except ValueError:
+        return False
+    return True
+
+
+def catalog_command(spec, out, force):
+    """`spec_trace.py catalog`: write the ENBs as Backstage catalog-info.yaml to `out`; off, exit 0, without enablers/."""
+    if not (spec.spec_dir / "enablers").is_dir():
+        print("catalog: off (no enablers/ folder; nothing to export)")
+        return 0
+    errors = list(spec.errors) + [f"{eid}: owner is empty" for eid, e in spec.enablers.items() if not e["owner"]]
+    if Path(out).is_symlink():
+        errors.append(f"{out} is a symbolic link; name a regular file")
+    elif inside_kit(out):
+        errors.append(f"{out} is inside the kit checkout; name a path in the project or the portal's repository")
+    elif Path(out).exists() and not force:
+        errors.append(f"{out} exists; pass --force to overwrite it")
+    docs = catalog_entities(spec, os.path.realpath(Path(out).absolute().parent))
+    errors += [f"{doc['metadata']['name']} is not a valid Backstage name (1 to 63 letters or digits joined by -, _ "
+               "or .)" for doc in docs if not BACKSTAGE_NAME.match(doc["metadata"]["name"])]
+    if errors:
+        return report(errors, "")
+    header = "# Generated by spec_trace.py catalog from the spec's enablers/ (KIT-098); never edit by hand.\n"
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    Path(out).write_text(header + yaml.safe_dump_all(docs, sort_keys=False, allow_unicode=True, explicit_start=True),
+                         encoding="utf-8")
+    print(f"catalog: wrote {out} ({len(docs)} entities from {len(spec.enablers)} enablers)")
+    return 0
+
+
+def diagram_command(spec, pid):
+    """`spec_trace.py diagram`: a Mermaid flowchart of one process's main and alternative steps, to stdout."""
+    process = spec.processes.get(pid or "")
+    if process is None:
+        return report([f"{pid}: unknown process in processes/"], "")
+    steps = [s for s in process["steps"] if not s.id.startswith("P")]
+    main = [s for s in steps if s.id.startswith("S")]
+    lines = ["```mermaid", "flowchart TD"]
+    lines += ['  {0}["{0} {1}"]'.format(s.id, s.action.replace('"', "#quot;")) for s in steps]
+    lines += [f"  {a.id} --> {b.id}" for a, b in zip(main, main[1:])]
+    lines += [f"  {s.at} -.-> {s.id}" for s in steps if s.id.startswith("A")]
+    print("\n".join(lines + ["```"]))
+    return 0
 
 
 def journeys_on(spec) -> bool:
@@ -2488,6 +2832,7 @@ def main(argv=None):
     sync.add_argument("--write", action="store_true")
     sync.add_argument("--backlog", metavar="OWNER/NAME", help="the backlog repository (default: sdd.github.repo, "
                                                                "else the origin remote)")
+    add_governance_parser(sub)
     enb = sub.add_parser("enablers", help="sdd-check C18 and C19 over the ENBs (KIT-095)")
     enb.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     enb.add_argument("--feat", metavar="FEAT-NNN", help="one FEAT's scope (default: every open FEAT)")
@@ -2498,6 +2843,13 @@ def main(argv=None):
     ver.add_argument("--feat", metavar="FEAT-NNN", help="one FEAT (default: every FEAT with `## Versions`)")
     sub.add_parser("similar", help="duplicate findings and candidates of sdd-check C20-C24 (KIT-097)").add_argument(
         "spec", type=Path, nargs="?", help=SPEC_HELP)
+    cat = sub.add_parser("catalog", help="the ENBs as Backstage catalog-info.yaml (KIT-098)")
+    cat.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    cat.add_argument("--out", required=True, help="the catalog-info.yaml to write (never inside the kit)")
+    cat.add_argument("--force", action="store_true", help="overwrite --out when it exists")
+    mmd = sub.add_parser("diagram", help="a Mermaid flowchart of one process's steps, to stdout (KIT-098)")
+    mmd.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
+    mmd.add_argument("process", nargs="?", metavar="PROC-NNN")
     chk = sub.add_parser("checklist", help="owner checklist of approved journeys, to stdout")
     chk.add_argument("spec", type=Path, nargs="?", help=SPEC_HELP)
     chk.add_argument("journeys", nargs="*", metavar="J-NN")
@@ -2509,6 +2861,8 @@ def main(argv=None):
         args.journeys, args.spec = [str(args.spec), *args.journeys], None
     if args.spec is not None and re.fullmatch(r"FEAT-\d{3,}", str(args.spec)) and args.command == "lint":
         args.feat, args.spec = str(args.spec), None
+    if args.spec is not None and PROCESS_ID.match(str(args.spec)) and args.command == "diagram":
+        args.process, args.spec = str(args.spec), None
     spec_dir = args.spec or DEFAULT_SPEC
     if not spec_dir.is_dir():
         return report([f"spec dir does not exist: {spec_dir}"], "")
@@ -2562,6 +2916,12 @@ def main(argv=None):
         return versions_command(spec, args.feat)
     if args.command == "similar":
         return similar_command(spec)
+    if args.command == "governance":
+        return governance_command(spec, args.feat)
+    if args.command == "catalog":
+        return catalog_command(spec, args.out, args.force)
+    if args.command == "diagram":
+        return diagram_command(spec, args.process)
     if args.command == "impact":
         print(render_impact(changes(spec, args.base, args.head)), end="")
         return 0

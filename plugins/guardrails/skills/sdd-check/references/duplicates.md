@@ -1,5 +1,5 @@
 ---
-description: Duplicate rows C20-C24 for sdd-check § 1 g - what spec_trace.py similar reports, which lines are findings and how to judge a candidate.
+description: Duplicate rows C20-C24 of sdd-check - what spec_trace.py similar reports, which lines are findings and how to judge a candidate.
 kind: detail
 ---
 
@@ -36,6 +36,6 @@ A judged duplicate is one `high` finding on the newer artifact; a candidate judg
 - C21: one ENB provides the contract; the other lists it in Required contracts with `From` naming the provider.
 - C24: the REQ stays in one open block; the other block drops it from its Scope (it goes to that FEAT's next block), or its rows wait for the first block's delivery (`Depends on`).
 
-A missing `similar=` blocks only where C21–C24 can fire: with `docs/spec/processes/`, `docs/spec/enablers/` or a FEAT with `## Versions` (skill § 1 g).
+A missing `similar=` blocks only where C21–C24 can fire: with `docs/spec/processes/`, `docs/spec/enablers/` or a FEAT with `## Versions` (the skill's row C20–C24).
 
 Routing: skill § 4.

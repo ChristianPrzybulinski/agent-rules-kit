@@ -353,8 +353,9 @@ def parse_rows(feat: str, text: str, cfg: Config) -> list | None:
     version block `#### Tasks` table, whose `Depends on` the earlier blocks' rows answer too (KIT-096); the sections
     come from check_spec.task_sections. None when that section holds no such table."""
     sections = check_spec.task_sections(text)
-    if not sections:
-        return None
+    blocks = check_spec.version_blocks(text)
+    if not sections or (blocks and blocks[-1]["tasks"] is None):
+        return None  # a versioned FEAT whose open block has no `#### Tasks` has no open rows
     table, rows, header = {}, None, None
     for _, first, body in sections:
         rows, header = section_rows(feat, first, body, cfg)

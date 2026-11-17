@@ -184,6 +184,11 @@ class BlockStructureTest(VersionCase):
         self.assert_fails("FEAT-001 0.2.0 Scope names REQ-F-007, which the FEAT's requirements do not list",
                           "[version-block]")
 
+    def test_a_req_outside_every_block_scope_fails(self):
+        self.feat(old="Scope: REQ-F-002", new="Scope: —")
+        self.assert_fails("FEAT-001 requirements lists REQ-F-002, which no version block's Scope names",
+                          "[version-block]")
+
     def test_versions_without_a_block_fails(self):
         (self.spec / "features" / "FEAT-001.md").write_text(
             FEAT.format(status="in-progress", extra="", table=TABLE, rows="").split("### 0.1.0")[0])

@@ -58,6 +58,17 @@ class VersionedRows(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("row-checks: 1 rows, 0 fail, 0 warn", out)
 
+    def test_an_open_block_without_tasks_lints_no_closed_rows(self):
+        bad = ("T6",) + ROWS[5][1:5] + ("done",)
+        text = versioned("FEAT-903", [bad], [ROWS[0]])
+        text = text.split("### 0.2.0")[0] + "### 0.2.0\n\nStatus: proposed\nScope: —\n\n## History\n"
+        self.write(text)
+        self.assertIsNone(rc.parse_feat(self.spec / "features" / "FEAT-903.md", self.cfg))
+        code, out, _ = run("check", "--spec", str(self.spec), "--all-rows", "FEAT-903")
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN: FEAT-903: no Tasks table", out)
+        self.assertNotIn("T6", out)
+
     def test_a_row_inside_a_comment_is_not_a_row(self):
         hidden = "<!-- " + row_line(*(("T7",) + ROWS[5][1:])) + " -->"
         good = ("T2",) + ROWS[0][1:]

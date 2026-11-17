@@ -125,6 +125,12 @@ Spec-first (written to frame and cut the work, then frozen as history) = NEED fi
 |---|---|---|
 | [area, or the ENB id linked to its `enablers/ENB-nnn-slug.md`] | [rooted folder or glob] | [what lives there, one line] |
 
+## Governance
+<!-- Only a pointer (KIT-099): approvals and protected paths live in the profile, deciders in decisions, owners in
+     ENBs and processes, the schedule and runs of a tech process (patching, builds) in it, payment in each debt. -->
+
+Who decides, approves, owns and runs what in this game: `spec_trace.py governance docs/spec`, run on demand.
+
 ## Reading order for a new session
 
 1. `AGENTS.md`

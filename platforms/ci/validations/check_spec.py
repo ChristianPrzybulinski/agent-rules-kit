@@ -628,7 +628,7 @@ def as_list(value):
 
 
 def check_needs(spec_dir: Path, needs: dict, ids: dict, kind_of: dict, feat_status: dict, dec_status: dict,
-                scope: dict = None) -> None:
+                versions: dict = None, feat_reqs: dict = None) -> None:
     """A NEED links forward only: listed ids exist with the right kind; status refined/delivered is backed by links."""
     journeys = set()
     if (spec_dir / "journeys").is_dir():
@@ -661,7 +661,8 @@ def check_needs(spec_dir: Path, needs: dict, ids: dict, kind_of: dict, feat_stat
                 fail(f"{path}: status delivered needs the features that delivered it "
                      f"(a decision NEED with no FEAT: an approved decision)", "need-status", path)
             for fid in delivered_by:
-                if fid in feat_status and not delivered_for(fid, feat_status[fid], data, scope):
+                if fid in feat_status and not feat_delivered_for(data, feat_status[fid], (feat_reqs or {}).get(fid),
+                                                                 (versions or {}).get(fid)):
                     fail(f"{path}: status delivered, but {fid} is {feat_status[fid]}", "need-status", path)
 
 
@@ -1001,6 +1002,10 @@ def check_versions(fid, path, data, rows, params):
             fail(f"{path}: {rid} is outside every version block: a versioned FEAT keeps its task rows in the block of "
                  "its version", "version-block", path)
     listed, names = set(map(str, as_list(data.get("requirements")))), set()
+    scoped = {rid for block in blocks for rid in REQ_REF.findall(block["scope"])}
+    for rid in sorted(listed - scoped):
+        fail(f"{path}: {fid} requirements lists {rid}, which no version block's Scope names: each REQ the use case "
+             "implements enters through the Scope of the block that delivers it", "version-block", path)
     for n, block in enumerate(blocks):
         label = f"{fid} {block['name']}"
         if block["name"] in names:
@@ -1057,22 +1062,17 @@ def check_block_rows(fid, path, label, rows, every_row, params):
                  f"instead of restating it", "task-cell")
 
 
-def delivered_scope(versions, feats):
-    """{versioned FEAT id: (the REQs it lists, the REQs its delivered blocks' Scope names)} (KIT-096)."""
-    return {fid: ({str(r) for r in feats.get(fid) or []},
-                  {r for b in blocks if b["status"] == "delivered" for r in REQ_REF.findall(b["scope"])})
-            for fid, blocks in versions.items() if blocks}
-
-
-def delivered_for(fid, status, need, scope):
-    """A FEAT delivered for this NEED: its status is delivered, or (a versioned FEAT) every REQ of the NEED that the
-    FEAT lists sits in the Scope of a delivered block, so the NEED an earlier block delivered stays valid while the
-    next block is open, and a NEED waiting on an open block does not (KIT-096)."""
-    if status == "delivered" or fid not in (scope or {}):
+def feat_delivered_for(need, status, requirements, blocks):
+    """The one rule both tools apply (check_spec.py need-status, spec_trace.py deliver_needs and the `—` waiting rule;
+    KIT-096): a FEAT has delivered its part of a NEED when its status is delivered, or, for a versioned FEAT (blocks
+    from version_blocks), when the NEED's REQs that the FEAT lists are not empty and all sit in the Scope of a
+    delivered block. So the NEED an earlier block delivered stays valid while the next block is open, and a versioned
+    FEAT whose delivered blocks hold none of the NEED's REQs has delivered nothing for it."""
+    if status == "delivered" or not blocks:
         return status == "delivered"
-    listed, done = scope[fid]
-    wanted = {str(r) for r in as_list(need.get("requirements"))} & listed
-    return bool(wanted) and wanted <= done
+    share = {str(r) for r in as_list(need.get("requirements"))} & {str(r) for r in requirements or []}
+    done = {r for b in blocks if b["status"] == "delivered" for r in REQ_REF.findall(b["scope"])}
+    return bool(share) and share <= done
 
 
 def check_feature_processes(linked, kind_of):
@@ -1315,7 +1315,7 @@ def main():
 
     progress_files = check_progress(spec_dir / "progress", progress_schema, feats)
     check_conflict_markers(spec_dir)
-    check_needs(spec_dir, needs, ids, kind_of, feat_status, dec_status, delivered_scope(versions, feats))
+    check_needs(spec_dir, needs, ids, kind_of, feat_status, dec_status, versions, feats)
     check_task_items(tasks, tables, ids)
     check_enablers(linked, kind_of)
     check_feature_processes(linked, kind_of)
