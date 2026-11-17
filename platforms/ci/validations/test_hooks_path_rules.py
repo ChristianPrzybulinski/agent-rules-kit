@@ -262,6 +262,70 @@ class StateAndLogTest(Project):
         self.assertEqual(given(self.run_hook()), ["code", "godot"])
 
 
+    def compact(self, session="s1", source="compact"):
+        return pr.run(json.dumps({"session_id": session, "cwd": str(self.project), "hook_event_name": "SessionStart",
+                                  "source": source}), self.env)
+
+    def test_a_compaction_gives_the_rules_again(self):
+        """#325 item 1: compaction summarizes the conversation, so the rule text given earlier can be gone; the
+        SessionStart `compact` event clears that session's state and the next matching call gives the rules again."""
+        self.assertEqual(given(self.run_hook()), ["code", "godot"])
+        self.assertEqual(given(self.run_hook(session="s2")), ["code", "godot"])
+        self.assertEqual(self.compact(), "")
+        self.assertFalse((self.data / pr.STATE / "s1.json").exists())
+        self.assertTrue((self.data / pr.STATE / "s2.json").exists(), "another session keeps its state")
+        self.assertEqual(given(self.run_hook()), ["code", "godot"])
+        self.assertEqual(self.run_hook(session="s2"), "")
+
+    def test_only_a_compaction_clears_the_state(self):
+        self.run_hook()
+        for source in ("startup", "resume", "clear", None):
+            with self.subTest(source=source):
+                self.assertEqual(self.compact(source=source), "")
+                self.assertEqual(self.run_hook(), "")
+
+    def test_a_compaction_without_state_or_data_is_silent(self):
+        self.assertEqual(self.compact(session="never"), "")
+        self.env.pop("CLAUDE_PLUGIN_DATA")
+        self.assertEqual(self.compact(), "")
+
+    def test_a_session_id_never_leaves_the_state_folder_on_compaction(self):
+        outside = self.data / "x.json"
+        self.data.mkdir()
+        outside.write_text("[]", encoding="utf-8")
+        self.assertEqual(self.compact(session="../x"), "")
+        self.assertTrue(outside.exists())
+
+
+class ClaimOrderTest(Project):
+    """#325 item 3: a rule is recorded as given only once its text is in hand, so an error before the output does
+    not lose it for the session."""
+
+    def test_a_failed_prune_does_not_lose_the_rules(self):
+        with mock.patch.object(pr, "prune", side_effect=OSError("scandir failed")):
+            try:
+                first = self.run_hook()
+            except OSError:
+                first = ""
+        self.assertEqual(given(first) or given(self.run_hook()), ["code", "godot"])
+
+    def test_a_rule_that_cannot_be_read_again_is_not_lost(self):
+        real, seen = pr.read_rule, []
+
+        def once(path):
+            if path in seen:
+                raise OSError("read failed")
+            seen.append(path)
+            return real(path)
+
+        with mock.patch.object(pr, "read_rule", side_effect=once):
+            try:
+                first = self.run_hook()
+            except OSError:
+                first = ""
+        self.assertEqual(given(first) or given(self.run_hook()), ["code", "godot"])
+
+
 class FailureTest(Project):
     def main_output(self, text):
         out, err = io.StringIO(), io.StringIO()
@@ -340,6 +404,22 @@ class HookCommandTest(Project):
         self.assertEqual(sorted(name for output in outputs for name in given(output)), ["code", "godot"])
         self.assertEqual(len(self.log()), 2)
 
+    def test_a_compaction_clears_the_session_through_the_hook_command(self):
+        groups = [group for group in HOOKS["hooks"]["SessionStart"]
+                  if any("/hooks/path_rules.py" in hook["command"] for hook in group["hooks"])]
+        self.assertEqual([group["matcher"] for group in groups], ["^compact$"])
+        hook = groups[0]["hooks"][0]
+        self.assertEqual(hook["command"], self.command()[1]["command"])
+        self.assertLessEqual(hook["timeout"], 5)
+        self.assertEqual(given(self.run_command(self.event()).stdout.strip()), ["code", "godot"])
+        compact = json.dumps({"session_id": "s1", "cwd": str(self.project), "hook_event_name": "SessionStart",
+                              "source": "compact"})
+        for payload, env in ((compact, {}), ("not json", {}), (compact, {"CLAUDE_PLUGIN_ROOT": "/nonexistent"})):
+            with self.subTest(payload=payload, env=env):
+                result = self.run_command(payload, **env)
+                self.assertEqual((result.returncode, result.stdout), (0, ""))
+        self.assertEqual(given(self.run_command(self.event()).stdout.strip()), ["code", "godot"])
+
     def test_stays_within_budget(self):
         command = "for f in src/a.gd src/b.gd; do cat -n $f; done"
         best = min(self.timed(self.event(tool="Bash", session=f"t{n}", command=command)) for n in range(3))
@@ -357,7 +437,7 @@ class HookCommandTest(Project):
 
 
 class CheckKitPathRulesTest(unittest.TestCase):
-    """check_kit.py runs the path-rule hook on its six cases and must fail a copy that gives nothing, gives a rule
+    """check_kit.py runs the path-rule hook on its eight cases and must fail a copy that gives nothing, gives a rule
     outside a synced project, fails, or is missing."""
 
     LAYER = "integration"
@@ -410,6 +490,29 @@ class CheckKitPathRulesTest(unittest.TestCase):
         for name, (command, message) in broken.items():
             with self.subTest(name=name):
                 self.assertIn(message, self.check_with(command))
+
+    def check_start_with(self, command):
+        kit = Path(tempfile.mkdtemp(dir=self.tmp.name)) / "kit"
+        shutil.copytree(self.template, kit)
+        hooks = json.loads((kit / self.HOOKS_REL).read_text(encoding="utf-8"))
+        groups = hooks["hooks"]["SessionStart"]
+        found = [group for group in groups if "/hooks/path_rules.py" in group["hooks"][0]["command"]]
+        self.assertEqual(len(found), 1)
+        if command is None:
+            groups.remove(found[0])
+        else:
+            found[0]["hooks"][0]["command"] = command
+        (kit / self.HOOKS_REL).write_text(json.dumps(hooks, indent=2) + "\n", encoding="utf-8")
+        result = subprocess.run([sys.executable, "-B", str(kit / "platforms/ci/validations/check_kit.py")],
+                                capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        return result.stdout + result.stderr
+
+    def test_check_kit_fails_a_compaction_hook_that_keeps_the_state(self):
+        """#325: the SessionStart `compact` hook must clear the session, so its rules come back."""
+        self.assertIn("path-rule hook case 'the first session after its compaction' must give the rules code, godot",
+                      self.check_start_with("true # /hooks/path_rules.py"))
+        self.assertIn("SessionStart needs one path-rule hook on compact", self.check_start_with(None))
 
 
 if __name__ == "__main__":

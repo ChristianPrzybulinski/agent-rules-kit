@@ -7,8 +7,8 @@ Usage: sync_rules.py remove <repo>
 Until KIT-081 stage 3, sync-project.sh rendered each kit rule a profile receives into .claude/rules/<plugin>-<rule>.md,
 since Claude Code loads a path rule by itself only from a project's .claude/rules/. The guardrails plugin's hook
 (plugins/guardrails/hooks/path_rules.py) now gives the rule when a tool call reads or edits a matching file, so a copy
-is a leftover. A copy is the kit's when it is a regular *.md file of .claude/rules/ (not a symbolic link) with a line
-that starts with the marker the sync wrote under the frontmatter; that covers the file names of every plugin the kit
+is a leftover. A copy is the kit's when it is a regular *.md file of .claude/rules/ (not a symbolic link) whose line
+right after the frontmatter's closing `---` starts with the marker the sync wrote there; that covers the file names of every plugin the kit
 had (guardrails-, core-, dev-, sdd-). Any other entry of .claude/rules/ is the project's own: it is never read through
 a link, replaced or deleted, and nothing is read through a symbolic .claude or .claude/rules.
 
@@ -33,12 +33,18 @@ def real_dir(path):
 
 
 def is_copy(path):
-    """A regular *.md file, not a symbolic link, with a line that starts with the kit's generated marker."""
+    """A regular *.md file, not a symbolic link, whose marker line is where render_rule wrote it: right after the
+    closing `---` of a frontmatter that opens on line 1. A marker line anywhere else is the project's own text."""
     if path.is_symlink() or not path.is_file() or path.suffix != ".md":
         return False
     try:
         with open(path, encoding="utf-8", errors="replace") as handle:
-            return any(line.startswith(MARKER) for line in handle)
+            if handle.readline().rstrip("\r\n") != "---":
+                return False
+            for line in handle:
+                if line.rstrip("\r\n") == "---":
+                    return handle.readline().startswith(MARKER)
+            return False
     except OSError:
         return False
 
