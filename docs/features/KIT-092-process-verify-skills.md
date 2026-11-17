@@ -37,7 +37,7 @@ is the citation, with no row for the process steps it stands for.
 
 ## Proof
 
-`bash platforms/ci/check.sh`, `bash platforms/ci/check.sh --links`, `python3.12 platforms/tools/run_tests.py
+`bash platforms/tools/check.sh`, `bash platforms/tools/check.sh --links`, `python3.12 platforms/tools/run_tests.py
 --layer unit,contract` and `--layer integration --changed-from origin/main`; new `ChecklistTest` in
 `test_spec_trace_process.py` (expansion, a whole process, a cited process's error, an unknown cited process), red
 before the change (no expansion rows; a `KeyError` on a cited process's unknown REQ). `test_spec_trace_checklist.py`
