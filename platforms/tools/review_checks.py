@@ -15,6 +15,16 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
       ERROR, exit 2, never a verdict. --junit reads the run's JUnit XML reports (surefire, gdUnit, pytest); without
       them the unittest or pytest text is read. A case naming no test file of the run, such as another runner's report
       quoted in a message, is skipped, and a reported failure is an assertion whatever its message quotes.
+  review_checks.py red   ... --plan OUT.json | --sides-from DIR
+      The same check in two phases (KIT-102), for a runner that must start the test run itself (a sealed VM). --plan
+      makes the selection above and writes OUT.json: {"status": run|exempt|none, "base", "head" (full SHAs),
+      "test_files" (repository-relative, to copy from head onto base), "classes" (the `{classes}` string), "command"
+      (the template filled in), "cwd" (where the command starts, relative to the repository), "run_folder" (cwd plus
+      a leading `cd <folder> &&`), "junit" (the --junit globs)}; it runs nothing and exits as red does with no run
+      due (EXEMPT 0, NONE 1, no command 2), else 0. --sides-from reads DIR/base/ and DIR/head/: `exit_code` (an
+      integer as text), `output.txt` (stdout and stderr together) and the optional `reports/` (every JUnit XML file
+      under it), and gives the one-process verdict, lines and exit code, from the same judge; it runs nothing and
+      makes no worktree. Both take one test command: several gates `red` entries claiming the tests are exit 2.
   review_checks.py scope --base B --head H --files GLOB ... [--body PR.md] [--gates gates.json]
       Changed paths outside the task's Files cell. `## Files widened` may add existing test paths only, and none of
       them may change an assertion line (the falsifier: an assertion changed to pass is a stop).
@@ -144,6 +154,9 @@ HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 UNITTEST_CASE = re.compile(r"^(FAIL|ERROR): (\w+) \(([\w.]+)\)", re.M)
 PYTEST_CASE = re.compile(r"^(FAILED|ERROR) ([^\s(]\S*?)(?: - (.*))?$", re.M)  # not unittest's FAILED (failures=N)
 RED_CLASSES = ("assertion", "new-symbol")
+# A leading `cd <folder> &&` in a --run command: the folder the command runs in (KIT-102 --plan's run_folder), read as
+# the Stratics loop engine reads it.
+CD_PREFIX = re.compile(r"^cd\s+(?:--\s+)?([A-Za-z0-9._/-]+)\s*&&\s*(.+)$")
 EXCERPT_LINES = 15
 
 
@@ -478,8 +491,10 @@ def classify(kind: str, text: str, stacks: dict, adds) -> str:
     return "runtime"
 
 
-def red(args) -> int:
-    repo, out = args.repo, Findings("red")
+def red_select(args) -> tuple[int | None, list[str], list[str], list]:
+    """The selection both red phases share: (an exit code when no run is due, else None; the PR's test files; its
+    non-test changes under the code roots; the (cwd, rendered command, tests) groups). It prints today's lines."""
+    repo = args.repo
     paths = changed(repo, args.base, args.head)
     test_globs = args.tests or TEST_GLOBS
     tests = [p for p in changed(repo, args.base, args.head, deleted=False) if matches(p, test_globs)]
@@ -488,20 +503,38 @@ def red(args) -> int:
     if not code:
         print(f"red: EXEMPT — no non-test change under the code roots ({len(tests)} test files): base plus the PR's "
               "tests equals head, so the tests are not run")
-        return 0
+        return 0, tests, code, []
     if not tests:
         print("red: NONE — no test file added or changed; the PR's ## Red section must name its exception "
               "(a characterization test or a manual proof with why no honest test exists)")
-        return 1
+        return 1, tests, code, []
     print(f"red: PR test files: {', '.join(tests)}")
     groups, uncovered = red_groups(tests, gates_config(args).get("red", []), args.run)
     if uncovered:
         print(f"red: ERROR — no test command for {', '.join(uncovered)}: add a `red` entry (glob, cwd, command) "
               "to the gates config, or pass --run")
-        return 2
+        return 2, tests, code, groups
     for cwd, command, _ in groups:
         print(f"red: run in {cwd}: {command}")
+    return None, tests, code, groups
+
+
+def side_line(repo: Path, side: str, rev: str, exit_code) -> None:
+    sha = git(repo, "rev-parse", "--short", rev).strip()
+    print(f"red: {side} {sha}{' + PR test files' if side == 'base' else ''}: exit {exit_code}")
+
+
+def red(args) -> int:
+    """One process: select, run both sides in temporary worktrees, judge. --plan and --sides-from split it."""
+    if args.plan:
+        return red_plan(args)
+    status, tests, code, groups = red_select(args)
+    if status is not None:
+        return status
     stacks = load_stacks(args)
+    if args.sides_from:
+        return red_judge(args, tests, code, red_sides_read(args, groups), stacks)
+    repo, out = args.repo, Findings("red")
     tmp, trees, results, unplaced = Path(tempfile.mkdtemp(prefix="review-red-")), [], {}, []
     try:
         for side, rev in (("base", args.base), ("head", args.head)):
@@ -524,8 +557,7 @@ def red(args) -> int:
                     break
             exit_code, output, parts = run_side(tree, groups, args.timeout)
             results[side] = (exit_code, output, junit_cases(tree, args.junit), parts)
-            sha = git(repo, "rev-parse", "--short", rev).strip()
-            print(f"red: {side} {sha}{' + PR test files' if side == 'base' else ''}: exit {exit_code}")
+            side_line(repo, side, rev, exit_code)
     finally:
         for tree in trees:
             subprocess.run(["git", "worktree", "remove", "--force", str(tree)], cwd=repo, capture_output=True)
@@ -535,6 +567,66 @@ def red(args) -> int:
         for text in unplaced:
             out.add(text)
         return out.close("")
+    return red_judge(args, tests, code, results, stacks)
+
+
+def several_commands(groups) -> int:
+    """The two phases carry one test command: a side's exit code and output belong to one run. Exit 2, no verdict."""
+    print(f"red: ERROR — --plan and --sides-from take one test command, but {len(groups)} gates `red` entries claim "
+          "the PR's tests: run red without them")
+    return 2
+
+
+def red_plan(args) -> int:
+    """Phase 1 (--plan OUT.json, KIT-102): the selection as `red` makes it, written as JSON for a runner that runs the
+    command itself on base (plus `test_files`, copied from head) and on head; nothing runs and no worktree is made.
+    Exit as `red` does when no run is due (EXEMPT 0, NONE 1, no command 2), else 0."""
+    status, tests, _, groups = red_select(args)
+    if status is None and len(groups) != 1:
+        return several_commands(groups)
+    cwd, command, _ = groups[0] if status is None else (None, None, [])
+    folder = cwd
+    if command and (prefix := CD_PREFIX.match(command.strip())):
+        folder = os.path.normpath(os.path.join(cwd, prefix.group(1)))
+    plan = {"status": {None: "run", 0: "exempt", 1: "none"}.get(status, "error"),
+            "base": git(args.repo, "rev-parse", "--verify", f"{args.base}^{{commit}}").strip(),
+            "head": git(args.repo, "rev-parse", "--verify", f"{args.head}^{{commit}}").strip(),
+            "test_files": tests,
+            "classes": render("{classes}", ".", tests) if status is None else "",
+            "command": command, "cwd": cwd, "run_folder": folder, "junit": args.junit or []}
+    Path(args.plan).write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+    print(f"red: plan written to {args.plan} ({plan['status']}); nothing was run")
+    return 0 if status is None else status
+
+
+def red_sides_read(args, groups) -> dict:
+    """Phase 2 input (--sides-from DIR, KIT-102): per side, `DIR/<side>/exit_code` (an integer as text),
+    `output.txt` (stdout and stderr together) and the optional `reports/` (every JUnit XML file under it). A missing
+    or unreadable file is a usage error: no verdict."""
+    if len(groups) != 1:
+        sys.exit(several_commands(groups))
+    folder, results, command = Path(args.sides_from), {}, groups[0][1]
+    for side, rev in (("base", args.base), ("head", args.head)):
+        where = folder / side
+        try:
+            code_text = (where / "exit_code").read_text(encoding="utf-8").strip()
+            output = (where / "output.txt").read_bytes().decode("utf-8", "replace")
+        except OSError as error:
+            usage_error(f"--sides-from {folder}: {side}: {error.strerror}: {error.filename}")
+        if not re.fullmatch(r"-?\d+", code_text):
+            usage_error(f"--sides-from {folder}: {side}/exit_code must hold an integer, not {code_text[:40]!r}")
+        reports = where / "reports"
+        cases = junit_cases(reports, ["**/*.xml"]) if reports.is_dir() else []
+        results[side] = (int(code_text), output, cases, [(command, int(code_text), output)])
+        side_line(args.repo, side, rev, int(code_text))
+    return results
+
+
+def red_judge(args, tests: list[str], code: list[str], results: dict, stacks: dict) -> int:
+    """The verdict on both sides' results ({side: (exit code, output, JUnit cases, [(command, exit code, output)])}),
+    the one copy both the one-process run and --sides-from use: no test ran, head failed, each failing base test's
+    class, the data-only flag, and exit 0, 1, 2 or 3."""
+    repo, out = args.repo, Findings("red")
     base_code, base_out, base_cases, base_parts = results["base"]
     head_code, head_out, _, head_parts = results["head"]
     print(f"red: base output, last {EXCERPT_LINES} lines")
@@ -943,6 +1035,11 @@ def main(argv=None) -> int:
     p.add_argument("--junit", action="append", help="glob of the run's JUnit XML reports, relative to the checkout")
     p.add_argument("--patterns", help="JSON file that extends the per-stack patterns")
     p.add_argument("--timeout", type=positive_seconds, default=900)
+    phase = p.add_mutually_exclusive_group()
+    phase.add_argument("--plan", metavar="OUT.json", help="phase 1 (KIT-102): write the selection and the command as "
+                                                          "JSON and run nothing")
+    phase.add_argument("--sides-from", metavar="DIR", help="phase 2 (KIT-102): judge DIR/base and DIR/head "
+                                                           "(exit_code, output.txt, reports/) and run nothing")
     p = sub.add_parser("scope")
     p.add_argument("--base", required=True)
     p.add_argument("--head", required=True)
