@@ -374,7 +374,8 @@ def delivered_by_its_feats(spec: Spec, need: dict) -> bool:
     """A NEED whose listed FEATs are all delivered and cover every REQ it lists no longer holds a step's `—`, even
     before its own status moves to delivered (validate or deliver moves it, KIT-069; older NEEDs may lag)."""
     feats = listed(need, "features")
-    if not feats or any(not feat_delivered(spec.feats.get(f, {})) for f in feats):
+    if not feats or any(f not in spec.feats or not check_spec.feat_delivered_for(
+            need, spec.feats[f]["status"], spec.feats[f]["requirements"], spec.feats[f].get("versions")) for f in feats):
         return False
     covered = {str(r) for f in feats for r in delivered_reqs(spec.feats[f])}
     return set(listed(need, "requirements")) <= covered
@@ -1142,13 +1143,6 @@ def set_block_status(feat, status):
     lines[line] = f"Status: {status}"
     feat["path"].write_text("\n".join(lines), encoding="utf-8")
     block["status"] = status
-
-
-def feat_delivered(feat):
-    """A FEAT that has delivered something: status delivered, or a versioned FEAT with a delivered block."""
-    if feat.get("versions"):
-        return any(b["status"] == "delivered" for b in feat["versions"])
-    return feat.get("status") == "delivered"
 
 
 def delivered_reqs(feat):

@@ -52,9 +52,12 @@ and one process holds N FEATs (§ 15); greybox and polish are two version blocks
   `pr_gates.sections(...).get("Tasks")` splits on `## ` headings only, and the check passed with "no Tasks table".
   `row_checks.py` lints the open block's rows; every block's rows answer a `Depends on`. `check_spec.task_table`
   skips a table inside an HTML comment (a comment inside a cell stays). A NEED counts as delivered by a versioned
-  FEAT only when its REQs that the FEAT lists sit in a delivered block's Scope (`check_spec.delivered_for`,
-  `spec_trace.delivered_by_its_feats`, so `deliver_needs` too). `spec_trace.py lint` compares a Plan row count with
-  the open block's rows.
+  FEAT only when its REQs that the FEAT lists sit in a delivered block's Scope: one rule,
+  `check_spec.feat_delivered_for`, which `check_spec.py` (need-status) and `spec_trace.delivered_by_its_feats`
+  (`deliver_needs`, the `—` waiting rule) both call, so `deliver_needs` never writes a delivered NEED that
+  `check_spec.py` refuses. Every REQ in a versioned FEAT's `requirements` must appear in some block's Scope (rule
+  `version-block`). `row_checks.py` lints no rows when the open block has no `#### Tasks` (WARN "no Tasks table"),
+  never an earlier block's. `spec_trace.py lint` compares a Plan row count with the open block's rows.
 - External consumer to change the same way (not edited here): dev-game-studio/review-loop
   `platform/review-loop/cut.py:46`, whose `cut_command` reads `sections(text).get("Tasks")` and so finds no rows in a
   versioned FEAT; it should read `check_spec.task_sections`.
@@ -78,6 +81,8 @@ Choices:
   before the change (the 10 that passed guard behavior that must not change); green after, under `python3.12` and
   `/usr/bin/python3` 3.9. Review fixes: `test_row_checks_versions.py` (6 tests) and 5 more version tests: 10 of the 11 failed
   before the fix (the one that passed guards a NEED delivered through its block), green after under both Pythons.
+  Re-review fixes (fed35d1): 3 tests (the two tools on one NEED over an old and a versioned FEAT, a REQ outside
+  every block Scope, an open block without Tasks), 3 of 3 red first, green after.
 - Byte for byte: `check_spec.py` (full and `-S`), `spec_trace.py check`, `status`, `lint`, `enablers` and the rendered
   matrix on `platforms/ci/fixtures/consumer` and on a copy of Stratics' `docs/spec`, under both Pythons, before and
   after: 50 outputs, no difference (the clone-name list of the copy's sibling folders normalized); `row_checks.py

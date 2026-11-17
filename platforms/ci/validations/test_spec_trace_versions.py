@@ -251,6 +251,23 @@ class NeedAndLintTest(VersionCase):
         run(["validate", str(self.spec), "FEAT-001", "--at", "def5678"])
         self.assertEqual(self.need_status(), "refined")
 
+    def test_spec_trace_and_check_spec_agree_on_a_need_over_two_feats(self):
+        """NEED-001 lists FEAT-002 (old shape, covers REQ-F-003) and FEAT-001 (versioned: block 0.1.0 delivered, but it
+        holds none of the NEED's REQs). Delivering FEAT-002 must not deliver the NEED, which check_spec.py would then
+        fail [need-status]: both tools apply check_spec.feat_delivered_for."""
+        write(self.root, "docs/spec/needs/NEED-001-fixture.md",
+              self.NEED.replace("requirements: [REQ-F-002]", "requirements: [REQ-F-003]")
+              .replace("features: [FEAT-001]", "features: [FEAT-001, FEAT-002]"))
+        write(self.root, "docs/spec/features/FEAT-002.md",
+              FEAT_2.replace("| doing |", "| done |") + "\n## Closure\n\n- closed at def5678.\n")
+        code, out, err = run(["validate", str(self.spec), "FEAT-002", "--at", "def5678"])
+        self.assertEqual(code, 0, out + err)
+        self.assertEqual(self.need_status(), "refined")
+        checked = subprocess.run([sys.executable, str(HERE / "check_spec.py"), str(self.spec),
+                                  str(HERE.parent / "schemas")], capture_output=True, text=True, check=False,
+                                 env={k: v for k, v in os.environ.items() if k != "CI"})
+        self.assertNotIn("[need-status]", checked.stderr)
+
     def test_lint_counts_the_open_block_rows(self):
         self.feat(status="delivered", t3="done", old="## Versions", new="## Plan\n\n### Tests\n\n- 1 task rows planned.\n\n"
                                                                           "## Versions")
