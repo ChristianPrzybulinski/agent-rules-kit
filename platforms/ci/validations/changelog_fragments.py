@@ -17,8 +17,8 @@ written:` and one `changelog.d/<file>:<line>: <why>` per problem on stderr, or t
 prints `{"fragments": [...], "entries": <n>}` as JSON; `--check` prints what a consolidation would move. Exit 2 on a
 usage error.
 
-Stdlib only. A session runs it from the installed kit (`just changelog` in a project whose justfile imports the kit's
-docs module), a project's CI from `$AI_KIT_DIR` after the spec-tools action (the `changelog-consolidate.yml` template).
+Stdlib only. A session runs it from the installed kit (the `docs` just module's `changelog` recipe, which skill
+sdd-implement runs), a project's CI from `$AI_KIT_DIR` after the spec-tools action (the `changelog-consolidate.yml` template).
 Upstreamed from a consumer project's consolidator; `parse_fragment` keeps that tool's rules and messages.
 """
 from __future__ import annotations

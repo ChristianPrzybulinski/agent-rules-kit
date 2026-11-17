@@ -1,9 +1,10 @@
 """The functional layer (KIT-077): the kit synced into the consumer project kept in platforms/ci/fixtures/consumer/,
 then that project's own checks, as its CI and its developers run them: the spec-tools action's spec steps, which the
-written spec-lint.yml calls pinned to the kit commit, `just verify` in each profile folder with ~/.ai-kit linked to
-the kit (what the spec-tools action does on a runner; AI_KIT_DIR unset), `sync-project.sh --check`, and a second sync
-that changes nothing. The project carries no copy of the kit: it uses the installed guardrails@ai-kit plugin (KIT-081
-stage 2b), runs the spec tools from the kit (stage 1), and its justfiles import the kit's just modules (stage 1b).
+written spec-lint.yml calls pinned to the kit commit, the `verify` recipe of each profile folder's kit module as skill
+sdd-implement runs it (`just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d <folder> verify`, with ~/.ai-kit linked
+to the kit as the spec-tools action links it on a runner; AI_KIT_DIR unset), `sync-project.sh --check`, and a second
+sync that changes nothing. The project carries no copy of the kit: it uses the installed guardrails@ai-kit plugin
+(KIT-081 stage 2b), runs the spec tools from the kit (stage 1) and keeps no justfile for the kit's recipes (KIT-085).
 ci-full runs this layer on push to main, nightly and before a release, with the pinned just installed; a CI run without
 just fails instead of skipping."""
 import os
@@ -44,8 +45,8 @@ class ConsumerFixture(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.repo = Path(tmp.name) / "consumer"
         shutil.copytree(FIXTURE, self.repo)
-        # The kit runs from ~/.ai-kit, linked as the spec-tools action links it on a runner (KIT-081 stage 1b: the
-        # justfiles import the kit's modules there), and from GITHUB_ACTION_PATH for the action's own steps.
+        # The kit runs from ~/.ai-kit, linked as the spec-tools action links it on a runner (KIT-085: the just modules
+        # run from there), and from GITHUB_ACTION_PATH for the action's own steps.
         self.home = Path(tmp.name) / "home"
         self.home.mkdir()
         (self.home / ".ai-kit").symlink_to(KIT)
@@ -81,9 +82,11 @@ class ConsumerFixture(unittest.TestCase):
     def assert_own_checks_pass(self, *args):
         for run in spec_steps():
             self.ok(["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", run])
-        self.assertIn("lint", self.ok([JUST, "--summary"]).stdout.split())
-        self.ok([JUST, "verify"])
-        self.ok([JUST, "verify"], cwd=self.repo / "tools")
+        for folder, stack in ((".", "docs"), ("tools", "python")):  # KIT-085: the module, no project justfile
+            module = ["-f", str(self.home / ".ai-kit" / "platforms" / "kits" / "just" / f"{stack}.just"),
+                      "-d", str(self.repo / folder)]
+            self.assertIn("verify", self.ok([JUST, *module, "--summary"]).stdout.split())
+            self.ok([JUST, *module, "verify"], cwd=self.repo / folder)
         self.assertIn("consistent with kit", self.sync("--check", *args).stdout)
 
     def assert_resync_changes_nothing(self, *args):
@@ -98,10 +101,7 @@ class ConsumerFixture(unittest.TestCase):
                               check=True).stdout.strip()
         workflow = (self.repo / ".github" / "workflows" / "spec-lint.yml").read_text(encoding="utf-8")
         self.assertIn(f"uses: {ACTION}@{head}  # v{(KIT / 'VERSION').read_text(encoding='utf-8').strip()}", workflow)
-        for folder, profile in ((".", "docs"), ("tools", "python")):  # KIT-081 stage 1b: the import, no kit.just copy
-            justfile = (self.repo / folder / "justfile").read_text(encoding="utf-8").splitlines()
-            self.assertEqual(justfile[-1], f"import '~/.ai-kit/platforms/kits/just/{profile}.just'")
-        self.assertEqual(sorted(p.name for p in self.repo.rglob("*.just")), [])
+        self.assertEqual(sorted(p.name for p in self.repo.rglob("*just*")), [])  # KIT-085: no justfile, no copy
         self.assertFalse((self.repo / ".claude" / "skills").exists())  # KIT-081 stage 2b: no copy in the project
         self.assert_own_checks_pass()  # the CLAUDE.md marker records the profile list: bare runs keep it
         self.assert_resync_changes_nothing()

@@ -25,18 +25,18 @@ res://
 
 ## Commands
 
-The recipes come from the installed agent-rules-kit's godot module, which this folder's `justfile` imports (`import '~/.ai-kit/platforms/kits/just/godot.just'`, written by the kit's `sync-project.sh`) before the project's own recipes. `just --show <recipe>` prints a recipe's commands; CI runs the same recipes (the kit `ci-godot.yml`).
+Skill `sdd-implement` runs these recipes of the installed agent-rules-kit's godot module (reference `recipes.md`): it finds this folder's stack in the project profile and runs `just -f ~/.ai-kit/platforms/kits/just/godot.just -d <folder> <recipe>`. The project keeps no justfile for them; CI runs the same recipes (the kit `ci-godot.yml`).
 
-```bash
-just editor                        # open the editor
-just import                        # import assets, build the script-class cache (a fresh checkout needs it)
-just boot                          # boot proof: --quit exits 0 after a script error, so the log decides
-just test                          # gdUnit4 suite (GODOT_TEST_RUNNER=gut for GUT); a missing runner or zero tests fails
-just lint                          # gdformat --check + gdlint (addons/ and .godot/ left out)
-just fmt                           # gdformat
-just verify                        # lint + boot + test: the gate before a commit or PR
-just export "[preset]" build/[name]   # export
-```
+| Recipe | What it does |
+|---|---|
+| `editor` | open the editor |
+| `import` | import assets, build the script-class cache (a fresh checkout needs it) |
+| `boot` | boot proof: `--quit` exits 0 after a script error, so the log decides |
+| `test` | gdUnit4 suite (`GODOT_TEST_RUNNER=gut` for GUT); a missing runner or zero tests fails |
+| `lint` | `gdformat --check` + `gdlint` (`addons/` and `.godot/` left out) |
+| `fmt` | `gdformat` |
+| `verify` | lint + boot + test: the gate before a commit or PR |
+| `export "[preset]" build/[name]` | export |
 
 ## Patterns (condition → action)
 
@@ -100,14 +100,14 @@ Never mix the two models in one entity; presentation never changes the authorita
 - `.tscn`/`.tres` are text: review the diff; UID conflicts → reimport, do not hand-edit.
 - Commit `.godot/` **never**; commit `*.import` **always**.
 - Conventional Commits; PR with a GIF/screenshot when the change is visual.
-- CI runs `just boot`, `just test` and `just lint` headless and fails when the runner is missing or zero tests execute; never skip tests to get a green run (see the kit `ci-godot.yml`).
+- CI runs the `boot`, `test` and `lint` recipes headless and fails when the runner is missing or zero tests execute; never skip tests to get a green run (see the kit `ci-godot.yml`).
 
 ## Boundaries
 
-- Always: `just boot` after touching assets or scripts, `just verify` before a commit or PR; test a scene in isolation (F6) before the whole stage.
+- Always: the `boot` recipe after touching assets or scripts, `verify` before a commit or PR (skill `sdd-implement` runs both); test a scene in isolation (F6) before the whole stage.
 - Ask first: change `project.godot` (renderer, physics, input map); add an addon; change the save format.
 - Never: mix the two movement models in one entity, or let presentation change the authoritative position; `get_parent()` for game logic; editing `.godot/`.
 
 ## More
 
-- Mechanics and balancing: `docs/design.md`. Decisions: `docs/adr/`.
+- Mechanics and balancing: `docs/spec/` (`spec.md` Pillars, Core loop and Direction; REQ Values). Decisions: `docs/spec/decisions/`.

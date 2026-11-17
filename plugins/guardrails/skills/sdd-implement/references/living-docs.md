@@ -11,7 +11,7 @@ An outdated document is worse than a missing one: the agent trusts it. Written a
 
 | Changed... | Update |
 |---|---|
-| build/run/test command | the module's `README.md` + the repo's `AGENTS.md`, both naming the `just` recipe when the folder's justfile imports the kit's just module of its profile |
+| build/run/test command | the module's `README.md` + the repo's `AGENTS.md`, both naming the recipe of the kit's just module for the folder's stack and skill `sdd-implement`, which runs it (`recipes.md`), never a `just` command or a kit script path |
 | new authored folder, with `sdd.doc_structure` on | its `README.md` (title and the configured headings); a new child of a `done/` folder → that folder's `INDEX.md` |
 | public Java API | Javadoc on the public class/method (the what + invariants; do not repeat the signature) |
 | exported GDScript/autoload script | `##` docstring above `class_name`, `@export`, signals |
@@ -46,7 +46,7 @@ For README narrative, reports, release notes, e-mail and team messages:
 
 ## Folder READMEs and done/ indexes
 
-With `sdd.doc_structure.enabled: true`, `check_docs_structure.py` (the kit's, run by `just lint` and the CI spec-tools action) holds every folder `git ls-files` lists to a `README.md` with a `# ` title and the `headings` (default `## What goes here` and `## What does not go here`), and every `done/` folder to an `INDEX.md` naming each direct child. A generated or vendored folder goes in the `exempt` file (default `.github/doc-structure-exempt.txt`): one glob per line, a `#` line for the reason; `.github` itself and the folders `sync-project.sh` generates are always exempt. Keys: skill `sdd-constitution`, reference `sdd-parameters.md`.
+With `sdd.doc_structure.enabled: true`, `check_docs_structure.py` (the kit's, run by the `docs` stack's `lint` recipe, `recipes.md`, and the CI spec-tools action) holds every folder `git ls-files` lists to a `README.md` with a `# ` title and the `headings` (default `## What goes here` and `## What does not go here`), and every `done/` folder to an `INDEX.md` naming each direct child. A generated or vendored folder goes in the `exempt` file (default `.github/doc-structure-exempt.txt`): one glob per line, a `#` line for the reason; `.github` itself and the folders `sync-project.sh` generates are always exempt. Keys: skill `sdd-constitution`, reference `sdd-parameters.md`.
 
 ## Condition → action
 

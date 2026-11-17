@@ -26,16 +26,16 @@ src/test/java       # mirrors main
 
 ## Commands
 
-The recipes come from the installed agent-rules-kit's java module, which this folder's `justfile` imports (`import '~/.ai-kit/platforms/kits/just/java.just'`, written by the kit's `sync-project.sh`) before the project's own recipes. Each runs the Maven wrapper (`just --show <recipe>`); CI runs the same recipes (the kit `ci-java.yml`).
+Skill `sdd-implement` runs these recipes of the installed agent-rules-kit's java module (reference `recipes.md`): it finds this folder's stack in the project profile and runs `just -f ~/.ai-kit/platforms/kits/just/java.just -d <folder> <recipe>`. Each runs the Maven wrapper; the project keeps no justfile for them, and CI runs the same recipes (the kit `ci-java.yml`).
 
-```bash
-just run                           # run locally (spring-boot:run)
-just test                          # unit
-just test -Dtest=SomeTest          # one test
-just verify                        # spotless:check verify: unit + integration and the pom gates, the gate before commit/PR
-just fmt                           # format (spotless:apply)
-just lint                          # format check only
-```
+| Recipe | What it does |
+|---|---|
+| `run` | run locally (`spring-boot:run`) |
+| `test` | unit |
+| `test -Dtest=SomeTest` | one test |
+| `verify` | `spotless:check verify`: unit + integration and the pom gates, the gate before commit/PR |
+| `fmt` | format (`spotless:apply`) |
+| `lint` | format check only |
 
 ## Patterns (condition → action)
 
@@ -66,7 +66,7 @@ public final class CreateOrder {
 
 1. `git switch -c feat/<short-name>` from `main`.
 2. Conventional Commits.
-3. Before pushing: `just verify` green.
+3. Before pushing: the `verify` recipe green (skill `sdd-implement`).
 4. `gh pr create` with: 1-line summary, what you tested, `Closes #N`.
 
 ## Boundaries

@@ -1506,13 +1506,21 @@ else:
             message = (result.stderr.strip().splitlines() or ["no message"])[0].replace(f"{script}: ", "")
             fail(rel(script), f"bash -n failed under {shell_bash}: {message}")
 
-# --- 14. Recipe names in templates (KIT-074) ---
-# The project AGENTS templates and the CI templates call the per-profile just modules a project's justfile imports
-# from the installed kit (KIT-081 stage 1b), so a command has one definition: each `just <recipe>` they name must exist in the module of their profile,
-# an AGENTS template names `just test` and `just verify`, and every pinned just download in the templates is the same.
+# --- 14. Recipe names in templates (KIT-074, KIT-085) ---
+# The project AGENTS templates and the CI templates run the per-profile just modules of the kit, and a project keeps no
+# justfile for them (KIT-085), so a command has one definition. An AGENTS template names its recipes in the Commands
+# table (first cell `<recipe> [args]`), each defined by the module of its profile, `test` and `verify` among them, and
+# skill `sdd-implement`, which runs them; it names no `just <recipe>`. A CI template runs every recipe as
+# `just -f "<kit>/platforms/kits/just/<profile>.just" -d <folder> <recipe>`, each defined by that module. Every pinned
+# just download in the templates is the same.
 JUST_MODULES = KIT / "platforms" / "kits" / "just"
 JUST_RECIPE = re.compile(r"^@?([A-Za-z_][A-Za-z0-9_-]*)(?:[ \t]+[+*$]?[A-Za-z_][A-Za-z0-9_-]*(?:=(?:\"[^\"]*\"|'[^']*'|[^\s:\"']+))?)*[ \t]*:(?![=:])")  # sync_just.py RECIPE
-JUST_CALL = re.compile(r"(?:^|[\s`;&|(])just (?:--[a-z][a-z-]* +)*(?!-)([A-Za-z_][A-Za-z0-9_-]*)")  # `just --no-deps x`
+# `just [-f <file>] [-d <dir>] [--flag ...] <recipe>`: each option is a fixed letter and one quoted or bare word, so
+# every part has one parse and a line cannot backtrack exponentially.
+JUST_CALL = re.compile(r"(?:^|[\s`;&|(])just((?:[ \t]+-[fd][ \t]+(?:\"[^\"\n]*\"|'[^'\n]*'|[^\s\"'`]+))*)"
+                       r"(?:[ \t]+--[a-z][a-z-]*)*[ \t]+(?!-)([A-Za-z_][A-Za-z0-9_-]*)")
+JUST_OPTION = re.compile(r"-([fd])[ \t]+(\"[^\"\n]*\"|'[^'\n]*'|[^\s\"'`]+)")
+RECIPE_ROW = re.compile(r"^\| `([A-Za-z_][A-Za-z0-9_-]*)(?: [^`]*)?` \|", re.M)
 TEMPLATE_PROFILES = [(PLUGINS_ROOT / KIT_PLUGIN / "templates" / "project-agents-godot-2d.md", "godot"),
                      (PLUGINS_ROOT / KIT_PLUGIN / "templates" / "project-agents-java-spring.md", "java"),
                      (KIT / "platforms" / "kits" / "github" / "workflows" / "ci-godot.yml", "godot"),
@@ -1529,21 +1537,53 @@ def code_text(path):
     return "\n".join(blocks + re.findall(r"`([^`\n]+)`", outside))
 
 
+def commands_section(text):
+    """The `## Commands` section of an AGENTS template, up to the next `## ` heading."""
+    found = re.search(r"^## Commands\n(.*?)(?=^## |\Z)", text, flags=re.M | re.S)
+    return found.group(1) if found else ""
+
+
 for template, profile in TEMPLATE_PROFILES:
     module = JUST_MODULES / f"{profile}.just"
     if not template.exists() or not module.exists():
         fail(rel(template if not template.exists() else module), "missing (KIT-074 recipe check)")
         continue
     defined = {m.group(1) for m in map(JUST_RECIPE.match, module.read_text(encoding="utf-8").splitlines()) if m}
-    called = JUST_CALL.findall(code_text(template))
-    for name in sorted(set(called) - defined):
-        fail(rel(template), f"names just recipe '{name}', which {rel(module)} does not define")
+    calls = JUST_CALL.findall(code_text(template))
     if template.suffix == ".md":
+        text = template.read_text(encoding="utf-8")
+        named = RECIPE_ROW.findall(commands_section(text))
+        for name in sorted({name for _, name in calls}):
+            fail(rel(template), f"names `just {name}`; a project keeps no justfile (KIT-085): name the recipe in the"
+                                " Commands table and skill `sdd-implement`, which runs it")
+        for name in sorted(set(named) - defined):
+            fail(rel(template), f"names just recipe '{name}', which {rel(module)} does not define")
         for name in ("test", "verify"):
-            if name not in called:
-                fail(rel(template), f"names no `just {name}` in its commands (KIT-074)")
-    elif not called:
+            if name not in named:
+                fail(rel(template), f"names no recipe `{name}` in its Commands table (KIT-074)")
+        if "skill `sdd-implement`" not in commands_section(text).lower():
+            fail(rel(template), "its Commands section names no skill `sdd-implement`, which runs the recipes (KIT-085)")
+        continue
+    if not calls:
         fail(rel(template), "names no just recipe; CI runs the same recipes as the AGENTS template (KIT-074)")
+    bare = set()
+    for options, name in calls:
+        given = {flag: value.strip("\"'") for flag, value in JUST_OPTION.findall(options)}
+        if not given.get("f", "").endswith(f"/platforms/kits/just/{profile}.just") or "d" not in given:
+            bare.add(name)
+    for name in sorted(bare):
+        fail(rel(template), f"runs just recipe '{name}' without -f naming the kit's {profile}.just and -d naming the"
+                            " folder; a project keeps no justfile (KIT-085)")
+    for name in sorted({name for _, name in calls} - defined):
+        fail(rel(template), f"names just recipe '{name}', which {rel(module)} does not define")
+
+# The skill that runs the recipes names the one command shape the templates point at (KIT-085).
+RECIPES_REF = PLUGINS_ROOT / KIT_PLUGIN / "skills" / "sdd-implement" / "references" / "recipes.md"
+if not RECIPES_REF.is_file():
+    fail(rel(RECIPES_REF), "missing: skill sdd-implement runs the kit's just recipes from it (KIT-085)")
+elif "just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d " not in RECIPES_REF.read_text(encoding="utf-8"):
+    fail(rel(RECIPES_REF), "names no `just -f ~/.ai-kit/platforms/kits/just/<stack>.just -d <folder> <recipe>`"
+                           " (KIT-085)")
 
 just_pins = set()
 for workflow in sorted((KIT / "platforms" / "kits" / "github" / "workflows").glob("*.yml")):

@@ -9,7 +9,7 @@ Base for Godot 4 2D projects.
 | `requirements-gdtoolkit.txt` | copy to the project root; `pip install -r requirements-gdtoolkit.txt` gives `gdformat`/`gdlint` 4.5.0 |
 | `scripts/keyed_csv_merge.py` | git merge driver for a keyed translation CSV (KIT-074), in place of `merge=union`, which kept a branch's stale row beside the other side's edited row of the same key and reported no conflict. git runs it from the installed kit (`~/.ai-kit`, KIT-081 stage 1b: no copy in the project); § Keyed-CSV merge driver |
 | `../git-lfs/.gitattributes` | combine with the `.gitignore` (binaries in LFS) |
-| `../github/workflows/ci-godot.yml` | headless CI through the `just` recipes of `../just/godot.just` (`just boot`, `just test`, `just lint`): import, boot proof, gdUnit4 by default or GUT, fails when no runner or zero tests, JUnit artifact, gdformat/gdlint, manual export |
+| `../github/workflows/ci-godot.yml` | headless CI through the `boot`, `test` and `lint` recipes of `../just/godot.just` (`just -f "$AI_KIT_DIR/platforms/kits/just/godot.just" -d . <recipe>`): import, boot proof, gdUnit4 by default or GUT, fails when no runner or zero tests, JUnit artifact, gdformat/gdlint, manual export |
 
 GDScript and scene rules: `plugins/guardrails/rules/godot.md`; coding detail: `plugins/guardrails/skills/sdd-implement/references/godot/README.md`; design detail: `plugins/guardrails/skills/sdd-plan/references/godot/README.md`.
 
