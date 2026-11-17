@@ -23,7 +23,7 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 
 | ID | Title | Status | PR |
 |---|---|---|---|
-| [KIT-102](features/KIT-102-red-check-two-phase.md) | Split the red check into a plan and a judge of given sides | planned | — |
+| [KIT-102](features/KIT-102-red-check-two-phase.md) | Split the red check into a plan and a judge of given sides | in-progress | #379 |
 
 ## Decisions
 

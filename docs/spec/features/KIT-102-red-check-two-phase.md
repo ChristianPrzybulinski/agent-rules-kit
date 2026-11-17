@@ -1,9 +1,9 @@
 ---
 id: KIT-102
 title: "Split the red check into a plan and a judge of given sides"
-status: planned
+status: in-progress
 issue: "#378"
-pr: ""
+pr: "#379"
 created: "2026-11-17"
 updated: "2026-11-17"
 ---
@@ -21,7 +21,8 @@ hand the run to that VM. The owner chose to split the check, with the verdict lo
 
 ## Scope
 
-- `platforms/tools/review_checks.py`: `red --plan OUT.json` writes the selection (`status`, `base`, `head`,
+- `platforms/tools/review_checks.py`: `red --plan OUT.json` writes the selection (`status` run, exempt, none or
+  error, `base`, `head`,
   `test_files`, `classes`, `command`, `cwd`, `run_folder`, `junit`) and runs nothing; `red --sides-from DIR` reads
   `DIR/base/` and `DIR/head/` (`exit_code`, `output.txt`, optional `reports/`) and gives the verdict; the one-process
   run and `--sides-from` share `red_select` and `red_judge`, so the verdict logic has one copy. Without either flag the
@@ -44,6 +45,7 @@ hand the run to that VM. The owner chose to split the check, with the verdict lo
 | CA-2 | a PR with no test file, or only tests | `red --plan OUT.json` | exit 1 (NONE) or 0 (EXEMPT), `status` says which, `command` is null | `python3 platforms/tools/run_tests.py platforms/ci/validations/test_review_checks.py` |
 | CA-3 | sides a runner wrote for each verdict class | `red --sides-from DIR` | the class, the lines and the exit code (0, 1, 2 or 3) of the one-process run; no command ran, no worktree was made | `python3 platforms/tools/run_tests.py platforms/ci/validations/test_review_checks.py` |
 | CA-4 | a side folder missing a file, or an `exit_code` that is no integer; or both flags | `red --sides-from DIR` | exit 2, naming the side or the file; no verdict | `python3 platforms/tools/run_tests.py platforms/ci/validations/test_review_checks.py` |
+| CA-5 | a symbolic link or non-regular file for `exit_code`, `output.txt` or under `reports/`; an oversized output or report | `red --sides-from DIR` | exit 2 naming the path without its content; an output over the cap is read from its last 8 MiB, a report over it is exit 2 | `python3 platforms/tools/run_tests.py platforms/ci/validations/test_review_checks.py` |
 
 ## Plan
 
@@ -60,6 +62,13 @@ compares the `red: ` lines and exit codes; one writes the folder by hand, so the
   order, but an excerpt may read differently.
 - A runner that writes a non-JUnit XML file into `reports/`: the judge reads every XML file there, and one that does
   not parse is exit 2.
+- DIR comes from a runner the PR's code ran in, so its files are untrusted: `--sides-from` reads only regular files
+  inside DIR. Each file is opened with `O_NOFOLLOW` and checked with `fstat`; `reports/` is walked with `lstat` and no
+  link followed. A symbolic link (a side folder, `reports/`, or a file or folder under it), a device, FIFO or folder
+  where a file belongs, or a report that resolves outside DIR is exit 2. An error names the path, never the content
+  (no `exit_code` value is echoed). Size: at most the last `SIDE_OUTPUT_MAX_BYTES` (8 MiB) of `output.txt` are read,
+  with a line saying so, since a run's summary is at its end; a report over `SIDE_REPORT_MAX_BYTES` (8 MiB) is exit 2,
+  since a cut XML file does not parse.
 
 ## Decisions
 
@@ -71,3 +80,4 @@ compares the `red: ` lines and exit codes; one writes the folder by hand, so the
 ## History
 
 - 2026-11-17 plan: created from the request (dev-game-studio/stratics#4687, issue #378).
+- 2026-11-17 pr: in-progress (agent-rules-kit#379 open)
