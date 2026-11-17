@@ -74,7 +74,9 @@ and the Contracts view, and is required. `enablers` reports, over the open FEATs
   C18 high    a REQ of the FEAT, or a process step whose Rules cite REQs, that no ENB satisfies;
   C19 high    a Plan § Contract reference `ENB-nnn:<contract>` the catalog lacks, or to an ENB the FEAT's `enablers`
               does not list; a file under sdd.row_checks.protocol.schemas or matching a --catalog glob (a migration
-              folder, for example) that no `Schema or file` cell covers;
+              folder, for example) that no `Schema or file` cell covers. Both are globs rooted at the repository
+              (no leading `/`, no `..`; a bad one fails with exit 1), a trailing `**` covers the files under it, and
+              the walk never enters a folder whose name starts with `.`;
   C19 medium  a provided contract no ENB requires whose Consumers cell is empty or `—`.
 It exits 1 on a finding. A spec without enablers/ checks and renders as before.
 
@@ -110,6 +112,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import os
 import re
 import subprocess
 import sys
@@ -949,15 +952,65 @@ def plan_contract(body):
     return "\n".join(lines)
 
 
-def catalog_files(spec, globs):
-    """Repository paths the catalog must cover: every file under sdd.row_checks.protocol.schemas and every file a
-    --catalog glob (rooted at the repository) matches."""
+def glob_segments(pattern):
+    """The segments of a glob rooted at the repository (`.` segments dropped; a trailing `**` covers the files under
+    it, as `dir/**/*` does), or None when it is empty, absolute, holds `..` or a backslash."""
+    if not isinstance(pattern, str) or not pattern.strip() or pattern.startswith("/") or "\\" in pattern:
+        return None
+    parts = [p for p in pattern.split("/") if p not in ("", ".")]
+    if not parts or ".." in parts:
+        return None
+    return parts + ["*"] if parts[-1] == "**" else parts
+
+
+def catalog_patterns(spec, globs):
+    """([(source, pattern)], [error]): sdd.row_checks.protocol.schemas as `<folder>/**/*`, then each --catalog glob;
+    a pattern that is not rooted at the repository is an error, never a traceback."""
     protocol = (spec.params.get("row_checks") or {}).get("protocol") or {}
-    patterns = [f"{protocol['schemas'].rstrip('/')}/**/*"] if protocol.get("schemas") else []
+    sources = []
+    if protocol.get("schemas"):
+        folder = protocol["schemas"]
+        ok = glob_segments(folder) is not None or folder == "."
+        sources.append(("sdd.row_checks.protocol.schemas", f"{folder.rstrip('/')}/**/*" if ok else folder, folder))
+    sources += [("--catalog", g, g) for g in globs]
+    patterns, errors = [], []
+    for source, pattern, given in sources:
+        if glob_segments(pattern) is None:
+            errors.append(f"{source} {given!r} must be a glob rooted at the repository (no leading /, no ..)")
+        else:
+            patterns.append(pattern)
+    return patterns, errors
+
+
+def match_segments(parts, segments):
+    """True when the path segments match the glob segments; `**` matches zero or more segments."""
+    if not segments:
+        return not parts
+    if segments[0] == "**":
+        return any(match_segments(parts[i:], segments[1:]) for i in range(len(parts) + 1))
+    return bool(parts) and fnmatchcase(parts[0], segments[0]) and match_segments(parts[1:], segments[1:])
+
+
+def catalog_files(spec, patterns):
+    """Repository paths the catalog must cover: every file a rooted pattern matches. The walk starts at the pattern's
+    literal prefix and never enters a folder whose name starts with `.` (.git included)."""
     found = set()
-    for pattern in patterns + list(globs):
-        found |= {p.relative_to(spec.root).as_posix() for p in spec.root.glob(pattern)
-                  if p.is_file() and not any(part.startswith(".") for part in p.relative_to(spec.root).parts)}
+    for pattern in patterns:
+        segments = glob_segments(pattern)
+        prefix = []
+        for segment in segments[:-1]:
+            if any(ch in segment for ch in "*?["):
+                break
+            prefix.append(segment)
+        start = spec.root.joinpath(*prefix)
+        if any(p.startswith(".") for p in prefix) or not start.is_dir():
+            continue
+        for folder, dirs, files in os.walk(start):
+            dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+            rel = Path(folder).relative_to(spec.root).parts
+            for name in files:
+                if not name.startswith(".") and match_segments(list(rel) + [name], segments):
+                    found.add("/".join(list(rel) + [name]))
     return sorted(found)
 
 
@@ -965,7 +1018,7 @@ def covered(path, catalog):
     return any(fnmatchcase(path, p) or path == p or path.startswith(p.rstrip("/") + "/") for p in catalog)
 
 
-def enabler_findings(spec, fid=None, globs=()):
+def enabler_findings(spec, fid=None, patterns=()):
     """C18 and C19 (KIT-095) over the open FEATs, or the one `fid` names; each finding is `C<n> <severity>: text`."""
     scope = [fid] if fid else [f for f, feat in spec.feats.items() if feat["status"] not in STATUS_FROZEN]
     satisfied = {rid for enabler in spec.enablers.values() for rid in enabler["satisfies"]}
@@ -997,7 +1050,7 @@ def enabler_findings(spec, fid=None, globs=()):
             if api not in consumed and row.get("Consumers", "").strip() in ("", PENDING):
                 findings.append(f"C19 medium: {eid} {api} has no consumer and no public mark")
     catalog = [p for enabler in spec.enablers.values() for p in enabler["catalog"]]
-    for path in catalog_files(spec, globs):
+    for path in catalog_files(spec, patterns):
         if not covered(path, catalog):
             findings.append(f"C19 high: {path} is in no ENB catalog (Schema or file)")
     return findings
@@ -1010,10 +1063,10 @@ def enablers_command(spec, fid, globs):
         return 0
     if fid and fid not in spec.feats:
         return report([f"{fid} does not exist in features/"], "")
-    bad = [g for g in globs if g.startswith("/") or ".." in Path(g).parts]
-    if bad:
-        return report([f"--catalog {g!r} must be a glob rooted at the repository" for g in bad], "")
-    findings = enabler_findings(spec, fid, globs)
+    patterns, errors = catalog_patterns(spec, globs)
+    if errors:
+        return report(errors, "")
+    findings = enabler_findings(spec, fid, patterns)
     for finding in findings:
         print(finding)
     if findings:

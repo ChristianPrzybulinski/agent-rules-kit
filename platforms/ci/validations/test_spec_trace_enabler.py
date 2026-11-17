@@ -376,5 +376,46 @@ class EnablerCommandTest(EnablerCase):
         self.assertNotIn("battle_start.json", out)
 
 
+class CatalogGlobTest(EnablerCase):
+    """--catalog and sdd.row_checks.protocol.schemas are globs rooted at the repository: a bad one is a FAIL line
+    with exit 1, never a traceback; `dir/**` covers the files under dir; a walk never enters a dot folder."""
+
+    def assert_refused(self, argv, fragment):
+        code, out, err = run(argv)
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("FAIL: ", err)
+        self.assertIn(fragment, err)
+        self.assertNotIn("Traceback", err)
+
+    def test_bad_catalog_globs_fail_cleanly(self):
+        for pattern in ("", "/etc/*", "../outside/*", "server/../../x"):
+            with self.subTest(pattern=pattern):
+                self.assert_refused(["enablers", str(self.spec), "--catalog", pattern],
+                                    f"--catalog {pattern!r} must be a glob rooted at the repository")
+
+    def test_bad_protocol_schemas_fail_cleanly(self):
+        for folder in ("/etc", "../outside"):
+            with self.subTest(folder=folder):
+                write(self.root, "docs/spec/spec.md", SPEC_INDEX.replace("game/protocol/schemas", folder))
+                self.assert_refused(["enablers", str(self.spec)],
+                                    "sdd.row_checks.protocol.schemas")
+
+    def test_double_star_suffix_covers_files(self):
+        write(self.root, "server/db/migration/V2__trade.sql", "-- fixture\n")
+        code, out, _ = run(["enablers", str(self.spec), "--catalog", "server/**"])
+        self.assertEqual(code, 1, out)
+        self.assertIn("C19 high: server/db/migration/V2__trade.sql is in no ENB catalog", out)
+
+    def test_walk_skips_dot_folders(self):
+        write(self.root, ".git/objects/ab/cdef", "blob\n")
+        write(self.root, "server/.cache/x.sql", "-- cache\n")
+        write(self.root, "server/db/migration/V2__trade.sql", "-- fixture\n")
+        code, out, _ = run(["enablers", str(self.spec), "--catalog", "**/*.sql", "--catalog", "**/*"])
+        self.assertEqual(code, 1, out)
+        self.assertNotIn(".git", out)
+        self.assertNotIn(".cache", out)
+        self.assertIn("server/db/migration/V2__trade.sql", out)
+
+
 if __name__ == "__main__":
     unittest.main()
