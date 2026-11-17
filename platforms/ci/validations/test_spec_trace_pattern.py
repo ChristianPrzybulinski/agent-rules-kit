@@ -113,6 +113,40 @@ class CatalogTest(enb.EnablerCase):
         self.assertEqual(table["spec"]["type"], "table")
         self.assertEqual(table["spec"]["dependencyOf"], ["component:ENB-001"])
 
+    def test_a_single_file_definition_is_a_text_reference(self):
+        write(self.root, "docs/spec/enablers/ENB-002-shop.md", enb.ENB_2.replace(
+            "`game/protocol/schemas/shop_*.json`", "`game/protocol/schemas/shop_open.json`"))
+        entities = self.entities()
+        self.assertEqual(entities[("API", "shop-wire")]["spec"]["definition"],
+                         {"$text": "../game-docs/game/protocol/schemas/shop_open.json"})
+        stub = entities[("API", "battle-wire")]["spec"]["definition"]  # a glob names no single file: the stub stays
+        self.assertIsInstance(stub, str)
+        self.assertIn("Schema or file: `game/protocol/schemas/battle_*.json`", stub)
+
+    def test_a_missing_file_keeps_the_stub(self):
+        write(self.root, "docs/spec/enablers/ENB-002-shop.md", enb.ENB_2.replace(
+            "`game/protocol/schemas/shop_*.json`", "`game/protocol/schemas/shop_gone.json`"))
+        self.assertIsInstance(self.entities()[("API", "shop-wire")]["spec"]["definition"], str)
+
+    def test_an_invalid_backstage_name_refuses_the_export(self):
+        long_id = "a" * 64
+        self.enabler(old="battle-table", new=long_id)
+        code, _, err, out = self.export()
+        self.assertEqual(code, 1)
+        self.assertIn(f"{long_id} is not a valid Backstage name", err)
+        self.assertFalse(out.exists())
+
+    def test_a_symlinked_out_is_refused_even_with_force(self):
+        target = Path(self.tmp.name) / "target.yaml"
+        target.write_text("keep\n", encoding="utf-8")
+        link = Path(self.tmp.name) / "portal/catalog-info.yaml"
+        link.parent.mkdir(parents=True)
+        link.symlink_to(target)
+        code, _, err, _ = self.export("--force")
+        self.assertEqual(code, 1)
+        self.assertIn("is a symbolic link", err)
+        self.assertEqual(target.read_text(encoding="utf-8"), "keep\n")
+
     def test_required_resource_is_a_dependency(self):
         write(self.root, "docs/spec/enablers/ENB-002-shop.md", enb.ENB_2.replace(
             "consumesApis: [battle-wire]", "consumesApis: [battle-wire, battle-table]").replace(

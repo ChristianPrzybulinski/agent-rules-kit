@@ -42,6 +42,8 @@ when a link has no name.
   `dependsOn` its ENBs and the Resources it requires); `domain` goes to the annotation `agent-rules-kit/domain`, as a
   Component has none. Contract kinds api → `openapi`, message and event → `asyncapi` API entities; the other kinds are
   Resources with `dependencyOf` the ENB. System, Domain and Group entities stay the portal's. Never hand-written.
+- An API's `definition` is a `$text` reference to its `Schema or file` when that cell names one existing file; a glob
+  or a missing file leaves a text stub of the row, which Backstage shows unparsed. A symbolic-link `--out` is refused.
 - `diagram SPEC PROC-nnn`: a Mermaid flowchart of the main path and its alternatives, to stdout.
 - A field an export needs that the ENB cannot hold gets an `x-` profile key (KIT-087), never a forked vocabulary.
 

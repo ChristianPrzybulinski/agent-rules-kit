@@ -32,7 +32,10 @@ the matrix names no link, and no tool writes `catalog-info.yaml`.
     consumesApis, dependsOn with the `component:` ENBs and the `resource:` contracts it requires; `domain` as the
     annotation `agent-rules-kit/domain`, since a Component has no domain field), an API per api (`openapi`), message or
     event (`asyncapi`) contract and a Resource per other contract with `dependencyOf` its ENB. Refused: an existing
-    file without `--force`, a path inside the kit checkout, any load error or an empty owner. Off without `enablers/`.
+    file without `--force`, a symbolic-link `--out` (even with `--force`), a path inside the kit checkout, any load
+    error, an empty owner or a name Backstage rejects (1 to 63 characters). An API's `definition` is a `$text`
+    reference, relative to the catalog file, when `Schema or file` names one existing file, else a text stub. Off
+    without `enablers/`.
   - `diagram SPEC PROC-nnn`: a Mermaid `flowchart TD` of the main steps in order and each alternative from its `At`.
 
 Choice on existing output: the link names go into a new view, rendered only when the spec has `processes/` or
@@ -42,7 +45,8 @@ changes. Not breaking; no Migration line.
 
 ## Proof
 
-New `platforms/ci/validations/test_spec_trace_pattern.py` (16 tests, red before the code: 3 failures and 12 errors),
+New `platforms/ci/validations/test_spec_trace_pattern.py` (16 tests, red before the code: 3 failures and 12 errors; the review's
+four, symlinked `--out`, `$text` definition, missing file and long name, red with 3 failures),
 then green with `python3.12` and `/usr/bin/python3` 3.9; the catalog tests parse the output back with PyYAML.
 Byte-for-byte: `render_matrix` sha-256 and `spec_trace.py check` output are the same under `origin/main` and this
 branch, on Python 3.12 and 3.9, for `platforms/ci/fixtures/consumer/docs/spec` and a copy of Stratics' `docs/spec`.
