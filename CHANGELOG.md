@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [17.1.0] - 2026-11-17
+
 ### Added
 - KIT-102: `review_checks.py red` runs in two phases for a runner that must start the test run itself, such as the Stratics loop's sealed VM (dev-game-studio/stratics#4687). `--plan OUT.json` makes today's selection and writes it as JSON (`status`, `base`, `head`, `test_files`, `classes`, `command`, `cwd`, `run_folder`, `junit`), runs nothing and exits as `red` does when no run is due (NONE 1, EXEMPT 0, no command for a test 2 with `status: error`), else 0. `--sides-from DIR` reads `DIR/base/` and `DIR/head/` (`exit_code`, `output.txt`, the optional `reports/`) and gives the one-process verdict, lines and exit code; it runs nothing and makes no worktree, and it reads only regular files inside `DIR` (a symbolic link or other non-regular file under it is exit 2; at most the last 8 MiB of `output.txt`; a report over 8 MiB is exit 2). Both share one judge with the one-process run, and both take one test command (several gates `red` entries claiming the tests: exit 2). Without either flag nothing changes.
 
