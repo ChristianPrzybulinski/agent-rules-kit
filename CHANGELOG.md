@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- KIT-105: session closeout and handoff file the single evidence-backed kit proposal directly as a GitHub issue and return its URL, without a confirmation to file. Open issues are reused, public evidence is minimized, failed filing stays unverified, and implementation still requires approval.
+
 ## [18.0.0] - 2026-11-17
 
 ### Added

@@ -19,7 +19,7 @@ Always-on discipline only: each line must hold before any skill could load. Proc
 
 - Start by naming **the** outcome in one sentence: one session, one outcome; one PR, one concern.
 - A new idea, need, improvement or problem in a repository with `docs/spec/` → load skill `sdd-intake` to record it; a request on another topic → say so and offer a follow-up or a new session before starting it.
-- Before a handoff or closeout → load skill `session`. End with done · unverified · one concrete next step, plus at most **one** proposal to change the kit (a missing rule, or a rule or step to simplify), backed by this session's evidence and asked before it is written.
+- Before a handoff or closeout → load skill `session`. End with done · unverified · one concrete next step, plus at most **one** evidence-backed kit proposal, filed directly as a GitHub issue without asking first; link it in the closeout. Filing is authorized; implementing the proposal still needs approval.
 - A compaction summary keeps the modified files and test commands verbatim, so the next turn can re-run the proof. After a compaction, re-check every number, path and line a deliverable cites unless the summary lists it as verified.
 
 ## Work loop
