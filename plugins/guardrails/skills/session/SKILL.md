@@ -37,7 +37,7 @@ One skill, four modes: `start` opens and scopes the session, `review` closes it 
 - List the worktrees this session created (`git worktree list`): remove only those whose branch is merged and whose tree is clean; report each one with uncommitted work and its dirty paths, and never remove it.
 - In Devin Cloud, open Session insights for ACU size, issues and the improved prompt; treat "misleading guidance" as a skill-description defect.
 - Look for a demonstrated kit gap, or a rule or step that cost time without changing the outcome, using the signal table in `references/kit-proposal.md`, then decide: no observed signal → stop after the summary; project-only discovery (critical constant, fragile convention) → propose one line for that repo's `AGENTS.md` on the spot, shaped `when <trigger>, do <action>, because <why>`; several signals → choose the strongest and put the rest in the handoff as follow-ups. Never propose kit growth because it merely sounds useful.
-- Propose with the exact block in `references/kit-proposal.md`, which also holds what to ask and how accepted work closes.
+- Record the chosen kit proposal directly as a GitHub issue using `references/kit-proposal.md`; it holds the exact block, duplicate search, publication boundary and failure handling. Link the issue in the closeout; filing needs no confirmation, implementation still does.
 
 ## handoff
 
