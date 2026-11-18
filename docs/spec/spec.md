@@ -24,6 +24,7 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 | ID | Title | Status | PR |
 |---|---|---|---|
 | [KIT-102](features/KIT-102-red-check-two-phase.md) | Split the red check into a plan and a judge of given sides | in-progress | #379 |
+| [KIT-103](features/KIT-103.md) | Name every spec record file by its id alone | planned | — |
 
 ## Decisions
 
