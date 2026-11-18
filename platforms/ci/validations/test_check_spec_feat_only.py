@@ -66,7 +66,7 @@ class FeatOnlyTest(unittest.TestCase):
         (self.root / ".ai-kit.yaml").write_text(text)
 
     def feat(self, fid="FEAT-001", status="planned", extra="", history=""):
-        (self.spec / "features" / f"{fid}-fixture.md").write_text(
+        (self.spec / "features" / f"{fid}.md").write_text(
             LITE_FEAT.format(fid=fid, status=status, extra=extra, history=history))
 
     def run_both(self, full_only=False):
@@ -150,7 +150,7 @@ class FeatOnlyTest(unittest.TestCase):
         self.profile(TOOLING)
         text = LITE.read_text(encoding="utf-8").replace("YYYY-MM-DD", "2026-11-17")
         self.assertNotIn("\nrequirements:", text.split("\n---\n", 1)[0])
-        (self.spec / "features" / "FEAT-000-template.md").write_text(text)
+        (self.spec / "features" / "FEAT-000.md").write_text(text)
         self.assert_passes()
 
     def test_an_invalid_profile_leaves_the_spec_check_as_it_was(self):

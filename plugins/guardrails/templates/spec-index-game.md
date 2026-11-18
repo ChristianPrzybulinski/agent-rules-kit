@@ -96,7 +96,7 @@ Spec-first (written to frame and cut the work, then frozen as history) = NEED fi
 
 | Area | Paths | Holds |
 |---|---|---|
-| [area, or the ENB id linked to its `enablers/ENB-nnn-slug.md`] | [rooted folder or glob] | [what lives there, one line] |
+| [area, or the ENB id linked to its `enablers/ENB-nnn.md`] | [rooted folder or glob] | [what lives there, one line] |
 
 ## Governance
 <!-- Only a pointer (KIT-099): approvals and protected paths live in the profile, deciders in decisions, owners in

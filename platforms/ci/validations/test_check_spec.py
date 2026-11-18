@@ -246,7 +246,7 @@ class DecisionKindsTest(unittest.TestCase):
 
     def decision(self, did, kind=None):
         extra = f"kind: {kind}\n" if kind else ""
-        (self.spec / "decisions" / f"{did}-fixture.md").write_text(DECISION.format(did=did, extra=extra))
+        (self.spec / "decisions" / f"{did}.md").write_text(DECISION.format(did=did, extra=extra))
 
     def run_both(self):
         """The full check, then the structural one: python -S hides pyyaml and jsonschema."""
@@ -320,6 +320,77 @@ class DecisionKindsTest(unittest.TestCase):
         self.assert_fails("decision prefix 'PROC' must match")
 
 
+class IdFileNameTest(unittest.TestCase):
+    """A record's file name is its id alone, `DGME-001.md`, never `DGME-001-slug.md` (KIT-103), so a GitHub autolink,
+    which puts only the number into its target address, reaches it."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.spec = Path(self.tmp.name)
+        (self.spec / "decisions").mkdir()
+        (self.spec / "spec.md").write_text(SPEC_INDEX.format(extra="decision_kinds: {game: DGME}\n"))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def decision(self, name, did="DGME-001"):
+        (self.spec / "decisions" / name).write_text(DECISION.format(did=did, extra="kind: game\n"))
+
+    def run_both(self, *flags):
+        """The full check, then the structural one: python -S hides pyyaml and jsonschema."""
+        env = {k: v for k, v in os.environ.items() if k != "CI"}
+        return [subprocess.run([sys.executable, *mode, str(CHECK_SPEC), *flags, str(self.spec), str(SCHEMAS)],
+                               capture_output=True, text=True, check=False, env=env) for mode in ([], ["-S"])]
+
+    def assert_passes(self):
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("[id-file-name]", result.stderr + result.stdout)
+
+    def assert_fails(self, *messages):
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 1, result.stderr)
+            for message in messages:
+                self.assertIn(message, result.stderr)
+
+    def test_a_slugged_record_fails_naming_the_file_it_should_be(self):
+        self.decision("DGME-001-servidor-autoritativo.md")
+        self.assert_fails("DGME-001-servidor-autoritativo.md: the file name carries a slug; rename to DGME-001.md",
+                          "[id-file-name]")
+
+    def test_a_record_named_by_its_id_passes_beside_a_readme_and_evidence(self):
+        """A file with no id is not read: a processes/ README (needs/ allows none: every Markdown file at its top
+        is a NEED record) and NEED-nnn-data/ evidence."""
+        self.decision("DGME-001.md")
+        (self.spec / "needs" / "NEED-001-data").mkdir(parents=True)
+        (self.spec / "needs" / "NEED-001-data" / "notes.md").write_text("# Evidence\n")
+        (self.spec / "processes").mkdir()
+        (self.spec / "processes" / "README.md").write_text("# Processes\n")
+        self.assert_passes()
+
+    def test_a_slugged_journey_fails_naming_the_file_it_should_be(self):
+        (self.spec / "journeys").mkdir()
+        (self.spec / "journeys" / "J-01-login.md").write_text(JOURNEY)
+        self.assert_fails("J-01-login.md: the file name carries a slug; rename to J-01.md", "[id-file-name]")
+
+    def test_a_baselined_rename_passes_and_a_new_slug_still_fails(self):
+        self.decision("DGME-001-servidor-autoritativo.md")
+        init = self.run_both("--baseline-init")[0]
+        self.assertEqual(init.returncode, 0, init.stderr)
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("rename to DGME-001.md [id-file-name]", result.stdout)
+            self.assertIn("1 finding held by baseline.json", result.stdout)
+        self.decision("DGME-002-new-record.md", did="DGME-002")
+        self.assert_fails("DGME-002-new-record.md: the file name carries a slug; rename to DGME-002.md")
+
+    def test_a_name_whose_id_disagrees_is_an_id_file_finding_only(self):
+        self.decision("DGME-002.md", did="DGME-001")
+        self.assert_fails("id=DGME-001 != file name prefix", "[id-file]")
+        for result in self.run_both():
+            self.assertNotIn("[id-file-name]", result.stderr)
+
+
 NEED = """---
 id: {nid}
 title: "Fixture need {nid}"
@@ -372,7 +443,7 @@ updated: "2026-11-16"
 
 
 class ProcessTest(unittest.TestCase):
-    """docs/spec/processes/PROC-nnn-slug.md frontmatter (KIT-090), with and without jsonschema."""
+    """docs/spec/processes/PROC-nnn.md frontmatter (KIT-090), with and without jsonschema."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -382,7 +453,7 @@ class ProcessTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def process(self, name="PROC-001-fixture", old=None, new=None):
+    def process(self, name="PROC-001", old=None, new=None):
         text = PROCESS.format(extra="")
         (self.spec / "processes" / f"{name}.md").write_text(text if old is None else text.replace(old, new))
 
@@ -401,7 +472,7 @@ class ProcessTest(unittest.TestCase):
 
     def test_product_and_tech_processes_pass(self):
         self.process()
-        (self.spec / "processes" / "PROC-002-runbook.md").write_text(
+        (self.spec / "processes" / "PROC-002.md").write_text(
             PROCESS.format(extra="").replace("PROC-001", "PROC-002").replace("kind: product", "kind: tech"))
         for result in self.run_both():
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -409,17 +480,17 @@ class ProcessTest(unittest.TestCase):
 
     def test_kind_is_required_and_an_enum(self):
         self.process(old="kind: product\n", new="")
-        self.assert_fails("PROC-001-fixture.md")
+        self.assert_fails("PROC-001.md")
         self.process(old="kind: product", new="kind: ops")
-        self.assert_fails("PROC-001-fixture.md", "ops")
+        self.assert_fails("PROC-001.md", "ops")
 
     def test_status_is_an_enum(self):
         self.process(old="status: proposed", new="status: done")
-        self.assert_fails("PROC-001-fixture.md", "done")
+        self.assert_fails("PROC-001.md", "done")
 
     def test_id_pattern_and_file_name(self):
         self.process(old="id: PROC-001", new="id: PROC-1")
-        self.assert_fails("PROC-001-fixture.md")
+        self.assert_fails("PROC-001.md")
         self.process(name="PROC-003-other")
         self.assert_fails("id=PROC-001 != file name prefix")
 
@@ -440,15 +511,15 @@ class NeedTest(unittest.TestCase):
         (self.spec / "features" / "FEAT-001.md").write_text(FEAT.format(fid="FEAT-001", reqs="REQ-F-001"))
         (self.spec / "requirements" / "functional" / "REQ-F-001.md").write_text(
             REQ.format(rid="REQ-F-001", feats="FEAT-001"))
-        (self.spec / "decisions" / "DEC-001-fixture.md").write_text(DECISION.format(did="DEC-001", extra=""))
-        (self.spec / "journeys" / "J-01-fixture.md").write_text(JOURNEY)
+        (self.spec / "decisions" / "DEC-001.md").write_text(DECISION.format(did="DEC-001", extra=""))
+        (self.spec / "journeys" / "J-01.md").write_text(JOURNEY)
 
     def tearDown(self):
         self.tmp.cleanup()
 
     def need(self, nid, status="proposed", type_="new", **links):
         extra = "".join(f"{field}: {value}\n" for field, value in links.items())
-        (self.spec / "needs" / f"{nid}-fixture.md").write_text(
+        (self.spec / "needs" / f"{nid}.md").write_text(
             NEED.format(nid=nid, type=type_, status=status, extra=extra))
 
     def run_both(self):
@@ -480,7 +551,7 @@ class NeedTest(unittest.TestCase):
 
     def test_unknown_type_and_status_fail(self):
         self.need("NEED-001", status="done", type_="idea")
-        self.assert_fails("NEED-001-fixture.md")
+        self.assert_fails("NEED-001.md")
 
     def test_file_name_must_carry_the_id(self):
         (self.spec / "needs" / "NEED-009-other.md").write_text(
@@ -549,7 +620,7 @@ class NeedTest(unittest.TestCase):
     def test_needs_off_refuses_a_need_file(self):
         self.needs_mode("false")
         self.need("NEED-001")
-        self.assert_fails("NEED-001-fixture.md: sdd.needs is false, so the project keeps no NEED files under needs/")
+        self.assert_fails("NEED-001.md: sdd.needs is false, so the project keeps no NEED files under needs/")
 
     def test_needs_off_a_req_lands_with_its_feat(self):
         """#237: with no NEED to hold it, a REQ needs a FEAT (the rule before KIT-066); a NEED listing it does not
@@ -568,12 +639,12 @@ class NeedTest(unittest.TestCase):
     def test_delivered_needs_delivered_features(self):
         self.need("NEED-001", status="delivered", requirements="[REQ-F-001]")
         self.need("NEED-002", status="delivered", requirements="[REQ-F-001]", features="[FEAT-001]")
-        self.assert_fails("NEED-001-fixture.md: status delivered needs the features that delivered it",
-                          "NEED-002-fixture.md: status delivered, but FEAT-001 is proposed")
+        self.assert_fails("NEED-001.md: status delivered needs the features that delivered it",
+                          "NEED-002.md: status delivered, but FEAT-001 is proposed")
 
     def approved_decision(self, did):
         text = DECISION.format(did=did, extra="").replace("status: proposed", "status: approved")
-        (self.spec / "decisions" / f"{did}-fixture.md").write_text(text)
+        (self.spec / "decisions" / f"{did}.md").write_text(text)
 
     def test_markdown_in_a_need_data_folder_is_not_a_need(self):
         self.need("NEED-001")
@@ -590,8 +661,8 @@ class NeedTest(unittest.TestCase):
         self.approved_decision("DEC-002")
         self.need("NEED-001", status="delivered", type_="decision", decisions="[DEC-001]")
         self.need("NEED-002", status="delivered", type_="new", decisions="[DEC-002]")
-        self.assert_fails("NEED-001-fixture.md: status delivered needs the features that delivered it",
-                          "NEED-002-fixture.md: status delivered needs the features that delivered it")
+        self.assert_fails("NEED-001.md: status delivered needs the features that delivered it",
+                          "NEED-002.md: status delivered needs the features that delivered it")
 
     def test_req_listed_only_by_a_closed_need_fails(self):
         self.req_without_feat("REQ-F-002")
@@ -613,7 +684,7 @@ class NeedTest(unittest.TestCase):
 
     def test_debts_link_must_be_a_debt(self):
         (self.spec / "debts").mkdir()
-        (self.spec / "debts" / "DEBT-001-fixture.md").write_text(DEBT)
+        (self.spec / "debts" / "DEBT-001.md").write_text(DEBT)
         self.need("NEED-001", debts="[DEBT-001]")
         self.assert_passes()
         self.need("NEED-002", debts="[DEC-001]")
@@ -622,7 +693,7 @@ class NeedTest(unittest.TestCase):
     def test_processes_link_must_be_a_process(self):
         """KIT-090: a NEED lists the processes it changes, as it lists journeys."""
         (self.spec / "processes").mkdir()
-        (self.spec / "processes" / "PROC-001-fixture.md").write_text(PROCESS.format(extra=""))
+        (self.spec / "processes" / "PROC-001.md").write_text(PROCESS.format(extra=""))
         self.need("NEED-001", status="refined", processes="[PROC-001]")
         self.assert_passes()
         self.need("NEED-002", processes="[PROC-009]")

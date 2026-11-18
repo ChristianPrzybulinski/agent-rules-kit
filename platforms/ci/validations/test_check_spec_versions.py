@@ -122,7 +122,7 @@ class VersionCase(unittest.TestCase):
             (self.spec / sub).mkdir(parents=True)
         for rid in ("REQ-F-001", "REQ-F-002"):
             (self.spec / "requirements/functional" / f"{rid}.md").write_text(REQ.format(rid=rid))
-        (self.spec / "processes" / "PROC-001-battle-turn.md").write_text(PROCESS)
+        (self.spec / "processes" / "PROC-001.md").write_text(PROCESS)
         self.feat()
 
     def tearDown(self):
@@ -286,16 +286,16 @@ class FeatureProcessTest(VersionCase):
 
 class NeedDeliveredByAnEarlierBlockTest(VersionCase):
     def test_a_need_delivered_by_an_earlier_block_stays_valid(self):
-        (self.spec / "needs" / "NEED-001-fixture.md").write_text(NEED)
+        (self.spec / "needs" / "NEED-001.md").write_text(NEED)
         self.assert_passes()
 
     def test_a_need_whose_reqs_no_delivered_block_holds_fails(self):
-        (self.spec / "needs" / "NEED-001-fixture.md").write_text(NEED.replace("requirements: [REQ-F-001]",
+        (self.spec / "needs" / "NEED-001.md").write_text(NEED.replace("requirements: [REQ-F-001]",
                                                                               "requirements: [REQ-F-002]"))
         self.assert_fails("status delivered, but FEAT-001 is in-progress", "[need-status]")
 
     def test_a_need_on_a_feat_with_no_delivered_block_fails(self):
-        (self.spec / "needs" / "NEED-001-fixture.md").write_text(NEED)
+        (self.spec / "needs" / "NEED-001.md").write_text(NEED)
         self.feat(old="Status: delivered", new="Status: cancelled")
         self.assert_fails("status delivered, but FEAT-001 is in-progress", "[need-status]")
 

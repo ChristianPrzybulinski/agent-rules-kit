@@ -5,7 +5,7 @@ kind: detail
 
 # Processes
 
-A process (`PROC-nnn`) holds one reusable functional flow: a mechanic, a business flow, or a flow no user sees (a scheduled job, a server count). Journeys stay the end-to-end paths and cite it (`journeys.md`); the rule text stays in the REQs it cites. Template: `../../../templates/spec-process.md`; file `docs/spec/processes/PROC-nnn-slug.md`; `check_spec.py` validates it and `spec_trace.py` checks and expands its steps (KIT-090).
+A process (`PROC-nnn`) holds one reusable functional flow: a mechanic, a business flow, or a flow no user sees (a scheduled job, a server count). Journeys stay the end-to-end paths and cite it (`journeys.md`); the rule text stays in the REQs it cites. Template: `../../../templates/spec-process.md`; file `docs/spec/processes/PROC-nnn.md`; `check_spec.py` validates it and `spec_trace.py` checks and expands its steps (KIT-090).
 
 ## When
 

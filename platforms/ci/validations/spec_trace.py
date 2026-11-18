@@ -74,7 +74,7 @@ NEED in <spec>/needs/ that lists the journey in `journeys` is open (not delivere
 routed or parked, and its listed FEATs have not yet all delivered every REQ it lists); once none is, both cite refs. Without needs/ nothing waits. A prerequisite row, an
 empty cell and a journey with no main step always fail.
 
-Processes (KIT-090) live in <spec>/processes/PROC-nnn[-slug].md, frontmatter `id`, `title`, `status`, `owner` and
+Processes (KIT-090) live in <spec>/processes/PROC-nnn.md, frontmatter `id`, `title`, `status`, `owner` and
 `kind` (`product` or `tech`). A process holds one reusable functional flow; its step tables follow the journey rules
 above (a `—` waits while an open NEED lists the process in `processes`), and one process may cite the tasks of many
 FEATs. A journey main or alternative step whose action cell cites `PROC-nnn` (every step) or `PROC-nnn S<a>–S<b>` (the
@@ -83,7 +83,7 @@ Rules, Implemented by and Proven by: it takes the cited steps' rules, tasks and 
 the closure expand it, and the checklist lists each cited step as its own row (KIT-092). A prerequisite or a process step never cites a process. With processes, traceability.md adds
 the Processes, Rules → processes → tests and Tasks → processes views; a spec without processes/ renders it as before.
 
-Enablers (KIT-095) live in <spec>/enablers/ENB-nnn[-slug].md (check_spec.py checks the frontmatter). Each holds the
+Enablers (KIT-095) live in <spec>/enablers/ENB-nnn.md (check_spec.py checks the frontmatter). Each holds the
 tables Aggregates (`Rules`: REQ-F ids), Events (`Direction` publishes or consumes, `Contract` an own contract or `—`),
 Provided contracts (`Contract`, `Kind` among CONTRACT_KINDS, `Accessed at`, `Schema or file`, `Version`, `Consumers`),
 Required contracts (`Contract`, `Kind`, `From`: the ENB that provides it, `Used for`) and Qualities (`Rules`: REQ-NF

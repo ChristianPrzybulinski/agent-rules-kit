@@ -97,7 +97,7 @@ class EnablerCase(unittest.TestCase):
 
     def enabler(self, eid, provides="", consumes="", depends="", name=None, old=None, new=None):
         text = ENABLER.format(eid=eid, provides=provides, consumes=consumes, depends=depends)
-        path = self.spec / "enablers" / f"{name or eid + '-fixture'}.md"
+        path = self.spec / "enablers" / f"{name or eid}.md"
         path.write_text(text if old is None else text.replace(old, new))
 
     def feat(self, reqs="", extra=""):
@@ -137,11 +137,11 @@ class EnablerFrontmatterTest(EnablerCase):
 
     def test_owner_is_required(self):
         self.enabler("ENB-001", provides="battle-wire", old="owner: battle-team\n", new="")
-        self.assert_fails("ENB-001-fixture.md", "owner")
+        self.assert_fails("ENB-001.md", "owner")
 
     def test_status_is_an_enum(self):
         self.enabler("ENB-001", provides="battle-wire", old="status: approved", new="status: done")
-        self.assert_fails("ENB-001-fixture.md", "done")
+        self.assert_fails("ENB-001.md", "done")
 
     def test_id_pattern_and_file_name(self):
         self.enabler("ENB-003", name="ENB-004-other")
@@ -149,11 +149,11 @@ class EnablerFrontmatterTest(EnablerCase):
 
     def test_unknown_field_fails_with_the_schema(self):
         self.enabler("ENB-001", provides="battle-wire", old="domain: combat", new="domain: combat\nlifecycle: prod")
-        self.assert_fails("ENB-001-fixture.md", full_only=True)
+        self.assert_fails("ENB-001.md", full_only=True)
 
     def test_contract_id_pattern_fails_with_the_schema(self):
         self.enabler("ENB-001", provides="Battle Wire")
-        self.assert_fails("ENB-001-fixture.md", full_only=True)
+        self.assert_fails("ENB-001.md", full_only=True)
 
     def test_enb_is_a_reserved_decision_prefix(self):
         index = self.spec / "spec.md"
@@ -168,24 +168,24 @@ class EnablerLinkTest(EnablerCase):
         self.assert_fails("FEAT-001.md: enablers lists ENB-009, which is not an existing enabler [enabler-link]")
 
     def test_decision_and_debt_list_enablers(self):
-        (self.spec / "decisions" / "DEC-001-fixture.md").write_text(DECISION.format(enablers="ENB-001"))
-        (self.spec / "debts" / "DEBT-001-fixture.md").write_text(DEBT.format(enablers="ENB-002"))
+        (self.spec / "decisions" / "DEC-001.md").write_text(DECISION.format(enablers="ENB-001"))
+        (self.spec / "debts" / "DEBT-001.md").write_text(DEBT.format(enablers="ENB-002"))
         self.assert_passes()
-        (self.spec / "decisions" / "DEC-001-fixture.md").write_text(DECISION.format(enablers="ENB-007"))
-        (self.spec / "debts" / "DEBT-001-fixture.md").write_text(DEBT.format(enablers="ENB-008"))
-        self.assert_fails("DEC-001-fixture.md: enablers lists ENB-007", "DEBT-001-fixture.md: enablers lists ENB-008")
+        (self.spec / "decisions" / "DEC-001.md").write_text(DECISION.format(enablers="ENB-007"))
+        (self.spec / "debts" / "DEBT-001.md").write_text(DEBT.format(enablers="ENB-008"))
+        self.assert_fails("DEC-001.md: enablers lists ENB-007", "DEBT-001.md: enablers lists ENB-008")
 
     def test_depends_on_an_unknown_enabler_or_itself(self):
         self.enabler("ENB-002", consumes="battle-wire", depends="ENB-005")
-        self.assert_fails("ENB-002-fixture.md: dependsOn lists ENB-005, which is not an existing enabler")
+        self.assert_fails("ENB-002.md: dependsOn lists ENB-005, which is not an existing enabler")
         self.enabler("ENB-002", consumes="battle-wire", depends="ENB-002")
-        self.assert_fails("ENB-002-fixture.md: dependsOn lists the enabler itself")
+        self.assert_fails("ENB-002.md: dependsOn lists the enabler itself")
 
 
 class EnablerContractTest(EnablerCase):
     def test_consumed_contract_no_enabler_provides(self):
         self.enabler("ENB-002", consumes="shop-wire")
-        self.assert_fails("ENB-002-fixture.md: consumesApis lists shop-wire, which no other enabler provides "
+        self.assert_fails("ENB-002.md: consumesApis lists shop-wire, which no other enabler provides "
                           "[enabler-contract]")
 
     def test_contract_provided_by_two_enablers(self):
@@ -194,7 +194,7 @@ class EnablerContractTest(EnablerCase):
 
     def test_enabler_consumes_its_own_contract(self):
         self.enabler("ENB-001", provides="battle-wire", consumes="battle-wire")
-        self.assert_fails("ENB-001-fixture.md: consumesApis lists battle-wire, which no other enabler provides")
+        self.assert_fails("ENB-001.md: consumesApis lists battle-wire, which no other enabler provides")
 
 
 class FeatureKindTest(EnablerCase):
@@ -229,7 +229,7 @@ class SpecFileErrorTest(EnablerCase):
     """#356 item 1: a spec file that is not UTF-8 is one `FAIL:` line that names it, never a traceback."""
 
     def test_non_utf8_enabler_fails_cleanly(self):
-        path = self.spec / "enablers" / "ENB-001-fixture.md"
+        path = self.spec / "enablers" / "ENB-001.md"
         path.write_bytes(path.read_bytes() + b"\xff\xfe\n")
         for result in self.run_both():
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)

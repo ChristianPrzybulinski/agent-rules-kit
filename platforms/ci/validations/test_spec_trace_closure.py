@@ -145,7 +145,7 @@ class ClosureCommandTest(unittest.TestCase):
         write(self.root, "docs/spec/requirements/functional/REQ-F-001.md", REQ.format(rid="REQ-F-001", feats="FEAT-001"))
         write(self.root, "docs/spec/requirements/functional/REQ-F-002.md", REQ.format(rid="REQ-F-002", feats="FEAT-002"))
         reqs = "REQ-F-001, REQ-F-002" if "FEAT-002" in need_feats else "REQ-F-001"
-        write(self.root, "docs/spec/needs/NEED-001-fixture.md", NEED.format(nid="NEED-001", reqs=reqs, feats=need_feats))
+        write(self.root, "docs/spec/needs/NEED-001.md", NEED.format(nid="NEED-001", reqs=reqs, feats=need_feats))
         write(self.root, "docs/spec/journeys/J-01.md", JOURNEY.format(s2_tasks=s2_tasks, s2_tests=s2_tests))
 
     def run_main(self, *argv):
@@ -158,7 +158,7 @@ class ClosureCommandTest(unittest.TestCase):
         return (self.spec / f"features/{fid}.md").read_text(encoding="utf-8")
 
     def need_text(self):
-        return (self.spec / "needs/NEED-001-fixture.md").read_text(encoding="utf-8")
+        return (self.spec / "needs/NEED-001.md").read_text(encoding="utf-8")
 
     def validate(self, *extra):
         return self.run_main("validate", str(self.spec), "FEAT-001", "--at", "1a2b3c4", *extra)

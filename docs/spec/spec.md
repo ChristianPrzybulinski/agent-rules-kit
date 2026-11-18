@@ -9,7 +9,7 @@ updated: "2026-11-17"
 # agent-rules-kit — Specification
 
 Index of the kit's own FEAT-only flow (`sdd.flow: feat-only`, KIT-101): no NEED, no REQ and no journey. The kit's
-rules, skills, templates and tools are its spec; each FEAT under `features/` (`KIT-nnn-slug.md`, template
+rules, skills, templates and tools are its spec; each FEAT under `features/` (`KIT-nnn.md`, template
 `spec-feature-lite.md`) records one big change as `../features/README.md` defines it, with its acceptance criteria
 and their proof commands, and its status follows its PR (`spec_trace.py sync-status`). The records up to KIT-101 stay
 in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[PROPOSAL]` `[HYPOTHESIS]`
@@ -23,7 +23,7 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 
 | ID | Title | Status | PR |
 |---|---|---|---|
-| [KIT-102](features/KIT-102-red-check-two-phase.md) | Split the red check into a plan and a judge of given sides | in-progress | #379 |
+| [KIT-102](features/KIT-102.md) | Split the red check into a plan and a judge of given sides | in-progress | #379 |
 | [KIT-103](features/KIT-103.md) | Name every spec record file by its id alone | planned | — |
 
 ## Decisions

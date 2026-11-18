@@ -25,7 +25,7 @@ Resolve the project profile first (`../session/references/project-profile.md`): 
 
 ## 2. Write the record
 
-- Create `docs/spec/needs/NEED-nnn-slug.md` from the template, keeping every section.
+- Create `docs/spec/needs/NEED-nnn.md` from the template, keeping every section.
 - Fill only the title, a provisional `type`, `origin`, the Request quote (verbatim, in the asker's language, with date and channel) and one line of Problem / value; a report handed over by `investigate` or `sdd-spike` is cited in Evidence. Every other section holds `—`.
 - A request holding several needs becomes one NEED each: the first records the request and lists the others, and each of them sets `parent` to it.
 - Add the History line `YYYY-MM-DD intake: created from <channel>.`

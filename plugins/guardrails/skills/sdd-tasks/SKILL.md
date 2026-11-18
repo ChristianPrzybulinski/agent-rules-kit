@@ -48,7 +48,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 ## 4. Cut
 
 When `cut_command` is set, run it on the FEAT and paste its output; otherwise cut here, in wave order:
-- Items: `tracker: github` cuts one GitHub issue per item in the project's backlog repository; `tracker: none` writes one `docs/spec/tasks/TASK-nnn-slug.md` per item from `../../templates/spec-task.md`, `status: todo`. Both carry the rows verbatim: `references/task-issue.md`.
+- Items: `tracker: github` cuts one GitHub issue per item in the project's backlog repository; `tracker: none` writes one `docs/spec/tasks/TASK-nnn.md` per item from `../../templates/spec-task.md`, `status: todo`. Both carry the rows verbatim: `references/task-issue.md`.
 - Bundle: new rows of one repository that share a Files path go into one item within `bundle` (`rows`, `points` with Low 1, Med 2, High 3, `high_rows`); the default `rows: 1` cuts one item per row. A row whose Files match a `task_cut.bundle_exclude` glob is its own item.
 - Labels: a row whose Files match a `protected_paths` entry gives its item that label.
 - Write each item (`#N` or `TASK-nnn`) into its rows' `Item` cell.
