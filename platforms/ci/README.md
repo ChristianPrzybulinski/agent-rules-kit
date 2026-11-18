@@ -10,7 +10,7 @@
 | `spec.schema.json` | a project's `docs/spec/spec.md` | fixed; optional `decision_kinds` (kind → decision id prefix); no `sdd` since KIT-087 P4 (the process parameters are the `sdd` section of `profile.schema.json`, and `check_spec.py` fails on an `sdd:` block in `spec.md`) |
 | `profile.schema.json` | a project's `.ai-kit.yaml` at its git top level (KIT-087), resolved by `platforms/tools/profile.py` | fixed name; a `kit` pin, `project.kind` (a preset of defaults, `x-presets`, KIT-088), `spec_root` and the sections `stacks`, `sdd`, `tracker`, `models`, `tests`, `quality`, `evidence`, `review`, `gates`, `changelog`, `release`, `ci`, `secrets`; every key has a default and an `x-read-by` phase, unknown keys fail and `x-<name>` keys are ignored |
 | `feature.schema.json` | `docs/spec/features/*.md` | `FEAT-nnn.md` |
-| `requirement.schema.json` | `docs/spec/requirements/{functional,non-functional}/*.md` | `REQ-F-nnn-*` / `REQ-NF-nnn-*`; optional `status` (`proposed`, `approved`, `retired`) |
+| `requirement.schema.json` | `docs/spec/requirements/{functional,non-functional}/*.md` | `REQ-F-nnn.md` / `REQ-NF-nnn.md`; optional `status` (`proposed`, `approved`, `retired`) |
 | `decision.schema.json` | `docs/spec/decisions/*.md` | `DEC-nnn.md`, or `<PREFIX>-nnn.md` with the `kind` whose prefix `spec.md` `decision_kinds` declares |
 | `debt.schema.json` | `docs/spec/debts/*.md` | `DEBT-nnn.md` |
 | `need.schema.json` | `docs/spec/needs/*.md` | `NEED-nnn.md`; `type` and `status` enums, forward links only |

@@ -1317,9 +1317,10 @@ def main():
                 targets.append((f, kind))
     if (spec_dir / "journeys").is_dir():  # KIT-103: this script reads journeys by name only (need-link)
         for f in sorted((spec_dir / "journeys").glob("J-*.md")):
-            m = JOURNEY_FILE.match(f.stem)
-            if m and f.stem != m.group(1):
-                fail(f"{f}: the file name carries a slug; rename to {m.group(1)}.md", "id-file-name", f)
+            if not re.fullmatch(r"J-\d{2,}", f.stem):  # `J-` and digits alone, any other stem fails
+                m = re.match(r"J-\d{2,}", f.stem)
+                why = f"the file name carries a slug; rename to {m.group(0)}.md" if m else "the file name is not J-NN.md"
+                fail(f"{f}: {why}", "id-file-name", f)
 
     ids, kind_of = {}, {}
     linked = {}  # id -> (path, kind, frontmatter) of each FEAT, decision, debt and ENB (KIT-095)

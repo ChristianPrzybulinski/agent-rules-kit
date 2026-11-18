@@ -373,6 +373,15 @@ class IdFileNameTest(unittest.TestCase):
         (self.spec / "journeys" / "J-01-login.md").write_text(JOURNEY)
         self.assert_fails("J-01-login.md: the file name carries a slug; rename to J-01.md", "[id-file-name]")
 
+    def test_a_journey_stem_that_is_not_j_and_digits_alone_fails(self):
+        """Any stem but `J-` and digits fails, not only the lowercase slug form spec_trace.py's JOURNEY_FILE reads."""
+        (self.spec / "journeys").mkdir()
+        for name in ("J-01_login.md", "J-02-Login.md", "J-3-login.md"):
+            (self.spec / "journeys" / name).write_text(JOURNEY)
+        self.assert_fails("J-01_login.md: the file name carries a slug; rename to J-01.md",
+                          "J-02-Login.md: the file name carries a slug; rename to J-02.md",
+                          "J-3-login.md: the file name is not J-NN.md")
+
     def test_a_baselined_rename_passes_and_a_new_slug_still_fails(self):
         self.decision("DGME-001-servidor-autoritativo.md")
         init = self.run_both("--baseline-init")[0]
