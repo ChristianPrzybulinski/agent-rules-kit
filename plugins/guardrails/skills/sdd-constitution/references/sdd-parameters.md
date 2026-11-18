@@ -13,7 +13,7 @@ A default is the kit's behavior before the key existed, except `max_chain` and `
 |---|---|---|---|
 | `needs` | `true`, `false` | `true` | the front chain (KIT-075): `false` keeps no NEED file; `sdd-intake` is skipped, `sdd-plan` writes the request, triage and Situations into the FEAT's Problem section, REQs take `source: request <date>` and land with their FEAT, and `check_spec.py` fails a NEED file (`needs-off`: a Markdown file at the top of `needs/`; an empty folder or `NEED-nnn-data/` evidence passes) and a REQ with no FEAT |
 | `journeys` | `true`, `false` | on when `docs/spec/journeys/` exists | `sdd-clarify` (journey steps), `sdd-check` (journey links), `sdd-tasks` (journey cells); `check_spec.py` validates `journeys/` by `journey.schema.json`; `spec_trace.py check` needs `traceability.md` when on or once it exists |
-| `tracker` | `github`, `none` | `github` | `sdd-tasks` cut (an issue, or `docs/spec/tasks/TASK-nnn-slug.md` per item), `sdd-implement`, `sdd-spike` (report destination) |
+| `tracker` | `github`, `none` | `github` | `sdd-tasks` cut (an issue, or `docs/spec/tasks/TASK-nnn.md` per item), `sdd-implement`, `sdd-spike` (report destination) |
 | `plan_sections` | list of `Design`, `Contract`, `Data`, `UI`, `Assets`, `Flag`, `Tests`, `Observability`, `Risks`, `Dependencies`; `Risks` and `Tests` always | all but `Assets` | `sdd-plan`: the FEAT's `## Plan` subsections |
 | `pr_unit` | `task`, `feat` | `task` | `sdd-implement`: one PR per task row or per FEAT |
 | `task_minutes` | integer ≥ 1 | `30` | `sdd-tasks`: a row's upper size |

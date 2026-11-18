@@ -93,12 +93,12 @@ class SpecFixture(unittest.TestCase):
 
     def feat(self, fid, *rows, status="planned"):
         table = HEADER + "".join(rows) if rows else ""
-        (self.spec / "features" / f"{fid}-fixture.md").write_text(FEAT.format(fid=fid, status=status, table=table))
+        (self.spec / "features" / f"{fid}.md").write_text(FEAT.format(fid=fid, status=status, table=table))
 
     def task(self, tid, fid="FEAT-001", rows="T1", status="todo", name=None, text=None):
         (self.spec / "tasks").mkdir(exist_ok=True)
         body = text if text is not None else TASK.format(tid=tid, fid=fid, rows=rows, status=status)
-        (self.spec / "tasks" / f"{name or tid + '-fixture'}.md").write_text(body)
+        (self.spec / "tasks" / f"{name or tid}.md").write_text(body)
 
     def run_mode(self, flags, *args):
         env = {k: v for k, v in os.environ.items() if k != "CI"}
@@ -127,7 +127,7 @@ class SpecFixture(unittest.TestCase):
 
 
 class TaskFileTest(SpecFixture):
-    """tracker: none keeps one docs/spec/tasks/TASK-nnn-slug.md per cut item, its status in frontmatter."""
+    """tracker: none keeps one docs/spec/tasks/TASK-nnn.md per cut item, its status in frontmatter."""
 
     def test_valid_task_file_passes(self):
         self.feat("FEAT-001", row("T1", item="TASK-001"))
@@ -142,11 +142,11 @@ class TaskFileTest(SpecFixture):
     def test_unknown_status_fails(self):
         self.feat("FEAT-001", row("T1", item="TASK-001"))
         self.task("TASK-001", status="review")
-        self.assert_fails("TASK-001-fixture.md", "'review'")
+        self.assert_fails("TASK-001.md", "'review'")
 
     def test_file_name_must_carry_the_id(self):
         self.feat("FEAT-001", row("T1", item="TASK-001"))
-        self.task("TASK-001", name="TASK-002-fixture")
+        self.task("TASK-001", name="TASK-002")
         self.assert_fails("id=TASK-001 != file name prefix")
 
     def test_feat_must_exist(self):
@@ -223,7 +223,7 @@ class TaskTableTest(SpecFixture):
 
     def test_delivered_feat_is_history(self):
         self.chain(6, status="delivered")
-        path = self.spec / "features" / "FEAT-001-fixture.md"
+        path = self.spec / "features" / "FEAT-001.md"
         # KIT-069: a delivered FEAT carries its closure line; this one predates sdd-review.
         path.write_text(path.read_text() + "- 2026-11-14 delivered before sdd-review\n")
         self.assert_passes()
@@ -271,7 +271,7 @@ class BaselineTest(SpecFixture):
     def test_new_finding_beside_the_baseline_fails(self):
         self.baseline({"task-chain": {"FEAT-001": 5}})
         self.chain_feat("FEAT-002")
-        self.assert_fails("FEAT-002-fixture.md: longest Depends on chain is 5 rows")
+        self.assert_fails("FEAT-002.md: longest Depends on chain is 5 rows")
 
     def test_held_chain_that_grows_fails(self):
         self.baseline({"task-chain": {"FEAT-001": 5}})
@@ -304,7 +304,7 @@ class BaselineTest(SpecFixture):
             self.baseline({"task-chain": {"FEAT-001": 5, "FEAT-003": 7}, "C11": {"REQ-F-001": 2}})
             result = self.run_mode(flags, "--baseline-update")
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("FEAT-002-fixture.md: longest Depends on chain is 5 rows", result.stderr)
+            self.assertIn("FEAT-002.md: longest Depends on chain is 5 rows", result.stderr)
             self.assertEqual(self.stored(), {"task-chain": {"FEAT-003": 6}, "C11": {"REQ-F-001": 2}},
                              "the fixed key leaves, a shorter chain is lowered, the new finding is not added, "
                              "sdd-check rows stay")
@@ -402,7 +402,7 @@ class SpecToolsBaselineTest(unittest.TestCase):
 
     def feat(self, fid):
         rows = [row("T1")] + [row(f"T{n}", depends=f"T{n - 1}") for n in range(2, 6)]
-        (self.repo / "docs" / "spec" / "features" / f"{fid}-fixture.md").write_text(
+        (self.repo / "docs" / "spec" / "features" / f"{fid}.md").write_text(
             FEAT.format(fid=fid, status="planned", table=HEADER + "".join(rows)))
 
     def baseline(self, rules):
@@ -442,7 +442,7 @@ class SpecToolsBaselineTest(unittest.TestCase):
         self.feat("FEAT-002")
         self.baseline({"task-chain": {"FEAT-001": 5, "FEAT-002": 5}})
         self.base_commit()
-        (self.repo / "docs" / "spec" / "features" / "FEAT-002-fixture.md").unlink()
+        (self.repo / "docs" / "spec" / "features" / "FEAT-002.md").unlink()
         self.baseline({"task-chain": {"FEAT-001": 5}})
         result = self.run_step()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

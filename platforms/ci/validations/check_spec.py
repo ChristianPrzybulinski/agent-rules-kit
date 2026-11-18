@@ -11,7 +11,8 @@ platforms/tools/profile.py; `--params` prints that section (every absent key at 
 KIT-087 P4 an `sdd:` block left in spec.md fails (rule sdd-params): its keys belong in `.ai-kit.yaml`. A profile the
 resolver refuses fails `--params` and profile.py, not this run (KIT-100).
 Also validates docs/spec/progress/*.json (executor progress of FEATs cut before KIT-068) when the folder exists, and
-fails on a merge-conflict marker left in any Markdown file under the spec dir.
+fails on a merge-conflict marker left in any Markdown file under the spec dir. A record's file is named by its id
+alone, `DGME-001.md` and `J-01.md` (rule id-file-name, KIT-103), so an autolink's `<num>` reaches it.
 Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id prefix, e.g.
 `{tech: TEC, product: PRD}`); then each decision's `kind` must be declared and its id carries that kind's prefix.
 NEED-nnn intake records (docs/spec/needs/, top level only: NEED-nnn-data/ folders hold evidence) link forward only:
@@ -23,13 +24,13 @@ needs a FEAT, the rule before KIT-066: clarify's REQs land in the change that cr
 Markdown files at the top of needs/, each one a NEED record, not the folder (#288, intended): an empty needs/ folder,
 or one that keeps only NEED-nnn-data/ evidence, passes.
 
-Processes (KIT-090): docs/spec/processes/PROC-nnn-slug.md (top level), checked against process.schema.json: `kind` is
+Processes (KIT-090): docs/spec/processes/PROC-nnn.md (top level), checked against process.schema.json: `kind` is
 `product` or `tech`. A NEED's `processes` lists existing processes, as its `journeys` lists journeys. Their step tables
 are spec_trace.py's. A spec without processes/ is checked as before. Both tools read processes/PROC-*.md and
 enablers/ENB-*.md only (NAMED_FILES, #356): a folder README.md is no record, and another Markdown file there fails
 (rule id-file), since neither tool would read it. A spec file that is not UTF-8 is one `frontmatter` failure.
 
-Enablers (KIT-095): docs/spec/enablers/ENB-nnn-slug.md (top level), checked against enabler.schema.json (Backstage's
+Enablers (KIT-095): docs/spec/enablers/ENB-nnn.md (top level), checked against enabler.schema.json (Backstage's
 field names `owner`, `system`, `domain`, `providesApis`, `consumesApis`, `dependsOn`). A FEAT, decision or debt's
 `enablers` and an ENB's `dependsOn` name existing ENBs (rule enabler-link); a contract id is provided by one ENB only
 and each id in `consumesApis` is provided by another ENB (enabler-contract); a FEAT with `kind: enabler` names at least
@@ -57,7 +58,7 @@ is delivered by its merged PR: the History line `- YYYY-MM-DD pr: delivered (<re
 sync-status writes. The full flow with the FEAT prefix checks a FEAT exactly as before.
 
 Task rows (KIT-068): a FEAT's `## Tasks` table (header `| ID | Task | ...`, rows `T<n>`). With `sdd.tracker: none` each
-cut item is docs/spec/tasks/TASK-nnn-slug.md (task.schema.json); its `feat` and `rows` and the rows' `Item` cell name
+cut item is docs/spec/tasks/TASK-nnn.md (task.schema.json); its `feat` and `rows` and the rows' `Item` cell name
 each other. On a FEAT that is not validated, delivered or cancelled, the longest chain of own-FEAT `Depends on` ids
 (`FEAT-nnn T1, T2` belongs to FEAT-nnn up to the next `;`) is at most `sdd.max_chain`, and a cycle or an own id that
 is not a row fails; more rows than `sdd.max_feat_tasks` and a Task cell over 1000 characters only warn.
@@ -89,10 +90,10 @@ failures = []  # (rule, artifact key, message); report() prints them once the ba
 SPEC_DIR = None  # set by main(); a finding's key is relative to it
 
 # Rule ids a baseline may hold; each fail() call names one.
-RULES = ("frontmatter", "schema", "id-file", "id-duplicate", "decision-kinds", "sdd-params", "conflict-marker",
-         "need-link", "need-status", "progress", "link-missing", "link-one-sided", "req-unlisted", "task-file",
-         "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure", "needs-off", "enabler-link",
-         "enabler-kind", "enabler-contract", "version-block", "block-tasks", "feature-process")
+RULES = ("frontmatter", "schema", "id-file", "id-file-name", "id-duplicate", "decision-kinds", "sdd-params",
+         "conflict-marker", "need-link", "need-status", "progress", "link-missing", "link-one-sided", "req-unlisted",
+         "task-file", "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure", "needs-off",
+         "enabler-link", "enabler-kind", "enabler-contract", "version-block", "block-tasks", "feature-process")
 MEASURED = ("task-chain", "block-tasks")  # the baseline holds the longest chain in rows, not a count of findings
 
 
@@ -1314,6 +1315,12 @@ def main():
         elif d.is_dir():
             for f in sorted(d.glob("*.md") if sub in ("needs", "tasks") else d.rglob("*.md")):
                 targets.append((f, kind))
+    if (spec_dir / "journeys").is_dir():  # KIT-103: this script reads journeys by name only (need-link)
+        for f in sorted((spec_dir / "journeys").glob("J-*.md")):
+            if not re.fullmatch(r"J-\d{2,}", f.stem):  # `J-` and digits alone, any other stem fails
+                m = re.match(r"J-\d{2,}", f.stem)
+                why = f"the file name carries a slug; rename to {m.group(0)}.md" if m else "the file name is not J-NN.md"
+                fail(f"{f}: {why}", "id-file-name", f)
 
     ids, kind_of = {}, {}
     linked = {}  # id -> (path, kind, frontmatter) of each FEAT, decision, debt and ENB (KIT-095)
@@ -1355,6 +1362,8 @@ def main():
             m = ID_PREFIX.match(path.stem)
             if not m or f"{m.group(1)}-{m.group(2)}" != str(fid):
                 fail(f"{path}: id={fid} != file name prefix", "id-file", path)
+            elif path.stem != str(fid):  # KIT-103: the id alone, so an autolink's `<num>` reaches the file
+                fail(f"{path}: the file name carries a slug; rename to {fid}.md", "id-file-name", path)
             if fid in ids:
                 fail(f"{path}: duplicate id {fid} (also in {ids[fid]})", "id-duplicate", path)
             ids[fid] = path

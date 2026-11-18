@@ -137,7 +137,7 @@ class FeatOnlySyncTest(unittest.TestCase):
         write(self.root, ".ai-kit.yaml", text)
 
     def feat(self, fid="KIT-101", status="planned", extra='pr: "#12"\n'):
-        return write(self.root, f"docs/spec/features/{fid}-fixture.md", FEAT.format(fid=fid, status=status, extra=extra))
+        return write(self.root, f"docs/spec/features/{fid}.md", FEAT.format(fid=fid, status=status, extra=extra))
 
     def routes(self, pulls=(), single=None):
         routes = {f"repos/{REPO}/issues?state=all": [], f"repos/{REPO}/pulls?state=all": list(pulls)}
@@ -238,7 +238,7 @@ class FeatOnlySyncTest(unittest.TestCase):
     def test_a_versioned_lite_feat_delivers_its_open_block(self):
         """KIT-096 coexistence: a lite FEAT with `## Versions` follows its PR in its last block, which check_spec.py
         then accepts with no REQ."""
-        path = write(self.root, "docs/spec/features/KIT-104-fixture.md", VERSIONED)
+        path = write(self.root, "docs/spec/features/KIT-104.md", VERSIONED)
         _, output = self.sync(self.routes(single={12: pull(12)}))
         self.assertIn("KIT-104: planned -> delivered (tool#12 merged)", output)
         text = path.read_text(encoding="utf-8")
@@ -249,7 +249,7 @@ class FeatOnlySyncTest(unittest.TestCase):
 
     def test_the_full_flow_ignores_the_pr_field(self):
         self.profile("sdd:\n  github: {repo: org/tool}\n")
-        path = write(self.root, "docs/spec/features/FEAT-001-fixture.md",
+        path = write(self.root, "docs/spec/features/FEAT-001.md",
                      FEAT.format(fid="FEAT-001", status="planned", extra='requirements: []\npr: "#12"\n'))
         before = path.read_text(encoding="utf-8")
         _, output = self.sync(self.routes(single={12: pull(12)}))

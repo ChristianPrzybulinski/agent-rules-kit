@@ -17,7 +17,7 @@ project:
 # spec_root stays at its default, docs/spec, not docs: the KIT records written before KIT-101 live in docs/features/
 # with their own frontmatter (status done or confirmed, no created) and stay as they are; under spec_root docs both
 # validators would read them (96 failures with jsonschema, 366 without, so no single baseline holds them). New records
-# are docs/spec/features/KIT-nnn-slug.md (template spec-feature-lite.md).
+# are docs/spec/features/KIT-nnn.md (template spec-feature-lite.md).
 sdd:
   id_prefix: {feature: KIT}  # KIT-nnn, the numbering of docs/features/
 

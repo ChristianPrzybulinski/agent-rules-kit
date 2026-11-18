@@ -57,4 +57,4 @@ Each artifact is written in one register (owner rule, 2026-11-16); its template'
 
 ## Project layout
 
-`docs/spec/` holds `spec.md` (+ `baseline.json`: old findings, only shrinks), `needs/NEED-nnn-slug.md` (+ `NEED-nnn-data/` when the evidence is bulky), `features/FEAT-nnn-slug.md`, `requirements/{functional,non-functional}/REQ-*.md`, `decisions/DEC-nnn-slug.md`, `debts/DEBT-nnn-slug.md`, `tasks/TASK-nnn-slug.md` (`tracker: none`), `progress/FEAT-nnn.json` (FEATs cut before KIT-068), `journeys/J-nn.md`, `processes/PROC-nnn-slug.md` and `enablers/ENB-nnn-slug.md`.
+`docs/spec/` holds `spec.md` (+ `baseline.json`: old findings, only shrinks), `needs/NEED-nnn.md` (+ `NEED-nnn-data/` when the evidence is bulky), `features/FEAT-nnn.md`, `requirements/{functional,non-functional}/REQ-*.md`, `decisions/DEC-nnn.md`, `debts/DEBT-nnn.md`, `tasks/TASK-nnn.md` (`tracker: none`), `progress/FEAT-nnn.json` (FEATs cut before KIT-068), `journeys/J-nn.md`, `processes/PROC-nnn.md` and `enablers/ENB-nnn.md`: each record file is named by its id alone (KIT-103), so a GitHub autolink on its prefix reaches it.

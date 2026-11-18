@@ -22,7 +22,7 @@ updated: "YYYY-MM-DD"
 
 ## Spec
 
-[`docs/spec/features/FEAT-000-slug.md`; its Relations list the REQ and decision ids, never copied here.]
+[`docs/spec/features/FEAT-000.md`; its Relations list the REQ and decision ids, never copied here.]
 
 ## Repository
 

@@ -10,7 +10,7 @@ One item carries one task row, or several when `bundle` bundles rows of one repo
 | Tracker | Item | Title | Body |
 |---|---|---|---|
 | `github` | an issue in the backlog repository the project names | `[FEAT-nnn Tn] <first ~8 words of the Task cell>` (bundle: `[FEAT-nnn T1+T2] ...`) | the kit issue template `platforms/kits/github/ISSUE_TEMPLATE/task.md`, installed as `.github/ISSUE_TEMPLATE/task.md` |
-| `none` | `docs/spec/tasks/TASK-nnn-slug.md`, the next unused `TASK-nnn` | frontmatter `title` | the template `spec-task.md`, the same fields; frontmatter `feat`, `rows`, `status`, `labels`, `pr` (schema `task.schema.json`) |
+| `none` | `docs/spec/tasks/TASK-nnn.md`, the next unused `TASK-nnn` | frontmatter `title` | the template `spec-task.md`, the same fields; frontmatter `feat`, `rows`, `status`, `labels`, `pr` (schema `task.schema.json`) |
 
 ## Field map (task row → item field)
 
