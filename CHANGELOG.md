@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [18.0.0] - 2026-11-17
+
 ### Added
 - KIT-103: every spec record file is named by its id alone, `DGME-001.md` and `J-01.md`, so a GitHub autolink, which puts only the number into its target address (`.../decisions/DGME-<num>.md`), opens the record. `check_spec.py` gains rule `id-file-name`: a record whose file stem is its frontmatter `id` plus a slug (`decisions/DGME-001-servidor-autoritativo.md`) and a journey named `J-01-login.md` fail with `rename to DGME-001.md` / `rename to J-01.md`; a name whose id disagrees stays an `id-file` finding alone. The skills, templates, `platforms/ci/README.md` and the docstrings name `NEED-nnn.md`, `FEAT-nnn.md`, `DEC-nnn.md`, `PROC-nnn.md`, `ENB-nnn.md`, `TASK-nnn.md` and `J-NN.md`; the kit's own `KIT-102-red-check-two-phase.md` becomes `KIT-102.md`. `spec_trace.py` still reads a slugged name.
 
