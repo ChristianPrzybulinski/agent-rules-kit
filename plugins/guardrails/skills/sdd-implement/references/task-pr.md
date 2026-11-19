@@ -7,7 +7,7 @@ kind: detail
 
 ## Scope
 
-- The row (its issue body or TASK file) is the spec, verbatim. Read the repo's `AGENTS.md`, then only the spec artifacts the row's `Spec` line names plus the binding decisions that FEAT cites.
+- The FEAT task row is the execution scope, verbatim; the shared issue points to it and never replaces it with the whole FEAT's Files union. For a legacy task issue or local TASK file, its copied row remains the scope. Read the repo's `AGENTS.md`, then only the spec artifacts the row's `Spec` line names plus the binding decisions that FEAT cites.
 - Change only the paths in the `Files` cell, plus a `changelog.d/<id>.<type>.md` fragment of `- ` bullets when the repo uses one — in that case never edit `CHANGELOG.md` directly. The kit's `changelog_fragments.py --check` (the `docs` stack's `changelog --check` recipe, `recipes.md`) validates it; the `changelog-consolidate.yml` template moves fragments into `CHANGELOG.md` (KIT-084).
 - `## Files widened` may add an existing test path outside Files that reads a changed file, one line each: `` `path`: why ``. It never adds production code, a new file or a changed assertion; `review_checks.py scope` refuses each.
 - Run the `DoD` commands from `<Repository>/AGENTS.md` § Commands; they must pass.
@@ -39,8 +39,8 @@ One line, real values only: `Executor: provider=<claude|codex|devin|human> tier=
 
 ## PR body
 
-- Write the body to a file outside the worktree, with the sections What, Why, Red, How I tested (literal command output), Proof, and when they apply Files widened, Secrets to register and the capture of a visual change (none for a greybox block's row under `sdd.passes`); then the executor line; last line `Closes <owner>/<docs-repo>#N` (or the TASK id under `tracker: none`).
-- Commits follow Conventional Commits with `Refs: FEAT-nnn Tn`. Never push to `main`, force-push, rebase or merge; the item becomes done when its PR merges.
+- Write the body to a file outside the worktree, with the sections What, Why, Red, How I tested (literal command output), Proof, and when they apply Files widened, Secrets to register and the capture of a visual change (none for a greybox block's row under `sdd.passes`); then the executor line; put `## Task rows` with the selected ids (`T1, T2`) before `## Proof` (which ends the row-selection section), then last line `Refs <owner>/<docs-repo>#N` for the shared FEAT issue. Only the closure after the FEAT's acceptance gate closes that issue. Legacy task issues keep `Closes`; local TASK files keep their TASK id.
+- Commits follow Conventional Commits with `Refs: FEAT-nnn Tn`. Never push to `main`, force-push, rebase or merge; the row becomes done only with its merged PR and green proof recorded; merging a row PR never completes other rows or closes the shared issue.
 
 ## Stop conditions
 

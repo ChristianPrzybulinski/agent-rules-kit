@@ -228,7 +228,7 @@
           "x-read-by": "sdd"
         },
         "cut_command": {
-          "description": "Project command that cuts the approved rows; null = the kit cut; read by sdd-tasks",
+          "description": "Project command to track approved work; GitHub commands must reuse one issue per FEAT, never emit task issues; null = the kit procedure",
           "type": [
             "string",
             "null"
@@ -283,7 +283,7 @@
           "x-read-by": "sdd"
         },
         "bundle": {
-          "description": "Limits for one issue that bundles task rows sharing a Files path; rows 1 = one issue per row; read by sdd-tasks",
+          "description": "Local TASK-file bundle limits (tracker: none); GitHub always uses one issue per FEAT, independent of these limits",
           "type": "object",
           "additionalProperties": false,
           "properties": {
@@ -679,7 +679,7 @@
               "x-read-by": "sdd"
             },
             "bundle_exclude": {
-              "description": "Globs a bundled item never shares: each such row is its own item",
+              "description": "Local TASK-file bundle exclusions (tracker: none); never splits GitHub FEAT issues",
               "type": "array",
               "uniqueItems": true,
               "items": {

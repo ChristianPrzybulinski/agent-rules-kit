@@ -34,11 +34,12 @@ What makes a task out of a FEAT row: the area it owns, the labels it needs and h
 - The longest chain of own rows is at most `max_chain`; `check_spec.py` fails a longer chain or a cycle.
 - A row on the longest chain carries at most `longest_chain_max_complexity` (default `Med`; `High`: no limit). A row above it is split along the Plan steps it implements, so each dependent waits only for the part it reads.
 
-## Bundles
+## Issue boundary and local bundles
 
-- New rows of one repository that share a `Files` path go into one item within `bundle` (`rows`, `points`, `high_rows`).
-- A row whose `Files` match a `bundle_exclude` glob is its own item; a path in that list never makes two rows share an item.
-- A bundle never contracts into a dependency cycle, and an item already cut is never added to a new bundle.
+- GitHub: all rows of a FEAT share its single issue, regardless of Files overlap, waves, repositories or bundle limits. Row dependencies stay as row ids; never turn them into a dependency on the same shared issue.
+- Local TASK files only (`tracker: none`): new rows of one repository sharing a `Files` path go into one item within `bundle` (`rows`, `points`, `high_rows`).
+- For local TASK files, a row whose `Files` match a `bundle_exclude` glob is its own item; a path in that list never makes two rows share an item.
+- A local bundle never contracts into a dependency cycle, and a TASK file already cut is never added to a new bundle.
 
 ## Example
 

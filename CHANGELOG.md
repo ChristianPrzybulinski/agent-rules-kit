@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- KIT-106: GitHub tracking uses one issue per FEAT, with task scope, dependencies and progress kept in its file. Cut/resync reuses that issue across rows, bundles and versions; row PRs reference it and FEAT acceptance closes it. A canonical `issue` preserves individual row states during synchronization, while legacy task issues and local TASK files remain compatible. Existing backlogs require explicit migration; a custom cutter that emits per-task issues must not run.
+
 ## [18.1.0] - 2026-11-18
 
 ### Changed

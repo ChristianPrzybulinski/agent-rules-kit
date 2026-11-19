@@ -9,7 +9,7 @@ scope: []
 milestone: null
 evidence: []
 flag: null
-card: null
+issue: ""
 owner: "[product]"
 created: "YYYY-MM-DD"
 updated: "YYYY-MM-DD"
@@ -27,8 +27,8 @@ updated: "YYYY-MM-DD"
      block, and a row is added only for a defect or a missing step of a REQ in its Scope, with a History line that
      says which (sdd-check C17). Task row ids continue across blocks and are never reused.
      status: proposed while sdd-plan drafts it, planned after a clean full-scope sdd-check; in-progress is derived once a
-     task row of the last block is doing or done (the rows follow their items: GitHub issues, or TASK files with
-     tracker: none), and status --write records that move in History whichever row moved it, in the frontmatter and
+     task row of the last block is doing or done (with a canonical issue, row states carry execution/merge evidence;
+     legacy task issues and tracker: none TASK files retain derived states), and status --write records that move in History whichever row moved it, in the frontmatter and
      the block's Status line;
      validated is written by sdd-review and delivered by sdd-release (or sdd-review under release: merge), through
      spec_trace.py with their History line; clarified remains only on FEATs written before the NEED flow. Never
@@ -128,8 +128,9 @@ Scope: [what this version adds or changes, on one line: REQ-F-000 (new) · REQ-F
 - [the Plan sections this version changes, or "— first version: the whole Plan"]
 
 #### Tasks
-<!-- filled by sdd-tasks in a spec PR, cut once approved or merged. Status (todo, doing, blocked, done, cancelled) is derived
-     from the item (GitHub issue, or TASK-nnn file with tracker: none) and never edited by hand; Item is — until the cut. -->
+<!-- filled by sdd-tasks in a spec PR, tracked once approved or merged. All GitHub Item cells name the same FEAT issue.
+     Status is recorded per row with evidence, mark-done for completion; the shared issue never overwrites it.
+     Legacy task issues and tracker: none TASK files retain derived states. Item is — until tracking is linked. -->
 
 | ID | Task | Files | Proof of completion | Covers | Depends on | Status | Complexity | Model | Wave | Item |
 |---|---|---|---|---|---|---|---|---|---|---|

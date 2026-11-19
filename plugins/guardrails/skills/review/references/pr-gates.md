@@ -15,11 +15,13 @@ One JSON file describes the project (the module docstring lists every key): `own
 
 - `python3 pr_gates.py --config <gates.json> --repo <name> --pr <n>` — Markdown report on stdout, exit 1 on failure.
 - `python3 pr_gates.py proof-commands --config <gates.json> --repo <name> --pr <n>` — the PR's allowlisted `proof` block commands, one per line, for the caller's `proof` job.
-- A body without `Closes <owner>/<backlog>#N` is a `no-task` PR: the task gates report `skip` and only the CI state is evaluated — architect PRs pass.
+- A body without `Closes` or `Refs <owner>/<backlog>#N` is a `no-task` PR: the task gates report `skip` and only the CI state is evaluated — architect PRs pass.
 
 ## 3. Gates
 
-Closes link, proof block, owned-areas scope, protected paths need their label, no overlap with other open PRs, changelog fragment when required, proof commands inside the allowlist, CI green — pending CI is reported, not failed.
+Issue link (`Closes` for legacy tasks, `Refs` for a FEAT), proof block, owned-areas scope, protected paths need their label, no overlap with other open PRs, changelog fragment when required, proof commands inside the allowlist, CI green — pending CI is reported, not failed.
+
+For a canonical FEAT issue, the approved table is mirrored under `## Tasks`; a PR selects ids under `## Task rows` (`T1, T2`), before the required `## Proof` heading. Its final `Refs` line stays outside the row-selection section. The gate validates only those rows' Files, rejects missing or unknown ids and never uses the whole issue Files union. Keep repository-qualified Files as the gate already requires. Imported callers pass that section as `evaluate_gates(..., task_rows=...)`; a mirrored table without a selection fails closed. The legacy gate key `contract: Closes link` is retained for consumers and accepts both link forms.
 
 ## Rules
 

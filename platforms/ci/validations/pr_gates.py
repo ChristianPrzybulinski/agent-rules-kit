@@ -24,11 +24,13 @@ closes, and the rule inputs:
 
 `owner`, `backlog_repo`, `repos` and `proof_allowlist` are required: a config without one, or with a value of the
 wrong type, exits 2 naming the key. `--repo` is the PR's repository name — a key of `repos`. Report rules:
-- **no-task**: a body without `Closes <owner>/<backlog_repo>#N` has no task issue to check against, so
+- **no-task**: a body without `Closes` or `Refs <owner>/<backlog_repo>#N` has no issue to check against, so
   the task gates (Closes link, proof block, the three scope rules, the changelog fragment and the
   proof allowlist) are reported `skip` and only the CI state is evaluated — architect PRs pass.
 - **pending CI**: reported as `pending`, not failed — the required checks themselves hold the merge.
   A red check still fails the report.
+- A FEAT issue mirrors its approved table under `## Tasks`. A referencing PR selects row ids under
+  `## Task rows`; scope uses only those rows, never the issue's Files union. Missing/invalid selection fails.
 - The proof commands are not executed here; each repo's `proof` job runs them with its own toolchain.
 """
 from __future__ import annotations
@@ -537,16 +539,47 @@ def clean_output(text: str) -> str:
     return _CONTROL.sub("", _ANSI.sub("", text))
 
 
+def issue_link(body: str | None) -> tuple[str, int | None]:
+    m = re.search(r"\b(Closes|Refs)\s+" + re.escape(f"{OWNER}/{BACKLOG}") + r"#(\d+)\b", body or "")
+    return (m.group(1), int(m.group(2))) if m else ("", None)
+
+
 def linked_issue(body: str | None) -> int | None:
-    m = re.search(r"Closes\s+" + re.escape(f"{OWNER}/{BACKLOG}") + r"#(\d+)", body or "")
-    return int(m.group(1)) if m else None
+    return issue_link(body)[1]
+
+
+def selected_task_files(secs: dict[str, str], selection: str | None) -> tuple[list[str], str]:
+    """Approved issue rows constrain a PR's selection; malformed/missing rows never widen to the FEAT union."""
+    if selection is None and "Tasks" not in secs:
+        return parse_files_cell(files_cell(secs)), ""
+    ids = re.split(r"[ \t,\r\n]+", (selection or "").strip())
+    if not all(re.fullmatch(r"T[0-9]+", tid) for tid in ids) or len(set(ids)) != len(ids):
+        return [], "missing or invalid Task rows selection (use T1, T2)"
+    rows, header = {}, None
+    for line in body_lines(secs.get("Tasks")):
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in re.split(r"(?<!\\)\|", line.strip())[1:-1]]
+        if cells and cells[0] == "ID" and "Files" in cells:
+            if header is not None:
+                return [], "duplicate Tasks table header"
+            header = cells.index("Files")
+        elif cells and re.fullmatch(r"T[0-9]+", cells[0]):
+            if header is None or len(cells) <= header or cells[0] in rows:
+                return [], "malformed or duplicate task row in issue"
+            rows[cells[0]] = parse_files_cell(cells[header])
+    missing = [tid for tid in ids if not rows.get(tid)]
+    if missing:
+        return [], "missing task Files in issue: " + ", ".join(missing)
+    return sorted({path for tid in ids for path in rows[tid]}), ""
 
 
 # --------------------------------------------------------------------------- gate rows (loop + CI)
 
 
 def evaluate_gates(repo: str, *, issue_n: int | None, issue: dict, changed: list[str], proof: list[str],
-                   pr_labels: list[str], other_prs: dict[int, list[str]], ci: str) -> list[dict]:
+                   pr_labels: list[str], other_prs: dict[int, list[str]], ci: str,
+                   task_rows: str | None = None) -> list[dict]:
     """The gate rows a review loop posts and the `pr-contract` check reports, as {gate, ok, detail}
     in that order. Fetching differs per caller (the loop uses `gh`, the report the REST API); the
     rules live only here."""
@@ -555,11 +588,13 @@ def evaluate_gates(repo: str, *, issue_n: int | None, issue: dict, changed: list
     def check(name: str, ok: bool, detail: str = "") -> None:
         results.append({"gate": name, "ok": ok, "detail": detail})
 
-    check("contract: Closes link", issue_n is not None, "" if issue_n else f"no `Closes {OWNER}/{BACKLOG}#N`")
+    check("contract: Closes link", issue_n is not None, "" if issue_n else f"no `Closes` or `Refs {OWNER}/{BACKLOG}#N`")
     check("contract: proof block", bool(proof), "" if proof else "no ```proof block with commands")
     secs = sections(issue.get("body"))
-    violations = scope_violations(changed, parse_files_cell(files_cell(secs)), repo)
-    check("scope: owned areas", not violations, ", ".join(violations[:10]))
+    owned, selection_error = selected_task_files(secs, task_rows)
+    violations = scope_violations(changed, owned, repo)
+    check("scope: owned areas", not selection_error and not violations,
+          selection_error or ", ".join(violations[:10]))
     protected = protected_violations(changed, label_names(issue), issue_n,
                                    CONFIG.get("protected_paths", {}))
     check("scope: protected paths", not protected, "; ".join(protected[:10]))
@@ -682,25 +717,27 @@ def gate_report(repo: str, n: int, token: str) -> tuple[str, bool]:
     pr = _api(token, f"/repos/{OWNER}/{repo}/pulls/{n}")
     head = pr["head"]["sha"]
     body = pr.get("body") or ""
-    issue_n = linked_issue(body)
+    link_kind, issue_n = issue_link(body)
     changed = [f["filename"] for f in _api_list(token, f"/repos/{OWNER}/{repo}/pulls/{n}/files")]
     proof = parse_proof(body)
     rows: list[dict] = []
     if issue_n is None:
-        reason = f"no-task: no `Closes {OWNER}/{BACKLOG}#N`"
+        reason = f"no-task: no `Closes` or `Refs {OWNER}/{BACKLOG}#N`"
         rows += [{"gate": name, "status": "skip", "detail": reason} for name in TASK_GATES]
         rows.append(_ci_row(_ci_state(token, repo, head)))
     else:
         issue = _api(token, f"/repos/{OWNER}/{BACKLOG}/issues/{issue_n}")
+        task_rows = sections(body).get("Task rows", "") if link_kind == "Refs" or "Tasks" in sections(issue.get("body")) else None
         ci = _ci_state(token, repo, head)
         for r in evaluate_gates(repo, issue_n=issue_n, issue=issue, changed=changed, proof=proof,
-                                pr_labels=label_names(pr), other_prs=_open_pr_files(token, repo, n), ci=ci):
+                                pr_labels=label_names(pr), other_prs=_open_pr_files(token, repo, n), ci=ci,
+                                task_rows=task_rows):
             rows.append(_ci_row(ci) if r["gate"] == "ci: green on head"
                         else {"gate": r["gate"], "status": "pass" if r["ok"] else "fail", "detail": r["detail"]})
     ok = all(r["status"] != "fail" for r in rows)
     lines = [f"## pr-contract — {repo}#{n} on `{head[:9]}`", ""]
     if issue_n is None:
-        lines += [f"`no-task` — the body has no `Closes {OWNER}/{BACKLOG}#N`; "
+        lines += [f"`no-task` — the body has no `Closes` or `Refs {OWNER}/{BACKLOG}#N`; "
                   "the task gates do not apply to architect PRs.", ""]
     lines += [f"- {_MARK[r['status']]} {r['gate']}" + (f" — {r['detail']}" if r["detail"] else "") for r in rows]
     lines += ["", "**PASSED**" if ok else "**FAILED**"]
