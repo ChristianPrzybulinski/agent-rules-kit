@@ -12,3 +12,7 @@
 ## What changes
 
 <!-- 1-3 lines -->
+
+## Red
+
+<!-- the test that failed first and now passes; or a first line starting `Exception` with why no test changed (the `red` check reads this section) -->
