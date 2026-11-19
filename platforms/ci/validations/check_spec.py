@@ -97,6 +97,7 @@ RULES = ("frontmatter", "schema", "id-file", "id-file-name", "id-duplicate", "de
          "task-file", "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure", "needs-off",
          "enabler-link", "enabler-kind", "enabler-contract", "version-block", "block-tasks", "feature-process",
          "pending-decision")
+UNBASELINED = ("pending-decision",)  # a RULES id no baseline may hold: it would hide an open owner question (KIT-113)
 MEASURED = ("task-chain", "block-tasks")  # the baseline holds the longest chain in rows, not a count of findings
 
 
@@ -601,21 +602,43 @@ def check_conflict_markers(spec_dir):
 # KIT-113: the line an SDD step writes when an owner question stayed unanswered and the chain went on with the marked
 # recommendation (`[DECISION] pending owner: <option> (asked YYYY-MM-DD HH:MM UTC)`). It starts a line, after at most
 # list, quote, numbering, checkbox, heading, table-cell or bold markers, in any case and with any spacing, so a spec that
-# quotes the marker in running text or in code does not fail. The owner's answer rewrites the line to
+# quotes the marker in running text or in code does not fail. A paragraph may wrap the opening itself (`[DECISION]
+# pending` / `owner:`): the match reads the line and the next PENDING_WRAP lines of its paragraph (up to a blank line,
+# each stripped of its indentation and quote marks) as one text, whose whitespace includes the line break; a break
+# after `owner` already leaves the first line matching. The owner's answer rewrites the line to
 # `[DECISION] <option>, chosen by the owner on YYYY-MM-DD` (sdd-clarify 2, sdd-plan 5), which this does not match; a
-# line that keeps `pending owner` in any wording still fails.
+# line that keeps `pending owner` in any wording still fails. `[ \t]`, not `\s`, before the marker, so a line of
+# markers alone never starts a match that its next line, which starts it too, would report a second time.
 PENDING_DECISION = re.compile(
-    r"^(?:\s|[-*+>|#_]|\d+[.)]|\[[ xX]\])*\[DECISION\](?:\*\*|__)?\s+pending\s+owner\b", re.I)
+    r"^(?:[ \t]|[-*+>|#_]|\d+[.)]|\[[ xX]\])*\[DECISION\](?:\*\*|__)?\s+pending\s+owner\b", re.I)
+PENDING_WRAP = 2  # the opening has three words, so it breaks over at most two line ends
+
+
+def pending_decision_at(lines, i):
+    """True when lines[i] starts the pending marker, alone or wrapped over the next lines of its paragraph."""
+    text = lines[i]
+    if PENDING_DECISION.match(text):
+        return True
+    if "[DECISION]" not in text.upper() or not text.strip():
+        return False
+    for nxt in lines[i + 1:i + 1 + PENDING_WRAP]:
+        if not nxt.strip():
+            break
+        text += "\n" + nxt.lstrip(" \t>")
+        if PENDING_DECISION.match(text):
+            return True
+    return False
 
 
 def check_pending_decisions(spec_dir):
     """Fails on a `[DECISION] pending owner` line in any Markdown file under the spec dir: the owner has not answered,
-    so the spec PR must not merge (KIT-113)."""
+    so the spec PR must not merge (KIT-113). The finding names the line the marker starts on."""
     for path in sorted(spec_dir.rglob("*.md")):
-        for n, line in enumerate((read_spec_text(path) or "").splitlines(), 1):
-            if PENDING_DECISION.match(line):
-                fail(f"{path}:{n}: [DECISION] pending owner: the owner has not answered; resolve it before the merge",
-                     "pending-decision", path)
+        lines = (read_spec_text(path) or "").splitlines()
+        for i in range(len(lines)):
+            if pending_decision_at(lines, i):
+                fail(f"{path}:{i + 1}: [DECISION] pending owner: the owner has not answered; resolve it before the "
+                     "merge", "pending-decision", path)
 
 
 CLOSURE_LINE = re.compile(r"^- \d{4}-\d{2}-\d{2} (sdd-review|sdd-release): (validated|delivered)\b", re.M)
@@ -1191,6 +1214,10 @@ def read_baseline(path):
             fail(f"{path}: unknown rule {rule!r}; check_spec.py rules are {', '.join(RULES)}, sdd-check rows "
                  f"C<n> and Q<n>", "baseline", path)
             continue
+        if rule in UNBASELINED:
+            fail(f"{path}: {rule} may not be held: a baseline would hide an open owner question; resolve the line "
+                 f"instead", "baseline", path)
+            continue
         if not isinstance(keys, dict):
             fail(f"{path}: {rule} must map each artifact to its count", "baseline", path)
             continue
@@ -1467,8 +1494,12 @@ def main():
             report([("baseline", BASELINE, f"{baseline_path} exists and may only shrink: --baseline-update lowers "
                      f"it", 1)])
             sys.exit(1)
+        left_out = sum(sum(counts.pop(rule, {}).values()) for rule in UNBASELINED)
         write_baseline(baseline_path, None, counts)
         print(f"baseline: wrote {sum(map(len, counts.values()))} entries to {baseline_path}")
+        if left_out:
+            print(f"baseline: left out {left_out} pending-decision finding{'' if left_out == 1 else 's'}: a baseline "
+                  f"never holds one; resolve the line, it still fails")
     data, held = read_baseline(baseline_path)
     if opts.get("--baseline-update") and data is not None:
         held = lowered(held, counts)

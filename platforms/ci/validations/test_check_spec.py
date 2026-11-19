@@ -226,9 +226,9 @@ class PendingDecisionTest(unittest.TestCase):
     def add(self, text):
         self.feat.write_text(self.feat.read_text() + text)
 
-    def run_check(self, *flags):
+    def run_check(self, *flags, args=()):
         env = {k: v for k, v in os.environ.items() if k != "CI"}  # -S hides pyyaml: the structural run
-        return subprocess.run([sys.executable, *flags, str(CHECK_SPEC), str(self.spec), str(SCHEMAS)],
+        return subprocess.run([sys.executable, *flags, str(CHECK_SPEC), *args, str(self.spec), str(SCHEMAS)],
                               capture_output=True, text=True, check=False, env=env)
 
     def test_a_pending_decision_fails_and_names_the_file(self):
@@ -296,6 +296,89 @@ class PendingDecisionTest(unittest.TestCase):
                  "The `[DECISION] pending owner: <option>` marker is quoted here in running text.\n")
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_a_marker_wrapped_inside_its_opening_fails_at_its_first_line(self):
+        """A wrapped paragraph may break the opening `[DECISION] pending owner:` itself; the finding names the first line."""
+        for form in ("[DECISION] pending\nowner: B (asked 2026-11-19 10:00 UTC)",
+                     "[DECISION]\npending owner: B (asked 2026-11-19 10:00 UTC)",
+                     "[DECISION]\npending\nowner: B",
+                     "- [DECISION] pending\n  owner: B (asked 2026-11-19\n  10:00 UTC)",
+                     "> [DECISION] pending\n> owner: B",
+                     "**[DECISION]**\npending owner: B",
+                     "[decision] Pending\n   Owner: B"):
+            with self.subTest(form=form):
+                self.feat.write_text(FEAT.format(fid="FEAT-001", reqs="") + f"\n{form}\n")
+                result = self.run_check()
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn("FEAT-001.md:", result.stderr)
+                self.assertEqual(result.stderr.count("[pending-decision]"), 1, result.stderr)
+
+    def test_a_marker_wrapped_after_its_opening_still_fails_once(self):
+        line = len(self.feat.read_text().splitlines()) + 1
+        self.add("[DECISION] pending owner: option B\n(asked 2026-11-19 10:00 UTC)\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stderr.count("[pending-decision]"), 1, result.stderr)
+        self.assertIn(f"FEAT-001.md:{line}:", result.stderr)
+
+    def test_prose_that_only_quotes_the_marker_passes_when_wrapped(self):
+        """A quoted marker mid-line, or an opening that a blank line, a list item or a table cell breaks, is not the line."""
+        for form in ("The step writes the line `[DECISION] pending\nowner: <option>` and stops.",
+                     "The owner answers; the\nmarker `[DECISION] pending owner: <option>` goes away.",
+                     "[DECISION] option B, chosen by the owner on 2026-11-19\npending owner questions are listed first.",
+                     "[DECISION]\n\npending owner: a blank line ends the paragraph",
+                     "[DECISION]\n- pending owner: a list item starts a new block",
+                     "| [DECISION] |\n| pending owner |"):
+            with self.subTest(form=form):
+                self.feat.write_text(FEAT.format(fid="FEAT-001", reqs="") + f"\n{form}\n")
+                result = self.run_check()
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_baseline_init_leaves_a_pending_decision_out_and_still_fails(self):
+        """--baseline-init holds the other findings, never a pending line: it would hide the open owner question."""
+        (self.spec / "notes.md").write_text("<<<<<<< HEAD\n")  # a conflict-marker finding the baseline may hold
+        self.add("[DECISION] pending owner: B (asked 2026-11-19 10:00 UTC)\n")
+        result = self.run_check(args=("--baseline-init",))
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("[pending-decision]", result.stderr)
+        self.assertIn("pending-decision", result.stdout)  # says what init left out
+        held = json.loads((self.spec / "baseline.json").read_text())["rules"]
+        self.assertEqual(held, {"conflict-marker": {"notes.md": 1}})
+        again = self.run_check()  # the plain run keeps failing on the pending line only
+        self.assertEqual(again.returncode, 1)
+        self.assertIn("[pending-decision]", again.stderr)
+        self.assertNotIn("[conflict-marker]", again.stderr)
+
+    def test_baseline_init_on_a_pending_decision_alone_writes_an_empty_baseline_and_fails(self):
+        self.add("[DECISION] pending owner: B (asked 2026-11-19 10:00 UTC)\n")
+        result = self.run_check(args=("--baseline-init",))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("[pending-decision]", result.stderr)
+        self.assertEqual(json.loads((self.spec / "baseline.json").read_text())["rules"], {})
+
+    def test_baseline_init_without_a_pending_decision_is_unchanged(self):
+        (self.spec / "notes.md").write_text("<<<<<<< HEAD\n")
+        result = self.run_check(args=("--baseline-init",))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads((self.spec / "baseline.json").read_text())["rules"],
+                         {"conflict-marker": {"notes.md": 1}})
+
+    def test_a_baseline_that_holds_a_pending_decision_is_refused_and_does_not_hide_it(self):
+        self.add("[DECISION] pending owner: B (asked 2026-11-19 10:00 UTC)\n")
+        (self.spec / "baseline.json").write_text(json.dumps({"rules": {"pending-decision": {"FEAT-001": 1}}}))
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("[baseline]", result.stderr)
+        self.assertIn("pending-decision", result.stderr)
+        self.assertIn("[pending-decision]", result.stderr)
+
+    def test_baseline_update_drops_a_held_pending_decision_entry(self):
+        (self.spec / "notes.md").write_text("<<<<<<< HEAD\n")
+        (self.spec / "baseline.json").write_text(json.dumps(
+            {"rules": {"pending-decision": {"FEAT-001": 1}, "conflict-marker": {"notes.md": 1}}}))
+        self.run_check(args=("--baseline-update",))
+        self.assertEqual(json.loads((self.spec / "baseline.json").read_text())["rules"],
+                         {"conflict-marker": {"notes.md": 1}})
 
 
 SPEC_INDEX = """---
