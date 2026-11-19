@@ -54,6 +54,6 @@ Under `release: merge` (the default `sdd:` value) `sdd-review` already moved eac
 
 ## 7. Route the feedback
 
-- Each finding from acceptance, smoke or production is routed by `sdd-intake` § 4 with the observation as evidence, never as an edit to the frozen FEAT: a defect is a fix row on the FEAT that owns the code (its next version block once delivered), stale text a spec fix, a product choice one owner question (a `decision` NEED only where § 4 says so); a new need the owner or a user states becomes a NEED, with `parent: NEED-nnn` (the delivered NEED).
+- Each finding from acceptance, smoke or production is routed by `sdd-intake` § 4 with the observation as evidence, never as an edit to a delivered block: a defect is a fix row on the FEAT that owns the code (its next version block once delivered), stale text a spec fix, a product choice one owner question (a `decision` NEED only where § 4 says so); a new need the owner or a user states becomes a NEED, with `parent: NEED-nnn` (the delivered NEED).
 
 Done when: the release PR is merged and tagged, the smoke and acceptance are recorded, each flag is on with its rollback plan written, `deliver` moved every grouped FEAT (and its complete NEEDs), and every feedback item names its route: a fix row, a spec fix, an owner question or a child NEED.

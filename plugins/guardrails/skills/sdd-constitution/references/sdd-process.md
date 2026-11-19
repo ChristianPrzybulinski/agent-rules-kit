@@ -16,7 +16,7 @@ The chain is intake → specify → clarify → plan → tasks (the cut included
 | Step | Skill | Input | Output |
 |---|---|---|---|
 | 0 | `sdd-constitution` | product/stack | project rules + spec index |
-| entry | `sdd-intake` | request | NEED proposed |
+| entry | `sdd-intake` | request; a finding (§ 4) | NEED proposed; the finding's route |
 | 1 | `sdd-specify` | proposed NEED; later the triaged one | decide: triaged, or closed; describe: specified |
 | 2 | `sdd-clarify` | specified NEED | REQs (new, amended), journeys, product decisions; NEED refined |
 | tool | `sdd-check` | called by clarify (NEED, functional) and plan (FEAT, full); `all` for audits | read-only report that blocks refined or planned |
