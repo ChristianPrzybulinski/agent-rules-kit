@@ -25,7 +25,7 @@
 | `sdd-review` | user | SDD step 8 — FEAT closure on main: task proofs, stale-text and trace lint, REQ-NF. Use when a FEAT's last row merged. Not for PR verdicts (skill review). |
 | `sdd-specify` | user, model | SDD 1 — specify a NEED-nnn: decide type, route and priority, then describe. Use when a NEED is proposed or taken up. Not for writing REQs (skill sdd-clarify). |
 | `sdd-spike` | user | Prototype lane for feel or feasibility. Use when motion, UI feel or a technical risk must be tried in code before a FEAT. Not for specs (skill sdd-intake). |
-| `sdd-tasks` | user | SDD step 5 — task rows in a planned FEAT and its single tracking issue. Use when a FEAT is planned or its rows change. Not for execution (skill sdd-implement). |
+| `sdd-tasks` | user | SDD step 5 — task rows of a FEAT and its one issue. Use when a FEAT is planned, its rows change or a fix needs one. Not for execution (skill sdd-implement). |
 | `security` | user, model | Security design and CVE, secret and endpoint scans. Use when changing a trust boundary or preparing a sensitive PR or release. Not for verdicts (skill review). |
 | `session` | user, model | Session start, closeout and handoff. Use when starting, switching topic, closing, handing off or a second human joins. Not for parallelism (skill parallelize). |
 
@@ -80,6 +80,8 @@
 - `protocol-rule-required-field-bumps-version`
 - `review-claimed-proof-not-rerun`
 - `review-trigger-can-i-merge`
+- `sdd-intake-negative-finding-stays-a-row`
+- `sdd-intake-negative-no-spec-repo`
 - `sdd-intake-trigger-new-idea`
 - `security-trigger-download-endpoint`
 - `session-closeout-no-rerun`
