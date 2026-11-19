@@ -5,7 +5,7 @@ kind: detail
 
 # Check list
 
-Grade each item pass / fail / not-applicable with evidence `path:line`; a security or integrity fail is `critical`. The functional scope (`NEED-nnn`) grades Q1 against each REQ's Verification, Q2–Q4, Q7 and Q12; the full scope (`FEAT-nnn`) grades every item, Q1 against the FEAT's criteria.
+Grade each item pass / fail / not-applicable; a fail carries its evidence `path:line`, a pass or not-applicable item is listed by id only; a security or integrity fail is `critical`. The functional scope (`NEED-nnn`) grades Q1 against each REQ's Verification, Q2–Q4, Q7 and Q12; the full scope (`FEAT-nnn`) grades Q1 against the FEAT's criteria and Q5, Q6 and Q8–Q11 on the whole FEAT, and Q2–Q4, Q7 and Q12 only on what changed since the NEED's `refined` commit (`SKILL.md` Scope).
 
 ## Testability and completeness
 
