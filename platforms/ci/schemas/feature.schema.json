@@ -46,6 +46,11 @@
       "uniqueItems": true
     },
     "flag": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9-]*$" },
+    "issue": {
+      "description": "The single GitHub issue for this FEAT; task progress stays in its table, not in per-task issues",
+      "type": ["string", "null"],
+      "pattern": "^(([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[0-9]+)?$"
+    },
     "card": { "type": ["integer", "null"], "minimum": 1 },
     "owner": { "type": "string" },
     "created": { "type": "string", "format": "date" },

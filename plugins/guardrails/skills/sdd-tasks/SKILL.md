@@ -1,6 +1,6 @@
 ---
 name: sdd-tasks
-description: "SDD step 5 — task rows in a planned FEAT, then their cut into items. Use when a FEAT is planned or its rows change. Not for execution (skill sdd-implement)."
+description: "SDD step 5 — task rows in a planned FEAT and its single tracking issue. Use when a FEAT is planned or its rows change. Not for execution (skill sdd-implement)."
 argument-hint: "FEAT-nnn [cut | resync]"
 triggers:
   - user
@@ -13,7 +13,7 @@ allowed-tools:
 
 # SDD 5 — Tasks
 
-Two parts: write the rows into the FEAT and land them in a spec PR, then cut them into items once that table is approved or merged. Process: `../sdd-constitution/references/sdd-process.md`. Resolve the project profile first (`../session/references/project-profile.md`) and read `spec_root` and the `sdd` parameters `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`), `passes`, `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token. With `sdd.task_table: false` (the `tooling` preset, set with `sdd.flow: feat-only`; KIT-100) this step does not run: the FEAT is the item, one issue and one PR, and its status follows that PR (`TRACE sync-status`); say so and stop.
+Write the rows into the FEAT and land them in a spec PR, then create or reuse its single tracking issue once that table is approved or merged. With `tracker: github`, one FEAT always has one issue; rows, waves, bundles and version blocks never create additional issues. Process: `../sdd-constitution/references/sdd-process.md`. Resolve the project profile first (`../session/references/project-profile.md`) and read `spec_root` and the `sdd` parameters `task_minutes`, `max_chain`, `max_feat_tasks`, `row_check`, `tracker`, `cut_command`, `bundle`, `protected_paths`, `journeys` (`../sdd-constitution/references/sdd-parameters.md`), `passes`, `task_cut` and `decision_folding`. The cut changes GitHub or repository state: run it only on user invocation and never print a token. With `sdd.task_table: false` (the `tooling` preset, set with `sdd.flow: feat-only`; KIT-100) this step does not run: the FEAT is the item, one issue and one PR, and its status follows that PR (`TRACE sync-status`); say so and stop.
 
 ## 1. Gate
 
@@ -37,7 +37,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 ```
 
 - In a FEAT with `## Versions` the table goes in the open block's `#### Tasks`; row ids continue across blocks and are never reused. Once the block's rows are planned, a row is added only for a defect or a missing step of a REQ in the block's Scope, with a History line naming the row and the defect or REQ (`sdd-check` C17); other new work goes to the next block.
-- Files: rooted paths or directory globs, tests included; generated neighbours (`*.uid`, `*.import`, `*.translation`) are implicit and never listed. `Status` (`todo`, `doing`, `blocked`, `done`, `cancelled`) is derived from the item, never edited by hand. `Complexity`, `Model` and `Wave`: `references/waves-and-models.md`. `Item` is `—` until the cut.
+- Files: rooted paths or directory globs, tests included; generated neighbours (`*.uid`, `*.import`, `*.translation`) are implicit and never listed. `Status` (`todo`, `doing`, `blocked`, `done`, `cancelled`) belongs to each row: with a canonical FEAT `issue`, record row-specific execution evidence in History and use `TRACE mark-done` with the merged PR for completion. The shared issue never supplies a row status. Legacy task issues and `tracker: none` TASK files retain their derived status. `Complexity`, `Model` and `Wave`: `references/waves-and-models.md`. `Item` is `—` until the cut.
 - Walk table (with `docs/spec/enablers/`): write into each row of Plan § Design's walk table the row ids that build its ENB contract; a walk row with no task row is a gap to fix here.
 - Coverage: every acceptance criterion appears in a row's `Covers` (each CA already cites the REQs it proves); every row covers a criterion or says it is infrastructure; run `sdd-check` row C8.
 - Cut checklist: every row passes `references/task-cut.md` (owned areas, protected labels, required test folders, hotspots, chains, bundle exclusions).
@@ -47,21 +47,21 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 
 ## 4. Cut
 
-When `cut_command` is set, run it on the FEAT and paste its output; otherwise cut here, in wave order:
-- Items: `tracker: github` cuts one GitHub issue per item in the project's backlog repository; `tracker: none` writes one `docs/spec/tasks/TASK-nnn.md` per item from `../../templates/spec-task.md`, `status: todo`. Both carry the rows verbatim: `references/task-issue.md`.
-- Bundle: new rows of one repository that share a Files path go into one item within `bundle` (`rows`, `points` with Low 1, Med 2, High 3, `high_rows`); the default `rows: 1` cuts one item per row. A row whose Files match a `task_cut.bundle_exclude` glob is its own item.
-- Labels: a row whose Files match a `protected_paths` entry gives its item that label.
-- Write each item (`#N` or `TASK-nnn`) into its rows' `Item` cell.
+For GitHub, first verify that any `cut_command` creates or updates one issue for the whole FEAT. Never run a command that emits row or bundle issues: report the exact incompatible command and use the procedure below, or adapt it in a separately scoped project change. A compatible command is idempotent and returns the existing issue on resync. With `tracker: none`, keep the configured cut or the local TASK procedure below:
+- GitHub: create or reuse the single FEAT issue as `references/task-issue.md` specifies. Save its qualified reference in FEAT frontmatter `issue` and put that same reference in every row's `Item`. Reuse an existing FEAT card; never create both a card and an issue. The table remains the source of task scope, dependencies and proofs.
+- Local tracker only: `tracker: none` writes one `docs/spec/tasks/TASK-nnn.md` per row or bundle from `../../templates/spec-task.md`, with `status: todo` and the rows verbatim. Its `bundle` limits and `task_cut.bundle_exclude` still apply. These settings never split GitHub issues.
+- Labels: the FEAT issue gets the union of labels required by all rows' `protected_paths`; local TASK items get their own rows' labels.
+- Verify the returned issue reference before writing Item cells; on an ambiguous creation failure, search for the FEAT before retrying. Local TASK ids go into their rows' Item cells.
 - Journeys (`journeys`; absent = on when `docs/spec/journeys/` exists): fill every `—` step of the journeys this FEAT's NEED lists, a step with `Rules` `—` included: `Implemented by` takes the `FEAT-nnn Tn` rows that build it, `Proven by` the test rows, never a path to a test file that does not exist yet; add any `P<n>` row with its task. A step that cites a process (`PROC-nnn` or `PROC-nnn S<a>–S<b>`) keeps `—` in its Rules, Implemented by and Proven by: write nothing new on it, since the cited process steps carry them.
 - Processes (`docs/spec/processes/`): fill, the same way, every `—` step of the processes the NEED lists in `processes` and of the process steps a listed journey cites. A process holds the rows of several FEATs: add this FEAT's rows beside the ones a step already cites and never remove another FEAT's.
 - Run `TRACE check`, then commit the Item, journey and process cells together; `check_spec.py` passes.
 
 ## 5. Resync
 
-`sdd-tasks FEAT-nnn resync` aligns rows and items after a table amendment or an item change: copy each item's state into `Status`, cut items for new approved rows, update an open item whose row text changed, close as not planned (or set `cancelled`) an item whose rows left the table, and never reopen or rewrite a `done` item. It honors `cut_command` like the cut.
+`sdd-tasks FEAT-nnn resync` updates the same GitHub issue and maps new approved rows to it, preserving row-specific Status and evidence. Retain removed rows as cancelled history; never close the FEAT issue because one row left. A later approved version reopens the same issue when needed, never creates a new one. Existing per-task issues are historical: do not bulk-close or delete them; migrate their verified row states and references explicitly before setting the canonical `issue`. With `tracker: none`, keep deriving row status from TASK files, create files for new rows, cancel removed rows and never rewrite a done item. Honor only a compatible `cut_command`.
 
 ## 6. Verify
 
-Read each item as a fresh session would: if it cannot start from that text alone, add the missing fact to the row (the file to start in, a real input or output sample) and resync. An executor's “done” is not evidence; the diff and the re-run proofs are.
+Read the FEAT and its linked issue (or TASK file) as a fresh session would: if it cannot start from those artifacts, add the missing fact to the row (the file to start in, a real input or output sample) and resync. An executor's “done” is not evidence; the diff and the re-run proofs are.
 
-Done when: the rows are sized, pass the cut checklist, are explicitly ordered within `max_chain`, mapped both ways to criteria and pass the row checks in a merged or approved spec PR; every row's `Item` names its cut item; journey and process cells are filled; `check_spec.py` passes.
+Done when: the rows are sized, pass the cut checklist, are explicitly ordered within `max_chain`, mapped both ways to criteria and pass the row checks in a merged or approved spec PR; every GitHub row's `Item` names the FEAT's one issue (or its local TASK item); journey and process cells are filled; `check_spec.py` passes.

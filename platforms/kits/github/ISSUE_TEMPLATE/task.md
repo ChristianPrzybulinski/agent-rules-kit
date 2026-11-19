@@ -1,47 +1,43 @@
 ---
-name: Task
-about: One row of a FEAT task table, ready for implementation
-title: "[FEAT-NNN Tn] "
+name: Feature
+about: One FEAT tracked by one issue; execution tasks stay in the FEAT file
+title: "[FEAT-NNN] "
 labels: ""
 assignees: ""
 ---
 
-## Task
+## Outcome
 
-<!-- one line: what gets built/changed, copied from the task row -->
+<!-- The FEAT's delivery outcome. Reuse its existing issue/card; never create an issue per task or bundle. -->
 
 ## Spec
 
-<!-- docs/spec/features/FEAT-NNN.md, the FEAT in the title; its Relations list the REQ/DEC ids (never copied here) -->
+<!-- Link to docs/spec/features/FEAT-NNN.md and its task table. The FEAT owns row scope, dependencies and evidence. -->
 
 ## Repository
 
-<!-- the target repository name -->
+<!-- Affected code/spec repositories; each task row still owns its own Files. -->
 
 ## Files (owned areas)
 
-<!-- the task's owned areas from the task row: a directory glob or an exact rooted path per area, tests included; generated neighbours (*.uid, *.import) are implicit; read-only paths marked (read-only) -->
+<!-- Union of the FEAT rows' rooted paths/globs, tests included. A task PR owns only its selected rows' Files. -->
 
 ## Proof of completion
 
-<!-- the verifiable commands from the task row, one per line -->
+<!-- FEAT acceptance/closure proof and links to per-row proofs in the FEAT; issue closure alone is not delivery. -->
 
 ## DoD
 
-<!-- Proof of completion above + the gate commands in <Repository>/AGENTS.md section Commands -->
-
-## Covers
-
-<!-- CA ids -->
+<!-- Applicable repository gates and FEAT closure/acceptance gate. -->
 
 ## Depends on
 
-<!-- issue #N / FEAT-NNN Tn / none -->
+<!-- Other FEAT issues or FEAT-nnn Tn; never a dependency on this issue for an internal task dependency. -->
 
-## Directive
+## Tasks
 
-Model: <!-- small | mid | top --> | Complexity: <!-- Low | Med | High --> | Wave: <!-- n -->
+<!-- Copy the approved FEAT task table verbatim, including ID and Files columns, preserving repository-qualified Files for the gates. The FEAT file is authoritative; refresh this mirror on resync, never maintain a separate backlog. -->
 
 ## Notes
 
-<!-- constraints, do-not list, proof allowlist location -->
+<!-- Task PRs select ids under ## Task rows (T1, T2) and use Refs, not Closes, on this issue. Close after FEAT acceptance; reuse for later approved versions. -->

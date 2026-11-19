@@ -528,6 +528,47 @@ class SyncStatusTest(unittest.TestCase):
         self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2")], ["blocked", "blocked"])
 
 
+    def test_feat_issue_never_fans_its_state_out_to_task_rows(self) -> None:
+        for state, labels, reason, merged in (
+                ("open", (), None, False),
+                ("open", ("blocked",), None, False),
+                ("open", ("status:in-progress",), None, False),
+                ("closed", (), "not_planned", False),
+                ("closed", (), "completed", True)):
+            with self.subTest(state=state, labels=labels, reason=reason, merged=merged):
+                self.item_rows(("T1", "done", "#99"), ("T2", "doing", f"{REPO}#99"),
+                               ("T3", "todo", "#99"), ("T4", "blocked", "#99"))
+                text = self.path1.read_text(encoding="utf-8")
+                self.path1.write_text(text.replace('requirements: []', f'issue: "{REPO}#99"\nrequirements: []'),
+                                      encoding="utf-8")
+                gh = self.routes([issue(99, "[FEAT-001] One feature", state, labels, reason)],
+                                 {(REPO, 200): pull("closed" if merged else "open", merged, "Closes #99")})
+                code, output = self.run_sync(gh)
+                self.assertEqual(code, 0, output)
+                actual = trace.load(self.spec).feats["FEAT-001"]
+                self.assertEqual(actual["task_status"], {"T1": "done", "T2": "doing", "T3": "todo", "T4": "blocked"})
+                self.assertEqual(actual["status"], "in-progress")
+                first = self.path1.read_text(encoding="utf-8")
+                self.run_sync(gh)
+                self.assertEqual(self.path1.read_text(encoding="utf-8"), first)
+
+    def test_feat_issue_prevents_legacy_title_fallback_for_new_rows(self) -> None:
+        self.item_rows(("T1", "todo", "—"))
+        text = self.path1.read_text(encoding="utf-8")
+        self.path1.write_text(text.replace('requirements: []', 'issue: "#99"\nrequirements: []'), encoding="utf-8")
+        self.run_sync(self.routes([issue(12, "[FEAT-001 T1] Old issue", "closed")],
+                                 {(REPO, 20): pull(body="Closes #12")}))
+        self.assertEqual(self.status("FEAT-001", "T1"), "todo")
+
+    def test_legacy_card_does_not_disable_task_issue_sync(self) -> None:
+        self.item_rows(("T1", "todo", "#11"))
+        text = self.path1.read_text(encoding="utf-8")
+        self.path1.write_text(text.replace('requirements: []', 'card: 99\nrequirements: []'), encoding="utf-8")
+        self.run_sync(self.routes([issue(11, "[FEAT-001 T1] Legacy", "closed")],
+                                 {(REPO, 20): pull(body="Closes #11")}))
+        self.assertEqual(self.status("FEAT-001", "T1"), "done")
+
+
 class SettingsTest(unittest.TestCase):
     def run_main(self, *argv):
         out, err = io.StringIO(), io.StringIO()

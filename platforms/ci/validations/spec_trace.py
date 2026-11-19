@@ -10,7 +10,7 @@
   spec_trace.py checklist SPEC J-NN [J-NN ...] [--out FILE] [--force]
                                        one owner checklist per approved journey, to stdout (never committed)
   spec_trace.py sync-status SPEC [--write] [--backlog OWNER/NAME]
-                                       `sdd.tracker: github` only: each task row's Status from its issue and
+                                       `sdd.tracker: github` only: legacy task row Status from its issue and
                                        the PRs that close it (sdd-tasks/references/task-issue.md § States),
                                        then each FEAT's status as `status` derives it; under `sdd.flow:
                                        feat-only` a FEAT's status from its PR (KIT-100); dry run without --write
@@ -135,6 +135,11 @@ a file in it; other roots are format-checked only until the project's journey CI
 `sdd.components` (one repository, a folder per component; KIT-073) a path may also start with a component
 name or a top-level path of the repository: a path in a component folder other than `.` needs only that
 folder, since its row may write the test; any other path must match a file.
+
+When a FEAT names its canonical `issue`, its task table owns the individual row states: sync-status preserves
+them regardless of the shared issue's labels, closure or closing PRs, and derives only the FEAT aggregate status.
+Rows record their own execution/merge evidence; an issue closing never proves that every row was delivered.
+Without that field, legacy task issues still sync as below. An old `card` alone does not change that legacy mode.
 
 sync-status (KIT-073) reads `sdd.github`: the backlog repository (default: the origin remote), the other
 repositories whose PRs close its issues, its earlier names, and the blocked and progress labels. It lists
@@ -416,6 +421,7 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
             spec.feats[data["id"]] = {"path": path, "requirements": data.get("requirements") or [],
                                       "tasks": task_rows(body), "status": data.get("status"),
                                       "task_status": task_statuses(body), "task_item": task_items(body),
+                                      "issue": data.get("issue") or "",
                                       "title": data.get("title", data["id"])}
             spec.feats[data["id"]].update(feat_versions(data, body))
     for path in sorted((spec_dir / "requirements").rglob("REQ-*.md")):
@@ -2715,7 +2721,9 @@ def sync_status(spec, settings, write, today, gh=run_gh):
     lines, changed = [], {}
     for fid in sorted(spec.feats, key=natural_key):
         feat = spec.feats[fid]
-        for tid in sorted(feat["task_status"], key=natural_key):
+        # One shared issue cannot prove the state of any individual task.
+        synced_rows = {} if feat.get("issue") else feat["task_status"]
+        for tid in sorted(synced_rows, key=natural_key):
             key = f"{fid} {tid}"
             number = item_issue(feat.get("task_item", {}).get(tid), settings)
             group = [by_number[number]] if number in by_number else issues.get(key, [])
