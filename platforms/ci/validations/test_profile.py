@@ -500,7 +500,7 @@ class SchemaContract(unittest.TestCase):
         self.assertNotIn("sdd", SPEC_SCHEMA["properties"])
         self.assertIs(SPEC_SCHEMA["additionalProperties"], False, "a leftover sdd: block is refused, not ignored")
         sdd = SCHEMA["properties"]["sdd"]["properties"]
-        self.assertEqual(len(sdd), 31)
+        self.assertEqual(len(sdd), 32)
         self.assertTrue({"task_cut", "decision_folding"} | KIT_088_SDD_KEYS | KIT_087_P2B_SDD_KEYS <= set(sdd))
         self.assertFalse({"review_rounds", "visual_approval"} & set(sdd))
 

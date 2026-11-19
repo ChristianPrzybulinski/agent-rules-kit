@@ -251,6 +251,13 @@
           "default": 30,
           "x-read-by": "sdd"
         },
+        "owner_wait_minutes": {
+          "description": "Minutes an owner question may stay unanswered before the step notifies the owner once, continues on the marked recommendation and records it as a [DECISION] pending owner line; check_spec.py fails that line, so the spec PR does not merge until the owner answers (KIT-113); read by sdd-clarify, sdd-plan",
+          "type": "integer",
+          "minimum": 1,
+          "default": 10,
+          "x-read-by": "sdd"
+        },
         "release": {
           "description": "merge: a FEAT is delivered once its work is on main (after its sdd-review closure, KIT-069); manual: sdd-release delivers it; read by sdd-review, sdd-release",
           "enum": [
