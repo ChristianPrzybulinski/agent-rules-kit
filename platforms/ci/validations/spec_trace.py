@@ -13,12 +13,14 @@
                                        `sdd.tracker: github` only: legacy task row Status from its issue and
                                        the PRs that close it (sdd-tasks/references/task-issue.md § States),
                                        then each FEAT's status as `status` derives it; under `sdd.flow:
-                                       feat-only` a FEAT's status from its PR (KIT-100); dry run without --write
+                                       feat-only` a FEAT's status from its PR (KIT-100); dry run without --write;
+                                       --write sets `updated` to today in every FEAT file it writes
   spec_trace.py mark-done SPEC FEAT-NNN Tn [--pr REPO#N]
                                        set the task row's Status to `done` and append a History line
   spec_trace.py status SPEC [--write]  derive each FEAT's status from its task rows (in-progress at most);
                                        fail on a mismatch or a validated/delivered FEAT with an open row,
-                                       or with --write rewrite `status` and `updated` and add the History
+                                       or with --write rewrite `status` and `updated` (set to today in every
+                                       FEAT it rewrites, one already dated today included) and add the History
                                        line `status: <old> -> in-progress (<rows>)`, whether a doing or a
                                        done row moved it (intended since #247: every move is recorded)
   spec_trace.py validate SPEC FEAT-NNN --at SHA [--check]
@@ -2040,7 +2042,9 @@ def status_errors(spec):
 
 
 def set_status(path, new, today):
-    """Rewrite the frontmatter `status` and `updated` of a FEAT or NEED file."""
+    """Rewrite the frontmatter `status` and `updated` of a FEAT or NEED file. `updated` becomes `today` in every file
+    this rewrites, as in `rewrite_frontmatter`: a FEAT already dated `today` (one created the same day) shows no
+    diff on that line, which is why a run over FEATs of different ages looks uneven in `git log -p`."""
     text = path.read_text(encoding="utf-8")
     head, sep, rest = text.partition("\n---\n")
     head = re.sub(r"(?m)^status:.*$", f"status: {new}", head, count=1)
@@ -2928,7 +2932,10 @@ def task_header(body):
 
 
 def rewrite_frontmatter(text, status, today):
-    """Set `status` (unless None) and `updated` in the raw frontmatter, never a YAML round trip."""
+    """Set `status` (unless None) and `updated` in the raw frontmatter, never a YAML round trip. One rule for every FEAT
+    `sync-status --write` writes: `updated` is set to `today` whatever it held (an older date or `today` already; with no
+    line it is added after `status` when `status` is set). A FEAT created the same day therefore shows no `updated` diff, as
+    KIT-107 to KIT-113 showed none in #411 against KIT-102 to KIT-106 (#413)."""
     head, sep, rest = text.partition("\n---\n")
     if status:
         head = re.sub(r"(?m)^status:.*$", f"status: {status}", head, count=1)

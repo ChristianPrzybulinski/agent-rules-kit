@@ -784,6 +784,23 @@ class SyncStatusTest(unittest.TestCase):
         self.assertEqual(why, None)
         self.assertEqual([p["merged"] for p in prs], [True])
 
+    def test_updated_is_set_to_today_in_every_feat_a_sync_rewrites_whatever_it_held(self):
+        """#413: KIT-107..113 showed no `updated` diff in #411 because they were created that day; the rule is the
+        same for a FEAT dated earlier, dated today or with no `updated` line, in sync-status and in status --write."""
+        for held in ('updated: "2026-10-05"', f'updated: "{TODAY}"', None):
+            with self.subTest(held=held):
+                text = FEAT7.format(fid="FEAT-009", title="T", status="planned", rows="")
+                text = text.replace('updated: "2026-10-05"\n', f"{held}\n" if held else "")
+                synced = trace.rewrite_frontmatter(text, "in-progress", TODAY)
+                path = self.root / "docs/spec/features/FEAT-009.md"
+                path.write_text(text, encoding="utf-8")
+                trace.set_status(path, "in-progress", TODAY)
+                self.assertEqual(path.read_text(encoding="utf-8"), synced)
+                self.assertIn(f'updated: "{TODAY}"', synced)
+                self.assertEqual(synced.count("updated:"), 1)
+        untouched = FEAT7.format(fid="FEAT-009", title="T", status="planned", rows="")
+        self.assertEqual(trace.rewrite_frontmatter(untouched, None, TODAY).count(f'updated: "{TODAY}"'), 1)
+
 
 class SettingsTest(unittest.TestCase):
     def run_main(self, *argv):
