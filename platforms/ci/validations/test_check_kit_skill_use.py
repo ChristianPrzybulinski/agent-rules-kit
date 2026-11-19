@@ -19,6 +19,7 @@ KIT = Path(__file__).resolve().parents[3]
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
 REVIEWER = "plugins/guardrails/agents/reviewer.md"
 SDD_CHECK = "plugins/guardrails/skills/sdd-check/SKILL.md"
+REVIEW_SKILL = "plugins/guardrails/skills/review/SKILL.md"
 EVALS = "plugins/guardrails/evals"
 
 try:
@@ -98,7 +99,7 @@ class CheckKitSkillUseTest(unittest.TestCase):
         ])
 
     def set_agent(self, value):
-        path = self.kit / SDD_CHECK
+        path = self.kit / REVIEW_SKILL
         text = path.read_text(encoding="utf-8")
         new = re.sub(r"^agent: .*$", f"agent: {value}", text, count=1, flags=re.MULTILINE)
         self.assertNotEqual(new, text)
@@ -108,14 +109,17 @@ class CheckKitSkillUseTest(unittest.TestCase):
     # `researcher` ran as general-purpose on the parent's model, `guardrails:researcher` as the profile).
 
     def test_the_real_kit_names_its_agents_with_their_plugin(self):
-        for rel in (SDD_CHECK, "plugins/guardrails/skills/review/SKILL.md"):
-            with self.subTest(skill=rel):
-                text = (self.kit / rel).read_text(encoding="utf-8")
-                self.assertRegex(text, r"(?m)^agent: guardrails:(researcher|reviewer)$")
+        review = (self.kit / REVIEW_SKILL).read_text(encoding="utf-8")
+        self.assertRegex(review, r"(?m)^agent: guardrails:reviewer$")
+        # sdd-check stays a general-purpose fork: the NEED-010 replay (2026-11-19) showed the researcher profile
+        # (sonnet, no Bash) missed the critical and high findings Opus reported, so it must not declare an agent
+        sdd_check = (self.kit / SDD_CHECK).read_text(encoding="utf-8")
+        self.assertRegex(sdd_check, r"(?m)^subagent: true$")
+        self.assertNotRegex(sdd_check, r"(?m)^agent:")
         self.assertEqual(self.check().returncode, 0)
 
     def test_another_qualified_agent_passes(self):
-        self.set_agent("guardrails:reviewer")
+        self.set_agent("guardrails:researcher")
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stderr)
 
