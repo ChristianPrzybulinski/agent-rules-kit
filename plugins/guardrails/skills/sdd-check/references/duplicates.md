@@ -25,7 +25,7 @@ The tool exits 1 on a C21 or C24 line and 0 with candidates only, so its exit co
 
 Read both artifacts, then decide:
 
-- C20, a duplicate: one actor, one trigger and one observable result in other words, or one rule split across two REQs. Keep the older REQ; the newer one is retired with a History line, or amended into a different rule. Two rules that share a shape (a username and a character name with the same length limits) are not duplicates: note them.
+- C20, a duplicate: one actor, one trigger and one observable result in other words, or one rule split across two REQs. Keep the older REQ; the newer one is retired with a History line naming the kept REQ (`req-unlisted` skips a retired REQ, KIT-108), and the links of open FEATs, journeys and processes move to the kept REQ while a delivered or cancelled FEAT keeps its link (spec-first history); or it is amended into a different rule. Two rules that share a shape (a username and a character name with the same length limits) are not duplicates: note them.
 - C22, a duplicate: both processes run the same flow from the same start. Keep one; the other's steps move into it, or it cites the first (`PROC-nnn S<a>–S<b>`). Two processes the same event starts that do different work (a release step that tags and one that deploys) are not: note them.
 - C23, a duplicate: the same use case written twice, or two FEATs delivering the same process steps. The newer work becomes the next version block of the existing FEAT (one FEAT per use case, KIT-096). Two use cases that share a step on purpose (a login both start from) stay; note the step.
 
