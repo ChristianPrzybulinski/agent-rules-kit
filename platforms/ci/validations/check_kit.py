@@ -245,6 +245,12 @@ for name, plugin_dir in plugins.items():
     claude_manifest = read_json(plugin_dir / ".claude-plugin/plugin.json")
     codex_manifest = read_json(plugin_dir / "plugin.json")
     manifests[name] = {"devin": devin_manifest, "claude": claude_manifest, "codex": codex_manifest}
+    # KIT-081 stage 3 (Codex): a `$schema` naming agent-plugins.org made codex-cli 0.164.0 read this manifest as an
+    # Agent Plugins one and list none of the plugin's hooks, silently; the kit carries no `$schema` in it
+    if codex_manifest is not None and "$schema" in codex_manifest:
+        fail(rel(plugin_dir / "plugin.json"),
+             "'$schema' key: Codex reads a root manifest that names agent-plugins.org as an Agent Plugins manifest "
+             "and lists no hooks of the plugin; remove it (KIT-081)")
     for kind, manifest in manifests[name].items():
         if manifest is None:
             continue
