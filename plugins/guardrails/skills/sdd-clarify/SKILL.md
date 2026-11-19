@@ -42,7 +42,7 @@ Put each answer where it belongs (REQ, NEED, glossary), never in an answers sect
 ## 3. Record and check
 
 - Fill the NEED's Refinement table (one row per Situation: what it became and why) and its `requirements`, `journeys`, `processes` and `decisions` fields.
-- Run the project spec validator, `CHECK_SPEC` (and `TRACE check` when journeys or processes exist; it accepts a step's `—` while an open NEED lists its journey or process), then `sdd-check NEED-nnn` (functional scope, with `TRACE similar` for C20 and C22). A critical or high finding goes back to the step that owns it. A finding on drift this NEED did not write (it holds on the base commit) is routed by `sdd-intake` § 4 (a fix row, a spec fix or one owner question), not by a NEED of its own unless § 4 sends it there; this NEED names the fix row or spec PR that takes it in Out of scope, or in Constraints when its delivery waits for it.
+- Run the project spec validator, `CHECK_SPEC` (and `TRACE check` when journeys or processes exist; it accepts a step's `—` while an open NEED lists its journey or process), then `sdd-check NEED-nnn` (functional scope, with `TRACE similar` for C20 and C22). A critical or high finding goes back to the step that owns it. A finding that `sdd-check` lists under `Pre-existing` (drift this NEED did not write, with base-commit evidence) does not block and is never fixed inside this NEED: route it by `sdd-intake` § 4 (a fix row, a spec fix or one owner question), a NEED of its own only when § 4 sends it there (a need or an owner decision); this NEED names the fix row or spec PR that takes it in Out of scope, or in Constraints when its delivery waits for it.
 
 ## 4. Close
 
