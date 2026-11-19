@@ -13,6 +13,8 @@ resolver refuses fails `--params` and profile.py, not this run (KIT-100).
 Also validates docs/spec/progress/*.json (executor progress of FEATs cut before KIT-068) when the folder exists, and
 fails on a merge-conflict marker left in any Markdown file under the spec dir. A record's file is named by its id
 alone, `DGME-001.md` and `J-01.md` (rule id-file-name, KIT-103), so an autolink's `<num>` reaches it.
+A line that starts with `[DECISION] pending owner` in any Markdown file fails (rule pending-decision, KIT-113): an SDD
+step wrote it while an owner question stayed unanswered, and the spec PR must not merge until the owner answers.
 Decision ids are DEC-nnn unless spec.md declares `decision_kinds` (kind -> id prefix, e.g.
 `{tech: TEC, product: PRD}`); then each decision's `kind` must be declared and its id carries that kind's prefix.
 NEED-nnn intake records (docs/spec/needs/, top level only: NEED-nnn-data/ folders hold evidence) link forward only:
@@ -93,7 +95,8 @@ SPEC_DIR = None  # set by main(); a finding's key is relative to it
 RULES = ("frontmatter", "schema", "id-file", "id-file-name", "id-duplicate", "decision-kinds", "sdd-params",
          "conflict-marker", "need-link", "need-status", "progress", "link-missing", "link-one-sided", "req-unlisted",
          "task-file", "task-item", "task-chain", "task-cycle", "task-depends", "feature-closure", "needs-off",
-         "enabler-link", "enabler-kind", "enabler-contract", "version-block", "block-tasks", "feature-process")
+         "enabler-link", "enabler-kind", "enabler-contract", "version-block", "block-tasks", "feature-process",
+         "pending-decision")
 MEASURED = ("task-chain", "block-tasks")  # the baseline holds the longest chain in rows, not a count of findings
 
 
@@ -593,6 +596,22 @@ def check_conflict_markers(spec_dir):
         for n, line in enumerate((read_spec_text(path) or "").splitlines(), 1):
             if CONFLICT_MARKER.match(line):
                 fail(f"{path}:{n}: merge-conflict marker {line[:7]!r} left in the file", "conflict-marker", path)
+
+
+# KIT-113: the line an SDD step writes when an owner question stayed unanswered and the chain went on with the marked
+# recommendation (`[DECISION] pending owner: <option> (asked YYYY-MM-DD HH:MM UTC)`). It starts a line, after at most
+# list or quote markers, so a spec that quotes the marker in running text or in code does not fail.
+PENDING_DECISION = re.compile(r"^\s*(?:[-*+>]\s+)*\[DECISION\] pending owner\b")
+
+
+def check_pending_decisions(spec_dir):
+    """Fails on a `[DECISION] pending owner` line in any Markdown file under the spec dir: the owner has not answered,
+    so the spec PR must not merge (KIT-113)."""
+    for path in sorted(spec_dir.rglob("*.md")):
+        for n, line in enumerate((read_spec_text(path) or "").splitlines(), 1):
+            if PENDING_DECISION.match(line):
+                fail(f"{path}:{n}: [DECISION] pending owner: the owner has not answered; resolve it before the merge",
+                     "pending-decision", path)
 
 
 CLOSURE_LINE = re.compile(r"^- \d{4}-\d{2}-\d{2} (sdd-review|sdd-release): (validated|delivered)\b", re.M)
@@ -1393,6 +1412,7 @@ def main():
 
     progress_files = check_progress(spec_dir / "progress", progress_schema, feats)
     check_conflict_markers(spec_dir)
+    check_pending_decisions(spec_dir)
     check_needs(spec_dir, needs, ids, kind_of, feat_status, dec_status, versions, feats)
     check_task_items(tasks, tables, ids)
     check_enablers(linked, kind_of)

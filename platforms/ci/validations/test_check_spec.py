@@ -209,6 +209,63 @@ class ConflictMarkerTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
 
+class PendingDecisionTest(unittest.TestCase):
+    """KIT-113: a `[DECISION] pending owner` line is a choice the agent made while the owner had not answered; the spec
+    check fails on it, so a project's merge gate holds the PR until the owner answers."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.spec = Path(self.tmp.name)
+        (self.spec / "features").mkdir()
+        self.feat = self.spec / "features" / "FEAT-001.md"
+        self.feat.write_text(FEAT.format(fid="FEAT-001", reqs=""))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def add(self, text):
+        self.feat.write_text(self.feat.read_text() + text)
+
+    def run_check(self, *flags):
+        env = {k: v for k, v in os.environ.items() if k != "CI"}  # -S hides pyyaml: the structural run
+        return subprocess.run([sys.executable, *flags, str(CHECK_SPEC), str(self.spec), str(SCHEMAS)],
+                              capture_output=True, text=True, check=False, env=env)
+
+    def test_a_pending_decision_fails_and_names_the_file(self):
+        self.add("## Open questions\n\n[DECISION] pending owner: option B (asked 2026-11-19 10:00 UTC)\n")
+        for flags in ((), ("-S",)):
+            with self.subTest(flags=flags):
+                result = self.run_check(*flags)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("FEAT-001.md:12: [DECISION] pending owner", result.stderr)
+                self.assertIn("[pending-decision]", result.stderr)
+
+    def test_a_pending_decision_in_a_list_item_fails(self):
+        self.add("- [DECISION] pending owner: option A (asked 2026-11-19 10:00 UTC)\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("[pending-decision]", result.stderr)
+
+    def test_a_pending_decision_in_any_spec_file_fails(self):
+        (self.spec / "journeys").mkdir()
+        (self.spec / "journeys" / "J-01.md").write_text("# J-01\n\n[DECISION] pending owner: yes (asked 2026-11-19 10:00 UTC)\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("J-01.md:3: [DECISION] pending owner", result.stderr)
+
+    def test_the_same_spec_without_the_line_passes(self):
+        self.add("## Open questions\n\nNone.\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_a_decision_that_is_not_pending_passes(self):
+        self.add("[DECISION] option B, chosen by the owner on 2026-11-19\n"
+                 "[DECISION] option B, settled by the owner on 2026-11-19 \u2192 folded into Scope\n"
+                 "The `[DECISION] pending owner: <option>` marker is quoted here in running text.\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 SPEC_INDEX = """---
 project: "fixture"
 version: "0.1.0"
@@ -758,6 +815,7 @@ SDD_FULL = """sdd:
   cut_command: python3 tools/cut.py
   max_chain: 3
   max_feat_tasks: 20
+  owner_wait_minutes: 30
   release: manual
   review_rounds: 2
   commits_by: orchestrator
@@ -781,7 +839,7 @@ SDD_DEFAULTS = {"needs": True, "journeys": False, "tracker": "github",
                 "plan_sections": ["Design", "Contract", "Data", "UI", "Flag", "Tests", "Observability", "Risks",
                                   "Dependencies"],
                 "pr_unit": "task", "task_minutes": 30, "row_check": None, "cut_command": None, "max_chain": 4,
-                "max_feat_tasks": 30, "release": "merge", "commits_by": "executor", "protected_paths": {},
+                "max_feat_tasks": 30, "owner_wait_minutes": 10, "release": "merge", "commits_by": "executor", "protected_paths": {},
                 "bundle": {"rows": 1, "points": 3, "high_rows": 1}, "rule_paths": {},
                 "components": {}, "spec_index": False,
                 "github": {"repo": None, "pr_repos": [], "aliases": [], "blocked_labels": ["blocked"],
@@ -894,6 +952,10 @@ class SddParamsTest(unittest.TestCase):
     def test_max_feat_tasks_below_minimum_fails(self):
         self.index("sdd:\n  max_feat_tasks: 0\n")
         self.assert_fails("sdd.max_feat_tasks 0 is below the minimum 1")
+
+    def test_owner_wait_minutes_below_minimum_fails(self):
+        self.index("sdd:\n  owner_wait_minutes: 0\n")
+        self.assert_fails("sdd.owner_wait_minutes 0 is below the minimum 1")
 
     def test_boolean_key_refuses_a_word(self):
         self.index("sdd:\n  needs: maybe\n")
