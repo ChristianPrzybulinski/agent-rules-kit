@@ -602,6 +602,21 @@ class NeedTest(unittest.TestCase):
         self.req_without_feat("REQ-F-002", status="approved")
         self.assert_fails("REQ-F-002 has no FEAT implementing it and no NEED listing it")
 
+    def test_retired_req_with_no_feat_and_no_need_passes(self):
+        """KIT-108: a retired REQ is a rule no FEAT delivers any more, so req-unlisted skips it."""
+        self.req_without_feat("REQ-F-002", status="retired")
+        self.assert_passes()
+
+    def test_retired_req_passes_with_needs_off_too(self):
+        self.needs_mode("false")
+        self.req_without_feat("REQ-F-002", status="retired")
+        self.assert_passes()
+
+    def test_approved_req_with_the_same_links_still_fails(self):
+        """KIT-108 falsifier: only a retired REQ is exempt; an approved one with no FEAT still fails."""
+        self.req_without_feat("REQ-F-002", status="approved")
+        self.assert_fails("REQ-F-002 has no FEAT implementing it and no NEED listing it")
+
     def needs_mode(self, value):
         write_spec(self.root, SPEC_INDEX.format(extra=f"sdd:\n  needs: {value}\n"))
 
