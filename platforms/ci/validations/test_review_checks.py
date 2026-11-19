@@ -457,6 +457,19 @@ class RedTest(StubCase):
         self.assertIn("red: excluded 1 generated path(s) by --exclude: gen/Types.py", out)
         self.assertIn("red: NONE", out)
 
+    def test_a_symbol_added_only_in_excluded_output_is_still_a_new_symbol(self):
+        """#405 item 1 (KIT-107): the symbol the test needs is generated, the hand edit is unrelated, and the test
+        fails on base because that symbol is missing: Red (new-symbol), not a missing-symbol FLAG."""
+        base = self.repo.commit("generated base", **{"gen_types.py": "ADD = 1\n"})
+        head = self.repo.commit("regenerate and edit", **{
+            "gen_types.py": "ADD = 1\n\n\ndef sub(a, b):\n    return a - b\n",
+            "calc.py": CALC + "\n\ndef mul(a, b):\n    return a * b\n",
+            "tests__test_gen.py": TEST_SUB.replace("import calc", "import gen_types").replace("calc.sub", "gen_types.sub")})
+        code, out = self.red(head, "--exclude", "gen_types.py", base=base)
+        self.assertIn("red: excluded 1 generated path(s) by --exclude: gen_types.py", out)
+        self.assertIn("new-symbol (sub)", out)
+        self.assertEqual(code, 0, out)
+
     def test_exclude_plan_writes_status_exempt(self):
         head = self.repo.commit("generate", **{"gen__Types.py": "TYPES = 1\n"})
         plan = Path(self.tmp.name) / "plan.json"

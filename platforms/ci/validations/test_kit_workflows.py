@@ -351,6 +351,8 @@ class LayeredGate(unittest.TestCase):
                 self.assertEqual("--changed-from HEAD^1" in step["run"], changed)
         checkout = load("ci.yml")["jobs"]["integration"]["steps"][0]
         self.assertEqual(checkout["with"]["fetch-depth"], 2)  # HEAD^1: the merge commit's base, or the last push
+        static = load("ci.yml")["jobs"]["static"]["steps"][0]
+        self.assertEqual(static["with"]["fetch-depth"], 2)  # check_changelog.py skips with no HEAD^1 (KIT-109, #405)
 
     def test_jobs_that_run_the_just_and_gitleaks_tests_install_the_pinned_tools(self):
         gitleaks = next(s for s in steps(load("gitleaks.yml")) if s.get("name", "").startswith("install gitleaks"))
