@@ -1325,6 +1325,7 @@ def main():
     ids, kind_of = {}, {}
     linked = {}  # id -> (path, kind, frontmatter) of each FEAT, decision, debt and ENB (KIT-095)
     feats, reqs, feat_status, dec_status, needs, tasks, tables = {}, {}, {}, {}, {}, {}, {}
+    retired_reqs = set()
     versions = {}  # FEAT id -> its version blocks, None without `## Versions` (KIT-096)
     kinds = None  # spec.md is the first target, so its decision_kinds is read before any decision
     start = len(failures)
@@ -1383,6 +1384,8 @@ def main():
                 check_task_table(str(fid), path, data.get("status"), tables[str(fid)]["rows"], params)
         if kind == "requirement" and fid:
             reqs[fid] = data.get("features") or []
+            if data.get("status") == "retired":
+                retired_reqs.add(str(fid))
         if kind == "need" and fid:
             needs[fid] = data
         if kind == "task" and fid:
@@ -1411,7 +1414,9 @@ def main():
     settled_reqs = {str(r): nid for nid, data in needs.items() if data.get("status") in NEED_SETTLED
                     for r in as_list(data.get("requirements"))}
     for rid, flist in reqs.items():
-        if not flist and needs_off:
+        if not flist and rid in retired_reqs:
+            pass  # KIT-108: a retired REQ is a rule no FEAT delivers any more; its History line names why
+        elif not flist and needs_off:
             fail(f"{ids[rid]}: {rid} has no FEAT implementing it (sdd.needs: false: a REQ lands in the change that "
                  "creates its FEAT)", "req-unlisted", ids[rid])
         elif not flist and rid not in need_reqs:
