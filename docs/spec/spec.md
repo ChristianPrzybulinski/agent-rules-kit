@@ -23,12 +23,15 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 
 | ID | Title | Status | PR |
 |---|---|---|---|
-| [KIT-102](features/KIT-102.md) | Split the red check into a plan and a judge of given sides | in-progress | #379 |
-| [KIT-103](features/KIT-103.md) | Name every spec record file by its id alone | planned | — |
-| [KIT-104](features/KIT-104.md) | Route a finding where it is found; a NEED only for a need or an owner decision | planned | — |
-| [KIT-107](features/KIT-107.md) | Leave generated output out of the red check's code roots | proposed | — |
-| [KIT-108](features/KIT-108.md) | A retired REQ needs no FEAT | proposed | — |
-| [KIT-109](features/KIT-109.md) | Fail a CHANGELOG line added under a released version | proposed | — |
+| [KIT-102](features/KIT-102.md) | Split the red check into a plan and a judge of given sides | delivered | #379 |
+| [KIT-103](features/KIT-103.md) | Name every spec record file by its id alone | delivered | #384 |
+| [KIT-104](features/KIT-104.md) | Route a finding where it is found; a NEED only for a need or an owner decision | delivered | #397 |
+| [KIT-105](features/KIT-105.md) | File closeout kit proposals directly as GitHub issues | delivered | #395 |
+| [KIT-106](features/KIT-106.md) | Track each FEAT in one GitHub issue | delivered | #399 |
+| [KIT-107](features/KIT-107.md) | Leave generated output out of the red check's code roots | delivered | #402 |
+| [KIT-108](features/KIT-108.md) | A retired REQ needs no FEAT | delivered | #403 |
+| [KIT-109](features/KIT-109.md) | Fail a CHANGELOG line added under a released version | delivered | #404 |
+| [KIT-112](features/KIT-112.md) | Read each OWNER/NAME#N issue in its own repository | delivered | #408 |
 | [KIT-113](features/KIT-113.md) | Let an unanswered owner question wait only at the merge | proposed | — |
 
 ## Decisions

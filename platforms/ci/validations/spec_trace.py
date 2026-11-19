@@ -2642,12 +2642,14 @@ def task_issues(repo, gh=run_gh):
 
 
 def item_issue(cell, settings):
-    """The backlog issue number a row's Item cell names (`#N`, or `OWNER/NAME#N` of the backlog repository or one of
-    its earlier names), else None (`—`, a TASK file, another repository)."""
+    """`(repository, number)` of the issue a row's Item cell names, else None (`—`, a TASK file): a bare `#N` is read
+    in the backlog repository (`sdd.github.repo`), `OWNER/NAME#N` in that repository, and an earlier name of the
+    backlog (`sdd.github.aliases`) in the backlog (KIT-112)."""
     m = re.fullmatch(r"([\w.-]+/[\w.-]+)?#(\d+)", (cell or "").strip())
-    if not m or (m.group(1) and m.group(1) not in {settings["repo"], *settings["aliases"]}):
+    if not m:
         return None
-    return int(m.group(2))
+    named = m.group(1)
+    return (settings["repo"] if not named or named in settings["aliases"] else named), int(m.group(2))
 
 
 def merge_issues(group):
@@ -2660,13 +2662,16 @@ def merge_issues(group):
             "reason": "not_planned" if closed and all(i["reason"] == "not_planned" for i in closed) else ""}
 
 
-def closing_prs(settings, gh=run_gh):
-    """`{issue number: [{ref, state, merged}]}` from one paged `pulls?state=all` listing per repository: a PR body's
-    `Closes <backlog or earlier name>#N`, and `Closes #N` inside the backlog repository only."""
+def closing_prs(settings, gh=run_gh, by_issue=False):
+    """The PRs that close issues, from one paged `pulls?state=all` listing per repository (the backlog and
+    `pr_repos`): `{issue number: [{ref, state, merged}]}` for the backlog repository, or with `by_issue`
+    `{(repository, number): [...]}` for every repository (KIT-112). A PR body's `Closes OWNER/NAME#N` names that
+    repository (an earlier name of the backlog names the backlog) and a bare `Closes #N` names the PR's own
+    repository, as GitHub reads it."""
     repo = settings["repo"]
     pr_repos = [repo, *[r for r in settings["pr_repos"] if r != repo]]
-    aliases = {repo, *settings["aliases"]}
-    full = re.compile(r"Closes\s+(?:" + "|".join(re.escape(name) for name in sorted(aliases)) + r")#(\d+)\b")
+    aliases = set(settings["aliases"])
+    full = re.compile(r"Closes\s+([\w.-]+/[\w.-]+)#(\d+)\b")
     short = re.compile(r"Closes\s+#(\d+)\b")
     with ThreadPoolExecutor(max_workers=len(pr_repos)) as pool:
         listings = list(pool.map(lambda r: gh_paged(f"repos/{r}/pulls?state=all", gh), pr_repos))
@@ -2674,13 +2679,14 @@ def closing_prs(settings, gh=run_gh):
     for pr_repo, pulls in zip(pr_repos, listings):
         for pr in pulls:
             body = pr.get("body") or ""
-            numbers = {int(n) for n in full.findall(body)}
-            if pr_repo == repo:
-                numbers |= {int(n) for n in short.findall(body)}
-            for number in numbers:
-                out.setdefault(number, []).append({"ref": f"{pr_repo.split('/')[-1]}#{pr['number']}",
-                                                   "state": pr.get("state"), "merged": pr.get("merged_at") is not None})
-    return out
+            keys = {(repo if named in aliases else named, int(n)) for named, n in full.findall(body)}
+            keys |= {(pr_repo, int(n)) for n in short.findall(body)}
+            for key in keys:
+                out.setdefault(key, []).append({"ref": f"{pr_repo.split('/')[-1]}#{pr['number']}",
+                                                "state": pr.get("state"), "merged": pr.get("merged_at") is not None})
+    if by_issue:
+        return out
+    return {number: prs for (name, number), prs in out.items() if name == repo}
 
 
 def derive_task_status(current, issue, prs, settings):
@@ -2709,33 +2715,69 @@ def derive_task_status(current, issue, prs, settings):
     return "todo", [], False
 
 
+def row_repositories(spec, settings):
+    """The repositories, other than the backlog, that the Item cells of the rows `sync_status` reads name, sorted."""
+    named = set()
+    for feat in spec.feats.values():
+        if feat.get("issue"):
+            continue
+        for tid in feat["task_status"]:
+            ref = item_issue(feat.get("task_item", {}).get(tid), settings)
+            if ref and ref[0] != settings["repo"]:
+                named.add(ref[0])
+    return sorted(named)
+
+
 def sync_status(spec, settings, write, today, gh=run_gh):
-    """Each row's Status and each FEAT's status from GitHub; with `write`, written to the files."""
+    """Each row's Status and each FEAT's status from GitHub; with `write`, written to the files. A row's Item cell is
+    read in its own repository (KIT-112): the backlog's issues are listed once, and so is each other repository the
+    rows name; one that cannot be listed is reported and its rows fall back to their title."""
     repo = settings["repo"]
     if not repo:
         raise SyncError("no backlog repository: set sdd.github.repo, pass --backlog or add an origin remote on GitHub")
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        issues_job = pool.submit(task_issues, repo, gh)
-        closing = closing_prs(settings, gh)
-        issues, by_number = issues_job.result()
-    lines, changed = [], {}
+    others = row_repositories(spec, settings)
+    lines, listed = [], {}
+
+    def list_issues(name):
+        try:
+            return task_issues(name, gh)
+        except SyncError as error:
+            if name == repo:
+                raise
+            return error
+
+    with ThreadPoolExecutor(max_workers=1 + len(others)) as pool:
+        jobs = {name: pool.submit(list_issues, name) for name in [repo, *others]}
+        closing = closing_prs(settings, gh, by_issue=True)
+        for name, job in jobs.items():
+            listed[name] = job.result()
+    issues, by_number = listed[repo]
+    for name in others:
+        if isinstance(listed[name], SyncError):
+            lines.append(f"WARN {name}: issues not read ({listed[name]}); its rows count as having no issue")
+    changed = {}
     for fid in sorted(spec.feats, key=natural_key):
         feat = spec.feats[fid]
         # One shared issue cannot prove the state of any individual task.
         synced_rows = {} if feat.get("issue") else feat["task_status"]
         for tid in sorted(synced_rows, key=natural_key):
             key = f"{fid} {tid}"
-            number = item_issue(feat.get("task_item", {}).get(tid), settings)
-            group = [by_number[number]] if number in by_number else issues.get(key, [])
+            ref = item_issue(feat.get("task_item", {}).get(tid), settings)
+            there = listed.get(ref[0]) if ref else None
+            if there is not None and not isinstance(there, SyncError) and ref[1] in there[1]:
+                group, in_repo = [there[1][ref[1]]], ref[0]
+            else:
+                group, in_repo = issues.get(key, []), repo
             if len(group) > 1:
                 lines.append(f"WARN {key}: task issues " + ", ".join(f"#{i['number']}" for i in group)
                              + " — evidence merged")
             issue = merge_issues(group) if group else None
-            prs = [p for i in group for n in {i["number"], i.get("bundle", i["number"])} for p in closing.get(n, [])]
+            prs = [p for i in group for n in {i["number"], i.get("bundle", i["number"])}
+                   for p in closing.get((in_repo, n), [])]
             current = feat["task_status"][tid]
             new, via, warn = derive_task_status(current, issue, prs, settings)
             if warn:
-                lines.append(f"WARN {key}: {repo.split('/')[-1]}#{issue['number']} {via[0]}")
+                lines.append(f"WARN {key}: {in_repo.split('/')[-1]}#{issue['number']} {via[0]}")
             elif via == ["no issue"]:
                 lines.append(f"{key}: {current} (no issue)")
             if new != current:
@@ -2785,7 +2827,7 @@ def feat_prs(data, settings, closing, gh):
         if repo not in (allowed if field == "pr" else {settings["repo"], *settings["aliases"]}):
             return [], f"{repo.split('/')[-1]}#{item.group(2)} is outside the backlog repositories; status not synced"
         if field == "issue":
-            return closing.get(int(item.group(2)), []), None
+            return closing.get((settings["repo"], int(item.group(2))), []), None
         found = gh_json(f"repos/{repo}/pulls/{item.group(2)}", gh)
         return [{"ref": f"{repo.split('/')[-1]}#{item.group(2)}", "state": found.get("state"),
                  "merged": found.get("merged_at") is not None}], None
