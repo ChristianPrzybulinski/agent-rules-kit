@@ -251,6 +251,31 @@ stage 3 for Codex waits for a Codex probe. The five `rule` eval cases write the 
 selects their rule and copy no rule, so they measure the hook; they were not run (the Docker store, CONTRIBUTING §
 Evals). Removing a project destination makes the next release MAJOR.
 
+**Stage 3 for Codex, part 1: edits (`apply_patch`).** [FACT] Codex probe of 2026-11-19 (codex-cli 0.164.0, #308
+comment): a plugin's `hooks/hooks.json` hook fires on tool use once trusted and its `additionalContext` reaches the
+model, and a file edit is an `apply_patch` call whose input is `{"tool_name":"apply_patch","tool_input":{"command":
+"*** Begin Patch\n*** Add File: <abs path>\n..."}}`, with no `file_path`, `notebook_path` or `path`; the probe's
+`apply_patch` arm fired Pre and Post. Codex reads files through Bash (`cat`, `sed`, `rg`), which the hook already
+handles.
+
+Scope (this part only; the manifest fix and the trust record are other parts, and the `AGENTS.md` blocks stay until
+both land):
+- `plugins/guardrails/hooks/path_rules.py`: for `tool_name == "apply_patch"`, `candidates()` adds the path of each
+  `*** Add File:`, `*** Update File:`, `*** Delete File:` and `*** Move to:` header (`patch_paths()`). A header counts
+  only at the start of a line: the format starts every body line with `+`, `-`, a space or `@@`, so a body line that
+  looks like a header (`+*** Update File: x`) is not a file. Bounded: the first 1 MiB (`MAX_PATCH_CHARS`), 64 paths
+  (`MAX_PATCH_PATHS`), a path of at most 4096 characters. The rest is the Claude Code behavior: the root gate, the
+  profile map, once per session, the log record, exit 0 and nothing on stdout on any error.
+- `hooks.json` is unchanged: [FACT] the Codex hooks doc matches `apply_patch` through the `Edit` and `Write` aliases
+  of the existing matcher, and the probe saw the hook fire for it. Not probed: a matcher that names only `apply_patch`.
+- `platforms/ci/validations/test_hooks_path_rules.py` (`ApplyPatchTest` and one `HookCommandTest` case),
+  `plugins/guardrails/hooks/README.md` and the `CHANGELOG.md` line.
+
+Not verified: a real Codex `apply_patch` event through the hook (the tests feed the probe's captured JSON shape); a
+Codex `apply_patch` whose paths are relative to a `cwd` other than the project root beyond what `match_forms` does for
+every tool; the other patch spellings a later Codex release may add (a header the parser does not know gives no path,
+so no rule, never an error).
+
 ### Stage 3 measurement (2026-11-16, before the owner's go-ahead)
 
 Method: Claude Code 2.1.287, Opus 5.5, `claude -p` in throwaway project folders. The five `rule` eval cases of
@@ -317,6 +342,10 @@ Per stage: `bash platforms/tools/check.sh`, `python3 platforms/tools/run_tests.p
 `.github/spec-lint/` in the project, and `git grep -n 'spec-lint/' -- plugins platforms/kits` printing nothing after
 stage 1.
 
+| ID | Given | When | Then | Proof |
+|---|---|---|---|---|
+| CA-1 | a synced project whose stacks select the `code` and `godot` rules | the hook reads an `apply_patch` event whose patch holds an `*** Add File:`, `*** Update File:`, `*** Delete File:` or `*** Move to:` header for `src/a.gd` (absolute or project-relative; one of several files; the source or the destination of a move) | it gives `code` and `godot` once per session, with the log record and the trigger file of the header; a patch whose paths match no rule, a body line that looks like a header (`+*** Update File: src/a.gd`, a context line, `*** End Patch`), another tool with a patch-like `command`, and a malformed or oversized patch (past 1 MiB or 64 paths) give nothing and exit 0 | `python3 platforms/tools/run_tests.py platforms/ci/validations/test_hooks_path_rules.py` |
+
 ## History
 
 - 2026-11-16: confirmed (owner). Replaces the unrecorded starter-file proposal of the same session (a sync step that
@@ -347,3 +376,7 @@ stage 1.
   `feat/kit-081-stage3-rules-hook`: the plugin's path-rule hook, the profile map beside it, no `.claude/rules` copy and
   its migration (`sync_rules.py`), and the rule eval fixtures on the hook. Open: stage 3 for Codex and the removal of
   the `AGENTS.md` blocks, both waiting for a Codex probe.
+- 2026-11-19: Codex probe (#308 comment): plugin hooks fire in codex-cli 0.164.0 once trusted, and a Codex file edit
+  is an `apply_patch` call with the patch text only. Stage 3 for Codex part 1 (edits): `path_rules.py` reads the
+  headers of an `apply_patch` patch (above, CA-1). Open: the manifest fix (the `"$schema"` key makes Codex list no
+  hook of the plugin), the per-user hook trust record, then the removal of the `AGENTS.md` blocks.
