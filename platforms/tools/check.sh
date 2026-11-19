@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Kit validation. Usage:
-#   check.sh              validates kit invariants, generated plugin INDEX.md files and Claude manifests
+#   check.sh              validates kit invariants, CHANGELOG lines, generated plugin INDEX.md files and Claude manifests
 #   check.sh --spec <dir> validates a docs/spec directory against the schemas
 #   check.sh --links      includes absolute ~/.ai-kit/... links in the check
 #   check.sh --tests [run_tests.py arguments]
@@ -20,6 +20,9 @@ if [[ "${1:-}" == "--tests" ]]; then
 fi
 
 python3 "$KIT_DIR/platforms/ci/validations/check_kit.py" "$@"
+
+# a CHANGELOG line added under a released version fails (KIT-109); the base is the merge base with origin/main, else HEAD^1
+python3 "$KIT_DIR/platforms/tools/check_changelog.py"
 
 # plugin INDEX.md files are generated (KIT-040); a stale one fails here and the message names the fix
 python3 "$KIT_DIR/platforms/tools/gen_index.py" --check
