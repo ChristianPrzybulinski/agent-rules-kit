@@ -1,0 +1,48 @@
+{
+  "project": {"name": "kit"},
+  "human_owner": "ChristianPrzybulinski",
+  "repos": {
+    "agent-rules-kit": {"role": "home"}
+  },
+  "paths": {
+    "spec": "docs/spec",
+    "protocol": "protocol",
+    "content": "content",
+    "packs": "content/packs",
+    "pilot_pack": "content/packs/pilot"
+  },
+  "poll_interval_seconds": 30,
+  "max_wait_seconds": 5400,
+  "agents": {
+    "devin": {},
+    "claude": {"enabled": true, "models": {
+      "swe": {"model": "example-small", "effort": "high"},
+      "apply": {"model": "example-small", "effort": "high"},
+      "sonnet": {"model": "example-small", "effort": "high"},
+      "opus": {"model": "example-large", "effort": "high"},
+      "escalate": {"model": "example-large", "effort": "high"}}},
+    "codex": {"enabled": false, "bin": "codex", "max_sessions": 1, "sandbox": "workspace-write", "models": {
+      "swe": {"model": "example-small", "effort": "medium"},
+      "apply": {"model": "example-small", "effort": "medium"},
+      "sonnet": {"model": "example-medium", "effort": "high"},
+      "opus": {"model": "example-large", "effort": "max"},
+      "escalate": {"model": "example-large", "effort": "max"}}}
+  },
+  "default_agent": "claude",
+  "devin_models": {"swe": "example-small", "sonnet": "example-medium", "opus": "example-large", "apply": "example-small",
+                   "escalate": "example-large", "fallback": "example-small", "prepare": "example-small"},
+  "proof_allowlist": ["python3", "git", "grep", "test"],
+  "proof_timeout_seconds": 1800,
+  "full_risk_paths": ["docs/spec/**", "protocol/**", "platform/loop-config/**"],
+  "protected_paths": {"spec": ["docs/spec/**"], "contract": ["protocol/**"], "loop": ["platform/loop-config/**"]},
+  "labels": {"review:pending": "fbca04", "review:approved": "0e8a16", "review:flagged": "d93f0b", "gate:failed": "b60205",
+             "risk:light": "c2e0c6", "risk:standard": "fef2c0", "risk:full": "f9d0c4", "needs-human": "b60205",
+             "needs-product": "5319e7", "loop:paused": "cccccc", "spec": "1d76db", "contract": "79b8ff",
+             "loop": "5319e7"},
+  "max_flagged_rounds": 2,
+  "spec_issue_defaults": {"tasks": {"model": "sonnet", "complexity": "Med"}, "cut": {"model": "swe", "complexity": "Low"}},
+  "suggestions": {"devin_week_usd": 0, "min_quota_hours": 60, "share_pct": 30, "token_factor": 3, "waste_pct": 20,
+                  "first_pass_pct": 70, "max_lines": 5},
+  "impact_selection": {"enabled": [], "maps": {}, "checkpoint": null},
+  "evidence": {"enabled": false, "repos": {}}
+}

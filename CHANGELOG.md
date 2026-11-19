@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- `platform/loop-config/config.json` and `platform/layout.json`: the kit as a project of the review-loop engine's multi-project host (`project.name` `kit`, review-loop#131), in observation mode only: `principal doctor`, `principal status` and `loop.py doctor` read it, and the issue monitor and the shadow decision record may follow. It grants no delegation, enables no agent beyond the engine's generic example and starts no loop; the backlog repository is `ChristianPrzybulinski/agent-rules-kit`. `platform/` (singular) is not `platforms/` (the kit's tools). Migration: none; the host registry entry (`config_dir` -> `<clone>/platform/loop-config`) is the owner's.
+
 ## [18.2.0] - 2026-11-19
 
 ### Added
