@@ -60,7 +60,7 @@ MAX_PATCH_PATHS = 64
 MAX_PATH_CHARS = 4096
 # A header of Codex's apply_patch format, at the start of a line (`\r` before the line end is dropped by [^\r\n]).
 PATCH_HEADER = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): ([^\r\n]+)", re.M)
-LINE_SUFFIX =re.compile(r":\d+(?::\d+)?$")  # grep -n and compiler output: b.gd:12, b.gd:12:3
+LINE_SUFFIX = re.compile(r":\d+(?::\d+)?$")  # grep -n and compiler output: b.gd:12, b.gd:12:3
 UNSAFE = re.compile(r"[^A-Za-z0-9_.-]")
 
 
