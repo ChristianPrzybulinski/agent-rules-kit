@@ -10,7 +10,7 @@ A finding the change under check did not write is listed apart and does not bloc
 ## Arguments
 
 - `base=<commit>`: the merge base of the branch with the project's default branch (`git merge-base HEAD <default branch>`). The caller also pastes `base-diff=` with `git diff --unified=0 <base>..HEAD -- <spec_root>`.
-- `since=<commit>`: the commit of the NEED's `clarify: refined` History line (`git log --format=%H -S'clarify: refined' -- <NEED file>`, last match). The caller also pastes `since-diff=` with `git diff --unified=0 <since>..HEAD -- <spec_root>`. It narrows the functional rows of the full scope (`SKILL.md` Scope).
+- `since=<commit>`: the commit that added the NEED's `clarify: refined` History line, the oldest match of `git log --format=%H --reverse -S'clarify: refined' -- <NEED file> | head -1`. For a re-run after fixes it is instead the commit the previous run checked (its `HEAD`), so the run checks only the lines changed since; the fork keeps no memory, so the caller supplies it, and a second full run per scope and change is not made. The caller also pastes `since-diff=` with `git diff --unified=0 <since>..HEAD -- <spec_root>`. It narrows the functional rows of the full scope (`SKILL.md` Scope).
 - Without `base=` and `base-diff=` the check cannot claim `pre-existing`: every finding keeps its severity and blocks. Without `since=` the full scope runs the functional rows on the whole FEAT scope, as before: with `sdd.needs: false`, with `sdd.flow: feat-only`, for a FEAT or version block opened for a routed fix, or when the NEED has no `refined` line.
 
 ## When a finding is pre-existing

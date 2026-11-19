@@ -16,7 +16,7 @@ allowed-tools:
 
 # SDD tool — Check
 
-Process: `../sdd-constitution/references/sdd-process.md`. Read-only: this tool edits no specification. It is not a step of the chain: `sdd-clarify` and `sdd-plan` call it before their status move, and anyone may run it as an audit. Checklist: `references/check-list.md`. A run after fixes checks only the lines changed since the previous run; at most one full run per scope and change.
+Process: `../sdd-constitution/references/sdd-process.md`. Read-only: this tool edits no specification. It is not a step of the chain: `sdd-clarify` and `sdd-plan` call it before their status move, and anyone may run it as an audit. Checklist: `references/check-list.md`. A run after fixes takes the commit the previous run checked as `since=` and checks only the lines changed since (`references/pre-existing.md`); at most one full run per scope and change.
 
 Scope, chosen by the argument:
 - functional (`NEED-nnn`, called by `sdd-clarify` before `refined`): the NEED, its REQs, journeys, processes and product decisions; rows C1, C2, C4, C5, C6, C11, C12, C13, C14 (range, unit and exposure), C20, C22, C26, the journey and process links and checklist Q1 (read against each REQ's Verification), Q2–Q4, Q7 and Q12; a block stops `refined`.
