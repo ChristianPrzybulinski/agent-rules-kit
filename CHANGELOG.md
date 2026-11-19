@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- KIT-109: `platforms/tools/check_changelog.py`, run by `check.sh` and so by the `static` job, fails a pull request whose diff adds a `CHANGELOG.md` line under a released `## [X.Y.Z]` section, naming the line and the section (`CHANGELOG.md:12: added under [17.1.0], a released version; move it under [Unreleased]`). A rebase or merge across a release can land a branch's line there with no conflict. The base is the merge base with `origin/main`, else `HEAD^1`; a release diff that adds its own heading passes. The `static` job checks out with `fetch-depth: 2` so `HEAD^1` exists. Migration: none.
+
 ## [18.1.0] - 2026-11-18
 
 ### Changed
