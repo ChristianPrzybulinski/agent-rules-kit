@@ -437,6 +437,33 @@ class RedTest(StubCase):
         self.assertIn("not run", out)
         self.assertEqual(self.worktrees(), before)
 
+    def test_generated_only_change_is_exempt_with_exclude_and_names_the_paths(self):
+        head = self.repo.commit("generate", **{"gen__Types.py": "TYPES = 1\n"})
+        code, out = self.red(head, "--exclude", "gen/**")
+        self.assertEqual(code, 0, out)
+        self.assertIn("red: excluded 1 generated path(s) by --exclude: gen/Types.py", out)
+        self.assertIn("red: EXEMPT", out)
+
+    def test_generated_only_change_without_exclude_is_none(self):
+        head = self.repo.commit("generate", **{"gen__Types.py": "TYPES = 1\n"})
+        code, out = self.red(head)
+        self.assertEqual(code, 1, out)
+        self.assertIn("red: NONE", out)
+
+    def test_exclude_does_not_hide_a_hand_edit_beside_generated_output(self):
+        head = self.repo.commit("generate and edit", **{"gen__Types.py": "TYPES = 1\n", "calc.py": CALC_SUB})
+        code, out = self.red(head, "--exclude", "gen/**")
+        self.assertEqual(code, 1, out)
+        self.assertIn("red: excluded 1 generated path(s) by --exclude: gen/Types.py", out)
+        self.assertIn("red: NONE", out)
+
+    def test_exclude_plan_writes_status_exempt(self):
+        head = self.repo.commit("generate", **{"gen__Types.py": "TYPES = 1\n"})
+        plan = Path(self.tmp.name) / "plan.json"
+        code, out = self.red(head, "--exclude", "gen/**", "--plan", str(plan))
+        self.assertEqual(code, 0, out)
+        self.assertEqual(json.loads(plan.read_text())["status"], "exempt")
+
     def test_compile_error_on_a_symbol_the_pr_adds_is_red(self):
         base = self.repo.commit("build", **{"build.py": BUILD.format(symbol="Widget")})
         head = self.repo.commit("widget", **{"src__Widget.java": "public class Widget { int sum() { return 3; } }\n",

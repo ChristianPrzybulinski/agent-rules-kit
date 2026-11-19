@@ -25,6 +25,8 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 |---|---|---|---|
 | [KIT-102](features/KIT-102.md) | Split the red check into a plan and a judge of given sides | in-progress | #379 |
 | [KIT-103](features/KIT-103.md) | Name every spec record file by its id alone | planned | — |
+| [KIT-107](features/KIT-107.md) | Leave generated output out of the red check's code roots | proposed | — |
+| [KIT-108](features/KIT-108.md) | A retired REQ needs no FEAT | proposed | — |
 | [KIT-109](features/KIT-109.md) | Fail a CHANGELOG line added under a released version | proposed | — |
 
 ## Decisions

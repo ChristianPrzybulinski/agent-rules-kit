@@ -5,7 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Added
+- KIT-107: `review_checks.py red --exclude GLOB` (repeatable) leaves generated output out of the code roots, so a PR whose only code change is generated reports `red: EXEMPT` and the project's generator check stays its proof. The run prints each excluded path, and a hand edit beside the generated files still counts (`red: NONE`). `--plan` and `--sides-from` share the selection. Without the flag nothing changes. Migration: none; a project whose `red` row fails on generated output adds `--exclude '<glob>'` to it.
 - KIT-109: `platforms/tools/check_changelog.py`, run by `check.sh` and so by the `static` job, fails a pull request whose diff adds a `CHANGELOG.md` line under a released `## [X.Y.Z]` section, naming the line and the section (`CHANGELOG.md:12: added under [17.1.0], a released version; move it under [Unreleased]`). A rebase or merge across a release can land a branch's line there with no conflict. The base is the merge base with `origin/main`, else `HEAD^1`; a release diff that adds its own heading passes. The `static` job checks out with `fetch-depth: 2` so `HEAD^1` exists. Migration: none.
+
+### Changed
+- KIT-108: `check_spec.py` rule `req-unlisted` skips a REQ whose `status` is `retired`, so retiring the newer of two duplicate REQs (`sdd-check` C20) no longer needs a FEAT or an open NEED to list it; an `approved` or `proposed` REQ with no FEAT still fails. The C20 step in `duplicates.md` says the retired REQ's History names the kept one and that open FEATs, journeys and processes move their links to it while delivered or cancelled FEATs keep theirs. Migration: none; a project that kept a retired REQ listed in an open FEAT only for the validator may drop that link.
 
 ## [18.1.0] - 2026-11-18
 
