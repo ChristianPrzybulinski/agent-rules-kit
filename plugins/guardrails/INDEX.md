@@ -80,6 +80,8 @@
 - `protocol-rule-required-field-bumps-version`
 - `review-claimed-proof-not-rerun`
 - `review-trigger-can-i-merge`
+- `sdd-intake-negative-finding-stays-a-row`
+- `sdd-intake-negative-no-spec-repo`
 - `sdd-intake-trigger-new-idea`
 - `security-trigger-download-endpoint`
 - `session-closeout-no-rerun`

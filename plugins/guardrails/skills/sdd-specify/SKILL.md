@@ -25,14 +25,14 @@ Read `docs/spec/spec.md` and only the REQs, journeys, processes and FEATs the NE
 
 | Type | Rule | Route |
 |---|---|---|
-| fix | a REQ, journey, process or decision already states the right behavior and the code does not (a process states it in its steps, state exits and branches) | `routed`: a fix task row cites that artifact and the origin |
+| fix | a REQ, journey, process or decision already states the right behavior and the code does not (a process states it in its steps, state exits and branches) | `routed`: a fix that changes code gets one row, written by `sdd-tasks FEAT-nnn fix NEED-nnn`, in the FEAT that already owns the cited artifact's behavior (its process steps or REQs), citing that artifact and the NEED; never a new FEAT (`sdd-plan` § 2 forbids a bucket FEAT). A fix that changes only the record needs no row |
 | content | only data changes, no rule | `routed`: the project's data-change flow |
 | decision | a choice with nothing to deliver | `refine` to a decision record only |
 | improvement | changes behavior an existing REQ, journey or process describes | `refine`: the REQ, journey or process changes |
 | new | no REQ, journey or process covers it | `refine` |
 | platform | process, tooling, CI or the kit | `refine` in the project's platform track |
 
-- A problem with no artifact stating the right behavior is an improvement, never a fix. A duplicate closes `merged`, naming the NEED kept; a refused NEED closes `rejected` with its reason.
+- A problem with no artifact stating the right behavior is an improvement, never a fix, unless nobody would choose it (a crash, lost data, a red check): a reported defect like that is a fix too, its row citing the evidence (`sdd-intake` § 4). A duplicate closes `merged`, naming the NEED kept; a refused NEED closes `rejected` with its reason.
 - Pillars and Out of scope (on when `spec.md` has them, as journeys are on when the folder exists): a NEED that hits an `Out of scope (explicit)` line closes `rejected` (the line says never) or `parked` (it names a later milestone), and its Route cites that line (`spec.md:<line>` and its text). While `spec.md` has `## Pillars`, a `new`, `improvement`, `content` or `decision` NEED names the pillar it serves (`Pillar: P<n>` and how); one that serves none closes `rejected` or `parked` the same way, citing the Pillars table. A `fix` (it restores stated behavior) and a `platform` NEED write `Pillar: —`. `sdd-check` C13 flags a miss.
 - Complete Problem / value and the Triage block: type and why, existing artifacts touched (with paths), Pillar, Route, Size (`S`, `M` or `L`, no duration without a measured run), Priority (`now`, `next` or `later`; `later` closes `parked`, which returns to `triaged` when taken up).
 - Finding facts is the agent's job. Open with a verdict and its evidence, then ask one question at a time with two to four options and a recommendation.
