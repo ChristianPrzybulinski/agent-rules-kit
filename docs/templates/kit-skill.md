@@ -7,7 +7,7 @@ triggers:
   - model
 # disable-model-invocation: true  # required when triggers is exactly [user]
 # subagent: true                 # choose this or agent, never both
-# agent: researcher
+# agent: guardrails:researcher   # <plugin>:<profile>; a bare name runs as general-purpose (KIT-114)
 # context: fork                  # required with subagent or agent
 # background: false              # required with subagent or agent
 allowed-tools:

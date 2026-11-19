@@ -1101,10 +1101,19 @@ for name, plugin_dir in plugins.items():
             fail(rel(skill_file), "skill may not set both 'subagent' and 'agent'")
         agent = data.get("agent")
         if agent is not None:
-            owner = agent_owners.get(agent)
-            if owner is None:
+            # KIT-114: a plugin agent resolves only as <plugin>:<profile>; the bare name ran as general-purpose
+            # on the parent's model (probe, Claude Code 2.1.287)
+            plugin_part, qualified, profile_name = str(agent).rpartition(":")
+            owner = agent_owners.get(profile_name)
+            if qualified and owner != plugin_part:
+                fail(rel(skill_file), f"agent '{agent}' has no agents/ profile in plugin '{plugin_part}'")
+                owner = None
+            elif not qualified and owner is not None:
+                fail(rel(skill_file), f"agent '{agent}' needs its plugin prefix ({owner}:{agent})")
+                owner = None
+            elif owner is None:
                 fail(rel(skill_file), f"agent '{agent}' has no agents/ profile in any plugin")
-            elif owner != name and owner not in reachable(name):
+            if owner is not None and owner != name and owner not in reachable(name):
                 fail(rel(skill_file), f"agent '{agent}' lives in plugin '{owner}' which '{name}' does not require")
         uses_subagent = data.get("subagent") is True or agent is not None
         context_fork = data.get("context") == "fork"
