@@ -148,7 +148,8 @@ repositories whose PRs close its issues, its earlier names, and the blocked and 
 every issue and every PR once per repository through `gh api` (no per-issue request). A row's `Item` cell (KIT-068:
 `#N`, or `OWNER/NAME#N` of the backlog or an earlier name) names its issue and wins over any title, so a renamed issue
 keeps its row; a row without one falls back to the issues titled `[FEAT-nnn Tn]` or `[FEAT-nnn T1+T2]`. A `gh` failure
-or a missing backlog repository exits 2, like a refused `sdd` block (KIT-080). A member issue closed as not planned that a
+or a missing backlog repository exits 2, like a refused `sdd` block (KIT-080); a repository whose issues cannot be
+listed freezes the rows that cite it, with a WARN and exit 0 (KIT-112). A member issue closed as not planned that a
 bundle names in its title (`— bundled with FEAT-nnn Tn #N`) follows the bundle. A row is `done` once a
 merged PR closes its issue; a closed issue then keeps the row (a warning) or, closed as not planned, makes it
 `cancelled` (a `done` row stays), whatever labels it still carries; an open one is `blocked` with a blocked
