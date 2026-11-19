@@ -33,7 +33,7 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 | [KIT-109](features/KIT-109.md) | Fail a CHANGELOG line added under a released version | delivered | #404 |
 | [KIT-112](features/KIT-112.md) | Read each OWNER/NAME#N issue in its own repository | delivered | #408 |
 | [KIT-113](features/KIT-113.md) | Let an unanswered owner question wait only at the merge | delivered | #410 |
-| [KIT-114](features/KIT-114.md) | Name a plugin agent as <plugin>:<profile> in a skill's agent field | proposed | #388 |
+| [KIT-114](features/KIT-114.md) | Name a plugin agent as <plugin>:<profile> in a skill's agent field | delivered | #414, #418 |
 
 ## Decisions
 
