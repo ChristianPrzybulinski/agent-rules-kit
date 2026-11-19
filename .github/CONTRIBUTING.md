@@ -80,7 +80,7 @@ globs:
 
 A folder gets a `README.md` only when its files need explanation; shape it with [`docs/templates/kit-readme.md`](../docs/templates/kit-readme.md). Outside the generated plugin indexes this repository has no `INDEX.md` (KIT-042). The `kit-*` templates shape kit content, so they live in `docs/templates/`, outside every plugin.
 
-A subagent skill sets Devin `subagent: true` or a shared `agent: <profile>`, plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/<plugin>/agents/` of a plugin reachable through the dependency graph.
+A subagent skill sets Devin `subagent: true` or a shared `agent: <plugin>:<profile>` (a bare name runs as `general-purpose`, KIT-114), plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/<plugin>/agents/` of a plugin reachable through the dependency graph.
 
 Hooks are a guard, not a guardrail: they fail open, load only in local Devin and Claude Code, and cannot replace user confirmation or the always-on safety boundaries. Each hook's event, behaviour and tests: [`plugins/guardrails/hooks/README.md`](../plugins/guardrails/hooks/README.md).
 
