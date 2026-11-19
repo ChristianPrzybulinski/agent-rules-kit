@@ -600,8 +600,12 @@ def check_conflict_markers(spec_dir):
 
 # KIT-113: the line an SDD step writes when an owner question stayed unanswered and the chain went on with the marked
 # recommendation (`[DECISION] pending owner: <option> (asked YYYY-MM-DD HH:MM UTC)`). It starts a line, after at most
-# list or quote markers, so a spec that quotes the marker in running text or in code does not fail.
-PENDING_DECISION = re.compile(r"^\s*(?:[-*+>]\s+)*\[DECISION\] pending owner\b")
+# list, quote, numbering, checkbox, heading, table-cell or bold markers, in any case and with any spacing, so a spec that
+# quotes the marker in running text or in code does not fail. The owner's answer rewrites the line to
+# `[DECISION] <option>, chosen by the owner on YYYY-MM-DD` (sdd-clarify 2, sdd-plan 5), which this does not match; a
+# line that keeps `pending owner` in any wording still fails.
+PENDING_DECISION = re.compile(
+    r"^(?:\s|[-*+>|#_]|\d+[.)]|\[[ xX]\])*\[DECISION\](?:\*\*|__)?\s+pending\s+owner\b", re.I)
 
 
 def check_pending_decisions(spec_dir):

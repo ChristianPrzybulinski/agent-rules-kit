@@ -253,6 +253,38 @@ class PendingDecisionTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("J-01.md:3: [DECISION] pending owner", result.stderr)
 
+    def test_the_cheap_disguises_of_the_line_still_fail(self):
+        """A numbered or checkbox item, a heading, a table cell, bold text, another case or spacing is still the line."""
+        for form in ("1. [DECISION] pending owner: B", "2) [DECISION] pending owner: B", "- [ ] [DECISION] pending owner: B",
+                     "- [x] [DECISION] pending owner: B", "### [DECISION] pending owner: B",
+                     "| [DECISION] pending owner: B | asked 2026-11-19 10:00 UTC |", "**[DECISION] pending owner**: B",
+                     "**[DECISION]** pending owner: B", "> - [DECISION] pending owner: B", "[decision] pending owner: B",
+                     "[DECISION]   pending   owner: B", "[Decision] Pending Owner: B"):
+            with self.subTest(form=form):
+                self.feat.write_text(FEAT.format(fid="FEAT-001", reqs="") + f"\n{form}\n")
+                result = self.run_check()
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn("[pending-decision]", result.stderr)
+
+    def test_the_resolved_form_and_its_folded_form_pass(self):
+        """When the owner answers, the line becomes `[DECISION] <option>, chosen by the owner on <date>`, then folds."""
+        self.add("[DECISION] option B, chosen by the owner on 2026-11-19\n"
+                 "[DECISION] option B, chosen by the owner on 2026-11-19 \u2192 folded into CA-3\n"
+                 "- [DECISION] option C, chosen by the owner on 2026-11-19\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_an_answered_wording_that_keeps_the_marker_is_not_the_resolved_form(self):
+        self.add("[DECISION] pending owner answered: option B\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("[pending-decision]", result.stderr)
+
+    def test_long_runs_of_marker_characters_pass_quickly(self):
+        self.add("#" * 4000 + "\n" + "*" * 4000 + "\n" + "_" * 4000 + "\n" + "- " * 2000 + "\n")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_the_same_spec_without_the_line_passes(self):
         self.add("## Open questions\n\nNone.\n")
         result = self.run_check()
