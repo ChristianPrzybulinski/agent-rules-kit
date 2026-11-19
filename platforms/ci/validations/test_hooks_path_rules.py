@@ -195,6 +195,150 @@ class GateTest(Project):
         self.assertEqual(json.loads(self.run_hook(session="s9"))["hookSpecificOutput"]["hookEventName"], "PostToolUse")
 
 
+class ApplyPatchTest(Project):
+    """KIT-081 stage 3 for Codex: a Codex file edit is an `apply_patch` call whose tool_input holds only the patch text
+    (`*** Add File: <path>` and its siblings), with no file_path, notebook_path or path (probe of 2026-11-19, #308)."""
+
+    def patch(self, *lines, end=True):
+        return "\n".join(["*** Begin Patch", *lines] + (["*** End Patch"] if end else [])) + "\n"
+
+    def apply(self, text, **kwargs):
+        return self.run_hook(tool="apply_patch", command=text, **kwargs)
+
+    def test_an_added_file_by_absolute_path_gives_its_rules_once(self):
+        text = self.patch(f"*** Add File: {self.project / 'src' / 'new.gd'}", "+extends Node")
+        self.assertEqual(given(self.apply(text)), ["code", "godot"])
+        self.assertEqual(self.apply(text), "", "once per session")
+        self.assertEqual(self.run_hook(tool="Edit", file_path="src/a.gd"), "", "the Edit call shares the state")
+        self.assertEqual(given(self.apply(text, session="s2")), ["code", "godot"], "a new session gets them again")
+
+    def test_each_header_form_names_a_file(self):
+        for header in ("Add File", "Update File", "Delete File"):
+            with self.subTest(header=header):
+                text = self.patch(f"*** {header}: src/a.gd", "@@", "-old", "+new")
+                self.assertEqual(given(self.apply(text, session=header)), ["code", "godot"])
+
+    def test_a_project_relative_path_is_read_from_the_event_cwd(self):
+        self.assertEqual(given(self.apply(self.patch("*** Update File: src/a.gd", "@@", " extends Node", "+x"))),
+                         ["code", "godot"])
+        [record, _] = self.log()
+        self.assertEqual(record["trigger_file_path"], os.path.realpath(self.project / "src" / "a.gd"))
+        context = json.loads(self.apply(self.patch("*** Update File: src/b.gd"), session="s3"))
+        self.assertIn("this tool call touched `src/b.gd`", context["hookSpecificOutput"]["additionalContext"])
+
+    def test_the_destination_of_a_move_names_a_file(self):
+        text = self.patch("*** Update File: notes/old.txt", "*** Move to: src/moved.gd", "@@", "-a", "+b")
+        self.assertEqual(given(self.apply(text)), ["code", "godot"])
+        self.assertEqual(self.log()[-1]["trigger_file_path"], os.path.realpath(self.project / "src" / "moved.gd"))
+
+    def test_the_source_of_a_move_names_a_file_too(self):
+        text = self.patch("*** Update File: src/old.gd", "*** Move to: notes/new.txt", "@@", "-a", "+b")
+        self.assertEqual(given(self.apply(text)), ["code", "godot"])
+
+    def test_several_files_give_each_rule_once_with_the_file_that_triggered_it(self):
+        (self.project / "src" / "t").mkdir()
+        text = self.patch("*** Add File: src/t/test_x.py", "+import unittest", "*** Update File: src/a.gd", "@@", "+x",
+                          "*** Delete File: notes/gone.txt")
+        self.assertEqual(sorted(given(self.apply(text))), ["code", "godot", "python", "tests"])
+        triggers = {Path(r["file_path"]).stem: Path(r["trigger_file_path"]).name for r in self.log()}
+        self.assertEqual(triggers, {"code": "test_x.py", "godot": "a.gd", "python": "test_x.py",
+                                    "tests": "test_x.py"})
+        state = json.loads((self.data / pr.STATE / "s1.json").read_text(encoding="utf-8"))
+        self.assertEqual(state, ["code", "godot", "python", "tests"])
+
+    def test_a_patch_whose_paths_match_no_rule_gives_nothing(self):
+        text = self.patch("*** Update File: notes.txt", "@@", "+x", "*** Add File: docs/new.txt", "+y")
+        self.assertEqual(self.apply(text), "")
+        self.assertFalse((self.data / pr.STATE).exists(), "no rule, no state")
+        self.assertEqual(self.log(), [])
+
+    def test_a_path_outside_the_project_matches_as_written(self):
+        outside = self.root / "elsewhere" / "b.gd"
+        self.assertEqual(given(self.apply(self.patch(f"*** Add File: {outside}", "+x"))), ["code", "godot"])
+        self.assertEqual(self.log()[0]["trigger_file_path"], os.path.realpath(outside))
+        self.assertEqual(self.apply(self.patch(f"*** Add File: {self.root / 'elsewhere' / 'n.txt'}"), session="s4"),
+                         "")
+        self.assertEqual(given(self.apply(self.patch("*** Update File: ../up/c.gd"), session="s5")),
+                         ["code", "godot"])
+
+    def test_header_lookalikes_inside_the_patch_body_are_not_files(self):
+        """The format prefixes every body line (`+`, `-`, a space or `@@`), so a header counts only at column 0."""
+        text = self.patch("*** Update File: notes.txt", "@@",
+                          "+*** Update File: src/a.gd", "-*** Delete File: src/a.gd", " *** Add File: src/a.gd",
+                          "+*** Move to: src/a.gd", "@@ *** Update File: src/a.gd", "*** End of File",
+                          "+  *** Add File: src/a.gd")
+        self.assertEqual(self.apply(text), "")
+        self.assertEqual(pr.patch_paths(text), ["notes.txt"])
+
+    def test_a_header_needs_its_exact_spelling_and_a_path(self):
+        for line in ("*** Add File:", "*** Add File: ", "*** add file: src/a.gd", "*** Update File src/a.gd",
+                     "***Update File: src/a.gd", "** Update File: src/a.gd", "*** Rename File: src/a.gd",
+                     "*** Move to:", "# *** Update File: src/a.gd"):
+            with self.subTest(line=line):
+                self.assertEqual(pr.patch_paths(self.patch(line)), [])
+
+    def test_windows_line_endings_and_a_missing_end_marker_still_name_the_file(self):
+        text = "*** Begin Patch\r\n*** Update File: src/a.gd\r\n@@\r\n+x\r\n"
+        self.assertEqual(pr.patch_paths(text), ["src/a.gd"])
+        self.assertEqual(given(self.apply(text)), ["code", "godot"])
+
+    def test_a_path_with_spaces_is_kept_whole(self):
+        self.assertEqual(pr.patch_paths(self.patch("*** Add File: my dir/a b.gd", "+x")), ["my dir/a b.gd"])
+
+    def test_only_the_apply_patch_tool_reads_a_patch(self):
+        text = self.patch("*** Update File: src/a.gd")
+        for tool in ("Write", "Edit", "Read", "Grep", "ApplyPatch", "apply_patch_x"):
+            with self.subTest(tool=tool):
+                self.assertEqual(pr.candidates(json.loads(self.event(tool=tool, command=text))), [])
+        self.assertEqual(pr.candidates({"tool_name": "apply_patch", "tool_input": {"command": text}}), ["src/a.gd"])
+
+    def test_a_tool_input_that_is_not_a_patch_is_ignored(self):
+        for tool_input in ({}, {"command": ""}, {"command": 5}, {"command": None}, {"command": ["*** Add File: a.gd"]},
+                           {"patch": "*** Add File: src/a.gd"}, "text", None, [1]):
+            with self.subTest(tool_input=tool_input):
+                self.assertEqual(pr.candidates({"tool_name": "apply_patch", "tool_input": tool_input}), [])
+
+    def test_the_other_keys_still_name_files_beside_a_patch(self):
+        event = {"tool_name": "apply_patch", "tool_input": {"file_path": "x.gd", "command": self.patch(
+            "*** Add File: y.gd")}}
+        self.assertEqual(pr.candidates(event), ["x.gd", "y.gd"])
+
+    def test_a_large_patch_is_read_up_to_its_bounds(self):
+        many = self.patch(*[f"*** Update File: notes/f{n}.txt" for n in range(pr.MAX_PATCH_PATHS)],
+                          "*** Update File: src/a.gd")
+        self.assertEqual(len(pr.patch_paths(many)), pr.MAX_PATCH_PATHS)
+        self.assertEqual(self.apply(many), "", "a file past the path bound is not read")
+        last = self.patch(*[f"*** Update File: notes/f{n}.txt" for n in range(pr.MAX_PATCH_PATHS - 1)],
+                          "*** Update File: src/a.gd")
+        self.assertEqual(given(self.apply(last, session="s6")), ["code", "godot"], "the last path inside the bound")
+        body = ["+" + "x" * 99] * (pr.MAX_PATCH_CHARS // 100 + 1000)
+        huge = self.patch("*** Add File: notes/big.txt", *body, "*** Update File: src/a.gd")
+        start = time.monotonic()
+        found = pr.patch_paths(huge)
+        self.assertLess(time.monotonic() - start, BUDGET_S)
+        self.assertEqual(found, ["notes/big.txt"], "a header past the character bound is not read")
+        self.assertEqual(self.apply(huge, session="s7"), "")
+
+    def test_a_paths_length_is_bounded(self):
+        self.assertEqual(pr.patch_paths(self.patch("*** Add File: " + "a/" * 5000 + "b.gd")), [])
+
+    def test_a_malformed_patch_exits_0_silently(self):
+        for text in ("*** Begin Patch\n", "*** Begin Patch\n*** Update File:\n", "\x00*** Update File: src/a.gd\x00"):
+            with self.subTest(text=text):
+                self.assertIsInstance(self.apply(text, session=f"m-{len(text)}"), str)
+
+    def test_a_captured_codex_event_gives_the_rules(self):
+        """The shape the probe captured from codex-cli 0.164.0 (#308 comment of 2026-11-19): no file_path, notebook_path
+        or path, a turn_id and a tool_response."""
+        patch = self.patch(f"*** Add File: {self.project / 'src' / 'probe.gd'}", "+extends Node")
+        event = {"session_id": "019e-codex", "turn_id": "turn-1", "transcript_path": None, "cwd": str(self.project),
+                 "hook_event_name": "PostToolUse", "model": "gpt-5.6-luna", "permission_mode": "default",
+                 "tool_name": "apply_patch", "tool_use_id": "call_1", "tool_input": {"command": patch},
+                 "tool_response": "Success. Updated the following files:\nA src/probe.gd\n"}
+        self.assertEqual(given(pr.run(json.dumps(event), self.env)), ["code", "godot"])
+        self.assertEqual(self.log()[0]["session_id"], "019e-codex")
+
+
 class ProfileTest(Project):
     profile = "docs,godot:client,java:server"
 
@@ -404,6 +548,14 @@ class HookCommandTest(Project):
         result = self.run_command(self.event())
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(given(result.stdout.strip()), ["code", "godot"])
+
+    def test_gives_the_rule_after_a_codex_apply_patch(self):
+        """KIT-081 stage 3 for Codex: the patch text is the only input; the same command gives the rules."""
+        patch = f"*** Begin Patch\n*** Add File: {self.project / 'src' / 'n.gd'}\n+extends Node\n*** End Patch\n"
+        result = self.run_command(self.event(tool="apply_patch", command=patch))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(given(result.stdout.strip()), ["code", "godot"])
+        self.assertEqual(self.run_command(self.event(tool="apply_patch", command=patch)).stdout, "")
 
     def test_never_blocks(self):
         for payload, env in (("not json", {}), (self.event(session="x"), {"CLAUDE_PLUGIN_ROOT": "/nonexistent"}),

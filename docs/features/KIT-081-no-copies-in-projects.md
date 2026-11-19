@@ -251,6 +251,31 @@ stage 3 for Codex waits for a Codex probe. The five `rule` eval cases write the 
 selects their rule and copy no rule, so they measure the hook; they were not run (the Docker store, CONTRIBUTING §
 Evals). Removing a project destination makes the next release MAJOR.
 
+**Stage 3 for Codex, part 2: edits (`apply_patch`).** [FACT] Codex probe of 2026-11-19 (codex-cli 0.164.0, #308
+comment): a plugin's `hooks/hooks.json` hook fires on tool use once trusted and its `additionalContext` reaches the
+model, and a file edit is an `apply_patch` call whose input is `{"tool_name":"apply_patch","tool_input":{"command":
+"*** Begin Patch\n*** Add File: <abs path>\n..."}}`, with no `file_path`, `notebook_path` or `path`; the probe's
+`apply_patch` arm fired Pre and Post. Codex reads files through Bash (`cat`, `sed`, `rg`), which the hook already
+handles.
+
+Scope (this part only; the manifest fix and the trust record are other parts, and the `AGENTS.md` blocks stay until
+both land):
+- `plugins/guardrails/hooks/path_rules.py`: for `tool_name == "apply_patch"`, `candidates()` adds the path of each
+  `*** Add File:`, `*** Update File:`, `*** Delete File:` and `*** Move to:` header (`patch_paths()`). A header counts
+  only at the start of a line: the format starts every body line with `+`, `-`, a space or `@@`, so a body line that
+  looks like a header (`+*** Update File: x`) is not a file. Bounded: the first 1 MiB (`MAX_PATCH_CHARS`), 64 paths
+  (`MAX_PATCH_PATHS`), a path of at most 4096 characters. The rest is the Claude Code behavior: the root gate, the
+  profile map, once per session, the log record, exit 0 and nothing on stdout on any error.
+- `hooks.json` is unchanged: [FACT] the Codex hooks doc matches `apply_patch` through the `Edit` and `Write` aliases
+  of the existing matcher, and the probe saw the hook fire for it. Not probed: a matcher that names only `apply_patch`.
+- `platforms/ci/validations/test_hooks_path_rules.py` (`ApplyPatchTest` and one `HookCommandTest` case),
+  `plugins/guardrails/hooks/README.md` and the `CHANGELOG.md` line.
+
+Not verified: a real Codex `apply_patch` event through the hook (the tests feed the probe's captured JSON shape); a
+Codex `apply_patch` whose paths are relative to a `cwd` other than the project root beyond what `match_forms` does for
+every tool; the other patch spellings a later Codex release may add (a header the parser does not know gives no path,
+so no rule, never an error).
+
 ### Stage 3 measurement (2026-11-16, before the owner's go-ahead)
 
 Method: Claude Code 2.1.287, Opus 5.5, `claude -p` in throwaway project folders. The five `rule` eval cases of
@@ -283,12 +308,56 @@ at all. Each case's own graders scored the runs: regex for most, a haiku judge f
 folder logged that session, so the directory copy took the place of the user-scope `guardrails@ai-kit` for it, with no
 error.
 
+### Stage 3 for Codex, part 1: the plugin manifest (2026-11-19, #308)
+
+[FACT] Codex probe on codex-cli 0.164.0 (issue #308, comment of 2026-11-19): `codex features list` says `plugin_hooks
+removed`, which is a vestigial flag; a hook shipped in a plugin's `hooks/hooks.json` fires and its `additionalContext`
+reaches the model once the hook is trusted. The kit's own plugin listed **zero** hooks, with no warning or error.
+
+[FACT] Isolated 2026-11-19 with `hooks/list` of `codex app-server` in a throwaway `CODEX_HOME`, each arm a copy of
+`plugins/guardrails` installed with `codex plugin add guardrails@ai-kit` from a local marketplace that mirrors
+`.agents/plugins/marketplace.json`:
+
+| Arm | Root `plugin.json` | `.claude-plugin/` | Hooks listed |
+|---|---|---|---|
+| a, as shipped | `$schema` = agent-plugins.org | kept | 0 |
+| b | no `$schema` | kept | 8 (2 PreToolUse, 2 PostToolUse, 3 SessionStart, 1 SubagentStart) |
+| c | `$schema` = agent-plugins.org | removed | 0 |
+| d | no `$schema` | removed | 8 |
+| e, f, g | an unknown key, a `$schema` naming `https://example.com/x.json`, an `author` object | kept | 8 each |
+| h, i | `$schema` = agent-plugins.org, first or last key | kept | 0 each |
+| m | no `$schema`, `"hooks": "./hooks/hooks.json"` | kept | 8 |
+| l | agent-plugins.org `$schema` and `"hooks": "./hooks/hooks.json"` | kept | 0 |
+
+So the cause is the `$schema` value `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`, not the key, its
+position or the manifest lookup order (`.claude-plugin/plugin.json` ahead of the root file). The binary holds that URL
+beside "Agent Plugins manifest" error strings, so a manifest naming it is read as an Agent Plugins manifest, whose hooks
+a `hooks/hooks.json` does not supply (`[HYPOTHESIS]` for the mechanism; the arms show the effect). Skills load either
+way (23 with and without it, `skills/list`). Nothing in the kit read the key: the Claude Code and Devin manifests are
+their own files, and `bump_version.py` and `kit-release.sh` replace only the `"version"` field.
+
+Scope: `plugins/guardrails/plugin.json` loses its `$schema` line; `check_kit.py` fails a `$schema` key in any plugin's
+root manifest (all values: a schema URL of another site worked, but the kit has no use for one); the tests are
+`platforms/ci/validations/test_check_kit_manifests.py`. Not in this part: the trust record per user and release, the
+path-rule hook's `apply_patch` input and the removal of the `AGENTS.md` blocks (the rest of stage 3 for Codex).
+
+| ID | Given | When | Then | Proof |
+|---|---|---|---|---|
+| CA-1 | the kit's plugin manifests | `check_kit.py` runs | each root `plugin.json` has no `$schema`; one that has fails with the file and the consequence | `python3 platforms/tools/run_tests.py platforms/ci/validations/test_check_kit_manifests.py` |
+| CA-2 | a copy of `plugins/guardrails` installed in a throwaway `CODEX_HOME` | `hooks/list` runs | it lists 8 hooks | the probe harness of the History line; not a CI test, since CI has no Codex |
+
+Migration: Codex skips an untrusted hook without any message, so after the fix the plugin's hooks are listed but do not
+run until the user trusts them (`/hooks` review, or `[hooks.state."<key>"]` in `config.toml` with the `trusted_hash`
+and `trusted_content_hash` that `hooks/list` returns). A kit release that changes a hook needs a new review. Hooks that
+now run in Codex are the ones in `hooks/hooks.json`: guard, lint, git context, path rules and session start.
+
 Open before stage 2 and 3 (each `[HYPOTHESIS]` until checked against the installed version or its docs):
 
 - ~~A Claude Code plugin cannot ship path-scoped rules (stage 3 rests on it).~~ A plugin hook gives them instead;
   measured for stage 3 above.
 - Codex has no way to receive a path rule without a file in the project (stage 3 keeps the `AGENTS.md` block for Codex
-  if so). Still open: codex-cli 0.164.0 lists `plugin_hooks removed`; a Codex probe decides.
+  if so). Probed 2026-11-19: Codex does run a plugin's hooks once trusted, and the kit's plugin listed none because of
+  its `$schema` (part 1 above); open still: the trust record, `apply_patch` input and the removal of the blocks.
 - No consumer needs a kit version other than the machine's for longer than a release cycle (stage 2 rests on it).
 - ~~A marketplace declared `owner/repo#stable` updates to the branch's new commit on `claude plugin marketplace update`
   and `codex plugin marketplace upgrade` (the stage 2 prerequisite rests on it).~~ Checked on 2026-11-16, below.
@@ -316,6 +385,10 @@ Per stage: `bash platforms/tools/check.sh`, `python3 platforms/tools/run_tests.p
 --changed-from origin/main`, the consumer fixture (`test_consumer_fixture.py` in `ci-full.yml`) passing with no
 `.github/spec-lint/` in the project, and `git grep -n 'spec-lint/' -- plugins platforms/kits` printing nothing after
 stage 1.
+
+| ID | Given | When | Then | Proof |
+|---|---|---|---|---|
+| CA-1 | a synced project whose stacks select the `code` and `godot` rules | the hook reads an `apply_patch` event whose patch holds an `*** Add File:`, `*** Update File:`, `*** Delete File:` or `*** Move to:` header for `src/a.gd` (absolute or project-relative; one of several files; the source or the destination of a move) | it gives `code` and `godot` once per session, with the log record and the trigger file of the header; a patch whose paths match no rule, a body line that looks like a header (`+*** Update File: src/a.gd`, a context line, `*** End Patch`), another tool with a patch-like `command`, and a malformed or oversized patch (past 1 MiB or 64 paths) give nothing and exit 0 | `python3 platforms/tools/run_tests.py platforms/ci/validations/test_hooks_path_rules.py` |
 
 ## History
 
@@ -347,3 +420,11 @@ stage 1.
   `feat/kit-081-stage3-rules-hook`: the plugin's path-rule hook, the profile map beside it, no `.claude/rules` copy and
   its migration (`sync_rules.py`), and the rule eval fixtures on the hook. Open: stage 3 for Codex and the removal of
   the `AGENTS.md` blocks, both waiting for a Codex probe.
+- 2026-11-19: stage 3 for Codex, part 1 (branch `fix/codex-plugin-manifest`): Codex probe (#308) found 0 hooks listed for
+  the kit's plugin; isolated to the root `plugin.json` `$schema` value (agent-plugins.org), removed, and `check_kit.py`
+  fails it. Probe harness (throwaway `CODEX_HOME`, `hooks/list` over `codex app-server`) kept in the session scratchpad,
+  not in the repo. Open: trust record, `apply_patch` input for `path_rules.py`, the `AGENTS.md` blocks.
+- 2026-11-19: Codex probe (#308 comment): plugin hooks fire in codex-cli 0.164.0 once trusted, and a Codex file edit
+  is an `apply_patch` call with the patch text only. Stage 3 for Codex part 2 (edits): `path_rules.py` reads the
+  headers of an `apply_patch` patch (above, CA-1). Open: the per-user hook trust record, then the removal of the
+  `AGENTS.md` blocks.
