@@ -19,7 +19,7 @@
 | `sdd-clarify` | user | SDD step 2 — turn a specified NEED into approved REQs by asking product. Use when a NEED is specified. Not for gap checks (skill sdd-check). |
 | `sdd-constitution` | user | SDD step 0 — constitution, spec index, parameters, REVIEW.md. Use when starting a project or changing principles. Not for one feature (skill sdd-specify). |
 | `sdd-implement` | user | SDD step 6 — deliver a FEAT's tasks by Red-Green-Refactor, modes task, feat, fix. Use when a FEAT has ready rows or findings. Not for verdicts (skill review). |
-| `sdd-intake` | user, model | SDD entry — record an idea, need, improvement or problem as a NEED-nnn. Use when a request arrives. Not for classifying it (skill sdd-specify). |
+| `sdd-intake` | user, model | SDD entry — a request becomes a NEED-nnn; a finding is routed by type. Use when a request arrives or work finds a defect. Not for triage (skill sdd-specify). |
 | `sdd-plan` | user | SDD step 4 — one FEAT per delivery of a refined NEED: its Plan sections and decisions. Use when a NEED is refined. Not for task rows (skill sdd-tasks). |
 | `sdd-release` | user | SDD step 9 — release validated FEATs: changelog, version, test deploy, acceptance, flag on. Use when FEATs are validated. Not for PRs (skill git). |
 | `sdd-review` | user | SDD step 8 — FEAT closure on main: task proofs, stale-text and trace lint, REQ-NF. Use when a FEAT's last row merged. Not for PR verdicts (skill review). |

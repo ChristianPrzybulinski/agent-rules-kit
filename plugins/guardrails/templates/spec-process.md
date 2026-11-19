@@ -47,7 +47,7 @@ updated: "YYYY-MM-DD"
 
 ## Postconditions
 
-- [FACT] [what holds when the main path ends: state saved, message sent, output (a fix NEED, a DEBT, a decision)]
+- [FACT] [what holds when the main path ends: state saved, message sent, output (a fix row, a DEBT, a decision)]
 
 ## Out of this process
 

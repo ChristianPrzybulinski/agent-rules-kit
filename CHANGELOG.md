@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- KIT-104: a defect or gap that work finds is routed by the agent that found it, where it is found, instead of becoming a NEED of its own; a NEED is a need someone asks for, or a decision only the product owner can make. Skill `sdd-intake` gains § 4, the rule's one home, with four routes, first match wins: a fix (an artifact states the right behavior and the code differs, or nobody would choose what the code does) is a fix task row on the FEAT that owns the code, citing the violated artifact and the evidence; a spec fix (stale or silent text where another approved artifact or a recorded owner decision already states what the code does) lands in the same change or the area's next spec PR; a product choice (the code and an artifact disagree, or nothing states what the code does, and either could be right) is one owner question with an example and a recommendation, and a NEED of type `decision` only when it needs more than one question or stays unanswered; a new capability is a NEED as before. `sdd-plan` § 1 opens a delivered FEAT's next version block for a fix with no NEED (a FEAT without `## Versions` first gains the section, its delivered rows in a first `Status: delivered` block). The always-on bullet (`plugins/guardrails/AGENTS.md`, and its `sdd-intake` trigger case), `sdd-process.md`, `sdd-parameters.md`, `sdd-review`, `sdd-release`, `investigate`, `sdd-check`, `sdd-clarify` and the vulnerability tech process point to § 4 instead of a NEED; `sdd-review`'s closure record names the spec PRs and owner questions it filed, and the `spec-process.md` template's example output reads "a fix row". Requests from people keep the NEED types and the `sdd-specify` routing.
+
 ## [18.1.0] - 2026-11-18
 
 ### Changed
