@@ -521,12 +521,15 @@ class SyncStatusTest(unittest.TestCase):
         self.assertEqual(self.status("FEAT-001", "T1"), "blocked")
         self.assertNotIn("evidence merged", output)
 
-    def test_an_item_of_another_repository_or_a_task_file_falls_back_to_the_title(self):
+    def test_an_item_of_a_repository_that_cannot_be_read_keeps_its_row_and_a_task_file_falls_back_to_the_title(self):
+        """KIT-112 follow-up: no canned route for other/repo, so its row keeps its status instead of taking the
+        backlog issue that shares its title; a TASK file has no repository and still reads the title."""
         self.item_rows(("T1", "todo", "other/repo#11"), ("T2", "todo", "TASK-007"))
         issues = [issue(11, "Not this one", "closed"), issue(15, "[FEAT-001 T1] First", labels=["blocked"]),
                   issue(16, "[FEAT-001 T2] Second", labels=["blocked"])]
-        self.run_sync(self.routes(issues, {(REPO, 20): pull(body=f"Closes {REPO}#11")}))
-        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2")], ["blocked", "blocked"])
+        _, out = self.run_sync(self.routes(issues, {(REPO, 20): pull(body=f"Closes {REPO}#11")}))
+        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2")], ["todo", "blocked"])
+        self.assertIn("WARN other/repo: issues not read (", out)
 
 
     def test_feat_issue_never_fans_its_state_out_to_task_rows(self) -> None:
@@ -648,14 +651,14 @@ class SyncStatusTest(unittest.TestCase):
         self.run_lib(self.lib_gh([issue(11, "Backlog eleven")], []))
         self.assertEqual({q.split("?")[0] for q in self.queries if "/issues?" in q}, {f"repos/{REPO}/issues"})
 
-    def test_a_repository_that_cannot_be_read_is_reported_and_its_rows_fall_back_to_their_title(self):
+    def test_a_repository_that_cannot_be_read_is_reported_and_its_rows_keep_their_status(self):
         self.item_rows(("T1", "todo", f"{LIB}#11"), ("T2", "todo", "#12"))
         gh = self.lib_gh([issue(15, "[FEAT-001 T1] First", labels=["blocked"]), issue(12, "Twelve", "closed")], [],
                          {(REPO, 41): pull(body="Closes #12")}, lib_issues=False)
         code, out = self.run_lib(gh)
         self.assertEqual(code, 0, out)
         self.assertIn(f"WARN {LIB}: issues not read (", out)
-        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2")], ["blocked", "done"])
+        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2")], ["todo", "done"])  # not the title's blocked
 
     def test_the_backlog_that_cannot_be_read_still_stops(self):
         self.item_rows(("T1", "todo", f"{LIB}#11"))
@@ -687,6 +690,116 @@ class SyncStatusTest(unittest.TestCase):
         self.run_lib(gh)
         self.assertEqual(self.status("FEAT-001", "T1"), "done")
         self.assertFalse([q for q in self.queries if LIB in q and "/issues?" in q])  # no row names LIB
+
+    # KIT-112 follow-ups (#413): an unreadable repository, the WARN wording, the case of a repository name, `updated`.
+
+    def test_an_unreadable_repository_freezes_its_rows_instead_of_guessing_from_the_title(self):
+        """Before: the row took the backlog issue titled like it, so a `doing` row fell back to `todo`."""
+        self.item_rows(("T1", "doing", f"{LIB}#11"), ("T2", "todo", "#12"), ("T3", "done", f"{LIB}#13"))
+        gh = self.lib_gh([issue(15, "[FEAT-001 T1] First"), issue(12, "Twelve", "closed")], [],
+                         {(REPO, 41): pull(body="Closes #12")}, lib_issues=False)
+        code, out = self.run_lib(gh)
+        self.assertEqual(code, 0, out)
+        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2", "T3")], ["doing", "done", "done"])
+
+    def test_the_warning_names_the_repository_the_issues_the_reason_the_consequence_and_the_fix(self):
+        self.item_rows(("T1", "doing", f"{LIB}#11"), ("T2", "todo", f"{LIB}#13"), ("T3", "todo", "#12"))
+        gh = self.lib_gh([issue(12, "Twelve")], [], lib_issues=False)
+        _, out = self.run_lib(gh)
+        [line] = [ln for ln in out.splitlines() if ln.startswith(f"WARN {LIB}:")]
+        self.assertIn("issues not read (", line)
+        self.assertIn("no canned route", line)  # the reason `gh` gave
+        self.assertIn(f"FEAT-001 T1 ({LIB}#11)", line)
+        self.assertIn(f"FEAT-001 T2 ({LIB}#13)", line)
+        self.assertNotIn("T3", line)
+        self.assertIn("2 rows keep their current status and are not synced", line)
+        self.assertIn(f"read access to {LIB}", line)
+        self.assertIn("Item cells", line)
+
+    def test_the_warning_for_one_row_is_singular_and_a_long_list_is_cut(self):
+        self.item_rows(("T1", "todo", f"{LIB}#11"))
+        _, out = self.run_lib(self.lib_gh([], [], lib_issues=False))
+        self.assertIn("1 row keeps its current status and is not synced: FEAT-001 T1 (", out)
+        self.item_rows(*[(f"T{n}", "todo", f"{LIB}#{n}") for n in range(1, 9)])
+        _, out = self.run_lib(self.lib_gh([], [], lib_issues=False))
+        self.assertIn("8 rows keep their current status and are not synced", out)
+        self.assertIn("and 3 more", out)
+        self.assertNotIn("FEAT-001 T8", out)
+
+    def test_an_unreadable_pr_repository_stops_the_run_naming_it_and_what_to_change(self):
+        """Any row may be closed by a PR there, so a row could not be told from one with no PR: never a WARN."""
+        self.item_rows(("T1", "doing", "#11"))
+        gh = self.lib_gh([issue(11, "Eleven")], [], lib_issues=False)
+        settings = trace.github_settings(self.spec)
+        settings["pr_repos"].append(LIB)
+        failing = lambda query: (subprocess.CompletedProcess(["gh"], 1, "", "HTTP 404")
+                                 if f"repos/{LIB}/pulls" in query else gh(query))
+        with self.assertRaises(trace.SyncError) as caught:
+            trace.closing_prs(settings, failing)
+        message = str(caught.exception)
+        self.assertIn(f"{LIB}: pull requests not read", message)
+        self.assertIn("HTTP 404", message)
+        self.assertIn("sdd.github.pr_repos", message)
+        self.assertIn(f"read access to {LIB}", message)
+        with self.assertRaises(trace.SyncError):
+            self.run_lib(failing)
+
+    def test_item_issue_compares_repository_names_without_case(self):
+        settings = trace.github_settings(self.spec)
+        settings["pr_repos"].append(LIB)
+        for cell, expected in (("ORG/Product#11", (REPO, 11)), (f"{OLD.upper()}#11", (REPO, 11)),
+                               ("Org/Lib#11", (LIB, 11)),  # the configured spelling, not the cell's
+                               ("Other/Repo#11", ("Other/Repo", 11))):  # unknown: as written
+            with self.subTest(cell=cell):
+                self.assertEqual(trace.item_issue(cell, settings), expected)
+
+    def test_a_repository_written_in_another_case_is_listed_once_and_its_pr_closes_read(self):
+        self.item_rows(("T1", "todo", "Org/LIB#11"), ("T2", "todo", "ORG/lib#12"), ("T3", "todo", "ORG/PRODUCT#13"))
+        gh = self.lib_gh([issue(13, "Thirteen")], [issue(11, "Lib eleven", "closed"), issue(12, "Lib twelve")],
+                         {(LIB, 40): pull(body="Closes ORG/Lib#11"),
+                          (CLIENT, 42): pull("open", False, "Closes Org/LIB#12"),
+                          (REPO, 41): pull(body="Closes Org/Product#13")})
+        code, out = self.run_lib(gh)
+        self.assertEqual(code, 0, out)
+        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2", "T3")], ["done", "doing", "done"])
+        listings = [q.split("?")[0] for q in self.queries if "/issues?" in q and q.endswith("&page=1")]
+        self.assertEqual(sorted(listings), [f"repos/{LIB}/issues", f"repos/{REPO}/issues"])
+        self.assertEqual(self.text(self.path1).count("Org/LIB#11"), 1)  # what the spec says is never rewritten
+
+    def test_a_pr_repository_that_is_the_backlog_in_another_case_is_listed_once(self):
+        gh = self.lib_gh([], [])
+        settings = trace.github_settings(self.spec)
+        settings["pr_repos"] = [REPO.upper(), CLIENT, CLIENT.title()]
+        trace.closing_prs(settings, gh)
+        pulls = [q.split("?")[0] for q in self.queries if "/pulls?" in q and q.endswith("&page=1")]
+        self.assertEqual(sorted(pulls), [f"repos/{CLIENT}/pulls", f"repos/{REPO}/pulls"])
+
+    def test_a_feat_pr_or_issue_in_another_case_is_inside_the_backlog_repositories(self):
+        settings = trace.github_settings(self.spec)
+        closing = {(REPO, 99): [{"ref": "product#7", "state": "closed", "merged": True}]}
+        prs, why = trace.feat_prs({"issue": "ORG/Product#99"}, settings, closing, canned({}))
+        self.assertEqual((why, [p["ref"] for p in prs]), (None, ["product#7"]))
+        gh = canned({f"repos/{CLIENT}/pulls/5": {1: {"state": "closed", "merged_at": "2026-10-05T12:00:00Z"}}})
+        prs, why = trace.feat_prs({"pr": "Org/Product-Client#5"}, settings, closing, gh)
+        self.assertEqual(why, None)
+        self.assertEqual([p["merged"] for p in prs], [True])
+
+    def test_updated_is_set_to_today_in_every_feat_a_sync_rewrites_whatever_it_held(self):
+        """#413: KIT-107..113 showed no `updated` diff in #411 because they were created that day; the rule is the
+        same for a FEAT dated earlier, dated today or with no `updated` line, in sync-status and in status --write."""
+        for held in ('updated: "2026-10-05"', f'updated: "{TODAY}"', None):
+            with self.subTest(held=held):
+                text = FEAT7.format(fid="FEAT-009", title="T", status="planned", rows="")
+                text = text.replace('updated: "2026-10-05"\n', f"{held}\n" if held else "")
+                synced = trace.rewrite_frontmatter(text, "in-progress", TODAY)
+                path = self.root / "docs/spec/features/FEAT-009.md"
+                path.write_text(text, encoding="utf-8")
+                trace.set_status(path, "in-progress", TODAY)
+                self.assertEqual(path.read_text(encoding="utf-8"), synced)
+                self.assertIn(f'updated: "{TODAY}"', synced)
+                self.assertEqual(synced.count("updated:"), 1)
+        untouched = FEAT7.format(fid="FEAT-009", title="T", status="planned", rows="")
+        self.assertEqual(trace.rewrite_frontmatter(untouched, None, TODAY).count(f'updated: "{TODAY}"'), 1)
 
 
 class SettingsTest(unittest.TestCase):
