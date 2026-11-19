@@ -29,6 +29,7 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 | [KIT-107](features/KIT-107.md) | Leave generated output out of the red check's code roots | proposed | — |
 | [KIT-108](features/KIT-108.md) | A retired REQ needs no FEAT | proposed | — |
 | [KIT-109](features/KIT-109.md) | Fail a CHANGELOG line added under a released version | proposed | — |
+| [KIT-112](features/KIT-112.md) | Read each OWNER/NAME#N issue in its own repository | proposed | — |
 
 ## Decisions
 

@@ -76,6 +76,7 @@ ROW11 = "| {tid} | {task} | `a/**` | ci green | CA-1 | — | {status} | Low | sm
 ROW7 = "| {tid} | {task} | `a/**` | ci green | CA-1 | — | {status} |"
 
 REPO, OLD = "org/product", "org/product-docs"
+LIB = "org/lib"  # a second repository whose issues rows cite in full (KIT-112)
 CLIENT, SERVER = "org/product-client", "org/product-server"
 
 SPEC_MD = f"""\
@@ -567,6 +568,125 @@ class SyncStatusTest(unittest.TestCase):
         self.run_sync(self.routes([issue(11, "[FEAT-001 T1] Legacy", "closed")],
                                  {(REPO, 20): pull(body="Closes #11")}))
         self.assertEqual(self.status("FEAT-001", "T1"), "done")
+
+
+    # KIT-112: a row's Item cell is read in the repository it names; `#11` exists in both the backlog and LIB.
+
+    def lib_gh(self, backlog, lib, pulls=None, lib_issues=True):
+        """Canned listings for the backlog, LIB and the PR repositories (`pulls`: {(repo, number): pull}); the
+        queries are kept in `self.queries`."""
+        self.queries = []
+        routes = {ISSUES: {1: backlog}}
+        if lib_issues:
+            routes[f"repos/{LIB}/issues?state=all"] = {1: lib}
+        for repo in (REPO, CLIENT, SERVER, LIB):
+            routes[PULLS.format(repo=repo)] = {1: [dict(pr, number=n) for (r, n), pr in (pulls or {}).items()
+                                                   if r == repo]}
+        listed = canned(routes)
+        return lambda query: self.queries.append(query) or listed(query)
+
+    def run_lib(self, gh):
+        settings = trace.github_settings(self.spec)
+        settings["pr_repos"].append(LIB)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = trace.sync_status(trace.load(self.spec), settings, True, TODAY, gh)
+        return code, out.getvalue()
+
+    def two_repository_rows(self):
+        self.item_rows(("T1", "todo", "#11"), ("T2", "todo", f"{LIB}#11"), ("T3", "todo", f"{LIB}#12"),
+                       ("T4", "todo", f"{OLD}#11"))
+
+    def test_item_issue_names_the_repository_of_each_cell(self):
+        settings = trace.github_settings(self.spec)
+        for cell, expected in (("#11", (REPO, 11)), (f"{REPO}#11", (REPO, 11)), (f"{OLD}#11", (REPO, 11)),
+                               (f"{LIB}#11", (LIB, 11)), ("—", None), ("TASK-007", None), ("", None)):
+            with self.subTest(cell=cell):
+                self.assertEqual(trace.item_issue(cell, settings), expected)
+
+    def test_closing_prs_reads_a_full_reference_in_its_repository_and_a_bare_one_in_the_prs_own(self):
+        routes = {PULLS.format(repo=REPO): {1: [dict(pull(body=f"Closes #11\nCloses {OLD}#12"), number=1)]},
+                  PULLS.format(repo=LIB): {1: [dict(pull(body="Closes #11"), number=2)]},
+                  PULLS.format(repo=CLIENT): {1: [dict(pull(body=f"Closes {LIB}#12"), number=3)]},
+                  PULLS.format(repo=SERVER): {1: []}}
+        settings = trace.github_settings(self.spec)
+        settings["pr_repos"].append(LIB)
+        by_issue = trace.closing_prs(settings, canned(routes), by_issue=True)
+        self.assertEqual({key: [p["ref"] for p in prs] for key, prs in by_issue.items()},
+                         {(REPO, 11): ["product#1"], (REPO, 12): ["product#1"], (LIB, 11): ["lib#2"],
+                          (LIB, 12): ["product-client#3"]})
+        self.assertEqual(sorted(trace.closing_prs(settings, canned(routes))), [11, 12])  # the backlog's, as before
+
+    def test_a_number_that_exists_in_two_repositories_is_read_in_the_one_the_cell_names(self):
+        self.two_repository_rows()
+        gh = self.lib_gh(
+            [issue(11, "Backlog eleven", labels=["blocked"])],
+            [issue(11, "Lib eleven", "closed"), issue(12, "Lib twelve", labels=["status:in-progress"])],
+            {(LIB, 40): pull(body="Closes #11"), (REPO, 41): pull("open", False, "Closes #11"),
+             (CLIENT, 42): pull("open", False, f"Closes {LIB}#12")})
+        code, out = self.run_lib(gh)
+        self.assertEqual(code, 0, out)
+        self.assertIn("FEAT-001 T2: todo -> done (lib#40)", out)  # lib#11 closed by the PR of lib, not the backlog's
+        self.assertIn("FEAT-001 T3: todo -> doing (product-client#42)", out)
+        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2", "T3", "T4")],
+                         ["blocked", "done", "doing", "blocked"])  # T1 and T4: the backlog's #11 (labelled blocked)
+
+    def test_a_bare_close_in_the_backlog_never_closes_the_other_repositorys_issue(self):
+        self.two_repository_rows()
+        gh = self.lib_gh([issue(11, "Backlog eleven")], [issue(11, "Lib eleven")],
+                         {(REPO, 41): pull(body="Closes #11")})
+        _, out = self.run_lib(gh)
+        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2")], ["done", "todo"])
+
+    def test_each_repository_is_listed_once_and_a_single_repository_spec_lists_only_the_backlog(self):
+        self.two_repository_rows()
+        self.run_lib(self.lib_gh([issue(11, "Backlog eleven")], [issue(11, "Lib eleven")]))
+        listings = [q for q in self.queries if "/issues?" in q and q.endswith("&page=1")]
+        self.assertEqual(sorted(q.split("?")[0] for q in listings), [f"repos/{LIB}/issues", f"repos/{REPO}/issues"])
+        self.queries.clear()
+        self.item_rows(("T1", "todo", "#11"), ("T2", "todo", f"{REPO}#12"), ("T3", "todo", f"{OLD}#13"))
+        self.run_lib(self.lib_gh([issue(11, "Backlog eleven")], []))
+        self.assertEqual({q.split("?")[0] for q in self.queries if "/issues?" in q}, {f"repos/{REPO}/issues"})
+
+    def test_a_repository_that_cannot_be_read_is_reported_and_its_rows_fall_back_to_their_title(self):
+        self.item_rows(("T1", "todo", f"{LIB}#11"), ("T2", "todo", "#12"))
+        gh = self.lib_gh([issue(15, "[FEAT-001 T1] First", labels=["blocked"]), issue(12, "Twelve", "closed")], [],
+                         {(REPO, 41): pull(body="Closes #12")}, lib_issues=False)
+        code, out = self.run_lib(gh)
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"WARN {LIB}: issues not read (", out)
+        self.assertEqual([self.status("FEAT-001", t) for t in ("T1", "T2")], ["blocked", "done"])
+
+    def test_the_backlog_that_cannot_be_read_still_stops(self):
+        self.item_rows(("T1", "todo", f"{LIB}#11"))
+        gh = self.lib_gh([], [], lib_issues=True)
+        failing = lambda query: subprocess.CompletedProcess(["gh"], 1, "", "HTTP 404") if ISSUES in query else gh(query)
+        with self.assertRaises(trace.SyncError):
+            self.run_lib(failing)
+
+    def test_a_feat_issue_composes_with_a_cross_repository_row(self):
+        """KIT-106: FEAT-001 keeps its row states and reads no repository; FEAT-002 beside it still syncs from LIB."""
+        self.item_rows(("T1", "doing", f"{LIB}#11"), ("T2", "todo", "#11"))
+        text = self.path1.read_text(encoding="utf-8")
+        self.path1.write_text(text.replace("requirements: []", f'issue: "{REPO}#99"\nrequirements: []'),
+                              encoding="utf-8")
+        row = ROW11.format(tid="T1", task="only task", status="todo").replace("| 0 | — |", f"| 0 | {LIB}#11 |")
+        self.path2.write_text(FEAT11.format(fid="FEAT-002", title="Second fixture", status="planned", rows=row),
+                              encoding="utf-8")
+        gh = self.lib_gh([issue(99, "[FEAT-001] One feature", "closed"), issue(11, "Backlog eleven", "closed")],
+                         [issue(11, "Lib eleven", labels=["blocked"])], {(REPO, 41): pull(body="Closes #99")})
+        code, out = self.run_lib(gh)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(trace.load(self.spec).feats["FEAT-001"]["task_status"], {"T1": "doing", "T2": "todo"})
+        self.assertEqual(self.status("FEAT-002", "T1"), "blocked")  # lib#11, not the backlog's closed #11
+
+    def test_an_earlier_backlog_name_still_maps_to_the_backlog(self):
+        self.item_rows(("T1", "todo", f"{OLD}#11"))
+        gh = self.lib_gh([issue(11, "Backlog eleven", "closed")], [issue(11, "Lib eleven")],
+                         {(REPO, 41): pull(body=f"Closes {OLD}#11")})
+        self.run_lib(gh)
+        self.assertEqual(self.status("FEAT-001", "T1"), "done")
+        self.assertFalse([q for q in self.queries if LIB in q and "/issues?" in q])  # no row names LIB
 
 
 class SettingsTest(unittest.TestCase):
