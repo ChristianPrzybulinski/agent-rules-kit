@@ -82,7 +82,7 @@ A folder gets a `README.md` only when its files need explanation; shape it with 
 
 A subagent skill sets Devin `subagent: true` or a shared `agent: <plugin>:<profile>` (a bare name runs as `general-purpose`, KIT-114), plus Claude `context: fork` and `background: false`; named profiles must exist under `plugins/<plugin>/agents/` of a plugin reachable through the dependency graph.
 
-Hooks are a guard, not a guardrail: they fail open, load in Claude Code, local Devin and, once the user trusts them, Codex (KIT-081), and cannot replace user confirmation or the always-on safety boundaries. Each hook's event, behaviour and tests: [`plugins/guardrails/hooks/README.md`](../plugins/guardrails/hooks/README.md).
+Hooks are a guard, not a guardrail: they fail open, load in Claude Code, local Devin and, once the user trusts them, Codex (codex-cli 0.164.0 probe; the events Codex has, KIT-081), and cannot replace user confirmation or the always-on safety boundaries. Each hook's event, behaviour and tests: [`plugins/guardrails/hooks/README.md`](../plugins/guardrails/hooks/README.md).
 
 ## CI requirements
 

@@ -15,4 +15,4 @@
 
 ## Red
 
-<!-- the test that failed first and now passes; or a first line starting `Exception` with why no test changed (the `red` check reads this section) -->
+Test: `<file::name>` fails on base and passes on this head. If no test changed, replace this line with `Exception: <why>` (the `red` check reads the first line of this section).
