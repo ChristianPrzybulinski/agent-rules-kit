@@ -25,7 +25,7 @@ Read `docs/spec/spec.md` and only the REQs, journeys, processes and FEATs the NE
 
 | Type | Rule | Route |
 |---|---|---|
-| fix | a REQ, journey, process or decision already states the right behavior and the code does not (a process states it in its steps, state exits and branches) | `routed`: a fix that changes code gets one row, written by `sdd-tasks FEAT-nnn fix NEED-nnn`, in the FEAT that already owns the cited artifact's behavior (its process steps or REQs), citing that artifact and the NEED; never a new FEAT (`sdd-plan` § 2 forbids a bucket FEAT). A fix that changes only the record needs no row |
+| fix | a REQ, journey, process or decision already states the right behavior and the code does not (a process states it in its steps, state exits and branches) | `routed`: a fix that changes code gets one row, written by `sdd-tasks FEAT-nnn fix NEED-nnn`, in the FEAT that already owns the cited artifact's behavior (its process steps or REQs) or, for a defect no artifact states, whose rows' Files hold the code (`sdd-intake` § 4), citing that artifact or the evidence, and the NEED; never a new FEAT (`sdd-plan` § 2 forbids a bucket FEAT). A fix that changes only the record needs no row |
 | content | only data changes, no rule | `routed`: the project's data-change flow |
 | decision | a choice with nothing to deliver | `refine` to a decision record only |
 | improvement | changes behavior an existing REQ, journey or process describes | `refine`: the REQ, journey or process changes |

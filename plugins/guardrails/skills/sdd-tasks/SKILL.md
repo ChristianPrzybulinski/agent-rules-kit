@@ -1,6 +1,6 @@
 ---
 name: sdd-tasks
-description: "SDD step 5 — task rows in a planned FEAT and its single tracking issue. Use when a FEAT is planned or its rows change. Not for execution (skill sdd-implement)."
+description: "SDD step 5 — task rows of a FEAT and its one issue. Use when a FEAT is planned, its rows change or a fix needs one. Not for execution (skill sdd-implement)."
 argument-hint: "FEAT-nnn [cut | resync | fix NEED-nnn]"
 triggers:
   - user
@@ -66,11 +66,11 @@ Read the FEAT and its linked issue (or TASK file) as a fresh session would: if i
 
 ## 7. Fix (`sdd-tasks FEAT-nnn fix NEED-nnn`)
 
-For a `fix` NEED that `sdd-specify` routed and whose code change has no row. The FEAT is the one that already owns the cited artifact's behavior (`sdd-specify` § 1); never a new FEAT. §§ 2 and 3 size and check the one row.
+For a `fix` NEED that `sdd-specify` routed and whose code change has no row. The FEAT is the one `sdd-specify` § 1 names (the owner of the cited artifact's behavior, or the one whose rows' Files hold the code); never a new FEAT. §§ 2 and 3 size and check the one row.
 
 - Gate: the NEED is `routed` (or `triaged` with its fix route confirmed); the FEAT may have any status, `planned` is not required.
-- Write one row and one CA, the NEED in the origin of both: the Task cell names the outcome, the violated artifact's path and `NEED-nnn`; the CA's Given names the same NEED, and its `Proves` is the REQ the fix restores (`—` for a defect no artifact states, `sdd-plan` § 1); the row `Covers` it. In a FEAT with `## Versions` they go in the open block.
-- A delivered FEAT takes them in its next version block (`sdd-plan` § 1 opens it) as an exception: its History line names the NEED, the row and why.
+- Write one row and one CA, the NEED in the origin of both: the Task cell names the outcome, the violated artifact's path (or, for a defect no artifact states, the evidence) and `NEED-nnn`; the CA's Given names the same NEED, and its `Proves` is the REQ the fix restores (`—` for a defect no artifact states, `sdd-plan` § 1); the row `Covers` it. In a FEAT with `## Versions` they go in the open block.
+- A delivered FEAT takes them in its next version block (`sdd-plan` § 1 opens it) as an exception: its History line names the NEED, the row and why, and its frontmatter `status` takes the new block's status by hand (`check_spec.py` fails a FEAT whose status differs from its last block's, and `sync-status` skips a delivered FEAT). A `validated` FEAT first goes back to `in-progress` (`sdd-intake` § 4), since § 1 lets `resync` run only on `planned` or `in-progress`.
 - Run the row check (§ 3) until it exits 0, add the FEAT History line, and name the row in the NEED's `routed` History line. Then the spec PR lands and § 5 maps the row.
 
 Done when: the rows are sized, pass the cut checklist, are explicitly ordered within `max_chain`, mapped both ways to criteria and pass the row checks in a merged or approved spec PR; every GitHub row's `Item` names the FEAT's one issue (or its local TASK item); journey and process cells are filled; `check_spec.py` passes. A fix: the one row and its CA pass the row checks and the NEED names the row (§ 7).
