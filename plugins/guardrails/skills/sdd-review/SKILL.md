@@ -47,7 +47,7 @@ Scripts do the mechanical part; the model reads only what they flag. Resolve the
 | a defect in what the FEAT delivered | a new task row in this FEAT (`sdd-tasks` resync); the FEAT stays `in-progress` |
 | a missing test for a REQ clause | a task row in this or a later FEAT; does not block `validated` |
 | a criterion or REQ that is ambiguous or wrong | `sdd-clarify` |
-| broken behavior no artifact states | `sdd-intake` as a NEED of type `fix`, the failing check as Evidence |
+| broken behavior no artifact states | routed as a finding (`sdd-intake` § 4), the failing check as evidence: a fix row when nobody would choose it, else one owner question; not a NEED of its own unless § 4 sends it there |
 | a gap the owner accepts for now | a `DEBT-nnn` with its trigger |
 
 ## 5. Record the closure

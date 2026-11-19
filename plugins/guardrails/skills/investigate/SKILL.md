@@ -48,6 +48,6 @@ Record observed and expected behavior, environment, commit/version, platform, fr
 
 Report symptom, reproduction, cause/evidence, impact, proposed fix and required test. A race/cache explanation needs a concurrent test or trace.
 
-In a project that keeps `docs/spec/needs/`, hand the report to `sdd-intake`: it becomes a NEED of type `fix` when a REQ, journey, process or decision states the right behavior (otherwise `improvement`), with the failing test, the cause and the artifact (a process: the step or state the code breaks) in its Evidence.
+In a project that keeps `docs/spec/`, route the report as a finding (skill `sdd-intake` § 4): a fix row when a REQ, journey, process or decision states the right behavior or nobody would choose the observed one, else a spec fix or one owner question, citing the failing test, the cause and the artifact (a process: the step or state the code breaks). A bug a person reported keeps its NEED: the report goes in its Evidence, and `sdd-specify` routes it.
 
 Done when: the symptom reproduces deterministically and has a source-backed cause, or the report names exactly what evidence is still missing.

@@ -31,7 +31,7 @@ Retro: blocked rows 1 (T5, spec gap) · review rounds 9 over 6 PRs, max 3 on T4 
 
 - The Enablers row exists only with `docs/spec/enablers/`; the `traceability.md` that `generate` rewrites after `validate` is each ENB's History and lands in the same commit.
 - One row per check; a check that could not run is `not run: <why>` and blocks `validated`. Missing-test rows do not.
-- The outcome is `validated`, `delivered (release: merge)` or `returned: <the rows, clarify, NEED or DEBT it filed>`. A returned closure is rewritten on the next run, never appended below the old one.
+- The outcome is `validated`, `delivered (release: merge)` or `returned: <the rows, spec PRs, owner questions, clarify, NEED or DEBT it filed>`. A returned closure is rewritten on the next run, never appended below the old one.
 - Results are measured, with the command; targets and estimates are labeled `planned:` and never fill the Result column.
 
 ## Retro numbers
