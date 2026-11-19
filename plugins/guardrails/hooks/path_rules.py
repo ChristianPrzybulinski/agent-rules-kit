@@ -16,7 +16,10 @@ NotebookEdit, Bash and Grep.
   the :<dir> and sdd.rule_paths folder scopes the copies carried only narrowed them, and the Codex AGENTS.md blocks
   keep them.
 - Match: the candidates are tool_input file_path, notebook_path and path, and the path-like words of a Bash command
-  (`cat a.gd`, `sed -n '1,20p' ./src/a.gd`, the files of a `for f in ...` loop, `b.gd:12` as grep prints it). Each is
+  (`cat a.gd`, `sed -n '1,20p' ./src/a.gd`, the files of a `for f in ...` loop, `b.gd:12` as grep prints it). Codex
+  edits a file with an `apply_patch` call whose tool_input is only the patch text (`command`), so for that tool the
+  candidates are the paths of its `*** Add File:`, `*** Update File:`, `*** Delete File:` and `*** Move to:` headers
+  (KIT-081 stage 3 for Codex; at most MAX_PATCH_PATHS paths of the first MAX_PATCH_CHARS characters). Each is
   made relative to the root; one that resolves outside it is also matched as written. A glob supports `**/`, `**`,
   `*` and `?`, the forms the kit rules use.
 - Once per session: the rule names given are kept in $CLAUDE_PLUGIN_DATA/path-rules/<session_id>.json under a lock,
@@ -52,6 +55,11 @@ STATE = "path-rules"
 PRUNE_DAYS = 3
 PATH_KEYS = ("file_path", "notebook_path", "path")
 MAX_WORDS = 256  # a long Bash command (a heredoc) is cut there; the hook runs on every call
+MAX_PATCH_CHARS = 2**20  # an apply_patch patch is read up to there, and for at most MAX_PATCH_PATHS files
+MAX_PATCH_PATHS = 64
+MAX_PATH_CHARS = 4096
+# A header of Codex's apply_patch format, at the start of a line (`\r` before the line end is dropped by [^\r\n]).
+PATCH_HEADER = re.compile(r"^\*\*\* (?:(?:Add|Update|Delete) File|Move to): ([^\r\n]+)", re.M)
 LINE_SUFFIX = re.compile(r":\d+(?::\d+)?$")  # grep -n and compiler output: b.gd:12, b.gd:12:3
 UNSAFE = re.compile(r"[^A-Za-z0-9_.-]")
 
@@ -174,6 +182,21 @@ def path_words(command):
     return found
 
 
+def patch_paths(patch):
+    """The files an apply_patch patch names: the path of each `*** Add File:`, `*** Update File:`, `*** Delete File:`
+    and `*** Move to:` header, in order. Every body line of the format starts with `+`, `-`, a space or `@@`, so a
+    header counts only at the start of a line. Bounded: the first MAX_PATCH_CHARS characters, MAX_PATCH_PATHS paths,
+    a path of at most MAX_PATH_CHARS."""
+    found = []
+    for match in PATCH_HEADER.finditer(patch[:MAX_PATCH_CHARS]):
+        path = match.group(1).strip()
+        if path and len(path) <= MAX_PATH_CHARS:
+            found.append(path)
+            if len(found) >= MAX_PATCH_PATHS:
+                break
+    return found
+
+
 def candidates(event):
     """The raw paths a tool call names."""
     tool_input = event.get("tool_input")
@@ -183,6 +206,8 @@ def candidates(event):
     command = tool_input.get("command")
     if event.get("tool_name") == "Bash" and isinstance(command, str):
         found += path_words(command)
+    elif event.get("tool_name") == "apply_patch" and isinstance(command, str):
+        found += patch_paths(command)  # Codex edits a file with a patch: no file_path, notebook_path or path
     return found
 
 
