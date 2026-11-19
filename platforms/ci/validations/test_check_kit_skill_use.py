@@ -18,6 +18,7 @@ COVERS = ("platforms/ci/validations/check_kit.py", "plugins/guardrails/AGENTS.md
 KIT = Path(__file__).resolve().parents[3]
 CHECK_KIT = "platforms/ci/validations/check_kit.py"
 REVIEWER = "plugins/guardrails/agents/reviewer.md"
+SDD_CHECK = "plugins/guardrails/skills/sdd-check/SKILL.md"
 EVALS = "plugins/guardrails/evals"
 
 try:
@@ -95,6 +96,39 @@ class CheckKitSkillUseTest(unittest.TestCase):
             # the bare name fails the profile schema's plugin:skill pattern too, where jsonschema is installed
             *(["schema agent.schema.json: 'review' does not match"] if FULL else []),
         ])
+
+    def set_agent(self, value):
+        path = self.kit / SDD_CHECK
+        text = path.read_text(encoding="utf-8")
+        new = re.sub(r"^agent: .*$", f"agent: {value}", text, count=1, flags=re.MULTILINE)
+        self.assertNotEqual(new, text)
+        path.write_text(new, encoding="utf-8")
+
+    # KIT-114: a plugin agent resolves in a skill's `agent:` only as <plugin>:<profile> (probe, Claude Code 2.1.287:
+    # `researcher` ran as general-purpose on the parent's model, `guardrails:researcher` as the profile).
+
+    def test_the_real_kit_names_its_agents_with_their_plugin(self):
+        for rel in (SDD_CHECK, "plugins/guardrails/skills/review/SKILL.md"):
+            with self.subTest(skill=rel):
+                text = (self.kit / rel).read_text(encoding="utf-8")
+                self.assertRegex(text, r"(?m)^agent: guardrails:(researcher|reviewer)$")
+        self.assertEqual(self.check().returncode, 0)
+
+    def test_another_qualified_agent_passes(self):
+        self.set_agent("guardrails:reviewer")
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_each_wrong_agent_name_fails(self):
+        for value, expected in (
+            ("researcher", "agent 'researcher' needs its plugin prefix (guardrails:researcher)"),
+            ("other:researcher", "agent 'other:researcher' has no agents/ profile in plugin 'other'"),
+            ("guardrails:no-such-agent", "agent 'guardrails:no-such-agent' has no agents/ profile in plugin 'guardrails'"),
+            ("no-such-agent", "agent 'no-such-agent' has no agents/ profile in any plugin"),
+        ):
+            with self.subTest(agent=value):
+                self.set_agent(value)
+                self.assert_fails(self.check(), [expected])
 
     @unittest.skipUnless(FULL, "needs pyyaml to read the eval frontmatter")
     def test_a_trigger_case_without_its_bullet_fails(self):

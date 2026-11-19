@@ -5,7 +5,7 @@ argument-hint: "[FEAT-nnn Tn | PR <n> | spec path | request | claim | --pr <n> |
 triggers:
   - user
   - model
-agent: reviewer
+agent: guardrails:reviewer
 context: fork
 background: false
 allowed-tools:

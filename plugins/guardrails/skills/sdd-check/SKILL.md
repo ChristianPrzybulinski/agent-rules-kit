@@ -5,7 +5,7 @@ argument-hint: "NEED-nnn | FEAT-nnn | all [validator=<output of check_spec.py 2>
 triggers:
   - user
   - model
-agent: researcher
+agent: guardrails:researcher
 context: fork
 background: false
 allowed-tools:
