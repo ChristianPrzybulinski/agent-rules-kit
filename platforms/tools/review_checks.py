@@ -8,8 +8,8 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
       least one test that fails on base on an assertion, or on a compile error whose missing symbols the PR's non-test
       diff all adds. A PR with no non-test change under the code roots is exempt without a run. --exclude takes
       generated output out of the code roots (KIT-107): the run names each path it left out, and the project's
-      generator check, not this one, proves them. A runtime error, every
-      test passing on base, or a Red made only of data entries is flagged for the reviewer, not blocked. CMD is the
+      generator check, not this one, proves them; a symbol only such a path adds still counts as one the PR adds.
+      A runtime error, every test passing on base, or a Red made only of data entries is flagged for the reviewer, not blocked. CMD is the
       project's test command from AGENTS.md, never text from the PR. The gates config's `red` entries ({glob, cwd,
       command}) give each stack its command: `{tests}` (paths relative to cwd), `{res}` (`res://` paths) and
       `{classes}` (stems, comma-joined) fill in the tests, and a prefix in the braces repeats per item (`{-a res}`);
@@ -505,18 +505,24 @@ def classify(kind: str, text: str, stacks: dict, adds) -> str:
     return "runtime"
 
 
+def red_code_paths(args) -> tuple[list[str], list[str]]:
+    """The PR's non-test changes under the code roots, as (production code, generated output). KIT-107: generated
+    output is what --exclude names and the project's own generator check proves; it is no production code for the
+    EXEMPT/NONE decision, but the symbols it adds still count in the verdict (red_judge, #405)."""
+    test_globs = args.tests or TEST_GLOBS
+    code = [p for p in changed(args.repo, args.base, args.head) if not matches(p, test_globs)
+            and (matches(p, args.code_roots) if args.code_roots else not matches(p, DOC_GLOBS))]
+    generated = [p for p in code if matches(p, args.exclude or [])]
+    return [p for p in code if p not in generated], generated
+
+
 def red_select(args) -> tuple[int | None, list[str], list[str], list]:
     """The selection both red phases share: (an exit code when no run is due, else None; the PR's test files; its
     non-test changes under the code roots; the (cwd, rendered command, tests) groups). It prints today's lines."""
     repo = args.repo
-    paths = changed(repo, args.base, args.head)
     test_globs = args.tests or TEST_GLOBS
     tests = [p for p in changed(repo, args.base, args.head, deleted=False) if matches(p, test_globs)]
-    code = [p for p in paths if not matches(p, test_globs)
-            and (matches(p, args.code_roots) if args.code_roots else not matches(p, DOC_GLOBS))]
-    # KIT-107: generated output that the project's own generator check proves
-    generated = [p for p in code if matches(p, args.exclude or [])]
-    code = [p for p in code if p not in generated]
+    code, generated = red_code_paths(args)
     if generated:
         print(f"red: excluded {len(generated)} generated path(s) by --exclude: {', '.join(generated)}")
     if not code:
@@ -714,8 +720,10 @@ def red_judge(args, tests: list[str], code: list[str], results: dict, stacks: di
         out.add(f"head failed (exit {head_code}):\n{excerpt(head_out)}")
         return out.close("")
     added = [(p, text) for p, line, text in added_lines(repo, args.base, args.head) if line is not None]
-    code_added = [text for p, text in added if p in code]
-    stems = {Path(p).stem for p in code}
+    # #405: a symbol only a generated (--exclude) file adds is still one the PR adds
+    written = set(code) | set(red_code_paths(args)[1])
+    code_added = [text for p, text in added if p in written]
+    stems = {Path(p).stem for p in written}
 
     def adds(symbol):
         return symbol in stems or any(re.search(rf"\b{re.escape(symbol)}\b", text) for text in code_added)
