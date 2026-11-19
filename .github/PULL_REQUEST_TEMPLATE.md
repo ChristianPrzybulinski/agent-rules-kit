@@ -12,3 +12,7 @@
 ## What changes
 
 <!-- 1-3 lines -->
+
+## Red
+
+Test: `<file::name>` fails on base and passes on this head. If no test changed, replace this line with `Exception: <why>` (the `red` check reads the first line of this section).

@@ -5,7 +5,7 @@ kind: detail
 
 # Pre-existing findings (#380, #388, #392)
 
-A finding the change under check did not write is listed apart and does not block, so drift older than the change stops costing a run each time. The check is a read-only fork with no `exec`, so it reads git only through arguments the calling session pastes, like `validator=`.
+A finding the change under check did not write is listed apart and does not block, so drift older than the change stops costing a run each time. The check is a read-only fork that reads git only through arguments the calling session pastes, like `validator=`, so its result does not depend on the fork's checkout or tools.
 
 ## Arguments
 
