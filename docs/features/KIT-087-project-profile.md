@@ -1,7 +1,7 @@
 ---
 id: KIT-087
 title: "One project profile, .ai-kit.yaml, read only by the kit's skills, hooks and actions"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, chat of the kit session: \"sim abre a 087\", detailed with \"Sim, detalhe\"; the six decisions of #322: \"concordo com as 6\")"
 issue: "#322"
 pr: ""
@@ -132,7 +132,7 @@ Four phases, one PR each, plus P1b, the kit's own profile (#322):
   review-loop part of the first plan (the loop reads `gates` through the resolver, `gate-profile.json` folds in) is
   dropped by the owner's correction on #322 (2026-11-16): the loop keeps its own config, and each copy of a shared
   value belongs to its own reader. dev-game-studio/stratics#4674 only corrects the `.ai-kit.yaml` comment on `gates`.
-- **P4 — the legacy readers go (MAJOR): implemented, release pending.**
+- **P4 — the legacy readers go (MAJOR): released in 17.0.0 (#375).**
   1. `profile.py` reads `.ai-kit.yaml` alone: no `sdd:` block of `spec.md`, no profile list of the `CLAUDE.md`
      marker, no gates JSON as a source of `gates` (so no equality check with it), no `sdd.review_rounds` or
      `sdd.visual_approval` alias (unknown keys now), no `migrate`. A missing file stays every default plus one warning.
@@ -248,3 +248,6 @@ Four phases, one PR each, plus P1b, the kit's own profile (#322):
   needs.
 - 2026-11-17: P3 closed (Stratics on kit 16 with `.ai-kit.yaml`, `756b4a9`; the review-loop part dropped by the
   owner's 2026-11-16 correction); P4 implemented on `claude/kit-087-p4-drop-legacy-1a80eb`.
+- 2026-11-19: done. P1 (#327), P1b (#336), P2a (#351), P2b (#358) and P4 (#375, released in 17.0.0, #376) are in `main`; the
+  `spec_root` hardening of the #344 review shipped with P2a and `test_preset_falls_back_to_the_default_kind_when_the_kind_is_invalid`
+  (`platforms/ci/validations/test_profile.py`) pins the `preset()` fallback. Issue #322 closed by the owner.
