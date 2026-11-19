@@ -119,7 +119,7 @@ The records below, KIT-001 to KIT-101, stay as they are, in their own format ([`
 | [`KIT-084-changelog-fragments-and-status-sync.md`](KIT-084-changelog-fragments-and-status-sync.md) | changelog fragments, status-sync PR and gitleaks action from the kit | in-progress | #319 | |
 | [`KIT-085-no-project-justfile.md`](KIT-085-no-project-justfile.md) | no project justfile: skill sdd-implement runs the kit's just modules | in-progress | #320 | |
 | [`KIT-086-journeys-folding-cut.md`](KIT-086-journeys-folding-cut.md) | journeys and processes, decision folding, task cut checklist | in-progress | #321 | |
-| [`KIT-087-project-profile.md`](KIT-087-project-profile.md) | one project profile read only by the kit | in-progress | #322 | |
+| [`KIT-087-project-profile.md`](KIT-087-project-profile.md) | one project profile read only by the kit | done | #322 | #327, #336, #351, #358, #375 |
 | [`KIT-088-profile-kinds.md`](KIT-088-profile-kinds.md) | profile kind presets and game and FEAT-only keys | in-progress | #329 | |
 | [`KIT-089-vision-pillars.md`](KIT-089-vision-pillars.md) | spec.md templates per kind, pillars and out-of-scope triage | in-progress | #330 | |
 | [`KIT-090-process-artifact.md`](KIT-090-process-artifact.md) | process artifact PROC-nnn and its trace tools | in-progress | #331 | |
