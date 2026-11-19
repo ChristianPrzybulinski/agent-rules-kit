@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+- KIT-107: `review_checks.py red --exclude GLOB` (repeatable) leaves generated output out of the code roots, so a PR whose only code change is generated reports `red: EXEMPT` and the project's generator check stays its proof. The run prints each excluded path, and a hand edit beside the generated files still counts (`red: NONE`). `--plan` and `--sides-from` share the selection. Without the flag nothing changes. Migration: none; a project whose `red` row fails on generated output adds `--exclude '<glob>'` to it.
+
 ## [18.1.0] - 2026-11-18
 
 ### Changed

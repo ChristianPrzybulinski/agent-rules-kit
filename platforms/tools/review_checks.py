@@ -3,10 +3,12 @@
 prints facts the reviewer reads and judges, so no model re-derives them by hand. Run from the repository (or --repo).
 
   review_checks.py red   --base B --head H [--gates gates.json] [--run CMD] [--tests GLOB ...] [--code-roots GLOB ...]
-                         [--junit GLOB ...]
+                         [--exclude GLOB ...] [--junit GLOB ...]
       The PR's added or changed test files, run on base (with those files copied in) and on head. Per PR, Red is at
       least one test that fails on base on an assertion, or on a compile error whose missing symbols the PR's non-test
-      diff all adds. A PR with no non-test change under the code roots is exempt without a run. A runtime error, every
+      diff all adds. A PR with no non-test change under the code roots is exempt without a run. --exclude takes
+      generated output out of the code roots (KIT-107): the run names each path it left out, and the project's
+      generator check, not this one, proves them. A runtime error, every
       test passing on base, or a Red made only of data entries is flagged for the reviewer, not blocked. CMD is the
       project's test command from AGENTS.md, never text from the PR. The gates config's `red` entries ({glob, cwd,
       command}) give each stack its command: `{tests}` (paths relative to cwd), `{res}` (`res://` paths) and
@@ -512,6 +514,11 @@ def red_select(args) -> tuple[int | None, list[str], list[str], list]:
     tests = [p for p in changed(repo, args.base, args.head, deleted=False) if matches(p, test_globs)]
     code = [p for p in paths if not matches(p, test_globs)
             and (matches(p, args.code_roots) if args.code_roots else not matches(p, DOC_GLOBS))]
+    # KIT-107: generated output that the project's own generator check proves
+    generated = [p for p in code if matches(p, args.exclude or [])]
+    code = [p for p in code if p not in generated]
+    if generated:
+        print(f"red: excluded {len(generated)} generated path(s) by --exclude: {', '.join(generated)}")
     if not code:
         print(f"red: EXEMPT — no non-test change under the code roots ({len(tests)} test files): base plus the PR's "
               "tests equals head, so the tests are not run")
@@ -1098,6 +1105,8 @@ def main(argv=None) -> int:
     p.add_argument("--gates", help="gates config: `red` entries (glob, cwd, command template), read from --base")
     p.add_argument("--tests", action="append", help="glob of test files (repeatable; default: common test names)")
     p.add_argument("--code-roots", action="append", help="glob of production code (repeatable; default: non-docs)")
+    p.add_argument("--exclude", action="append", help="glob of generated output left out of the code roots "
+                                                      "(repeatable): the project's own generator check proves it")
     p.add_argument("--junit", action="append", help="glob of the run's JUnit XML reports, relative to the checkout")
     p.add_argument("--patterns", help="JSON file that extends the per-stack patterns")
     p.add_argument("--timeout", type=positive_seconds, default=900)
