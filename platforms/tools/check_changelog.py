@@ -7,6 +7,9 @@ release notes list a change the published version does not ship. The check reads
 and HEAD and fails each added line whose section is not `## [Unreleased]`. A section whose heading the diff adds is a
 release in progress (`bump_version.py` writes it), so its lines pass. Standard library, Python 3.9.
 
+Only committed edits are checked: the file is read as HEAD has it and diffed from the base to HEAD, so a CHANGELOG edit
+still uncommitted (or staged) in the working tree passes silently until it is committed (#405).
+
 The base is --base, else the merge base with origin/main, else the first parent of HEAD (a pull request's merge commit
 in CI, or the commit before a push); with none of them the check says so and passes."""
 import argparse

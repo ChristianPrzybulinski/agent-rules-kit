@@ -706,6 +706,13 @@ class NeedTest(unittest.TestCase):
         self.req_without_feat("REQ-F-002", status="approved")
         self.assert_fails("REQ-F-002 has no FEAT implementing it and no NEED listing it")
 
+    def test_retired_req_naming_a_missing_feat_still_fails_link_missing(self):
+        """#405 (KIT-108): the retired skip covers req-unlisted only; a features link to a FEAT that does not exist
+        is still link-missing."""
+        text = REQ.format(rid="REQ-F-002", feats="FEAT-099").replace("priority: must\n", "status: retired\npriority: must\n")
+        (self.spec / "requirements" / "functional" / "REQ-F-002.md").write_text(text)
+        self.assert_fails("REQ-F-002.md: features lists FEAT-099 which does not exist")
+
     def needs_mode(self, value):
         write_spec(self.root, SPEC_INDEX.format(extra=f"sdd:\n  needs: {value}\n"))
 
