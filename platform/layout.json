@@ -1,0 +1,6 @@
+{
+  "github": {"owner": "ChristianPrzybulinski", "repo": "agent-rules-kit"},
+  "components": {"agent-rules-kit": "."},
+  "old_repos": [],
+  "history": {"owner": "ChristianPrzybulinski", "backlog_repo": "agent-rules-kit"}
+}
