@@ -1,0 +1,23 @@
+{
+  "schema": "gate-profile/v1",
+  "components": {"agent-rules-kit": "."},
+  "link": {"issue_repo": "ChristianPrzybulinski/agent-rules-kit"},
+  "scope": {
+    "implicit_neighbours": [],
+    "protected": {
+      "spec": ["docs/spec/**"],
+      "loop": ["platform/loop-config/**"]
+    }
+  },
+  "checks": [
+    {"id": "static", "when": ["**"], "tools": ["bash", "python3", "git"],
+     "run": ["bash platforms/tools/check.sh"]},
+    {"id": "unit", "when": ["**"], "tools": ["python3", "git"],
+     "run": ["python3 -B platforms/tools/run_tests.py --layer unit,contract"]},
+    {"id": "red", "when": ["**"], "tools": ["python3", "git"],
+     "run": ["python3 ~/.ai-kit/platforms/tools/review_checks.py red --base {base} --head {head}"]}
+  ],
+  "full_when": ["platform/loop-config/**"],
+  "proof": {"allowlist": ["python3", "git", "grep", "test", "bash"], "timeout_s": 1800, "tools": ["bash", "python3", "git"]},
+  "limits": {"run_timeout_min": 30, "max_checks": 8}
+}
