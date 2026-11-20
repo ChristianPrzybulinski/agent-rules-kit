@@ -28,7 +28,9 @@
       "opus": {"model": "gpt-6-astra", "effort": "max"},
       "escalate": {"model": "gpt-6-astra", "effort": "max"}}}
   },
-  "default_agent": "codex",
+  "default_agent": "claude",
+  "devin_models": {"swe": "example-small", "sonnet": "example-medium", "opus": "example-large", "apply": "example-small",
+                   "escalate": "example-large", "fallback": "example-small", "prepare": "example-small"},
   "proof_allowlist": ["python3", "git", "grep", "test", "bash"],
   "proof_timeout_seconds": 1800,
   "full_risk_paths": ["docs/spec/**", "protocol/**", "platform/loop-config/**"],
