@@ -62,8 +62,9 @@ ITEM = re.compile(r"^(—|-|#\d+|[\w.-]+/[\w.-]+#\d+|TASK-\d{3,})$")
 
 FAIL, WARN = "FAIL", "WARN"
 LEVELS = {"a": FAIL, "b": FAIL, "c": WARN, "d": WARN, "e": FAIL, "f": WARN, "g": FAIL, "h": WARN, "i": WARN,
-          "j": WARN, "k": WARN}
-STRICT_PROMOTED = {"c", "f"}
+          "j": WARN, "k": WARN, "l": WARN, "m": WARN}
+STRICT_PROMOTED = {"c", "f", "l", "m"}
+SIBLING_MIN = 4  # KIT-115: open rows of one title shape that make a set
 
 PATH_EXTS = ("java", "gd", "tscn", "tres", "json", "sql", "yml", "yaml", "xml", "md", "py", "png", "csv", "wav",
              "import", "uid", "translation", "properties", "txt", "sh")
@@ -883,7 +884,58 @@ def rule_k(row: Row, cfg: Config | None = None) -> list:
             for consumer in consumers if not any(covers_tables(r, consumer) for r in rows)]
 
 
-RULES = [rule_b, rule_c, rule_d, rule_e, rule_f, rule_g, rule_h, rule_i, rule_j, rule_k]
+def set_shape(task: str) -> str:
+    """The title the rows of one set share (KIT-115): its lead, up to the first `:` or `(`, with each backticked name
+    and each id or number (`ENB-002`, `E01`, `12`; not `E2E`) replaced and the first three words kept; "" when the lead names no item."""
+    lead = re.sub(r"`[^`]*`", "<x>", re.split(r"[:(]", task, 1)[0])
+    lead = re.sub(r"\b(?:[A-Za-z]+-)*[A-Za-z]?\d+\b", "<n>", lead)  # ENB-002, E01, 12; never E2E
+    shape = " ".join(lead.lower().split()[:3])
+    return shape if "<x>" in shape or "<n>" in shape else ""
+
+
+def open_sets(row: Row) -> dict:
+    """{shape: [rows]} of the open rows of the table that share one title shape, for the sets of SIBLING_MIN rows or
+    more, in table order. A settled row (doing, blocked, done, cancelled) is not counted, so a re-cut set that keeps
+    its finished rows as history is not flagged for them."""
+    sets: dict = {}
+    for r in row.siblings.values():
+        if r.status in SETTLED or len(r.cells) != len(r.header):
+            continue
+        shape = set_shape(r.get("Task"))
+        if shape:
+            sets.setdefault(shape, []).append(r)
+    return {shape: rows for shape, rows in sets.items() if len(rows) >= SIBLING_MIN}
+
+
+def rule_l(row: Row, cfg: Config | None = None) -> list:
+    """One finding per set, on its first open row: N rows of one shape are cut per item, not per contract."""
+    out = []
+    for shape, rows in open_sets(row).items():
+        if rows[0] is row:
+            out.append(Finding(LEVELS["l"], row.feat, row.task_id, "Task",
+                               f"{len(rows)} open rows share the shape '{shape}' ({rows[0].task_id} to "
+                               f"{rows[-1].task_id}): cut a set as one row, or one per group sharing a contract, "
+                               "not one per item (sdd-tasks § 2)", "l"))
+    return out
+
+
+def rule_m(row: Row, cfg: Config | None = None) -> list:
+    """A row of a set depends on another row of the same set: each waits only on the contract row, never on an item."""
+    out = []
+    refs, _ = parse_depends(row.get("Depends on"))
+    for shape, rows in open_sets(row).items():
+        if row in rows:
+            ids = {r.task_id for r in rows} - {row.task_id}
+            hit = [ref for feat, ref in refs if (not feat or feat == row.feat) and ref in ids]
+            if hit:
+                out.append(Finding(LEVELS["m"], row.feat, row.task_id, "Depends on",
+                                   f"{', '.join(hit)} is a row of the same set ('{shape}'): an edge between two "
+                                   "items is an order, never a dependency; depend on the contract row "
+                                   "(sdd-tasks § 2)", "m"))
+    return out
+
+
+RULES = [rule_b, rule_c, rule_d, rule_e, rule_f, rule_g, rule_h, rule_i, rule_j, rule_k, rule_l, rule_m]
 
 
 def lint(rows: list, cfg: Config, strict: bool = False, all_rows: bool = False) -> tuple:
@@ -988,7 +1040,7 @@ def main(argv=None) -> int:
     c.add_argument("--all", action="store_true", help="every FEAT-*.md under <spec>/features")
     c.add_argument("--changed", nargs=2, metavar=("BASE", "HEAD"), help="FEAT files in git diff BASE HEAD")
     c.add_argument("--all-rows", action="store_true", help="check rows of any Status, not only open ones")
-    c.add_argument("--strict", action="store_true", help="promote the c and f warnings to FAIL")
+    c.add_argument("--strict", action="store_true", help="promote the c, f, l and m warnings to FAIL")
     args = ap.parse_args(argv)
     try:
         return cmd_check(args)
