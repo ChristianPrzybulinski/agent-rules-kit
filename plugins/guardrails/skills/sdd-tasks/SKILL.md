@@ -59,7 +59,7 @@ For GitHub, first verify that any `cut_command` creates or updates one issue for
 
 ## 5. Resync
 
-`sdd-tasks FEAT-nnn resync` updates the same GitHub issue and maps new approved rows to it, preserving row-specific Status and evidence. Retain removed rows as cancelled history; never close the FEAT issue because one row left. A later approved version reopens the same issue when needed, never creates a new one. Existing per-task issues are historical: do not bulk-close or delete them; migrate their verified row states and references explicitly before setting the canonical `issue`. With `tracker: none`, keep deriving row status from TASK files, create files for new rows, cancel removed rows and never rewrite a done item. Honor only a compatible `cut_command`.
+`sdd-tasks FEAT-nnn resync` updates the same GitHub issue and maps new approved rows to it, preserving row-specific Status and evidence. Retain removed rows as cancelled history; never close the FEAT issue because one row left. A set cut per item is re-cut here, one spec PR per FEAT and never a mass edit: the first open row of the set takes the merged outcome with its items named in the Task cell, the other open rows become `cancelled` with a History line `Tn merged into Tm`, and a row already `doing` or `done` stays as it is. A later approved version reopens the same issue when needed, never creates a new one. Existing per-task issues are historical: do not bulk-close or delete them; migrate their verified row states and references explicitly before setting the canonical `issue`. With `tracker: none`, keep deriving row status from TASK files, create files for new rows, cancel removed rows and never rewrite a done item. Honor only a compatible `cut_command`.
 
 ## 6. Verify
 
