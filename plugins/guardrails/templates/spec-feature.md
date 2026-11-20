@@ -130,7 +130,9 @@ Scope: [what this version adds or changes, on one line: REQ-F-000 (new) · REQ-F
 #### Tasks
 <!-- filled by sdd-tasks in a spec PR, tracked once approved or merged. All GitHub Item cells name the same FEAT issue.
      Status is recorded per row with evidence, mark-done for completion; the shared issue never overwrites it.
-     Legacy task issues and tracker: none TASK files retain derived states. Item is — until tracking is linked. -->
+     Legacy task issues and tracker: none TASK files retain derived states. Item is — until tracking is linked.
+     A set of items that share one form (species references, move handlers, quests) is one row, or one per group sharing a
+     contract, never one per item (skill sdd-tasks § 2). -->
 
 | ID | Task | Files | Proof of completion | Covers | Depends on | Status | Complexity | Model | Wave | Item |
 |---|---|---|---|---|---|---|---|---|---|---|

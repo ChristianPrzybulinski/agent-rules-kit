@@ -9,7 +9,7 @@ Each row passes every check below before its table goes to the spec PR; a row th
 
 ## Size and order
 
-- **One outcome.** One verifiable outcome, at most 5 areas, one proof, within `task_minutes`; a title needing “and also” is two rows.
+- **One outcome.** One verifiable outcome, at most 5 areas, one proof, within `task_minutes`; a title needing “and also” is two rows, and N rows of one shape are one set (`task-cut.md` § Homogeneous sets).
 - **Plan, not prose.** The Task cell points to `Plan § <section>` and never restates the Plan; `check_spec.py` warns above 1000 characters.
 - **Explicit dependencies.** `Depends on` names every row whose merged output this row reads, and the longest chain of own rows is at most `max_chain`; `check_spec.py` fails a longer chain or a cycle.
 
