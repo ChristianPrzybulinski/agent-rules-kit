@@ -12,6 +12,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import row_checks as rc  # noqa: E402
 from test_row_checks import feat_text, make_repo, run  # noqa: E402
+from test_row_checks_versions import versioned  # noqa: E402
 
 FILES = "`tools/demo/demo.py`, `tools/demo/tests/test_demo.py`"
 PROOF = "`python3 -m unittest discover -s tools/demo/tests`; `grep -q demo tools/demo/demo.py`"
@@ -67,6 +68,24 @@ class SiblingRows(unittest.TestCase):
     def test_a_title_with_no_item_token_is_never_a_set(self):
         rows = [(f"T{n}", "Server E2E of the rules: Plan § Tests", FILES, PROOF, "—", "todo") for n in range(1, 7)]
         self.assertEqual(self.rules(self.lint(rows), "l"), [])
+
+    def test_sequence_steps_row_ids_and_bare_items_are_never_a_set(self):
+        for titles in (["Phase 1: build", "Phase 2: build", "Phase 3: build", "Phase 4: build"],
+                       ["Step 1 of the import", "Step 2 of the import", "Step 3 of the import", "Step 4 of the import"],
+                       ["Wire T1 into the server", "Wire T2 into the server", "Wire T3 into the server",
+                        "Wire T4 into the server"],
+                       ["`a0`: x", "`a1`: x", "`a2`: x", "`a3`: x"],
+                       ["0", "1", "2", "3"]):
+            rows = [(f"T{n}", title, FILES, PROOF, "—", "todo") for n, title in enumerate(titles, 1)]
+            self.assertEqual(self.rules(self.lint(rows), "l"), [], titles)
+
+    def test_a_set_that_starts_in_a_closed_block_is_reported_on_its_first_open_block_row(self):
+        text = versioned("FEAT-900", [handler(1), handler(2)], [handler(3), handler(4), handler(5)])
+        (self.spec / "features" / "FEAT-900.md").write_text(text, encoding="utf-8")
+        parsed = rc.parse_feat(self.spec / "features" / "FEAT-900.md", self.cfg)
+        found = self.rules(rc.lint(parsed, self.cfg)[0], "l")
+        self.assertEqual([f.task for f in found], ["T3"])
+        self.assertIn("5 open rows share the shape 'handler <x>' (T1 to T5)", found[0].message)
 
     def test_a_numbered_title_is_a_set_too(self):
         rows = [(f"T{n}", f"Describe ENB-00{n} (module {n}) on the skeleton: Plan § Design", FILES, PROOF, "—",

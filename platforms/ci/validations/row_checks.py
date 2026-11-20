@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Task-row checks before the cut (KIT-073): rules a-k of sdd-tasks/references/row-checks.md, driven by the
+"""Task-row checks before the cut (KIT-073): rules a-m of sdd-tasks/references/row-checks.md, driven by the
 project profile's `sdd` and `evidence` sections (`.ai-kit.yaml`, KIT-087).
 
     row_checks.py check [--spec DIR] FEAT-NNN ... | --all | --changed BASE HEAD [--all-rows] [--strict]
 
 `--spec` defaults to docs/spec under the working directory; a FEAT-NNN id names <spec>/features/FEAT-NNN.md, a path
 names that file. Only rows that are not settled (todo, or a Status the kit does not know) are checked unless
---all-rows; --strict turns the c and f warnings into FAIL. Exit 1 iff a FAIL was printed, 2 on a usage error or an
+--all-rows; --strict turns the c, f, l and m warnings into FAIL. Exit 1 iff a FAIL was printed, 2 on a usage error or an
 profile that profile.py refuses.
 
 Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty is off):
@@ -27,6 +27,9 @@ Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty i
           is exempt while `sdd.passes` lists greybox (KIT-094: the owner's playtest line is its acceptance)
   k WARN  a todo or doing row that owns the protocol folder has, per consumer, an open row that depends on it and
           covers one of that consumer's tables (the contract row itself counts)
+  l WARN  four or more open rows share one title shape (a set cut per item, KIT-115), reported once on the first of
+          them that is linted
+  m WARN  a row of such a set depends on another row of it (an order, unless it reads that row's merged output)
 
 The proof predicates come from pr_gates.py beside this file, the same code the PR gates run, so a row is judged before
 the cut by the rules its PR's proof block meets later. Upstreamed from a consumer project's row linter.
@@ -125,6 +128,7 @@ class Row:
     header: list
     siblings: dict = field(default_factory=dict)
     cfg: Config | None = None
+    linted: bool = False  # KIT-115: lint runs the rules on this row (rule l reports on the first linted row of a set)
     pass_name: str = ""  # KIT-094: the pass (greybox, polish) of the version block that holds the row, else ""
 
     def get(self, name: str) -> str:
@@ -884,13 +888,23 @@ def rule_k(row: Row, cfg: Config | None = None) -> list:
             for consumer in consumers if not any(covers_tables(r, consumer) for r in rows)]
 
 
+SEQUENCE_WORDS = {"phase", "step", "stage", "part", "pass", "wave", "block", "version", "milestone"}
+ROW_ID = re.compile(r"\b(?:T|CA-|FEAT-|KIT-)\d+\b")  # a row or record id names a dependency, never an item
+
+
 def set_shape(task: str) -> str:
     """The title the rows of one set share (KIT-115): its lead, up to the first `:` or `(`, with each backticked name
-    and each id or number (`ENB-002`, `E01`, `12`; not `E2E`) replaced and the first three words kept; "" when the lead names no item."""
-    lead = re.sub(r"`[^`]*`", "<x>", re.split(r"[:(]", task, 1)[0])
+    and each id or number (`ENB-002`, `E01`, `12`; not `E2E`, not a row id such as `T1`) replaced and the first three
+    words kept. "" when the lead names no item, has no word besides the items, or opens with a sequence word (`Phase
+    2`, `Step 3`: ordered steps, not a set)."""
+    lead = re.split(r"[:(]", task, 1)[0]
+    lead = re.sub(r"`[^`]*`", " <x> ", ROW_ID.sub("<id>", lead))
     lead = re.sub(r"\b(?:[A-Za-z]+-)*[A-Za-z]?\d+\b", "<n>", lead)  # ENB-002, E01, 12; never E2E
-    shape = " ".join(lead.lower().split()[:3])
-    return shape if "<x>" in shape or "<n>" in shape else ""
+    words = lead.lower().split()[:3]
+    items = {"<x>", "<n>"}
+    if not items & set(words) or not set(words) - items - {"<id>"} or (words and words[0] in SEQUENCE_WORDS):
+        return ""
+    return " ".join(words)
 
 
 def open_sets(row: Row) -> dict:
@@ -911,7 +925,7 @@ def rule_l(row: Row, cfg: Config | None = None) -> list:
     """One finding per set, on its first open row: N rows of one shape are cut per item, not per contract."""
     out = []
     for shape, rows in open_sets(row).items():
-        if rows[0] is row:
+        if next((r for r in rows if r.linted), None) is row:
             out.append(Finding(LEVELS["l"], row.feat, row.task_id, "Task",
                                f"{len(rows)} open rows share the shape '{shape}' ({rows[0].task_id} to "
                                f"{rows[-1].task_id}): cut a set as one row, or one per group sharing a contract, "
@@ -930,8 +944,8 @@ def rule_m(row: Row, cfg: Config | None = None) -> list:
             if hit:
                 out.append(Finding(LEVELS["m"], row.feat, row.task_id, "Depends on",
                                    f"{', '.join(hit)} is a row of the same set ('{shape}'): an edge between two "
-                                   "items is an order, never a dependency; depend on the contract row "
-                                   "(sdd-tasks § 2)", "m"))
+                                   "items is an order unless this row reads that row's merged output; else "
+                                   "depend on the contract row (sdd-tasks § 2)", "m"))
     return out
 
 
@@ -943,7 +957,9 @@ def lint(rows: list, cfg: Config, strict: bool = False, all_rows: bool = False) 
     findings, linted, headers = [], 0, set()
     for row in rows:
         row.cfg = cfg
-        if not all_rows and len(row.cells) == len(row.header) and row.status in SETTLED:
+        row.linted = all_rows or len(row.cells) != len(row.header) or row.status not in SETTLED
+    for row in rows:
+        if not row.linted:
             continue
         linted += 1
         if row.feat not in headers:
