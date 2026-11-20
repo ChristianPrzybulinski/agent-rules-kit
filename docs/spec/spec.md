@@ -34,7 +34,7 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 | [KIT-112](features/KIT-112.md) | Read each OWNER/NAME#N issue in its own repository | delivered | #408 |
 | [KIT-113](features/KIT-113.md) | Let an unanswered owner question wait only at the merge | delivered | #410 |
 | [KIT-114](features/KIT-114.md) | Name a plugin agent as <plugin>:<profile> in a skill's agent field | delivered | #414, #418 |
-| [KIT-115](features/KIT-115.md) | Warn on sibling task rows and on edges inside a set | planned | #429 |
+| [KIT-115](features/KIT-115.md) | Warn on sibling task rows and on edges inside a set | delivered | #430 |
 
 ## Decisions
 

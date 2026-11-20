@@ -220,6 +220,13 @@ class BlockTasksTest(VersionCase):
         self.feat(status="delivered", block_rows=rows(1).replace("todo", "done"))
         self.assert_passes()
 
+    def test_cancelled_rows_of_a_recut_block_do_not_count(self):
+        """#431: a re-cut keeps its merged rows as cancelled history (sdd-tasks § 5); only live rows count."""
+        self.index("sdd:\n  max_feat_tasks: 3\n")
+        live, history = rows(5).splitlines(keepends=True)[:3], rows(5).splitlines(keepends=True)[3:]
+        self.feat(block_rows="".join(live) + "".join(r.replace("todo", "cancelled") for r in history))
+        self.assert_passes()
+
     def test_the_versioned_feat_no_longer_warns(self):
         self.index("sdd:\n  max_feat_tasks: 3\n")
         self.feat(block_rows=rows(3))

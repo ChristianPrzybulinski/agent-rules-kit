@@ -87,6 +87,16 @@ class SiblingRows(unittest.TestCase):
         self.assertEqual([f.task for f in found], ["T3"])
         self.assertIn("5 open rows share the shape 'handler <x>' (T1 to T5)", found[0].message)
 
+    def test_a_set_whose_first_row_fails_rule_a_is_reported_on_the_next(self):
+        """#431: rule a stops the other rules on its row, so rule l moves to the first row they run on."""
+        text = feat_text("FEAT-900", [contract()] + [handler(n) for n in range(2, 7)])
+        line = next(x for x in text.splitlines() if x.startswith("| T2 |"))
+        path = self.spec / "features" / "FEAT-900.md"
+        path.write_text(text.replace(line, line.replace("| Low |", "| Huge |", 1)), encoding="utf-8")
+        found = rc.lint(rc.parse_feat(path, self.cfg), self.cfg)[0]
+        self.assertTrue(any(f.rule == "a" and f.task == "T2" for f in found), [f.render() for f in found])
+        self.assertEqual([f.task for f in found if f.rule == "l"], ["T3"])
+
     def test_a_numbered_title_is_a_set_too(self):
         rows = [(f"T{n}", f"Describe ENB-00{n} (module {n}) on the skeleton: Plan § Design", FILES, PROOF, "—",
                  "todo") for n in range(1, 6)]

@@ -36,7 +36,7 @@ What makes a task out of a FEAT row: the area it owns, the labels it needs and h
 
 ## Homogeneous sets
 
-- Rows of one shape (`Handler <move>`, `Quest E<nn>`, `<species> reference`) with the same `Files` form and the same `Depends on` are one set. Cut it by what the items share: identical data is ONE row (a table or generator plus a test that iterates every item), and differing behaviour under one contract is one row per group sharing that contract and fixture. An item gets its own row only with its own contract or an owner decision; separate files alone are no reason. A group too big for `task_minutes` splits by category, then by count.
+- Rows of one shape (`Handler <move>`, `Quest E<nn>`, `<species> reference`) with the same `Files` form and the same `Depends on` are one set. Cut it by what the items share: identical data is ONE row (a table or generator plus a test that iterates every item), and differing behaviour under one contract is one row per group sharing that contract and fixture. An item gets its own row only with its own contract or an owner decision; separate files alone are no reason. A group too big for `task_minutes` splits by sub-category, then by count.
 - A row of a set depends on the contract row that fixes what the set implements. An edge between two items is an order unless one reads the other's merged output (a handler built on another, a quest that needs the previous one's result); only such a read keeps its edge.
 
 ## Issue boundary and local bundles

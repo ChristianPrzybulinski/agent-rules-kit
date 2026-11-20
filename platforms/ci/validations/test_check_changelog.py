@@ -87,6 +87,23 @@ class CheckChangelogTest(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("added under [1.1.0]", out)
 
+    def test_a_committed_conflict_marker_fails_with_or_without_a_base(self):
+        """#431: a merge commit that kept its markers passed; a marker inside running text still passes."""
+        conflicted = WITH_ENTRY.replace("- KIT-002: second.\n", "<<<<<<< HEAD\n- KIT-002: second.\n=======\n"
+                                        "- KIT-003: third.\n>>>>>>> origin/main\n", 1)
+        self.commit(conflicted, "first")
+        code, out = self.run_check()
+        self.assertEqual(code, 1, out)
+        self.assertIn("CHANGELOG.md:6: a merge-conflict marker; resolve the conflict", out)
+        self.commit(OLD, "base")
+        self.commit(conflicted)
+        code, out = self.run_check()
+        self.assertEqual(code, 1, out)
+        self.assertIn("CHANGELOG.md:10: a merge-conflict marker", out)
+        self.commit(WITH_ENTRY.replace("second.", "second, which fails a line opening with `<<<<<<<`."))
+        code, out = self.run_check()
+        self.assertEqual(code, 0, out)
+
     def test_a_first_commit_has_no_base_and_passes(self):
         self.commit(OLD, "only")
         code, out = self.run_check()

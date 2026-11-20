@@ -28,7 +28,7 @@ Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty i
   k WARN  a todo or doing row that owns the protocol folder has, per consumer, an open row that depends on it and
           covers one of that consumer's tables (the contract row itself counts)
   l WARN  four or more open rows share one title shape (a set cut per item, KIT-115), reported once on the first of
-          them that is linted
+          them that is linted and passes rule a
   m WARN  a row of such a set depends on another row of it (an order, unless it reads that row's merged output)
 
 The proof predicates come from pr_gates.py beside this file, the same code the PR gates run, so a row is judged before
@@ -128,7 +128,7 @@ class Row:
     header: list
     siblings: dict = field(default_factory=dict)
     cfg: Config | None = None
-    linted: bool = False  # KIT-115: lint runs the rules on this row (rule l reports on the first linted row of a set)
+    linted: bool = False  # KIT-115, #431: lint runs rules b to m on this row; rule l reports on the first such row
     pass_name: str = ""  # KIT-094: the pass (greybox, polish) of the version block that holds the row, else ""
 
     def get(self, name: str) -> str:
@@ -954,12 +954,14 @@ RULES = [rule_b, rule_c, rule_d, rule_e, rule_f, rule_g, rule_h, rule_i, rule_j,
 
 def lint(rows: list, cfg: Config, strict: bool = False, all_rows: bool = False) -> tuple:
     """(findings, rows checked). Only rows that are not settled unless `all_rows`."""
-    findings, linted, headers = [], 0, set()
+    findings, linted, headers, plan = [], 0, set(), []
     for row in rows:
         row.cfg = cfg
-        row.linted = all_rows or len(row.cells) != len(row.header) or row.status not in SETTLED
-    for row in rows:
-        if not row.linted:
+        todo = all_rows or len(row.cells) != len(row.header) or row.status not in SETTLED
+        plan.append(todo)
+        row.linted = todo and not rule_a(row, cfg)  # rules b to m run on it (#431: rule l reports on such a row)
+    for row, todo in zip(rows, plan):
+        if not todo:
             continue
         linted += 1
         if row.feat not in headers:

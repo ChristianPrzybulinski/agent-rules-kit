@@ -28,7 +28,7 @@ Write or cut only a FEAT with `status: planned` whose Plan holds its sections (`
 - A FEAT is one issue (KIT-106) and is cut so that one issue can carry it; rows above `max_feat_tasks` go back to `sdd-plan` § 2, which splits only at an independent module or a real breaking dependency (below).
 - Split a title needing “and also”. Tests travel with behavior, never in an end-of-feature test row; a business rule's first row writes the failing domain test.
 - Order contract/types → domain/tests → persistence/migration → adapters/integration → client → flag/docs.
-- Dependencies are explicit only: `Depends on` names each row whose merged output this row reads (`T<n>`, or `FEAT-nnn T<n>` in another FEAT), never “the previous one”, and never an edge that stands only for an order (a migration number, a shared file). The longest chain of own rows is at most `max_chain` (`check_spec.py` fails a longer chain or a cycle), and a row on it carries at most `task_cut.longest_chain_max_complexity`. More rows than `max_feat_tasks` go back to `sdd-plan` to split the NEED, or, in a FEAT with `## Versions`, to the next block (`check_spec.py` fails an open block above it).
+- Dependencies are explicit only: `Depends on` names each row whose merged output this row reads (`T<n>`, or `FEAT-nnn T<n>` in another FEAT), never “the previous one”, and never an edge that stands only for an order (a migration number, a shared file). The longest chain of own rows is at most `max_chain` (`check_spec.py` fails a longer chain or a cycle), and a row on it carries at most `task_cut.longest_chain_max_complexity`. More rows than `max_feat_tasks` (cancelled rows not counted) go back to `sdd-plan` § 2 (`check_spec.py` fails an open version block above it).
 
 ## 3. Write the table (spec PR)
 
