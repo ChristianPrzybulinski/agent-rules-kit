@@ -95,3 +95,6 @@ Choices:
 - 2026-11-16: confirmed (owner, E § 17, backlog G9).
 - 2026-11-17: implemented on `feat/kit-096-versioned-feat`; PR pending. Stratics follow-up (not kit): split FEAT-053
   into use-case FEATs (E § 17.5 item 4).
+- 2026-11-20 amend (#431): a `cancelled` row (a re-cut's history, `sdd-tasks` § 5) answers a `Depends on` but counts
+  toward no `max_feat_tasks` limit (`task-size`, `block-tasks`) and joins no chain (`check_spec.py` `live_rows`); tests
+  `test_cancelled_rows_count_toward_no_limit_and_no_chain`, `test_cancelled_rows_of_a_recut_block_do_not_count`.

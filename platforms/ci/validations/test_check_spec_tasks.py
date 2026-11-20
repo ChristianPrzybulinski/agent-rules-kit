@@ -233,6 +233,16 @@ class TaskTableTest(SpecFixture):
         self.feat("FEAT-001", *(row(f"T{n}") for n in range(1, 5)))
         self.assert_passes("4 task rows, above sdd.max_feat_tasks 3")
 
+    def test_cancelled_rows_count_toward_no_limit_and_no_chain(self):
+        """#431: a re-cut's cancelled rows answer a Depends on but join no count and no chain."""
+        self.index("sdd:\n  max_feat_tasks: 3\n  max_chain: 2\n")
+        cancel = lambda line: line.replace("| todo |", "| cancelled |")  # noqa: E731
+        self.feat("FEAT-001", row("T1"), cancel(row("T2", depends="T1")), cancel(row("T3", depends="T2")),
+                  row("T4", depends="T3"), row("T5", depends="T4"))
+        result = self.assert_passes()
+        self.assertNotIn("max_feat_tasks", result.stderr)
+        self.assertNotIn("task-depends", result.stderr)
+
     def test_rows_at_the_default_max_feat_tasks_do_not_warn(self):
         self.feat("FEAT-001", *(row(f"T{n}") for n in range(1, 31)))
         result = self.assert_passes()

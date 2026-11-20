@@ -11,7 +11,10 @@ Only committed edits are checked: the file is read as HEAD has it and diffed fro
 still uncommitted (or staged) in the working tree passes silently until it is committed (#405).
 
 The base is --base, else the merge base with origin/main, else the first parent of HEAD (a pull request's merge commit
-in CI, or the commit before a push); with none of them the check says so and passes."""
+in CI, or the commit before a push); with none of them the check says so and passes.
+
+A line of the file at HEAD that opens with a merge-conflict marker (`<<<<<<<` or `>>>>>>>`) fails too, base or not
+(#431: a merge commit kept its markers and the check passed)."""
 import argparse
 import re
 import subprocess
@@ -20,6 +23,7 @@ from pathlib import Path
 
 HEADING = re.compile(r"^## \[(?P<name>[^\]]+)\]")
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(?P<start>\d+)(?:,(?P<count>\d+))? @@")
+MARKER = re.compile(r"^(<{7}|>{7})(?: |$)")
 
 
 def git(repo, *args, check=True):
@@ -81,18 +85,30 @@ def check(repo, base, path):
     return findings
 
 
+def markers(repo, path):
+    """The findings, one string per line of `path` at HEAD that opens with a merge-conflict marker."""
+    text = git(repo, "show", f"HEAD:{path}", check=False)
+    if text.returncode != 0:
+        return []
+    return [f"{path}:{number}: a merge-conflict marker; resolve the conflict"
+            for number, line in enumerate(text.stdout.splitlines(), start=1) if MARKER.match(line)]
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--base", help="the revision to diff from (default: see the module docstring)")
     parser.add_argument("--file", default="CHANGELOG.md")
     args = parser.parse_args(argv)
+    conflicts = markers(args.repo, args.file)
+    for finding in conflicts:
+        print(f"FAIL: {finding}", file=sys.stderr)
     base = find_base(args.repo, args.base)
     if not base:
         print("check_changelog: skipped (no base revision: a shallow checkout or a first commit)")
-        return 0
-    findings = check(args.repo, base, args.file)
-    for finding in findings:
+        return 1 if conflicts else 0
+    findings = conflicts + check(args.repo, base, args.file)
+    for finding in findings[len(conflicts):]:
         print(f"FAIL: {finding}", file=sys.stderr)
     if findings:
         return 1
