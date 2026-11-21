@@ -5,7 +5,7 @@ kind: detail
 
 # Row checks
 
-Each row passes every check below before its table goes to the spec PR; a row that fails one is fixed first, never inside the implementing PR. The row-check command automates what it can, and its exit 0 is required; the checks it does not cover stay the writer's. With `row_check: null` that command is the kit's `ROWS check FEAT-nnn` (`../../session/references/project-profile.md` § 3; or `--all`, `--changed BASE HEAD`; § Automated rules): it reads the profile's `sdd` section (`PROFILE resolve --section sdd` shows it), checks the rows that are not settled (`--all-rows`: every row) and exits 1 on a FAIL (`--strict` makes the c, f, l and m warnings fail), 2 on a config it cannot use or on an internal error. A project command replaces it.
+Each row passes every check below before its table goes to the spec PR; a row that fails one is fixed first, never inside the implementing PR. The row-check command automates what it can, and its exit 0 is required; the checks it does not cover stay the writer's. With `row_check: null` that command is the kit's `ROWS check FEAT-nnn` (`../../session/references/project-profile.md` § 3; or `--all`, `--changed BASE HEAD`; § Automated rules): it reads the profile's `sdd` section (`PROFILE resolve --section sdd` shows it), checks the rows that are not settled (`--all-rows`: every row) and exits 1 on a FAIL (`--strict` makes the c, f, l, m and n warnings fail), 2 on a config it cannot use or on an internal error. A project command replaces it.
 
 ## Size and order
 
@@ -18,7 +18,7 @@ Each row passes every check below before its table goes to the spec PR; a row th
 - **Tests in scope.** `Files` includes the test paths for any new code. A row that adds code without a test path is incomplete.
 - **Cited paths.** Every path the Task or Proof cell cites is in `Files`, or is marked `(read-only)` there when the row only reads it.
 - **Wiring.** A port, command or entry point that must work outside the tests (a CLI command, a server route, a dependency-injection binding, a registered scene or autoload) has its wiring file in `Files`.
-- **Neighbour and build files.** A file the work needs outside the row (a config key, a shared CI workflow) joins `Files`, or the row names the row that owns it; so do `pom.xml`, `application.yml`, `project.godot` or the project's equivalents when the row changes them.
+- **Neighbour and build files.** A file the work needs outside the row (a config key, a shared CI workflow) joins `Files`, or the row names the row that owns it; so do `pom.xml`, `application.yml`, `project.godot` or the project's equivalents when the row changes them, and each `docs/spec/enablers/ENB-nnn.md` whose catalog cells the row changes: the consumer's Required contracts and the provider's Consumers when the row's code starts using another ENB's contract, the provider's contract row when the row changes that contract (rule n; a `protected_paths` entry on the spec folder then labels the item).
 - **Generated neighbours.** `*.uid`, `*.import`, `*.translation` and the project's equivalents of an owned file are implicit: they travel with their source and are never listed (the scope gate `pr_gates.py` admits them once the project's config lists them in `generated_neighbours`; its default is none).
 - **Protected paths.** A `Files` path that matches a `protected_paths` entry gives the row's item that entry's label.
 
@@ -49,7 +49,7 @@ Each row passes every check below before its table goes to the spec PR; a row th
 | i | WARN | a row that changes an artifact's policy cites the decision that sets it | `row_checks.artifacts` (JSON list of `{pattern, dec, policy}`) |
 | j | WARN | a row with Files on a visual path has one ``evidence: screen `<id>` [states `<s>`, …]`` or ``evidence: motion `<id>` `` clause per capture; each parses, and its catalog file is on `origin/main` or in Files; a greybox block's row is exempt (KIT-094) | `visual_approval` `owner` or `reviewer`, `row_checks.visual`, `passes` |
 | k | WARN | a contract row has, per consumer, an open row that depends on it and covers that consumer's tables | `row_checks.protocol.consumers` |
-| l, m | WARN | l: four or more open rows share one title shape (a set cut per item), reported once on the first; m: a row of such a set depends on another row of it (KIT-115) | — |
+| l, m, n | WARN | l: four or more open rows share one title shape (a set cut per item), reported once on the first; m: a row of such a set depends on another row of it (KIT-115); n: a row whose Files reach one ENB's Code and whose Task names a contract another ENB provides (backticked, or bare when the id holds `.`, `_` or `-`), missing from the consumer's Required contracts or the provider's Consumers, lists both ENB files, unless its Files also reach the provider's Code (KIT-116) | n: `<spec>/enablers/` |
 
 ## Example
 

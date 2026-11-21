@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Task-row checks before the cut (KIT-073): rules a-m of sdd-tasks/references/row-checks.md, driven by the
+"""Task-row checks before the cut (KIT-073): rules a-n of sdd-tasks/references/row-checks.md, driven by the
 project profile's `sdd` and `evidence` sections (`.ai-kit.yaml`, KIT-087).
 
     row_checks.py check [--spec DIR] FEAT-NNN ... | --all | --changed BASE HEAD [--all-rows] [--strict]
 
 `--spec` defaults to docs/spec under the working directory; a FEAT-NNN id names <spec>/features/FEAT-NNN.md, a path
 names that file. Only rows that are not settled (todo, or a Status the kit does not know) are checked unless
---all-rows; --strict turns the c, f, l and m warnings into FAIL. Exit 1 iff a FAIL was printed, 2 on a usage error or an
+--all-rows; --strict turns the c, f, l, m and n warnings into FAIL. Exit 1 iff a FAIL was printed, 2 on a usage error or an
 profile that profile.py refuses.
 
 Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty is off):
@@ -30,6 +30,9 @@ Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty i
   l WARN  four or more open rows share one title shape (a set cut per item, KIT-115), reported once on the first of
           them that is linted and passes rule a
   m WARN  a row of such a set depends on another row of it (an order, unless it reads that row's merged output)
+  n WARN  with <spec>/enablers/, a row whose Files hold an ENB's Code and whose Task names a contract another ENB
+          provides, where the consumer's Required contracts or the provider's Consumers lack it, has both ENB files
+          in Files (KIT-116: the PR that adds a consumer updates those catalog cells)
 
 The proof predicates come from pr_gates.py beside this file, the same code the PR gates run, so a row is judged before
 the cut by the rules its PR's proof block meets later. Upstreamed from a consumer project's row linter.
@@ -65,8 +68,8 @@ ITEM = re.compile(r"^(—|-|#\d+|[\w.-]+/[\w.-]+#\d+|TASK-\d{3,})$")
 
 FAIL, WARN = "FAIL", "WARN"
 LEVELS = {"a": FAIL, "b": FAIL, "c": WARN, "d": WARN, "e": FAIL, "f": WARN, "g": FAIL, "h": WARN, "i": WARN,
-          "j": WARN, "k": WARN, "l": WARN, "m": WARN}
-STRICT_PROMOTED = {"c", "f", "l", "m"}
+          "j": WARN, "k": WARN, "l": WARN, "m": WARN, "n": WARN}
+STRICT_PROMOTED = {"c", "f", "l", "m", "n"}
 SIBLING_MIN = 4  # KIT-115: open rows of one title shape that make a set
 
 PATH_EXTS = ("java", "gd", "tscn", "tres", "json", "sql", "yml", "yaml", "xml", "md", "py", "png", "csv", "wav",
@@ -118,6 +121,7 @@ class Config:
     artifacts: list = field(default_factory=list)
     visual: dict | None = None
     catalog_ref: str | None = None  # "origin/main" when the repository has it, for rule j's catalog check
+    enablers: dict = field(default_factory=dict)  # KIT-116: {ENB id: its catalog cells}, from <spec>/enablers/
 
 
 @dataclass
@@ -128,7 +132,7 @@ class Row:
     header: list
     siblings: dict = field(default_factory=dict)
     cfg: Config | None = None
-    linted: bool = False  # KIT-115, #431: lint runs rules b to m on this row; rule l reports on the first such row
+    linted: bool = False  # KIT-115, #431: lint runs rules b to n on this row; rule l reports on the first such row
     pass_name: str = ""  # KIT-094: the pass (greybox, polish) of the version block that holds the row, else ""
 
     def get(self, name: str) -> str:
@@ -246,7 +250,60 @@ def load_config(spec_dir) -> Config:
     has_main = subprocess.run(["git", "-C", str(root), "rev-parse", "--verify", "--quiet", "origin/main^{commit}"],
                               capture_output=True).returncode == 0
     cfg.catalog_ref = "origin/main" if has_main else None
+    cfg.enablers = enabler_catalog(spec_dir, root)
     return cfg
+
+
+def md_section(body: str, name: str) -> str:
+    """The text under `## name` up to the next `## ` heading; empty when absent."""
+    lines, found = [], False
+    for line in body.splitlines():
+        if line.startswith("## "):
+            if found:
+                break
+            found = line[3:].strip() == name
+        elif found:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def md_rows(text: str) -> list:
+    """The rows, as {header: cell}, of the first Markdown table in text."""
+    lines = [line for line in text.splitlines() if line.strip().startswith("|")]
+    if not lines:
+        return []
+    header = split_cells(lines[0])
+    body = [line for line in lines[1:] if not re.fullmatch(r"\|[\s:|-]*\|", line.strip())]
+    return [dict(zip(header, split_cells(line))) for line in body]
+
+
+def enabler_catalog(spec_dir: Path, root: Path) -> dict:
+    """{ENB id: {path, code, provides: {contract: consumer ENB ids}, requires: contract ids}} of every ENB that is not
+    retired (KIT-116). A file check_spec.py or spec_trace.py would refuse is skipped here: they report it."""
+    out = {}
+    for path in check_spec.named_files(spec_dir, "enablers"):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if not lines or lines[0] != "---" or "---" not in lines[1:]:
+            continue
+        end = lines.index("---", 1)
+        try:
+            data = check_spec.load_yaml("\n".join(lines[1:end])) or {}
+        except ValueError:
+            continue
+        if not isinstance(data, dict) or data.get("status") == "retired":
+            continue
+        body = "\n".join(lines[end + 1:])
+        provides = {r.get("Contract", "").strip("`"): set(re.findall(r"ENB-\d{3,}", r.get("Consumers", "")))
+                    for r in md_rows(md_section(body, "Provided contracts"))}
+        requires = {r.get("Contract", "").strip("`") for r in md_rows(md_section(body, "Required contracts"))}
+        rel = path.resolve().relative_to(root).as_posix() if path.resolve().is_relative_to(root) else str(path)
+        out[str(data.get("id") or path.stem)] = {
+            "path": rel, "code": re.findall(r"`([^`]+)`", md_section(body, "Code")),
+            "provides": {k: v for k, v in provides.items() if k}, "requires": requires - {""}}
+    return out
 
 
 # --------------------------------------------------------------------------- paths
@@ -949,7 +1006,51 @@ def rule_m(row: Row, cfg: Config | None = None) -> list:
     return out
 
 
-RULES = [rule_b, rule_c, rule_d, rule_e, rule_f, rule_g, rule_h, rule_i, rule_j, rule_k, rule_l, rule_m]
+def names_contract(task: str, contract: str) -> bool:
+    """The Task cell names a contract id: backticked, or bare when the id holds a `.`, `_` or `-` (a one-word id such
+    as `party` or `error` is plain prose unless backticked). `hall_of_fame` is not named by `hall_of_fame_get`."""
+    if f"`{contract}`" in task:
+        return True
+    if not re.search(r"[._-]", contract):
+        return False
+    return re.search(rf"(?<![\w.`-]){re.escape(contract)}(?![\w`-]|\.\w)", task) is not None
+
+
+def rule_n(row: Row, cfg: Config | None = None) -> list:
+    """A row that makes an ENB's code use a contract of another ENB adds a consumer: the consumer's Required contracts
+    (and its consumesApis, dependsOn) and the provider's Consumers cell change in the same PR, so both ENB files are in
+    Files (KIT-116). The consumer is each ENB whose Code globs the row's Files reach; the contract is each id another
+    ENB provides that the Task names; a pair already in both catalogs needs nothing."""
+    cfg = cfg or row.cfg
+    if not cfg.enablers:
+        return []
+    files = row.normalized_files
+    owners = [eid for eid, e in cfg.enablers.items() if any(overlaps(f, g) for f in files for g in e["code"])]
+    if not owners:
+        return []
+    task, need = row.get("Task"), {}
+    for provider, enabler in cfg.enablers.items():
+        for contract, consumers in enabler["provides"].items():
+            if not names_contract(task, contract):
+                continue
+            if provider in owners:  # the row builds the provider's side of this contract, not a new consumer
+                continue
+            for owner in owners:
+                if contract not in cfg.enablers[owner]["requires"]:
+                    need.setdefault(owner, []).append(f"{contract} (its Required contracts)")
+                if owner not in consumers:
+                    need.setdefault(provider, []).append(f"{contract} (Consumers: {owner})")
+    out = []
+    for eid, why in need.items():
+        rel = cfg.enablers[eid]["path"]
+        if not any(path_matches(rel, f) for f in files):
+            out.append(Finding(LEVELS["n"], row.feat, row.task_id, "Files",
+                               f"lacks {rel}: the row adds a consumer of {', '.join(dict.fromkeys(why))}, and that "
+                               "catalog cell changes in the same PR (sdd-tasks § 3)", "n"))
+    return out
+
+
+RULES = [rule_b, rule_c, rule_d, rule_e, rule_f, rule_g, rule_h, rule_i, rule_j, rule_k, rule_l, rule_m, rule_n]
 
 
 def lint(rows: list, cfg: Config, strict: bool = False, all_rows: bool = False) -> tuple:
@@ -959,7 +1060,7 @@ def lint(rows: list, cfg: Config, strict: bool = False, all_rows: bool = False) 
         row.cfg = cfg
         todo = all_rows or len(row.cells) != len(row.header) or row.status not in SETTLED
         plan.append(todo)
-        row.linted = todo and not rule_a(row, cfg)  # rules b to m run on it (#431: rule l reports on such a row)
+        row.linted = todo and not rule_a(row, cfg)  # rules b to n run on it (#431: rule l reports on such a row)
     for row, todo in zip(rows, plan):
         if not todo:
             continue
@@ -1058,7 +1159,7 @@ def main(argv=None) -> int:
     c.add_argument("--all", action="store_true", help="every FEAT-*.md under <spec>/features")
     c.add_argument("--changed", nargs=2, metavar=("BASE", "HEAD"), help="FEAT files in git diff BASE HEAD")
     c.add_argument("--all-rows", action="store_true", help="check rows of any Status, not only open ones")
-    c.add_argument("--strict", action="store_true", help="promote the c, f, l and m warnings to FAIL")
+    c.add_argument("--strict", action="store_true", help="promote the c, f, l, m and n warnings to FAIL")
     args = ap.parse_args(argv)
     try:
         return cmd_check(args)
