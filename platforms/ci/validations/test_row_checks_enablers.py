@@ -91,7 +91,7 @@ class EnablerCatalogRows(unittest.TestCase):
         by_file = {f.message.split(":")[0]: f.message for f in found}
         self.assertIn("hall_of_fame_get (its Required contracts)", by_file[f"lacks {PROFILE_ENB}"])
         self.assertIn("hall_of_fame_get (Consumers: ENB-021)", by_file[f"lacks {TRAINER_ENB}"])
-        self.assertIn("sdd-tasks § 3", found[0].message)
+        self.assertIn("sdd-tasks § 2", found[0].message)
 
     def test_both_enabler_files_in_files_or_a_spec_glob_pass(self):
         for extra in (f"`{PROFILE_ENB}`, `{TRAINER_ENB}`", "`docs/spec/enablers/**`"):

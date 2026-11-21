@@ -1046,7 +1046,7 @@ def rule_n(row: Row, cfg: Config | None = None) -> list:
         if not any(path_matches(rel, f) for f in files):
             out.append(Finding(LEVELS["n"], row.feat, row.task_id, "Files",
                                f"lacks {rel}: the row adds a consumer of {', '.join(dict.fromkeys(why))}, and that "
-                               "catalog cell changes in the same PR (sdd-tasks § 3)", "n"))
+                               "catalog cell changes in the same PR (sdd-tasks § 2)", "n"))
     return out
 
 
