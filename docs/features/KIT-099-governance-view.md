@@ -1,10 +1,10 @@
 ---
 id: KIT-099
 title: "A generated governance view, the C25 debt payment check and the vulnerability tech process"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"Sim, faça\" on E § 17, backlog G13)"
 issue: "#341"
-pr: ""
+pr: "#361"
 ---
 
 # KIT-099 — A generated governance view, the C25 debt payment check and the vulnerability tech process
@@ -60,3 +60,4 @@ matrix has the same sha-256. The reference's example, with its placeholders fill
 - 2026-11-17: implemented on `feat/kit-099-governance-view`; PR pending.
 - 2026-11-17: review fixes: a debt is paid only by a Tasks row, a refused `review` or `gates` key names its
   section, `sdd-plan` runs C25, `spec-process.md` notes the run line.
+- 2026-11-22: status done (#341 closed by #361; #439).

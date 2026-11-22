@@ -1,10 +1,10 @@
 ---
 id: KIT-085
 title: "No project justfile: skill sdd-implement runs the kit's just modules directly"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit session chat; issue #320 and its comment)"
 issue: "#320"
-pr: ""
+pr: "#349"
 ---
 
 # KIT-085 — No project justfile: skill sdd-implement runs the kit's just modules directly
@@ -32,3 +32,4 @@ pr: ""
 
 - 2026-11-16: confirmed (owner, issue #320); direction changed to a kit skill the same day (#320 comment).
 - 2026-11-16: implemented on `feat/kit-085-no-project-justfile`.
+- 2026-11-22: status done (#320 closed by #349; #439).

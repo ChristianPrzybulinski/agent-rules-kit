@@ -1,10 +1,10 @@
 ---
 id: KIT-101
 title: "The kit runs its own FEAT-only flow: kind tooling, KIT ids and a spec root of its own"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"Sim, faça\" on E § 17, backlog G8)"
 issue: "#343"
-pr: ""
+pr: "#366"
 ---
 
 # KIT-101 — The kit runs its own FEAT-only flow: kind tooling, KIT ids and a spec root of its own
@@ -55,3 +55,4 @@ they are.
 
 - 2026-11-16: confirmed (owner, kit chat; issue #343).
 - 2026-11-17: implemented on `feat/kit-101-kit-own-flow`.
+- 2026-11-22: status done (#343 closed by #366; #439).

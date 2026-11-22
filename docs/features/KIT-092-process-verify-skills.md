@@ -1,10 +1,10 @@
 ---
 id: KIT-092
 title: "The SDD skills that use and verify processes: task cells, closure and release smoke"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"concordo com os demais pontos das suas recomendações\", E § 8.2-8.4; filing \"Sim, abra\"; scope update from E § 17, \"Sim, faça\")"
 issue: "#333"
-pr: ""
+pr: "#354"
 ---
 
 # KIT-092 — The SDD skills that use and verify processes: task cells, closure and release smoke
@@ -47,3 +47,4 @@ stays green unchanged.
 
 - 2026-11-16: confirmed (owner, #333 and its E § 17 update).
 - 2026-11-17: implemented on `feat/kit-092-process-verify-skills`.
+- 2026-11-22: status done (#333 closed by #354; #439).

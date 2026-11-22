@@ -1,10 +1,10 @@
 ---
 id: KIT-098
 title: "Our pattern: SysML link names, DDD, Backstage for ENBs and SAFe in one reference, with generated views"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"Sim, faça\" on E § 17, backlog G12)"
 issue: "#340"
-pr: ""
+pr: "#359"
 ---
 
 # KIT-098 — Our pattern: SysML link names, DDD, Backstage for ENBs and SAFe in one reference, with generated views
@@ -57,3 +57,4 @@ unit,contract` and `--layer integration --changed-from origin/main`.
 
 - 2026-11-16: confirmed (owner, #340 from E § 17).
 - 2026-11-17: implemented on `feat/kit-098-pattern-reference`.
+- 2026-11-22: status done (#340 closed by #359; #439).
