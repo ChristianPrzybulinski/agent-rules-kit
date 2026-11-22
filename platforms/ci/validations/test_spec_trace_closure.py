@@ -255,7 +255,8 @@ class ClosureCommandTest(unittest.TestCase):
         outcome = "Main: 1a2b3c4 · 2026-11-14 · outcome validated"
         header = "\n\n| Check | Command or measurement | Result |\n|---|---|---|\n"
         for table in ("", header, *(header + f"| Lint | `lint` | {result} |\n"
-                                    for result in ("", "—", "-", " TBD ", "ToDo", "PENDING"))):
+                                    for result in ("", "—", "–", "-", " TBD ", "ToDo", "PENDING", "**TBD**", "_pending_",
+                                                   "planned: 0 findings"))):
             with self.subTest(table=table):
                 self.fixture(closure=outcome + table)
                 code, out = self.validate("--check")
@@ -288,6 +289,25 @@ class ClosureCommandTest(unittest.TestCase):
         code, out = self.validate("--check")
         self.assertEqual(code, 0, out)
         self.assertIn("ready to validate", out)
+
+    def test_validate_accepts_an_outcome_line_wrapped_across_lines(self):
+        """The literal FEAT-151 closure of stratics-docs-loop 20bf8cbc75 (lines 173-176): the outcome is on line two."""
+        self.fixture(closure="[FACT] Main: `3822b437e0c04d30b4cbb046e016f6e283a063c2` · 2026-11-21 · reviewer provider=codex\n"
+                             "session=5061 · outcome delivered (release: merge). T1 was delivered by\n"
+                             "[stratics#5004](https://github.com/dev-game-studio/stratics/pull/5004), merge\n"
+                             "`ecce9224112ff1288fcd00628890d950dd38986a`.\n\n"
+                             "| Check | Command or measurement | Result |\n|---|---|---|\n"
+                             "| Spec | `check.sh --spec docs/spec` | 0 findings |\n")
+        code, out = self.validate("--check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ready to validate", out)
+
+    def test_validate_refuses_an_outcome_word_in_a_later_paragraph(self):
+        self.fixture(closure="Main: 1a2b3c4 · 2026-11-14 · reviewer\n\noutcome validated\n\n"
+                             "| Check | Command or measurement | Result |\n|---|---|---|\n| Lint | `lint` | pass |\n")
+        code, out = self.validate("--check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FEAT-001 closure has no outcome line", out)
 
     def test_not_run_is_a_check_row_for_closure_shape(self):
         for measured in ("", "| Lint | `lint` | 0 findings |\n"):

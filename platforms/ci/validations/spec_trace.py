@@ -1260,13 +1260,35 @@ def planned_rows(feat):
     return len(block["rows"]), f"the open version block {block['name']}"
 
 
+UNMEASURED_RESULT = {"", "—", "–", "-", "tbd", "todo", "pending"}
+
+
+def closure_paragraphs(lines: list[str]) -> list[str]:
+    """Closure text as paragraphs: consecutive non-blank, non-table lines joined by one space (a wrapped line is one)."""
+    paragraphs, current = [], []
+    for line in lines:
+        if line and not line.startswith("|"):
+            current.append(line)
+            continue
+        paragraphs.append(" ".join(current))
+        current = []
+    paragraphs.append(" ".join(current))
+    return [paragraph for paragraph in paragraphs if paragraph]
+
+
+def measured_result(cell: str) -> bool:
+    """A Result cell that records a measurement: not empty, a dash, a placeholder (plain or emphasized) or a target."""
+    result = cell.strip().strip("*_ ").lower()
+    return result not in UNMEASURED_RESULT and not result.startswith("planned:")
+
+
 def closure_shape_gaps(label: str, body: str) -> list[str]:
     """Require an outcome and a check row with a recorded result, ignoring HTML comments."""
     lines = [line.strip() for line in re.sub(r"(?s)<!--.*?-->", "", body).splitlines()]
     outcome = re.compile(r"^(?:\[FACT\]\s*)?Main:\s*`?[0-9a-f]{7,40}`?\s*·\s*\d{4}-\d{2}-\d{2}\s*·"
                          r"(?:.*·)?\s*outcome\s+(?:validated|delivered|returned:)")
     gaps = []
-    if not any(outcome.match(line) for line in lines):
+    if not any(outcome.match(paragraph) for paragraph in closure_paragraphs(lines)):
         gaps.append(f"{label} closure has no outcome line (Main: <sha> · <date> · … · outcome …): "
                     "sdd-review writes it before validate")
     measured = False
@@ -1280,7 +1302,7 @@ def closure_shape_gaps(label: str, body: str) -> list[str]:
             continue
         if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
             continue
-        if cells[-1].lower() not in {"", "—", "-", "tbd", "todo", "pending"}:
+        if measured_result(cells[-1]):
             measured = True
             break
     if not measured:
@@ -2154,13 +2176,6 @@ def has_history_line(path, status):
     if status == "validated":
         return ("sdd-review", "validated") in marks
     return bool(marks & {("sdd-release", "delivered"), ("sdd-review", "delivered")} or LEGACY_DELIVERED.search(history))
-
-
-def has_closure(path):
-    """True when the FEAT's `## Closure` section holds a line outside HTML comments."""
-    text = re.sub(r"(?s)<!--.*?-->", "", path.read_text(encoding="utf-8"))
-    match = re.search(r"(?ms)^## Closure[ \t]*$(.*?)(?=^## |\Z)", text)
-    return bool(match and match.group(1).strip())
 
 
 def closure_gaps(spec, fid, needs):
