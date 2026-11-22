@@ -272,6 +272,14 @@ class ClosureCommandTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("ready to validate", out)
 
+    def test_validate_does_not_count_a_table_header_as_a_measured_row(self):
+        self.fixture(closure="Main: 1a2b3c4 · 2026-11-14 · outcome validated\n\n"
+                             "| Check | Command | Result |\n|:---|:---:|---:|\n")
+        code, out = self.validate("--check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FEAT-001 closure has no check row with a measured Result: "
+                      "sdd-review writes it before validate", out)
+
     def test_validate_accepts_a_fact_tag_and_backticked_full_sha(self):
         self.fixture(closure="[FACT] Main: `3822b437e0123456789012345678901234567890` · 2026-11-21 · "
                              "reviewer provider=codex · outcome delivered (release: merge)\n\n"

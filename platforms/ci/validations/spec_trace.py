@@ -1270,11 +1270,13 @@ def closure_shape_gaps(label: str, body: str) -> list[str]:
         gaps.append(f"{label} closure has no outcome line (Main: <sha> · <date> · … · outcome …): "
                     "sdd-review writes it before validate")
     measured = False
-    for line in lines:
+    for index, line in enumerate(lines):
         if not (line.startswith("|") and line.endswith("|")):
             continue
         cells = [cell.strip() for cell in line[1:-1].split("|")]
         if len(cells) < 2 or [cell.lower() for cell in cells] == ["check", "command or measurement", "result"]:
+            continue
+        if index + 1 < len(lines) and re.fullmatch(r"\|(?:\s*:?-+:?\s*\|)+", lines[index + 1]):
             continue
         if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
             continue
