@@ -1,10 +1,10 @@
 ---
 id: KIT-094
 title: "Greybox and polish passes, as two version blocks of one FEAT, with an owner playtest gate"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"Sim, faça\" on E § 17, backlog G5; \"Yes, blocks\" on E § 17.1)"
 issue: "#335"
-pr: ""
+pr: "#363"
 ---
 
 # KIT-094 — Greybox and polish passes, as two version blocks of one FEAT, with an owner playtest gate
@@ -74,3 +74,4 @@ Choices:
 
 - 2026-11-16: confirmed (owner, E § 17, backlog G5).
 - 2026-11-17: implemented on `feat/kit-094-passes`; PR pending.
+- 2026-11-22: status done (#335 closed by #363; #439).

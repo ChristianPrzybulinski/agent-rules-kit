@@ -1,10 +1,10 @@
 ---
 id: KIT-088
 title: "The profile gains project.kind presets and the keys the game and FEAT-only flows read"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, chat of the kit session: \"concordo\" with the game-profile evaluation §§ 1-5 and 8.2-8.4, filing \"Sim, abra\"; the E § 17 scope, \"Sim, faça\")"
 issue: "#329"
-pr: ""
+pr: "#344"
 ---
 
 # KIT-088 — The profile gains project.kind presets and the keys the game and FEAT-only flows read
@@ -70,3 +70,4 @@ pr: ""
 
 - 2026-11-16: confirmed (owner, kit chat; issue #329 and its E § 17 update).
 - 2026-11-16: implemented on `feat/kit-088-profile-kinds`.
+- 2026-11-22: status done (#329 closed by #344; #439).
