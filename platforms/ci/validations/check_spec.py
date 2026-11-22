@@ -947,6 +947,8 @@ def warn_cancelled_dependencies(fid: str, path: Path, live: dict[str, dict[str, 
     """A live dependent must point to the merged row, including across version blocks."""
     cancelled = {int(ROW_ID.match(rid).group(1)) for rid in rows.keys() - live_rows(rows).keys()}
     for rid, cells in live.items():
+        if cells.get("Status", "").strip() == "done":  # `sdd-tasks` § 5 never rewrites a done item
+            continue
         for n in sorted(set(own_dependencies(cells.get("Depends on", ""), fid)) & cancelled):
             warn(f"{path}: {rid} Depends on T{n}, which is cancelled: sdd-tasks § 5 moves the dependent to the "
                  "merged row", "task-depends-cancelled")

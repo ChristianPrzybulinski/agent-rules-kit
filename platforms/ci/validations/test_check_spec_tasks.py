@@ -261,6 +261,14 @@ class TaskTableTest(SpecFixture):
                             + ": T2 Depends on T1, which is cancelled: sdd-tasks § 5 moves the dependent to the "
                             "merged row [task-depends-cancelled]", result.stderr)
 
+    def test_a_done_row_depending_on_a_cancelled_row_does_not_warn(self) -> None:
+        """sdd-tasks § 5 moves only an open dependent and never rewrites a done item."""
+        self.feat("FEAT-001", row("T1").replace("| todo |", "| cancelled |"),
+                  row("T2", depends="T1").replace("| todo |", "| done |"))
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("task-depends-cancelled", result.stderr)
+
     def test_superseded_rows_count_toward_no_limit_and_no_chain(self) -> None:
         self.index("sdd:\n  max_feat_tasks: 3\n  max_chain: 2\n")
         supersede = lambda line: line.replace("| todo |", "| superseded |")  # noqa: E731
