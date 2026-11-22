@@ -233,3 +233,9 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   patterns. The exit-2 claims now cover only configs the tool cannot read or use (#252 for types); `dod` does not see
   line-ending CRs. Not here: #253 (a PR-controlled crash as a finding), #254 (CR-only test files in the assertion
   count), #255 (an import error and `--timeout 0`).
+- 2026-11-21 (amendment, from the Stratics FEAT-038 closure, stratics#5256): `spec_trace.py lint` skips a REQ with
+  `status: retired` when it checks proving tests against the trace, since a decision removed its rule and tests (REQ-F-814,
+  DTEC-061 § 3). The Maven proof lint in `review_checks.py` no longer flags `-Dtest=... verify` when the line also
+  holds `-Dit.test=`, which narrows failsafe (T5, T11). A Proof cell with no command (T15's retirement note) stays an
+  informational `not run` line, not a finding. Tests: `test_a_retired_req_needs_no_proving_test_in_the_trace`,
+  `test_maven_verify_narrowed_by_it_test_is_not_linted`.

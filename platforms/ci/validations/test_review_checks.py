@@ -1209,6 +1209,17 @@ class ProofOutputTest(StubCase):
         self.assertIn("-Dtest", out)
         self.assertIn("verify", out)
 
+    def test_maven_verify_narrowed_by_it_test_is_not_linted(self):
+        """Stratics FEAT-038 T5/T11: `-Dtest=none ... -Dit.test=X verify` narrows failsafe; the lint flagged it."""
+        for line in ("./mvnw -B -ntp -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=ExternalSmokeIT "
+                     "verify", "./mvnw -B -ntp -Dit.test=ServerLossRestartIT -Dtest=none verify",
+                     "./mvnw -Dtest=none '-Dit.test=A*IT' verify", "./mvnw -Dtest=none -Dit.test=\"AIT\" verify"):
+            code, out = self.run_tool("proof", "--body", self.body(line))
+            self.assertNotIn("does not narrow failsafe", out, line)
+        for line in ("./mvnw -B -ntp verify -Dtest=HaircutBuyIT", "./mvnw -B -ntp -Dtest=X -Dit.test= verify"):
+            code, out = self.run_tool("proof", "--body", self.body(line))
+            self.assertIn("does not narrow failsafe", out, line)  # an empty `-Dit.test=` narrows nothing
+
 
 FEAT_PROOFS = """\
 ---

@@ -265,7 +265,7 @@ class Spec:
     spec_dir: Path    # the spec directory itself (<root>/docs/spec in the usual layout)
     repos: set        # valid test-path roots: own clone name + sibling clones + --repo extras
     feats: dict = field(default_factory=dict)     # FEAT id -> {"path", "requirements", "tasks": {Tn: row}}
-    reqs: dict = field(default_factory=dict)      # REQ id -> {"path", "features", "title"}
+    reqs: dict = field(default_factory=dict)      # REQ id -> {"path", "features", "title", "status"}
     journeys: dict = field(default_factory=dict)  # J id -> {"path", "title", "status", "steps"}
     processes: dict = field(default_factory=dict)  # PROC id -> {"path", "title", "status", "kind", "steps"}
     open_needs: dict = field(default_factory=dict)  # J or PROC id -> ids of the open NEEDs whose `journeys` or
@@ -431,7 +431,7 @@ def load(spec_dir: Path, extra_repos: Iterable[str] = ()) -> Spec:
         data, _ = read_spec(spec, path)
         if isinstance(data, dict) and data.get("id"):
             spec.reqs[data["id"]] = {"path": path, "features": data.get("features") or [],
-                                     "title": data.get("title", "")}
+                                     "title": data.get("title", ""), "status": data.get("status")}
     load_open_needs(spec, spec_dir / "needs")
     for path in sorted(check_spec.named_files(spec_dir, "processes"), key=lambda p: natural_key(p.name)):  # #356
         load_process(spec, path)  # before the journeys, whose steps may cite a process
@@ -2313,8 +2313,8 @@ def lint_feat(spec, fid):
             found.append(f"{fid}: Plan says {said} rows, {where} has {counted}")
     if spec.journeys or spec.processes:
         for rid in feat["requirements"]:
-            if rid not in spec.reqs:
-                continue
+            if rid not in spec.reqs or spec.reqs[rid].get("status") == "retired":
+                continue  # a retired REQ (its rule and tests removed by a decision) has no proving test to trace
             cell = tests_of([s for s in spec.all_steps if rid in s.rules])
             for token in proving_tokens(spec.reqs[rid]["path"]):
                 if cell == "—":
