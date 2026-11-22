@@ -71,4 +71,5 @@ pr: "#348"
 
 - 2026-11-16: confirmed (owner, kit chat; issue #330 and its E § 17 update).
 - 2026-11-16: implemented on `feat/kit-089-vision-pillars`.
+- 2026-11-22 amend (#442): check_kit.py no longer warns on paragraphs shared only among the spec-index kind variants; a copy anywhere else still warns.
 - 2026-11-22: status done (#330 closed by #348; #439).
