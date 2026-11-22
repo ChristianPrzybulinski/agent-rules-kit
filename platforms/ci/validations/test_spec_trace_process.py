@@ -37,7 +37,11 @@ created: "2026-11-16"
 
 ## Closure
 
-- closed.
+Main: 1a2b3c4 · 2026-11-16 · outcome validated
+
+| Check | Command or measurement | Result |
+|---|---|---|
+| Lint | `lint` | 0 findings |
 """
 
 REQ = """\
