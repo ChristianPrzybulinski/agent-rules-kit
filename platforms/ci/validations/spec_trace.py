@@ -2446,7 +2446,7 @@ def changes(spec, base, head):
         stem = path.stem
         if REQ_ID.fullmatch(stem):
             found.append((f"{stem} edited", [s for s in spec.all_steps if stem in s.rules]))
-        elif re.fullmatch(r"FEAT-\d{3,}", stem):
+        elif re.fullmatch(feat_id_pattern(spec), stem):
             found += feat_changes(spec, base, head, stem, path)
         elif JOURNEY_FILE.match(stem):
             jid = JOURNEY_FILE.match(stem).group(1)
@@ -2918,6 +2918,13 @@ def feat_glob(spec):
     return f"{prefix if isinstance(prefix, str) and prefix else 'FEAT'}-*.md"
 
 
+def feat_id_pattern(spec: Spec) -> str:
+    """The FEAT id pattern, using the same configured prefix and default as feat_glob."""
+    prefix = (spec.params.get("id_prefix") or {}).get("feature")
+    prefix = prefix if isinstance(prefix, str) and prefix else "FEAT"
+    return rf"{re.escape(prefix)}-\d{{3,}}"
+
+
 def feat_prs(data, settings, closing, gh):
     """(PRs as [{ref, state, merged}], warning): the PR the FEAT's `pr` field names, else those whose body closes its
     `issue`; ([], None) when it names neither. A field that is not `#N` or `OWNER/NAME#N` in ASCII digits, or a ref
@@ -3080,7 +3087,7 @@ def sync_index(spec, today):
         if "Status" in cells and column is None:
             column = cells.index("Status")
             continue
-        m = re.match(r"^\[(FEAT-\d{3,})\]\(features/", cells[0]) if cells else None
+        m = re.match(rf"^\[({feat_id_pattern(spec)})\]\(features/", cells[0]) if cells else None
         if column is None or not m or m.group(1) not in spec.feats or len(cells) <= column:
             continue
         status = spec.feats[m.group(1)]["status"]
@@ -3196,7 +3203,7 @@ def run_command(argv=None):
     today = args.date or datetime.date.today().isoformat()
     if args.spec is not None and re.fullmatch(r"J-\d{2,}", str(args.spec)) and args.command == "checklist":
         args.journeys, args.spec = [str(args.spec), *args.journeys], None
-    if args.spec is not None and re.fullmatch(r"FEAT-\d{3,}", str(args.spec)) and args.command == "lint":
+    if args.spec is not None and re.fullmatch(r"[A-Z][A-Z0-9]*-\d{3,}", str(args.spec)) and args.command == "lint":
         args.feat, args.spec = str(args.spec), None
     if args.spec is not None and PROCESS_ID.match(str(args.spec)) and args.command == "diagram":
         args.process, args.spec = str(args.spec), None

@@ -180,6 +180,44 @@ class FeatOnlySyncTest(unittest.TestCase):
         result = self.check_spec()
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_a_merged_pr_delivers_the_prefixed_index_row(self) -> None:
+        self.feat("KIT-001", "in-progress")
+        index = write(self.root, "docs/spec/spec.md", SPEC_MD + "\n"
+                      "| ID | Title | Status | PR |\n|---|---|---|---|\n"
+                      "| [KIT-001](features/KIT-001.md) | t | in-progress | — |\n")
+        code, output = self.sync(self.routes(single={12: pull(12)}))
+        self.assertEqual(code, 0, output)
+        self.assertIn("| [KIT-001](features/KIT-001.md) | t | delivered | — |",
+                      index.read_text(encoding="utf-8"))
+
+    def test_impact_reports_a_prefixed_feat_in_the_diff(self) -> None:
+        path = self.feat("KIT-001")
+        commands = [("init", "-q"), ("add", ".ai-kit.yaml", "docs/spec"), ("commit", "-qm", "base")]
+        for args in commands:
+            subprocess.run(["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@example.test",
+                            *args], check=True, capture_output=True)
+        path.write_text(path.read_text(encoding="utf-8") + "\nA new decision.\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@example.test",
+                        "commit", "-qam", "edit"], check=True, capture_output=True)
+        result = subprocess.run([sys.executable, "-B", str(HERE / "spec_trace.py"), "impact", "HEAD~1", "HEAD"],
+                                cwd=self.root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("No journey cites: KIT-001 text outside the task table", result.stdout)
+
+    def test_lint_accepts_a_prefixed_id_without_a_spec_argument(self) -> None:
+        self.feat("KIT-001")
+        result = subprocess.run([sys.executable, "-B", str(HERE / "spec_trace.py"), "lint", "KIT-001"],
+                                cwd=self.root, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("spec-trace lint: OK (1 FEATs)", result.stdout)
+
+    def test_lint_rejects_an_unknown_id_with_the_feat_lookup(self) -> None:
+        self.feat("KIT-001")
+        result = subprocess.run([sys.executable, "-B", str(HERE / "spec_trace.py"), "lint", "OTHER-001"],
+                                cwd=self.root, capture_output=True, text=True, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("OTHER-001 is not a FEAT in", result.stderr)
+
     def test_an_open_pr_makes_it_in_progress(self):
         path = self.feat()
         self.sync(self.routes(single={12: pull(12, "open", False)}))

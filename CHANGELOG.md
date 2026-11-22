@@ -4,6 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Fixed
+- #451: spec_trace.py sync-status writes the spec.md Status cell of a FEAT whose id uses sdd.id_prefix.feature (KIT-nnn in the kit), and impact and lint accept such ids.
+
 ### Added
 - KIT-117 (#444): a fix or improvement PR carries a ## Five whys section (symptom, whys with evidence, root cause, fix, wrong if; at most five); review_checks.py whys warns when one is missing or incomplete, in both PR templates and the investigate, sdd-implement, session and review skills.
 - KIT-116 (#436): `row_checks.py` rule `n`, a WARN that `--strict` promotes to FAIL. A row whose Files reach an ENB's Code and whose Task names a contract another ENB provides (backticked, or bare when the id holds `.`, `_` or `-`) must list `docs/spec/enablers/ENB-nnn.md` in Files for each side whose catalog lacks the pair: the consumer's Required contracts, the provider's Consumers. A covering glob such as `docs/spec/enablers/**` counts. A row whose Files also reach the provider's Code, and an ENB with `status: retired`, are skipped. `sdd-tasks` § 2 and `row-checks.md` state the rule in prose; the label comes from the project's own `protected_paths` entry on the spec folder. The trigger was Stratics' `enablers.py drift` failing two PRs (stratics-client#5259, #5266) on catalog cells their rows' Files did not hold. On every Stratics FEAT the rule fires on 8 rows, the #5259 row (FEAT-091 T21) among them; the #5266 case names no contract in its Task, so the rule does not catch it. Migration: none to adopt; a project that wants the check to fail runs the row check with `--strict`.
