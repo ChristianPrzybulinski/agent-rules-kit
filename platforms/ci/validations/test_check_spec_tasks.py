@@ -239,9 +239,50 @@ class TaskTableTest(SpecFixture):
         cancel = lambda line: line.replace("| todo |", "| cancelled |")  # noqa: E731
         self.feat("FEAT-001", row("T1"), cancel(row("T2", depends="T1")), cancel(row("T3", depends="T2")),
                   row("T4", depends="T3"), row("T5", depends="T4"))
-        result = self.assert_passes()
+        result = self.assert_passes("T4 Depends on T3, which is cancelled", "[task-depends-cancelled]")
         self.assertNotIn("max_feat_tasks", result.stderr)
-        self.assertNotIn("task-depends", result.stderr)
+        self.assertNotIn("[task-depends]", result.stderr)
+
+    def test_depends_on_a_cancelled_row_warns(self) -> None:
+        for versioned in (False, True):
+            for status in ("cancelled", "superseded"):
+                with self.subTest(versioned=versioned, status=status):
+                    self.feat("FEAT-001", row("T1").replace("| todo |", f"| {status} |"),
+                              row("T2", depends="T1"))
+                    if versioned:
+                        path = self.spec / "features" / "FEAT-001.md"
+                        path.write_text(path.read_text(encoding="utf-8").replace(
+                            "## Tasks", "## Versions\n\n### 0.1.0\n\nStatus: planned\nScope: —\n\n#### Tasks"),
+                            encoding="utf-8")
+                    for result in self.run_both():
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertIn(
+                            "WARN: " + str(self.spec / "features" / "FEAT-001.md")
+                            + ": T2 Depends on T1, which is cancelled: sdd-tasks § 5 moves the dependent to the "
+                            "merged row [task-depends-cancelled]", result.stderr)
+
+    def test_a_done_row_depending_on_a_cancelled_row_does_not_warn(self) -> None:
+        """sdd-tasks § 5 moves only an open dependent and never rewrites a done item."""
+        self.feat("FEAT-001", row("T1").replace("| todo |", "| cancelled |"),
+                  row("T2", depends="T1").replace("| todo |", "| done |"))
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("task-depends-cancelled", result.stderr)
+
+    def test_superseded_rows_count_toward_no_limit_and_no_chain(self) -> None:
+        self.index("sdd:\n  max_feat_tasks: 3\n  max_chain: 2\n")
+        supersede = lambda line: line.replace("| todo |", "| superseded |")  # noqa: E731
+        self.feat("FEAT-001", row("T1"), supersede(row("T2", depends="T1")),
+                  supersede(row("T3", depends="T2")), row("T4", depends="T3"), row("T5", depends="T4"))
+        result = self.assert_passes("T4 Depends on T3, which is cancelled", "[task-depends-cancelled]")
+        self.assertNotIn("max_feat_tasks", result.stderr)
+        self.assertNotIn("[task-depends]", result.stderr)
+
+    def test_cancelled_row_long_task_cell_does_not_warn(self) -> None:
+        self.feat("FEAT-001", row("T1", task="x" * 1001).replace("| todo |", "| cancelled |"))
+        for result in self.run_both():
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("Task cell has", result.stderr)
 
     def test_rows_at_the_default_max_feat_tasks_do_not_warn(self):
         self.feat("FEAT-001", *(row(f"T{n}") for n in range(1, 31)))
