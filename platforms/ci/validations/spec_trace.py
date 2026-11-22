@@ -1260,14 +1260,46 @@ def planned_rows(feat):
     return len(block["rows"]), f"the open version block {block['name']}"
 
 
-def closure_record_gaps(fid, feat):
+def closure_shape_gaps(label: str, body: str) -> list[str]:
+    """Require an outcome and a check row with a recorded result, ignoring HTML comments."""
+    lines = [line.strip() for line in re.sub(r"(?s)<!--.*?-->", "", body).splitlines()]
+    outcome = re.compile(r"^(?:\[FACT\]\s*)?Main:\s*`?[0-9a-f]{7,40}`?\s*·\s*\d{4}-\d{2}-\d{2}\s*·"
+                         r"(?:.*·)?\s*outcome\s+(?:validated|delivered|returned:)")
+    gaps = []
+    if not any(outcome.match(line) for line in lines):
+        gaps.append(f"{label} closure has no outcome line (Main: <sha> · <date> · … · outcome …): "
+                    "sdd-review writes it before validate")
+    measured = False
+    for line in lines:
+        if not (line.startswith("|") and line.endswith("|")):
+            continue
+        cells = [cell.strip() for cell in line[1:-1].split("|")]
+        if len(cells) < 2 or [cell.lower() for cell in cells] == ["check", "command or measurement", "result"]:
+            continue
+        if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
+            continue
+        if cells[-1].lower() not in {"", "—", "-", "tbd", "todo", "pending"}:
+            measured = True
+            break
+    if not measured:
+        gaps.append(f"{label} closure has no check row with a measured Result: sdd-review writes it before validate")
+    return gaps
+
+
+def closure_record_gaps(fid: str, feat: dict) -> list[str]:
     """The closure record sdd-review writes before validate: `## Closure`, or a versioned FEAT's block `#### Closure`."""
     block = open_block(feat)
     if block is None:
-        return [] if has_closure(feat["path"]) else [f"{fid} has no `## Closure` record: sdd-review writes it before "
-                                                     "validate"]
-    return [] if block["closure"] else [f"{fid} {block['name']} has no `#### Closure` record in its version block: "
-                                        "sdd-review writes it before validate"]
+        text = re.sub(r"(?s)<!--.*?-->", "", feat["path"].read_text(encoding="utf-8"))
+        match = re.search(r"(?ms)^## Closure[ \t]*$(.*?)(?=^## |\Z)", text)
+        if not match or not match.group(1).strip():
+            return [f"{fid} has no `## Closure` record: sdd-review writes it before validate"]
+        return closure_shape_gaps(fid, match.group(1))
+    label = f"{fid} {block['name']}"
+    match = re.search(r"(?ms)^#### Closure[ \t]*$(.*?)(?=^#{1,6} |\Z)", block["text"])
+    if not match or not match.group(1).strip():
+        return [f"{label} has no `#### Closure` record in its version block: sdd-review writes it before validate"]
+    return closure_shape_gaps(label, match.group(1))
 
 
 def step_range(steps, first, last):
