@@ -29,6 +29,9 @@ SKILL_MAX_LINES = 80
 REFERENCE_MAX_LINES = 60
 RULE_BODY_MAX_LINES = 40
 
+# A project copies one spec-index variant by project.kind (KIT-089).
+KIND_VARIANTS = (re.compile(r"^templates/spec-index-[a-z]+\.md$"),)
+
 # The kit's one plugin (KIT-047), named guardrails since KIT-055.
 KIT_PLUGIN = "guardrails"
 REPO_URL = "https://github.com/ChristianPrzybulinski/agent-rules-kit.git"
@@ -1497,15 +1500,22 @@ for name, plugin_dir in plugins.items():
                 if not vendor_internal(markdown_file):
                     duplication_files.append(markdown_file)
 
-seen_paragraphs = {}
+paragraph_occurrences = {}
 for markdown_file in sorted(set(duplication_files)):
     for paragraph in re.split(r"\n\s*\n", markdown_file.read_text(encoding="utf-8")):
         paragraph = paragraph.strip()
         if len(paragraph) >= 120:
-            if paragraph in seen_paragraphs:
-                warn(rel(markdown_file), f"paragraph duplicated from {seen_paragraphs[paragraph]}")
-            else:
-                seen_paragraphs[paragraph] = rel(markdown_file)
+            paragraph_occurrences.setdefault(paragraph, []).append(markdown_file)
+
+for occurrences in paragraph_occurrences.values():
+    if len(occurrences) < 2:
+        continue
+    if any(all(path.is_relative_to(plugin_dir) and variant.fullmatch(path.relative_to(plugin_dir).as_posix())
+               for path in occurrences)
+           for plugin_dir in plugins.values() for variant in KIND_VARIANTS):
+        continue
+    for markdown_file in occurrences[1:]:
+        warn(rel(markdown_file), f"paragraph duplicated from {rel(occurrences[0])}")
 
 # --- 13. Shell syntax (KIT-060) ---
 # A kit script runs under the bash on PATH (`#!/usr/bin/env bash`). On macOS that is /bin/bash 3.2, which rejects
