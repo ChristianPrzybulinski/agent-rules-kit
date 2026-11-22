@@ -36,6 +36,9 @@ prints facts the reviewer reads and judges, so no model re-derives them by hand.
   review_checks.py proof --body PR.md [--run --allow CMD ... | --gates gates.json --base B] [--cwd DIR]
       The body's `## Red` section, `proof` block and `Executor: provider=<p> tier=<t> session=<id>` line, and each
       proof line's stack lint; with --run, each allowlisted line re-runs in --cwd (a clean checkout of the head).
+  review_checks.py whys --body PR.md --title TITLE [--issue-labels LABEL ...]
+      A fix/perf title, bug label or voluntary `## Five whys` section gets a shape and evidence check; an explicit
+      exemption takes precedence. WARN only (exit 0), never a blocking finding; unreadable input exits 2.
   review_checks.py feat-proofs --feat FEAT.md [--rows Tn ...] [--run --allow CMD ... | --gates gates.json] [--cwd DIR]
       Every command in the FEAT task table's Proof cells, run literally (sdd-review § 2); superseded and cancelled
       rows skipped.
@@ -959,6 +962,46 @@ def proof(args) -> int:
     return out.close(f"{len(lines)} proof lines{' re-run' if args.run else ' (not run)'}")
 
 
+def whys(args: argparse.Namespace) -> int:
+    """Report the cause-chain shape without making a warning block delivery."""
+    out = Findings("whys")
+    body = Path(args.body).read_text(encoding="utf-8")
+    # The optional template scaffold is hidden, so it is neither a chain nor an exemption.
+    body = re.sub(r"<!--.*?(?:-->|\Z)", "", body, flags=re.DOTALL)
+    reasons = ("typo", "test-only", "docs-only", "release", "records")
+    exempt = re.search(r"^Five whys: exempt \(([^\n)]*)\)[ \t]*$", body, re.MULTILINE)
+    if exempt:
+        reason = exempt.group(1)
+        if reason in reasons:
+            print(f"whys: EXEMPT ({reason})")
+        else:
+            out.add(f"WARN unknown exemption {reason!r}; allowed reasons: {', '.join(reasons)}")
+        return 0
+    secs = pr_gates.sections(body)
+    if not (re.match(r"^(fix|perf)(\(.+\))?!?:", args.title)
+            or "bug" in args.issue_labels or "Five whys" in secs):
+        print("whys: SKIP (not a fix or improvement PR)")
+        return 0
+    if "Five whys" not in secs:
+        out.add("WARN no `## Five whys` section")
+        return 0
+    lines = pr_gates.body_lines(secs["Five whys"])
+    for part in ("Symptom:", "Root cause:", "Fix:", "Wrong if:"):
+        if not any(line.startswith(part) for line in lines):
+            out.add(f"WARN missing `{part}` line")
+    numbered = [line for line in lines if re.match(r"^\d+\.\s", line)]
+    if not numbered:
+        out.add("WARN missing numbered why line")
+    for line in numbered:
+        if not re.search(r"(?: — | - )\s*\S", line):
+            out.add(f"WARN why has no evidence: {line.strip()}")
+    if len(numbered) > 5:
+        out.add("WARN more than 5 numbered whys: the chain stops at the why the fix removes")
+    if not out.items:
+        print("whys: OK")
+    return 0
+
+
 def feat_rows(path: Path) -> list[tuple[str, str, str]]:
     """(row id, state, Proof cell) for each row of the FEAT's task table."""
     rows, proof_at, state_at = [], None, None
@@ -1141,6 +1184,10 @@ def main(argv=None) -> int:
         p.add_argument("--patterns", help="JSON file that extends the per-stack patterns")
         p.add_argument("--cwd", default=None, help="where the proof runs (default: --repo)")
         p.add_argument("--timeout", type=positive_seconds, default=900)
+    p = sub.add_parser("whys")
+    p.add_argument("--body", required=True, help="the PR body")
+    p.add_argument("--title", required=True, help="the PR title")
+    p.add_argument("--issue-labels", nargs="*", default=[], help="labels of the issue the PR closes")
     p = sub.add_parser("dod")
     p.add_argument("--base", required=True)
     p.add_argument("--head", required=True)
@@ -1165,7 +1212,7 @@ def main(argv=None) -> int:
         return proof(args) if args.command == "proof" else feat_proofs(args)
     if args.command == "dod" and not args.review and exists_at(args.repo, args.base, "REVIEW.md"):
         args.review = str(args.repo / "REVIEW.md")  # base's rules apply even when the head deletes the file
-    return {"red": red, "scope": scope, "dod": dod}[args.command](args)
+    return {"red": red, "scope": scope, "dod": dod, "whys": whys}[args.command](args)
 
 
 if __name__ == "__main__":

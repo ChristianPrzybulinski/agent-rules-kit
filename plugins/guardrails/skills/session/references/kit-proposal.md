@@ -29,7 +29,7 @@ Use exactly:
 
 ```text
 Kit [PROPOSAL] — <reference | skill | AGENTS.md line | hook or check | description | template | simplification>: <path>
-Evidence: <turn, command or file from this session>
+Evidence: <turn, command or file from this session; for a bottleneck or a fix, the why chain: symptom → whys with evidence → root cause>
 Shape: <one-line proposed change>
 Cost: <files, VERSION and CHANGELOG impact>
 ```

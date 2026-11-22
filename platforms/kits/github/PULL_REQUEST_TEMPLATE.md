@@ -20,6 +20,15 @@ TDD loop run locally (the tests covering the changed files, and the linters); CI
 ```proof
 ```
 
+<!-- A fix or perf PR, or one that closes a bug issue: replace this comment with
+## Five whys
+Symptom: <what failed, with the command, check or PR that shows it>
+1. <why> — <evidence: file:line, log, PR, command output>
+Root cause: <the why this PR removes>
+Fix: <what changes, which why it removes>
+Wrong if: <the observation that would show it did not>
+Exempt: `Five whys: exempt (typo | test-only | docs-only | release | records)`. Five is a ceiling, not a quota. -->
+
 <!-- Only in a repository that ships agent instructions (skills, rules), when the PR changes them:
 Evals: <the eval command run before this PR> → <score> -->
 
