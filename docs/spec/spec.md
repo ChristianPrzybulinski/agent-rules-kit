@@ -1,7 +1,7 @@
 ---
 project: "agent-rules-kit"
 version: "1.0.0"
-updated: "2026-11-17"
+updated: "2026-11-22"
 # No sdd: block. The kit's process parameters come from its .ai-kit.yaml: project.kind: tooling gives the FEAT-only
 # flow (profile.schema.json, x-presets), and a key written here would override that preset (KIT-100).
 ---
@@ -36,7 +36,7 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 | [KIT-114](features/KIT-114.md) | Name a plugin agent as <plugin>:<profile> in a skill's agent field | delivered | #414, #418 |
 | [KIT-115](features/KIT-115.md) | Warn on sibling task rows and on edges inside a set | delivered | #430 |
 | [KIT-116](features/KIT-116.md) | A row that adds an enabler consumer lists both ENB files | delivered | #437 |
-| [KIT-117](features/KIT-117.md) | Require an evidenced why chain on fix and improvement PRs, checked as a WARN | in-progress | — |
+| [KIT-117](features/KIT-117.md) | Require an evidenced why chain on fix and improvement PRs, checked as a WARN | delivered | #455 |
 
 ## Decisions
 
