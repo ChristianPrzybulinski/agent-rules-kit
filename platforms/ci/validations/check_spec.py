@@ -64,7 +64,8 @@ cut item is docs/spec/tasks/TASK-nnn.md (task.schema.json); its `feat` and `rows
 each other. On a FEAT that is not validated, delivered or cancelled, the longest chain of own-FEAT `Depends on` ids
 (`FEAT-nnn T1, T2` belongs to FEAT-nnn up to the next `;`) is at most `sdd.max_chain`, and a cycle or an own id that
 is not a row fails; more rows than `sdd.max_feat_tasks` and a Task cell over 1000 characters only warn. A `cancelled` row (a re-cut's
-history, `sdd-tasks` § 5) answers a `Depends on` but counts toward no limit and joins no chain (#431).
+history, `sdd-tasks` § 5) answers a `Depends on` but counts toward no limit and joins no chain (#431); a live row
+that depends on a cancelled row warns.
 
 Every failure carries a rule id (RULES) and its artifact (the id in the file name, else the path under the spec dir).
 docs/spec/baseline.json, `{"rules": {rule: {artifact: n}}}`, holds old findings so they neither block nor hide new
@@ -872,6 +873,7 @@ TASK_ID = re.compile(r"^TASK-\d{3,}$")
 DEP_TOKEN = re.compile(r"\b(FEAT-\d{3,} )?T-?(\d+)\b")
 FEAT_HISTORY = ("validated", "delivered", "cancelled")  # spec-first: the task table is frozen history
 TASK_CELL_MAX = 1000
+ROW_CANCELLED = ("cancelled", "superseded")  # superseded is the legacy word (row_checks.py LEGACY)
 
 
 def task_table(path):
@@ -934,10 +936,20 @@ def positive(value, default):
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 1 else default
 
 
-def live_rows(rows):
-    """The rows that are not `cancelled` (#431): a re-cut keeps its merged rows as cancelled history (`sdd-tasks` § 5),
-    and they count toward no row limit and no chain; they still answer a `Depends on`."""
-    return {rid: cells for rid, cells in rows.items() if cells.get("Status", "").strip() != "cancelled"}
+def live_rows(rows: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
+    """The rows that are neither `cancelled` nor legacy `superseded`: a re-cut keeps its merged rows as history
+    (`sdd-tasks` § 5), and they count toward no row limit and no chain; they still answer a `Depends on`."""
+    return {rid: cells for rid, cells in rows.items() if cells.get("Status", "").strip() not in ROW_CANCELLED}
+
+
+def warn_cancelled_dependencies(fid: str, path: Path, live: dict[str, dict[str, str]],
+                                rows: dict[str, dict[str, str]]) -> None:
+    """A live dependent must point to the merged row, including across version blocks."""
+    cancelled = {int(ROW_ID.match(rid).group(1)) for rid in rows.keys() - live_rows(rows).keys()}
+    for rid, cells in live.items():
+        for n in sorted(set(own_dependencies(cells.get("Depends on", ""), fid)) & cancelled):
+            warn(f"{path}: {rid} Depends on T{n}, which is cancelled: sdd-tasks § 5 moves the dependent to the "
+                 "merged row", "task-depends-cancelled")
 
 
 def check_task_table(fid, path, status, rows, params):
@@ -953,6 +965,7 @@ def check_task_table(fid, path, status, rows, params):
             fail(f"{path}: {label[n]} Depends on T{missing}, which is not a row of the {fid} task table", "task-depends",
                  path)
     live = live_rows(rows)
+    warn_cancelled_dependencies(fid, path, live, rows)
     alive = {int(ROW_ID.match(rid).group(1)) for rid in live}
     deps = {n: [m for m in named if m in alive] for n, named in every.items() if n in alive}
     longest, cycle = chains(deps)
@@ -966,7 +979,7 @@ def check_task_table(fid, path, status, rows, params):
     if len(live) > max_rows:
         warn(f"{path}: {len(live)} task rows, above sdd.max_feat_tasks {max_rows}: sdd-plan § 2 cuts its sets, then "
              f"splits the NEED or opens the next version block", "task-size")
-    for rid, cells in rows.items():
+    for rid, cells in live.items():
         size = len(cells.get("Task", ""))
         if size > TASK_CELL_MAX:
             warn(f"{path}: {rid} Task cell has {size} characters, above {TASK_CELL_MAX}: point to the Plan section "
@@ -1147,6 +1160,7 @@ def check_block_rows(fid, path, label, rows, every_row, params):
     row is satisfied and stays off the chain, and more rows than sdd.max_feat_tasks fail (KIT-096). A cancelled row
     answers a Depends on but joins no chain and no count (#431)."""
     every_rows, rows = rows, live_rows(rows)
+    warn_cancelled_dependencies(fid, path, rows, every_row)
     label_of = {int(ROW_ID.match(rid).group(1)): rid for rid in rows}
     known = {int(ROW_ID.match(rid).group(1)) for rid in every_row}
     deps = {}
