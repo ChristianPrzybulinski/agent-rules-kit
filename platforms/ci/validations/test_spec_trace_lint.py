@@ -259,6 +259,16 @@ class LintTest(unittest.TestCase):
     def test_req_with_no_test_in_the_trace_is_reported(self):
         self.assert_finding("REQ-F-001: its trace row lists no test", rules="—")
 
+    def test_a_retired_req_needs_no_proving_test_in_the_trace(self):
+        """Stratics FEAT-038: REQ-F-814 is retired with its tests (DTEC-061 § 3); lint still demanded its test."""
+        self.fixture(rules="—", proving="`test_release_checklist.py`")
+        path = self.spec / "requirements/functional/REQ-F-001.md"
+        path.write_text(path.read_text(encoding="utf-8").replace("status: approved", "status: retired"),
+                        encoding="utf-8")
+        code, out = self.lint()
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("REQ-F-001", out)
+
     def test_without_a_feat_only_closed_feats_are_linted(self):
         self.fixture(status="in-progress", t2="todo", audit="Pending.")
         code, out = self.lint()
