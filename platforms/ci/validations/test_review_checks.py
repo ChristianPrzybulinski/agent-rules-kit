@@ -262,6 +262,144 @@ class StubCase(ToolCase):
         return str(path)
 
 
+class WhysTest(ToolCase):
+    VALID = """## Five whys
+Symptom: The export failed — job.log:12.
+1. The input was empty — job.log:12.
+2. The producer dropped rows — producer.py:20.
+3. Its filter rejected valid rows — producer.py:30.
+Root cause: The filter rejected valid rows.
+Fix: Correct the filter, removing why 3.
+Wrong if: The same input still produces no rows.
+"""
+
+    def whys(self, body: str, title: str = "fix: export rows", *extra: str) -> tuple[int, str]:
+        path = Path(self.tmp.name) / "pr.md"
+        path.write_text(body, encoding="utf-8")
+        return self.run_tool("whys", "--body", str(path), "--title", title, *extra)
+
+    def test_fix_without_section_warns(self) -> None:
+        for title in ("fix: export rows", "fix(export)!: export rows", "perf!: export faster",
+                      "perf(export): export faster"):
+            with self.subTest(title=title):
+                code, out = self.whys("## What changes\nExport rows.\n", title)
+                self.assertEqual(code, 0, out)
+                self.assertEqual(out, "whys: WARN no `## Five whys` section\n")
+
+    def test_each_missing_part_warns(self) -> None:
+        for prefix, label in (("Symptom:", "Symptom:"), ("1.", "numbered why"),
+                              ("Root cause:", "Root cause:"), ("Fix:", "Fix:"), ("Wrong if:", "Wrong if:")):
+            with self.subTest(part=label):
+                body = "\n".join(line for line in self.VALID.splitlines()
+                                 if not (line.startswith(prefix) or
+                                         (prefix == "1." and re.match(r"^\d+\.\s", line))))
+                code, out = self.whys(body)
+                self.assertEqual(code, 0, out)
+                self.assertEqual(len(out.splitlines()), 1, out)
+                self.assertIn("whys: WARN", out)
+                self.assertIn(label, out)
+
+    def test_empty_section_reports_all_missing_parts(self) -> None:
+        code, out = self.whys("## Five whys\n")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(out.splitlines()), 5, out)
+        for label in ("Symptom:", "numbered why", "Root cause:", "Fix:", "Wrong if:"):
+            self.assertIn(label, out)
+        self.assertTrue(all(line.startswith("whys: WARN") for line in out.splitlines()), out)
+
+    def test_why_without_evidence_warns(self) -> None:
+        for why in ("1. Empty input", "1. Empty input — ", "1. Empty input -   "):
+            with self.subTest(why=why):
+                body = self.VALID.replace("1. The input was empty — job.log:12.", why)
+                code, out = self.whys(body)
+                self.assertEqual(code, 0, out)
+                self.assertEqual(len(out.splitlines()), 1, out)
+                self.assertIn("whys: WARN", out)
+                self.assertIn("evidence", out)
+                self.assertIn(why.strip(), out)
+
+    def test_six_whys_warn(self) -> None:
+        body = self.VALID + "4. Fourth why — log:4.\n5. Fifth why — log:5.\n6. Sixth why — log:6.\n"
+        code, out = self.whys(body)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(out.splitlines()), 1, out)
+        self.assertIn("whys: WARN", out)
+        self.assertIn("the chain stops at the why the fix removes", out)
+
+    def test_valid_three_why_chain(self) -> None:
+        for separator in (" — ", " - "):
+            with self.subTest(separator=separator):
+                code, out = self.whys(self.VALID.replace(" — ", separator))
+                self.assertEqual((code, out), (0, "whys: OK\n"))
+
+    def test_exempt_reasons_take_precedence(self) -> None:
+        for reason in ("typo", "test-only", "docs-only", "release", "records"):
+            with self.subTest(reason=reason):
+                code, out = self.whys(f"Five whys: exempt ({reason})\n## Five whys\n")
+                self.assertEqual((code, out), (0, f"whys: EXEMPT ({reason})\n"))
+
+    def test_unknown_exemption_warns_even_out_of_scope(self) -> None:
+        code, out = self.whys("Five whys: exempt (because)\n", "feat: add export")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(out.splitlines()), 1, out)
+        self.assertIn("whys: WARN", out)
+        self.assertIn("because", out)
+        for reason in ("typo", "test-only", "docs-only", "release", "records"):
+            self.assertIn(reason, out)
+
+    def test_feature_without_section_skips(self) -> None:
+        code, out = self.whys("## What changes\nAdd export.\n", "feat: add export")
+        self.assertEqual((code, out), (0, "whys: SKIP (not a fix or improvement PR)\n"))
+
+    def test_voluntary_section_is_checked(self) -> None:
+        code, out = self.whys("## Five whys\nSymptom: Export failed.\n", "feat: add export")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(out.splitlines()), 4, out)
+        self.assertTrue(all(line.startswith("whys: WARN") for line in out.splitlines()), out)
+
+    def test_bug_label_puts_chore_in_scope(self) -> None:
+        code, out = self.whys("## What changes\nExport rows.\n", "chore: export rows",
+                              "--issue-labels", "maintenance", "bug")
+        self.assertEqual((code, out), (0, "whys: WARN no `## Five whys` section\n"))
+
+    def test_stratics_worked_example(self) -> None:
+        # #444's narrative, normalized to its required fields; relayed evidence stays attributed.
+        body = """## Five whys
+Symptom: Stratics spec PRs #5404, #5406 and #5435 failed link, scope and proof-declared — #444.
+1. The PR had no Closes line — REST pulls/{n}, 2026-11-22, as recorded in #444.
+2. No planning issue existed — #5404 at 32297a2 names issue 5461, created after the fact (#444).
+3. The architect wrote a spec PR directly, not from an issue — principal session, relayed in #444.
+4. The spec-PR checklist has no planning-issue step — principal session, relayed in #444.
+5. The sdd-plan skill assumes every PR starts from an issue — principal session, relayed in #444.
+Root cause: Why 5, the skill assumes every PR starts from an issue.
+Fix: Add a planning-issue step to the spec-PR checklist.
+Wrong if: A later spec PR still reaches the gates without a Closes line.
+"""
+        code, out = self.whys(body)
+        self.assertEqual((code, out), (0, "whys: OK\n"))
+
+    def test_commented_templates_do_not_count_as_a_chain(self) -> None:
+        root = TOOL.parents[2]
+        for template in (".github/PULL_REQUEST_TEMPLATE.md", "platforms/kits/github/PULL_REQUEST_TEMPLATE.md"):
+            for title, expected in (("fix: export", "WARN no `## Five whys` section"),
+                                    ("feat: export", "SKIP (not a fix or improvement PR)")):
+                with self.subTest(template=template, title=title):
+                    body = (root / template).read_text(encoding="utf-8")
+                    code, out = self.whys(body, title)
+                    self.assertEqual((code, out), (0, f"whys: {expected}\n"))
+
+    def test_commented_exemption_does_not_exempt(self) -> None:
+        code, out = self.whys("<!--\nFive whys: exempt (typo)\n-->\n")
+        self.assertEqual((code, out), (0, "whys: WARN no `## Five whys` section\n"))
+
+    def test_unreadable_body_is_usage_error(self) -> None:
+        path = str(Path(self.tmp.name) / "missing.md")
+        code, out = self.run_tool("whys", "--body", path, "--title", "fix: export rows")
+        self.assertEqual(code, 2, out)
+        self.assertIn(path, out)
+        self.assertNotIn("whys: WARN", out)
+
+
 class RedTest(StubCase):
     def red(self, head, *extra, base=None, run=RUN):
         return self.run_tool("red", "--base", base or self.base, "--head", head, "--run", run, *extra)

@@ -36,6 +36,7 @@ in `../features/` in their own format. Classify claims: `[FACT]` `[DECISION]` `[
 | [KIT-114](features/KIT-114.md) | Name a plugin agent as <plugin>:<profile> in a skill's agent field | delivered | #414, #418 |
 | [KIT-115](features/KIT-115.md) | Warn on sibling task rows and on edges inside a set | delivered | #430 |
 | [KIT-116](features/KIT-116.md) | A row that adds an enabler consumer lists both ENB files | delivered | #437 |
+| [KIT-117](features/KIT-117.md) | Require an evidenced why chain on fix and improvement PRs, checked as a WARN | in-progress | — |
 
 ## Decisions
 

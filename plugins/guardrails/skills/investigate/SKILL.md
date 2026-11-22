@@ -46,7 +46,7 @@ Record observed and expected behavior, environment, commit/version, platform, fr
 
 ## 5. Report
 
-Report symptom, reproduction, cause/evidence, impact, proposed fix and required test. A race/cache explanation needs a concurrent test or trace.
+Report symptom, reproduction, cause/evidence, impact, proposed fix and required test. State the cause as a why chain (Symptom, numbered whys each with its evidence, Root cause, Fix, Wrong if; at most five whys, stopping at the one the fix removes), the shape of a fix PR's `## Five whys` (`../sdd-implement/references/task-pr.md`). A race/cache explanation needs a concurrent test or trace.
 
 In a project that keeps `docs/spec/`, route the report as a finding (skill `sdd-intake` § 4): a fix row when a REQ, journey, process or decision states the right behavior or nobody would choose the observed one, else a spec fix or one owner question, citing the failing test, the cause and the artifact (a process: the step or state the code breaks). A bug a person reported keeps its NEED: the report goes in its Evidence, and `sdd-specify` routes it.
 
