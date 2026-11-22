@@ -69,6 +69,14 @@ Scope: REQ-F-002
 - 2026-11-16 sdd-review: delivered at abc1234 (release: merge)
 """
 
+CLOSURE = """\
+Main: def5678 · 2026-11-18 · outcome validated
+
+| Check | Command or measurement | Result |
+|---|---|---|
+| Lint | `lint` | 0 findings |
+"""
+
 FEAT_2 = """\
 ---
 id: FEAT-002
@@ -212,8 +220,17 @@ class BlockStatusTest(VersionCase):
         self.assertEqual(code, 1)
         self.assertIn("FEAT-001 0.2.0 has no `#### Closure` record in its version block", err)
 
+    def test_validate_refuses_a_placeholder_block_closure(self):
+        self.feat(t3="done", closure="\n- closed at abc1234.\n")
+        code, out, err = run(["validate", str(self.spec), "FEAT-001", "--at", "def5678", "--check"])
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("FEAT-001 0.2.0 closure has no outcome line (Main: <sha> · <date> · … · outcome …): "
+                      "sdd-review writes it before validate", err)
+        self.assertIn("FEAT-001 0.2.0 closure has no check row with a measured Result: "
+                      "sdd-review writes it before validate", err)
+
     def test_validate_moves_the_block(self):
-        self.feat(t3="done", closure="\n- closed at def5678.\n")
+        self.feat(t3="done", closure=CLOSURE)
         code, out, err = run(["--date", "2026-11-18", "validate", str(self.spec), "FEAT-001", "--at", "def5678"])
         self.assertEqual(code, 0, out + err)
         text = self.text()
@@ -224,7 +241,7 @@ class BlockStatusTest(VersionCase):
         write(self.root, "docs/spec/spec.md", '---\nproject: "fixture"\nversion: "0.2.0"\nupdated: "2026-11-17"\n'
                                               "---\n\n# Fixture\n")
         write(self.root, ".ai-kit.yaml", "sdd:\n  release: manual\n")  # KIT-087 P4: the profile is its home
-        self.feat(t3="done", closure="\n- closed at def5678.\n")
+        self.feat(t3="done", closure=CLOSURE)
         run(["validate", str(self.spec), "FEAT-001", "--at", "def5678"])
         self.assertIn("### 0.2.0\n\nStatus: validated\n", self.text())
         code, out, err = run(["deliver", str(self.spec), "FEAT-001", "--in", "0.2.0"])
@@ -242,13 +259,13 @@ class NeedAndLintTest(VersionCase):
 
     def test_delivering_the_block_that_holds_the_need_reqs_delivers_the_need(self):
         write(self.root, "docs/spec/needs/NEED-001-fixture.md", self.NEED)
-        self.feat(t3="done", closure="\n- closed at def5678.\n")
+        self.feat(t3="done", closure=CLOSURE)
         run(["validate", str(self.spec), "FEAT-001", "--at", "def5678"])
         self.assertEqual(self.need_status(), "delivered")
 
     def test_a_need_whose_reqs_no_delivered_block_holds_stays_open(self):
         write(self.root, "docs/spec/needs/NEED-001-fixture.md", self.NEED)
-        self.feat(t3="done", closure="\n- closed at def5678.\n", old="Scope: REQ-F-002", new="Scope: —")
+        self.feat(t3="done", closure=CLOSURE, old="Scope: REQ-F-002", new="Scope: —")
         run(["validate", str(self.spec), "FEAT-001", "--at", "def5678"])
         self.assertEqual(self.need_status(), "refined")
 
@@ -260,7 +277,7 @@ class NeedAndLintTest(VersionCase):
               self.NEED.replace("requirements: [REQ-F-002]", "requirements: [REQ-F-003]")
               .replace("features: [FEAT-001]", "features: [FEAT-001, FEAT-002]"))
         write(self.root, "docs/spec/features/FEAT-002.md",
-              FEAT_2.replace("| doing |", "| done |") + "\n## Closure\n\n- closed at def5678.\n")
+              FEAT_2.replace("| doing |", "| done |") + "\n## Closure\n\n" + CLOSURE)
         code, out, err = run(["validate", str(self.spec), "FEAT-002", "--at", "def5678"])
         self.assertEqual(code, 0, out + err)
         self.assertEqual(self.need_status(), "refined")

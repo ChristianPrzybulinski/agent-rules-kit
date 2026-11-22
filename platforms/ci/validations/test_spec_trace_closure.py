@@ -112,7 +112,13 @@ updated: "2026-11-01"
 | S2 | confirms | — | {s2_tasks} | {s2_tests} |
 """
 
-CLOSURE = "Main: 1a2b3c4 · 2026-11-14 · outcome validated"
+CLOSURE = """\
+Main: 1a2b3c4 · 2026-11-14 · outcome validated
+
+| Check | Command or measurement | Result |
+|---|---|---|
+| Lint | `lint` | 0 findings |
+"""
 
 
 def write(root, rel, text):
@@ -233,6 +239,95 @@ class ClosureCommandTest(unittest.TestCase):
         code, out = self.validate()
         self.assertEqual(code, 1, out)
         self.assertIn("## Closure", out)
+
+    def test_validate_refuses_a_placeholder_closure(self):
+        for closure in ("TBD", "[FACT] Pending completion and review of the moved rows."):
+            with self.subTest(closure=closure):
+                self.fixture(closure=closure)
+                code, out = self.validate("--check")
+                self.assertEqual(code, 1, out)
+                self.assertIn("FEAT-001 closure has no outcome line (Main: <sha> · <date> · … · outcome …): "
+                              "sdd-review writes it before validate", out)
+                self.assertIn("FEAT-001 closure has no check row with a measured Result: "
+                              "sdd-review writes it before validate", out)
+
+    def test_validate_refuses_an_outcome_without_a_measured_check(self):
+        outcome = "Main: 1a2b3c4 · 2026-11-14 · outcome validated"
+        header = "\n\n| Check | Command or measurement | Result |\n|---|---|---|\n"
+        for table in ("", header, *(header + f"| Lint | `lint` | {result} |\n"
+                                    for result in ("", "—", "–", "-", " TBD ", "ToDo", "PENDING", "**TBD**", "_pending_",
+                                                   "planned: 0 findings"))):
+            with self.subTest(table=table):
+                self.fixture(closure=outcome + table)
+                code, out = self.validate("--check")
+                self.assertEqual(code, 1, out)
+                self.assertIn("FEAT-001 closure has no check row with a measured Result: "
+                              "sdd-review writes it before validate", out)
+                self.assertNotIn("closure has no outcome line", out)
+
+    def test_validate_accepts_the_closure_record_shape_example(self):
+        reference = HERE.parents[2] / "plugins/guardrails/skills/sdd-review/references/closure-record.md"
+        example = reference.read_text(encoding="utf-8").split("```markdown\n## Closure\n", 1)[1].split("```", 1)[0]
+        self.fixture(closure=example)
+        code, out = self.validate("--check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ready to validate", out)
+
+    def test_validate_does_not_count_a_table_header_as_a_measured_row(self):
+        self.fixture(closure="Main: 1a2b3c4 · 2026-11-14 · outcome validated\n\n"
+                             "| Check | Command | Result |\n|:---|:---:|---:|\n")
+        code, out = self.validate("--check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FEAT-001 closure has no check row with a measured Result: "
+                      "sdd-review writes it before validate", out)
+
+    def test_validate_accepts_a_fact_tag_and_backticked_full_sha(self):
+        self.fixture(closure="[FACT] Main: `3822b437e0123456789012345678901234567890` · 2026-11-21 · "
+                             "reviewer provider=codex · outcome delivered (release: merge)\n\n"
+                             "| Check | Command or measurement | Result |\n|---|---|---|\n"
+                             "| Lint | `lint` | 0 findings |\n")
+        code, out = self.validate("--check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ready to validate", out)
+
+    def test_validate_accepts_an_outcome_line_wrapped_across_lines(self):
+        """The literal FEAT-151 closure of stratics-docs-loop 20bf8cbc75 (lines 173-176): the outcome is on line two."""
+        self.fixture(closure="[FACT] Main: `3822b437e0c04d30b4cbb046e016f6e283a063c2` · 2026-11-21 · reviewer provider=codex\n"
+                             "session=5061 · outcome delivered (release: merge). T1 was delivered by\n"
+                             "[stratics#5004](https://github.com/dev-game-studio/stratics/pull/5004), merge\n"
+                             "`ecce9224112ff1288fcd00628890d950dd38986a`.\n\n"
+                             "| Check | Command or measurement | Result |\n|---|---|---|\n"
+                             "| Spec | `check.sh --spec docs/spec` | 0 findings |\n")
+        code, out = self.validate("--check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ready to validate", out)
+
+    def test_validate_refuses_an_outcome_word_in_a_later_paragraph(self):
+        self.fixture(closure="Main: 1a2b3c4 · 2026-11-14 · reviewer\n\noutcome validated\n\n"
+                             "| Check | Command or measurement | Result |\n|---|---|---|\n| Lint | `lint` | pass |\n")
+        code, out = self.validate("--check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FEAT-001 closure has no outcome line", out)
+
+    def test_not_run_is_a_check_row_for_closure_shape(self):
+        for measured in ("", "| Lint | `lint` | 0 findings |\n"):
+            with self.subTest(measured=measured):
+                self.fixture(closure="Main: 1a2b3c4 · 2026-11-14 · outcome returned: hml check pending\n\n"
+                                     "| Check | Command or measurement | Result |\n|---|---|---|\n"
+                                     "| Hml | smoke | not run: no hml access |\n" + measured)
+                gaps = trace.closure_record_gaps("FEAT-001", trace.load(self.spec).feats["FEAT-001"])
+                self.assertEqual(gaps, [])
+
+    def test_validate_ignores_commented_outcome_and_check_rows(self):
+        outcome = "Main: 1a2b3c4 · 2026-11-14 · outcome validated"
+        table = "| Check | Command or measurement | Result |\n|---|---|---|\n| Lint | `lint` | pass |"
+        for closure, gap in ((f"<!-- {outcome} -->\n{table}", "outcome line"),
+                             (f"{outcome}\n<!-- {table} -->", "check row with a measured Result")):
+            with self.subTest(gap=gap):
+                self.fixture(closure=closure)
+                code, out = self.validate("--check")
+                self.assertEqual(code, 1, out)
+                self.assertIn(f"FEAT-001 closure has no {gap}", out)
 
     def test_validate_refuses_a_journey_step_still_pending(self):
         self.fixture(s2_tasks="—", s2_tests="—")
