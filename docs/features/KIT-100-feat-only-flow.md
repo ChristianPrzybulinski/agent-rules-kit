@@ -1,10 +1,10 @@
 ---
 id: KIT-100
 title: "The FEAT-only flow: a FEAT with no NEED, no REQ and no task rows, its status from its PR"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"Sim, faça\" on E § 17, backlog G7)"
 issue: "#342"
-pr: ""
+pr: "#365"
 ---
 
 # KIT-100 — The FEAT-only flow: a FEAT with no NEED, no REQ and no task rows, its status from its PR
@@ -90,3 +90,4 @@ tests`, `OK (skipped=16)`; `--layer integration --changed-from origin/main`: `Ra
 - 2026-11-16: confirmed (owner, kit chat; issue #342).
 - 2026-11-17: implemented on `feat/kit-100-feat-only-flow`.
 - 2026-11-17: review follow-ups and `origin/main` 14c2109 merged in.
+- 2026-11-22: status done (#342 closed by #365; #439).

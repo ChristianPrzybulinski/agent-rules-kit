@@ -1,10 +1,10 @@
 ---
 id: KIT-077
 title: "Layered gate: a fast PR gate, a full gate on main and release, and a review bar by risk"
-status: confirmed
+status: done
 confirmed: "2026-11-15 (owner, chat of the coordinator session \"Revisão de regras e skills\": \"Sim, aplique\")"
 issue: "#281"
-pr: "#286 (items 5–6), #293 (items 1–4)"
+pr: "#286, #293, #297"
 ---
 
 # KIT-077 — Layered gate: a fast PR gate, a full gate on main and release, and a review bar by risk
@@ -252,3 +252,4 @@ release in History.
 - 2026-11-16: items 5 and 6 delivered for 13.0.0; items 1–4 follow the release.
 - 2026-11-16: items 1–4 delivered (#293): the layers, the parallel pull request gate, `ci-full`, the release
   guard and the converted sync tests; #278 folds in.
+- 2026-11-22: status done (#281 closed by #286, #293, #297; #439).

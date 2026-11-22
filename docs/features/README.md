@@ -109,30 +109,30 @@ The records below, KIT-001 to KIT-101, stay as they are, in their own format ([`
 | [`KIT-074-dev-standards.md`](KIT-074-dev-standards.md) | generic dev standards | done | #258 | #263 |
 | [`KIT-075-followups.md`](KIT-075-followups.md) | KIT-069 follow-ups | done | #284 | #285 |
 | [`KIT-076-ci-on-pull-requests.md`](KIT-076-ci-on-pull-requests.md) | CI on pull requests | done | #264 | #272 |
-| [`KIT-077-layered-gate-review-bar.md`](KIT-077-layered-gate-review-bar.md) | layered gate, review bar by risk | confirmed | #281 | #286, #293 |
+| [`KIT-077-layered-gate-review-bar.md`](KIT-077-layered-gate-review-bar.md) | layered gate, review bar by risk | done | #281 | #286, #293, #297 |
 | [`KIT-078-docs-consistency.md`](KIT-078-docs-consistency.md) | 13.0.0 docs consistency | done | #290 | #292 |
 | [`KIT-079-correctness-fixes.md`](KIT-079-correctness-fixes.md) | 13.0.x correctness fixes | done | #295 | #296 |
 | [`KIT-080-issue-bundle-13-1.md`](KIT-080-issue-bundle-13-1.md) | 13.1.0 issue bundle | done | #300 | #301 |
 | [`KIT-081-no-copies-in-projects.md`](KIT-081-no-copies-in-projects.md) | the kit copies nothing into a project | confirmed | #308 | |
 | [`KIT-082-fewer-check-kit-runs.md`](KIT-082-fewer-check-kit-runs.md) | fewer check_kit runs, gdtoolkit in CI | done | #311 | #312 |
 | [`KIT-083-kit-081-review-follow-ups.md`](KIT-083-kit-081-review-follow-ups.md) | the small findings of the KIT-081 reviews | done | #317 | #318 |
-| [`KIT-084-changelog-fragments-and-status-sync.md`](KIT-084-changelog-fragments-and-status-sync.md) | changelog fragments, status-sync PR and gitleaks action from the kit | in-progress | #319 | |
-| [`KIT-085-no-project-justfile.md`](KIT-085-no-project-justfile.md) | no project justfile: skill sdd-implement runs the kit's just modules | in-progress | #320 | |
-| [`KIT-086-journeys-folding-cut.md`](KIT-086-journeys-folding-cut.md) | journeys and processes, decision folding, task cut checklist | in-progress | #321 | |
+| [`KIT-084-changelog-fragments-and-status-sync.md`](KIT-084-changelog-fragments-and-status-sync.md) | changelog fragments, status-sync PR and gitleaks action from the kit | done | #319 | #323 |
+| [`KIT-085-no-project-justfile.md`](KIT-085-no-project-justfile.md) | no project justfile: skill sdd-implement runs the kit's just modules | done | #320 | #349 |
+| [`KIT-086-journeys-folding-cut.md`](KIT-086-journeys-folding-cut.md) | journeys and processes, decision folding, task cut checklist | done | #321 | #346 |
 | [`KIT-087-project-profile.md`](KIT-087-project-profile.md) | one project profile read only by the kit | done | #322 | #327, #336, #351, #358, #375 |
-| [`KIT-088-profile-kinds.md`](KIT-088-profile-kinds.md) | profile kind presets and game and FEAT-only keys | in-progress | #329 | |
-| [`KIT-089-vision-pillars.md`](KIT-089-vision-pillars.md) | spec.md templates per kind, pillars and out-of-scope triage | in-progress | #330 | |
-| [`KIT-090-process-artifact.md`](KIT-090-process-artifact.md) | process artifact PROC-nnn and its trace tools | in-progress | #331 | |
-| [`KIT-091-process-skills.md`](KIT-091-process-skills.md) | skills that write and check processes (C12, C14, C26, Q12) | in-progress | #332 | |
-| [`KIT-092-process-verify-skills.md`](KIT-092-process-verify-skills.md) | skills that use and verify processes | in-progress | #333 | |
-| [`KIT-093-plan-assets.md`](KIT-093-plan-assets.md) | Assets Plan section and sdd-check C15 | in-progress | #334 | |
-| [`KIT-094-greybox-polish-passes.md`](KIT-094-greybox-polish-passes.md) | greybox and polish passes as version blocks, owner playtest gate, sdd-check C16 | in-progress | #335 | |
+| [`KIT-088-profile-kinds.md`](KIT-088-profile-kinds.md) | profile kind presets and game and FEAT-only keys | done | #329 | #344 |
+| [`KIT-089-vision-pillars.md`](KIT-089-vision-pillars.md) | spec.md templates per kind, pillars and out-of-scope triage | done | #330 | #348 |
+| [`KIT-090-process-artifact.md`](KIT-090-process-artifact.md) | process artifact PROC-nnn and its trace tools | done | #331 | #350 |
+| [`KIT-091-process-skills.md`](KIT-091-process-skills.md) | skills that write and check processes (C12, C14, C26, Q12) | done | #332 | #353 |
+| [`KIT-092-process-verify-skills.md`](KIT-092-process-verify-skills.md) | skills that use and verify processes | done | #333 | #354 |
+| [`KIT-093-plan-assets.md`](KIT-093-plan-assets.md) | Assets Plan section and sdd-check C15 | done | #334 | #347 |
+| [`KIT-094-greybox-polish-passes.md`](KIT-094-greybox-polish-passes.md) | greybox and polish passes as version blocks, owner playtest gate, sdd-check C16 | done | #335 | #363 |
 | [`KIT-095-enabler-artifact.md`](KIT-095-enabler-artifact.md) | enabler artifact ENB-nnn per bounded context and its catalog tools | done | #337 | #355 |
-| [`KIT-096-versioned-feat.md`](KIT-096-versioned-feat.md) | versioned FEAT as a use case: version blocks, anti-bucket rule, C17 | in-progress | #338 | |
-| [`KIT-097-duplicate-checks.md`](KIT-097-duplicate-checks.md) | duplicate checks C20-C24 and `spec_trace.py similar` | in-progress | #339 | |
-| [`KIT-098-pattern-reference.md`](KIT-098-pattern-reference.md) | our pattern: SysML links, DDD, Backstage export, SAFe | in-progress | #340 | |
-| [`KIT-099-governance-view.md`](KIT-099-governance-view.md) | governance view, C25 debt payment and the vulnerability tech process | in-progress | #341 | |
-| [`KIT-100-feat-only-flow.md`](KIT-100-feat-only-flow.md) | FEAT-only flow: lite FEAT, no REQ, status from its PR | in-progress | #342 | |
-| [`KIT-101-kit-own-flow.md`](KIT-101-kit-own-flow.md) | the kit runs its own FEAT-only flow (kind: tooling) | in-progress | #343 | |
+| [`KIT-096-versioned-feat.md`](KIT-096-versioned-feat.md) | versioned FEAT as a use case: version blocks, anti-bucket rule, C17 | done | #338 | #362 |
+| [`KIT-097-duplicate-checks.md`](KIT-097-duplicate-checks.md) | duplicate checks C20-C24 and `spec_trace.py similar` | done | #339 | #364 |
+| [`KIT-098-pattern-reference.md`](KIT-098-pattern-reference.md) | our pattern: SysML links, DDD, Backstage export, SAFe | done | #340 | #359 |
+| [`KIT-099-governance-view.md`](KIT-099-governance-view.md) | governance view, C25 debt payment and the vulnerability tech process | done | #341 | #361 |
+| [`KIT-100-feat-only-flow.md`](KIT-100-feat-only-flow.md) | FEAT-only flow: lite FEAT, no REQ, status from its PR | done | #342 | #365 |
+| [`KIT-101-kit-own-flow.md`](KIT-101-kit-own-flow.md) | the kit runs its own FEAT-only flow (kind: tooling) | done | #343 | #366 |
 
 [`TEMPLATE.md`](TEMPLATE.md) is the format of the records up to KIT-101; a new record is a FEAT in [`../spec/features/`](../spec/features/).
