@@ -1,10 +1,10 @@
 ---
 id: KIT-091
 title: "The skills write and check processes: sdd-clarify writes them, sdd-check C12, C14, C26 and Q12 grade them"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"concordo\" with E §§ 1-5, \"Set of processes\", E § 8.1; filing \"Sim, abra\"; scope update from E § 17, \"Sim, faça\")"
 issue: "#332"
-pr: ""
+pr: "#353"
 ---
 
 # KIT-091 — The skills write and check processes: sdd-clarify writes them, sdd-check C12, C14, C26 and Q12 grade them
@@ -53,3 +53,4 @@ body's `Evals:` line.
 
 - 2026-11-16: confirmed (owner, #332 and its E § 17 update).
 - 2026-11-17: implemented on `feat/kit-091-process-skills`.
+- 2026-11-22: status done (#332 closed by #353; #439).

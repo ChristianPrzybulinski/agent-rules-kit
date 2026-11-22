@@ -1,10 +1,10 @@
 ---
 id: KIT-096
 title: "The versioned FEAT: one use case for the project's life, one block per project version"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"Sim, faça\" on E § 17, backlog G9; \"Yes, blocks\" on E § 17.1)"
 issue: "#338"
-pr: ""
+pr: "#362"
 ---
 
 # KIT-096 — The versioned FEAT: one use case for the project's life, one block per project version
@@ -98,3 +98,4 @@ Choices:
 - 2026-11-20 amend (#431): a `cancelled` row (a re-cut's history, `sdd-tasks` § 5) answers a `Depends on` but counts
   toward no `max_feat_tasks` limit (`task-size`, `block-tasks`) and joins no chain (`check_spec.py` `live_rows`); tests
   `test_cancelled_rows_count_toward_no_limit_and_no_chain`, `test_cancelled_rows_of_a_recut_block_do_not_count`.
+- 2026-11-22: status done (#338 closed by #362; #439).

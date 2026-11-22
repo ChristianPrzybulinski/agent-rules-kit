@@ -1,10 +1,10 @@
 ---
 id: KIT-086
 title: "Journeys and processes, decision folding and the task cut checklist live in the kit's SDD skills"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: function map of Stratics' docs/guide/ARCHITECT.md; scope amendment \"Set of processes\" on #321)"
 issue: "#321"
-pr: ""
+pr: "#346"
 ---
 
 # KIT-086 — Journeys and processes, decision folding and the task cut checklist live in the kit's SDD skills
@@ -55,3 +55,4 @@ Left in Stratics (project facts or review-loop behaviour, not kit rules): the na
 
 - 2026-11-16: confirmed (owner), amended to "journeys and processes" (owner, #321 comment).
 - 2026-11-16: skill and reference text on `feat/kit-086-journeys-folding-cut`; Stratics drops the deltas in its own PR.
+- 2026-11-22: status done (#321 closed by #346; #439).

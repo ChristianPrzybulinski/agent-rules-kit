@@ -1,10 +1,10 @@
 ---
 id: KIT-084
 title: "Ship the changelog.d consolidator, the spec status-sync workflow and the gitleaks action from the kit"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, chat of the kit session: \"Sim, abra as duas\"; the gitleaks action added the same day: \"usar do kit\")"
 issue: "#319"
-pr: ""
+pr: "#323"
 ---
 
 # KIT-084 — Ship the changelog.d consolidator, the spec status-sync workflow and the gitleaks action from the kit
@@ -90,3 +90,4 @@ copied into it.
 ## History
 
 - 2026-11-16: confirmed (owner, "Sim, abra as duas"); the gitleaks action added to the scope ("usar do kit").
+- 2026-11-22: status done (#319 closed by #323; #439).

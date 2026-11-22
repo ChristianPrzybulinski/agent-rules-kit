@@ -1,10 +1,10 @@
 ---
 id: KIT-090
 title: "The process artifact PROC-nnn, which journeys cite and the spec tools check and expand"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"Set of processes\", E § 8.1; scope update from E § 17, \"Sim, faça\")"
 issue: "#331"
-pr: ""
+pr: "#350"
 ---
 
 # KIT-090 — The process artifact PROC-nnn, which journeys cite and the spec tools check and expand
@@ -60,3 +60,4 @@ the PR body's `Evals:` line.
 
 - 2026-11-16: confirmed (owner, #331 and its E § 17 update).
 - 2026-11-16: implemented on `feat/kit-090-process-artifact`.
+- 2026-11-22: status done (#331 closed by #350; #439).

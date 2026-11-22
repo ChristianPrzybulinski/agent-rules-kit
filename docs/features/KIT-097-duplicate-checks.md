@@ -1,10 +1,10 @@
 ---
 id: KIT-097
 title: "Duplicate checks C20-C24: one rule, process, contract and use case in one place"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, kit chat: \"Sim, faça\" on E § 17, backlog G11)"
 issue: "#339"
-pr: ""
+pr: "#364"
 ---
 
 # KIT-097 — Duplicate checks C20-C24: one rule, process, contract and use case in one place
@@ -82,3 +82,4 @@ Choices:
   its title only; `sdd-plan` and `sdd-clarify` name `spec_trace.py similar` among the outputs they paste into
   `sdd-check`; the full scope says C21, C23 and C24 need no `enablers/`. Two tests, red first (a TypeError, a
   placeholder pair reported as C20), 23 green under both Pythons.
+- 2026-11-22: status done (#339 closed by #364; #439).
