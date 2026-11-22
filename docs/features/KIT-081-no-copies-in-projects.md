@@ -1,7 +1,7 @@
 ---
 id: KIT-081
 title: "The kit copies nothing into a project: skills and CI run the kit's own files"
-status: confirmed
+status: done
 confirmed: "2026-11-16 (owner, chat of the agent-rules-kit 13.1.0 bundle session, after the platforms/ review: 'Sim, registre')"
 issue: "#308"
 pr: ""
@@ -358,6 +358,7 @@ Open before stage 2 and 3 (each `[HYPOTHESIS]` until checked against the install
 - Codex has no way to receive a path rule without a file in the project (stage 3 keeps the `AGENTS.md` block for Codex
   if so). Probed 2026-11-19: Codex does run a plugin's hooks once trusted, and the kit's plugin listed none because of
   its `$schema` (part 1 above); open still: the trust record, `apply_patch` input and the removal of the blocks.
+  Decided 2026-11-22 (#443): the blocks stay; Codex gets path rules from AGENTS.md with no per-user trust.
 - No consumer needs a kit version other than the machine's for longer than a release cycle (stage 2 rests on it).
 - ~~A marketplace declared `owner/repo#stable` updates to the branch's new commit on `claude plugin marketplace update`
   and `codex plugin marketplace upgrade` (the stage 2 prerequisite rests on it).~~ Checked on 2026-11-16, below.
@@ -428,3 +429,4 @@ stage 1.
   is an `apply_patch` call with the patch text only. Stage 3 for Codex part 2 (edits): `path_rules.py` reads the
   headers of an `apply_patch` patch (above, CA-1). Open: the per-user hook trust record, then the removal of the
   `AGENTS.md` blocks.
+- 2026-11-22: stage 3 for Codex closed. apply_patch input done (#420); the per-user hook trust record and the removal of the AGENTS.md blocks dropped. The blocks reach Codex with no per-user trust, and Codex skips an untrusted hook silently. Reopen if Codex trusts plugin hooks by default or the blocks cause a measured problem (#443).
