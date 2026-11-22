@@ -16,3 +16,12 @@
 ## Red
 
 Test: `<file::name>` fails on base and passes on this head. If no test changed, replace this line with `Exception: <why>` (the `red` check reads the first line of this section).
+
+<!-- A fix or perf PR, or one that closes a bug issue: replace this comment with
+## Five whys
+Symptom: <what failed, with the command, check or PR that shows it>
+1. <why> — <evidence: file:line, log, PR, command output>
+Root cause: <the why this PR removes>
+Fix: <what changes, which why it removes>
+Wrong if: <the observation that would show it did not>
+Exempt: `Five whys: exempt (typo | test-only | docs-only | release | records)`. Five is a ceiling, not a quota. -->

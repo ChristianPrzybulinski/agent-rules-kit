@@ -39,6 +39,7 @@ One line, real values only: `Executor: provider=<claude|codex|devin|human> tier=
 
 ## PR body
 
+- A fix row's PR, or one that closes a bug issue, carries `## Five whys` (shape in the PR template), or the exempt line. `review_checks.py whys` warns otherwise.
 - Write the body to a file outside the worktree, with the sections What, Why, Red, How I tested (literal command output), Proof, and when they apply Files widened, Secrets to register and the capture of a visual change (none for a greybox block's row under `sdd.passes`); then the executor line; put `## Task rows` with the selected ids (`T1, T2`) before `## Proof` (which ends the row-selection section), then last line `Refs <owner>/<docs-repo>#N` for the shared FEAT issue. Only the closure after the FEAT's acceptance gate closes that issue. Legacy task issues keep `Closes`; local TASK files keep their TASK id.
 - Commits follow Conventional Commits with `Refs: FEAT-nnn Tn`. Never push to `main`, force-push, rebase or merge; the row becomes done only with its merged PR and green proof recorded; merging a row PR never completes other rows or closes the shared issue.
 
