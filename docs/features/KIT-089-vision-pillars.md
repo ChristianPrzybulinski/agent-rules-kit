@@ -1,10 +1,10 @@
 ---
 id: KIT-089
 title: "spec.md gets a template per project kind, with pillars, counted scope and an out-of-scope triage"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, chat of the kit session: \"concordo\" with the game-profile evaluation §§ 1-5 and 8.2-8.4, filing \"Sim, abra\"; the E § 17 scope, \"Sim, faça\")"
 issue: "#330"
-pr: ""
+pr: "#348"
 ---
 
 # KIT-089 — spec.md gets a template per project kind, with pillars, counted scope and an out-of-scope triage
@@ -72,3 +72,4 @@ pr: ""
 - 2026-11-16: confirmed (owner, kit chat; issue #330 and its E § 17 update).
 - 2026-11-16: implemented on `feat/kit-089-vision-pillars`.
 - 2026-11-22 amend (#442): check_kit.py no longer warns on paragraphs shared only among the spec-index kind variants; a copy anywhere else still warns.
+- 2026-11-22: status done (#330 closed by #348; #439).

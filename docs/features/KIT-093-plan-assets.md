@@ -1,10 +1,10 @@
 ---
 id: KIT-093
 title: "The FEAT Plan gains an Assets section, checked by sdd-check C15"
-status: in-progress
+status: done
 confirmed: "2026-11-16 (owner, chat of the kit session: \"concordo\" with the game-profile evaluation §§ 1-5 and 8.2-8.4, filing \"Sim, abra\"; the E § 17 scope, \"Sim, faça\")"
 issue: "#334"
-pr: ""
+pr: "#347"
 ---
 
 # KIT-093 — The FEAT Plan gains an Assets section, checked by sdd-check C15
@@ -58,3 +58,4 @@ pr: ""
 
 - 2026-11-16: confirmed (owner, kit chat; issue #334 and its E § 17 update).
 - 2026-11-16: implemented on `feat/kit-093-plan-assets`.
+- 2026-11-22: status done (#334 closed by #347; #439).
