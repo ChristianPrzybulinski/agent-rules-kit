@@ -30,7 +30,7 @@ REFERENCE_MAX_LINES = 60
 RULE_BODY_MAX_LINES = 40
 
 # A project copies one spec-index variant by project.kind (KIT-089).
-KIND_VARIANTS = (re.compile(r"^templates/spec-index-[a-z]+\.md$"),)
+KIND_VARIANTS = (re.compile(r"^templates/spec-index-(business|game|tooling)\.md$"),)
 
 # The kit's one plugin (KIT-047), named guardrails since KIT-055.
 KIT_PLUGIN = "guardrails"
@@ -1510,9 +1510,11 @@ for markdown_file in sorted(set(duplication_files)):
 for occurrences in paragraph_occurrences.values():
     if len(occurrences) < 2:
         continue
-    if any(all(path.is_relative_to(plugin_dir) and variant.fullmatch(path.relative_to(plugin_dir).as_posix())
-               for path in occurrences)
-           for plugin_dir in plugins.values() for variant in KIND_VARIANTS):
+    # Only a paragraph shared BETWEEN variants is exempt; one repeated inside a single variant still warns.
+    if len(set(occurrences)) == len(occurrences) and any(
+            all(path.is_relative_to(plugin_dir) and variant.fullmatch(path.relative_to(plugin_dir).as_posix())
+                for path in occurrences)
+            for plugin_dir in plugins.values() for variant in KIND_VARIANTS):
         continue
     for markdown_file in occurrences[1:]:
         warn(rel(markdown_file), f"paragraph duplicated from {rel(occurrences[0])}")

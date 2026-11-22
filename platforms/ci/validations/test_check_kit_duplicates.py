@@ -60,6 +60,19 @@ class CheckKitDuplicatesTest(unittest.TestCase):
             self.append(path)
         self.assertEqual(self.duplicates(), [])
 
+    def test_the_same_paragraph_twice_in_one_variant_warns(self):
+        """A copy pasted twice into one variant is not a variant-to-variant share: it still warns."""
+        self.append(VARIANTS[1])
+        self.append(VARIANTS[1])
+        warnings = self.duplicates()
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn("spec-index-game.md", warnings[0])
+
+    def test_a_future_spec_index_name_is_not_a_kind_variant(self):
+        for path in (VARIANTS[0], "templates/spec-index-extra.md"):
+            self.append(path)
+        self.assertEqual(len(self.duplicates()), 1)
+
     def test_copy_in_another_template_warns_before_or_after_variants(self):
         for other in ("templates/other.md", "templates/z-other.md"):
             with self.subTest(other=other):
