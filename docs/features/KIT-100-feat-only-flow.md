@@ -91,3 +91,4 @@ tests`, `OK (skipped=16)`; `--layer integration --changed-from origin/main`: `Ra
 - 2026-11-17: implemented on `feat/kit-100-feat-only-flow`.
 - 2026-11-17: review follow-ups and `origin/main` 14c2109 merged in.
 - 2026-11-22: status done (#342 closed by #365; #439).
+- 2026-11-22 amend (#451): sync-status (the spec.md Status cell), impact and lint take the FEAT id from sdd.id_prefix.feature, as feat_glob already did; found on #449, where KIT-116's index row stayed in-progress.
