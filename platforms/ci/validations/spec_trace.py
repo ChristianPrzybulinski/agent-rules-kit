@@ -265,7 +265,7 @@ class Spec:
     spec_dir: Path    # the spec directory itself (<root>/docs/spec in the usual layout)
     repos: set        # valid test-path roots: own clone name + sibling clones + --repo extras
     feats: dict = field(default_factory=dict)     # FEAT id -> {"path", "requirements", "tasks": {Tn: row}}
-    reqs: dict = field(default_factory=dict)      # REQ id -> {"path", "features", "title"}
+    reqs: dict = field(default_factory=dict)      # REQ id -> {"path", "features", "title", "status"}
     journeys: dict = field(default_factory=dict)  # J id -> {"path", "title", "status", "steps"}
     processes: dict = field(default_factory=dict)  # PROC id -> {"path", "title", "status", "kind", "steps"}
     open_needs: dict = field(default_factory=dict)  # J or PROC id -> ids of the open NEEDs whose `journeys` or

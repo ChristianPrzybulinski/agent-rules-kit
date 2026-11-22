@@ -128,7 +128,7 @@ STACKS = {
     "maven": {
         "command": r"(^|\s|/)mvnw?\b",
         "fail_output": [r"BUILD FAILURE", r"Tests run: 0, "],
-        "lint": [[r"^(?!.*-Dit\.test=)(?:.*-Dtest=.*\bverify\b|.*\bverify\b.*-Dtest=)",  # `-Dit.test=` narrows it
+        "lint": [[r"^(?!.*-Dit\.test=[\"']?[^\s\"'])(?:.*-Dtest=.*\bverify\b|.*\bverify\b.*-Dtest=)",  # a non-empty `-Dit.test=` narrows it
                   "`-Dtest` does not narrow failsafe, so `verify` runs every IT: use `-Dit.test=` for ITs or `test`"]],
         "missing_symbol": [r"cannot find symbol[\s\S]{0,300}?symbol:\s+(?:class|interface|enum|record|method|variable)"
                            r"\s+(\w+)"],
