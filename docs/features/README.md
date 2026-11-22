@@ -113,7 +113,7 @@ The records below, KIT-001 to KIT-101, stay as they are, in their own format ([`
 | [`KIT-078-docs-consistency.md`](KIT-078-docs-consistency.md) | 13.0.0 docs consistency | done | #290 | #292 |
 | [`KIT-079-correctness-fixes.md`](KIT-079-correctness-fixes.md) | 13.0.x correctness fixes | done | #295 | #296 |
 | [`KIT-080-issue-bundle-13-1.md`](KIT-080-issue-bundle-13-1.md) | 13.1.0 issue bundle | done | #300 | #301 |
-| [`KIT-081-no-copies-in-projects.md`](KIT-081-no-copies-in-projects.md) | the kit copies nothing into a project | confirmed | #308 | |
+| [`KIT-081-no-copies-in-projects.md`](KIT-081-no-copies-in-projects.md) | the kit copies nothing into a project | done | #308 | #309, #310, #313, #314, #324, #345, #419, #420 |
 | [`KIT-082-fewer-check-kit-runs.md`](KIT-082-fewer-check-kit-runs.md) | fewer check_kit runs, gdtoolkit in CI | done | #311 | #312 |
 | [`KIT-083-kit-081-review-follow-ups.md`](KIT-083-kit-081-review-follow-ups.md) | the small findings of the KIT-081 reviews | done | #317 | #318 |
 | [`KIT-084-changelog-fragments-and-status-sync.md`](KIT-084-changelog-fragments-and-status-sync.md) | changelog fragments, status-sync PR and gitleaks action from the kit | done | #319 | #323 |
