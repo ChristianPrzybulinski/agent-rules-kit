@@ -416,6 +416,65 @@ class VersionsCommandTest(VersionCase):
                 self.assertEqual(code, 0, out + err)
                 self.assertNotIn("C17 high", out)
 
+    def decision(self, did="DEC-001", status="approved", body="FEAT-001 admits the moved work."):
+        write(self.root, f"docs/spec/decisions/{did}.md",
+              f"---\nid: {did}\nstatus: {status}\n---\n\n{body}\n")
+
+    def test_a_scope_req_accepted_by_a_decision_naming_the_feat_is_allowed(self):
+        self.decision()
+        self.planned_then(scope="Scope: REQ-F-002 · REQ-F-003",
+                          history="- 2026-11-23 regroup: REQ-F-003 joins 0.2.0 under DEC-001.\n")
+        code, out, err = run(["versions", str(self.spec), "--feat", "FEAT-001"])
+        self.assertNotIn("REQ-F-003 joined", out)
+        self.assertEqual(code, 0, out + err)
+
+    def test_a_row_serving_an_accepted_req_is_allowed_only_with_its_acceptance(self):
+        for accepts_req in (True, False):
+            with self.subTest(accepts_req=accepts_req):
+                self.tmp.cleanup()
+                self.setUp()
+                self.decision()
+                history = "- 2026-11-23 regroup: T4 moved in for REQ-F-003.\n"
+                if accepts_req:
+                    history += "- 2026-11-23 regroup: REQ-F-003 joins 0.2.0 under DEC-001.\n"
+                self.planned_then(rows="| T4 | fourth | `d/**` | todo |\n",
+                                  scope="Scope: REQ-F-002 · REQ-F-003", history=history)
+                code, out, err = run(["versions", str(self.spec), "--feat", "FEAT-001"])
+                self.assertEqual("T4 was added" in out, not accepts_req, out)
+                self.assertEqual(code, 0 if accepts_req else 1, out + err)
+
+    def test_a_row_accepted_directly_is_allowed_without_a_keyword_or_dec_prefix(self):
+        for did, verb in (("DEC-001", "regroup"), ("DPRO-026", "admit")):
+            with self.subTest(did=did):
+                self.tmp.cleanup()
+                self.setUp()
+                self.decision(did=did)
+                self.planned_then(rows="| T4 | fourth | `d/**` | todo |\n",
+                                  history=f"- 2026-11-23 {verb}: T4 joins 0.2.0 under {did}.\n")
+                code, out, err = run(["versions", str(self.spec), "--feat", "FEAT-001"])
+                self.assertNotIn("T4 was added", out)
+                self.assertEqual(code, 0, out + err)
+
+    def test_a_req_without_a_matching_approved_decision_stays_a_finding(self):
+        cases = (("proposed", "FEAT-001", "REQ-F-003 under DEC-001"),
+                 ("approved", "FEAT-002", "REQ-F-003 under DEC-001"),
+                 ("approved", "FEAT-001", "REQ-F-003 under DEC-999"),
+                 ("approved", "FEAT-001", "T4 under DEC-001"),
+                 ("approved", "FEAT-0010", "REQ-F-003 under DEC-001"),
+                 ("approved", "FEAT-001", "REQ-F-0030 under DEC-001"),
+                 ("approved", "FEAT-001", "REQ-F-003 under DEC-0010"),
+                 ("approved", "FEAT-001", "REQ-F-003 joins.\n- DEC-001 approves."))
+        for status, body, citation in cases:
+            with self.subTest(status=status, body=body, citation=citation):
+                self.tmp.cleanup()
+                self.setUp()
+                self.decision(status=status, body=body)
+                self.planned_then(scope="Scope: REQ-F-002 · REQ-F-003",
+                                  history=f"- 2026-11-23 regroup: {citation}.\n")
+                code, out, err = run(["versions", str(self.spec), "--feat", "FEAT-001"])
+                self.assertIn("C17 high: FEAT-001 0.2.0: REQ-F-003 joined", out)
+                self.assertEqual(code, 1, out + err)
+
     def test_rows_written_after_planned_in_a_later_commit_are_the_cut(self):
         self.git("init", "-q")
         self.feat(status="planned", old="| T3 | third | `c/**` | todo |\n", new="")
