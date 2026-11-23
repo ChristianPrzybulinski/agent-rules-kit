@@ -118,8 +118,9 @@ citation expands, `PROC-nnn S<n>`, `PROC-nnn A<n>` or `A<a>–A<b>`), each block
 a block row that a process step outside the declared steps cites, a Scope REQ that only such steps cite, or an ENB the
 FEAT's `enablers` omits fails. `versions` reads the FEAT file's git history: a REQ in a block's Scope that the block's
 first committed `planned` (or later) version did not hold, and a row its first committed version with rows at `planned`
-or later did not hold, are C17 findings, unless a History line names the row and a defect or a REQ of that Scope. A spec
-without a versioned FEAT checks and renders as before.
+or later did not hold, are C17 findings, unless a History line names the row and a defect or a REQ of that Scope, or
+names the REQ or row and an approved decision naming the FEAT (accepted REQs count as Scope for rows). A spec without
+a versioned FEAT checks and renders as before.
 
 Duplicates (KIT-097): `similar` compares words after one normalization (casefold, claim tags and punctuation removed,
 stop words dropped, order ignored) and prints one line per pair, then a summary line. Findings, exit 1: C21 a contract
@@ -1428,16 +1429,28 @@ def version_errors(spec):
 
 
 def justified(history, tid, in_scope):
-    """A History line names the row and a defect, or a REQ of the block's Scope at planned (sdd-tasks resync)."""
+    """A History line names the row and a defect, or a REQ in the block's planned or accepted Scope (sdd-tasks resync)."""
     named = re.compile(rf"\b{tid}\b")
     return any(named.search(line) and (re.search(r"\bdefect\b", line, re.I) or set(REQ_ID.findall(line)) & in_scope)
                for line in history)
 
 
+def accepting(spec, fid):
+    """Ids of approved decisions naming this FEAT; loader errors stay on the spec, separate from C17 findings."""
+    return {did for did, data, text, _ in governance_records(spec, "decisions", "*.md", spec.errors)
+            if data.get("status") == "approved" and cites(text, fid)}
+
+
+def accepted(history, item, approved):
+    """A single History line names the item and an approved decision that names the FEAT."""
+    return any(cites(line, item) and any(cites(line, did) for did in approved) for line in history)
+
+
 def c17_findings(spec, fid, feat):
     """sdd-check C17 on one versioned FEAT, from git: a REQ in a block's Scope that its first committed `planned` (or
     later) version did not hold, and a row its first committed version with rows at `planned` or later did not hold,
-    unless a History line justifies the row. Returns (findings, note); the note says why C17 did not run."""
+    unless a History line justifies the row or names the REQ or row and an approved decision naming the FEAT
+    (accepted REQs count as Scope for rows). Returns (findings, note); the note says why C17 did not run."""
     try:
         rel = feat["path"].relative_to(spec.root).as_posix()
     except ValueError:
@@ -1457,19 +1470,26 @@ def c17_findings(spec, fid, feat):
             if block["rows"]:
                 rows_at.setdefault(block["name"], (sha[:7], set(block["rows"])))
     history = section(split_frontmatter(feat["path"].read_text(encoding="utf-8"))[1], "History").splitlines()
+    approved = accepting(spec, fid)
     found = []
     for block in feat["versions"]:
         label = f"C17 high: {fid} {block['name']}"
         sha, planned = scope_at.get(block["name"], ("", None))
+        accepted_reqs = set()
         for rid in dict.fromkeys(REQ_ID.findall(block["scope"])) if planned is not None else ():
-            if rid not in planned:
+            if accepted(history, rid, approved):
+                accepted_reqs.add(rid)
+            elif rid not in planned:
                 found.append(f"{label}: {rid} joined the block's Scope after it reached planned ({sha}): a new or "
-                             "amended REQ goes to the next version block")
+                             "amended REQ goes to the next version block, or a History line names it and an "
+                             f"approved decision that names {fid}")
         cut, rows = rows_at.get(block["name"], ("", None))
         for tid in block["rows"] if rows is not None else ():
-            if tid not in rows and not justified(history, tid, planned or set()):
+            if tid not in rows and not (justified(history, tid, (planned or set()) | accepted_reqs)
+                                       or accepted(history, tid, approved)):
                 found.append(f"{label}: {tid} was added after the block's rows were planned ({cut}) and no History "
-                             "line names it as a defect fix or as work for a REQ in the block's Scope")
+                             "line names it as a defect fix or as work for a REQ in the block's Scope, or a History "
+                             f"line names it and an approved decision that names {fid}")
     return found, ""
 
 

@@ -25,7 +25,8 @@ updated: "YYYY-MM-DD"
      delivered or cancelled, and the FEAT's `status` is the last block's. A block above sdd.max_feat_tasks rows fails
      check_spec.py: the rest goes to the next block. Once a block reaches planned, a new or amended REQ goes to the next
      block, and a row is added only for a defect or a missing step of a REQ in its Scope, with a History line that
-     says which (sdd-check C17). Task row ids continue across blocks and are never reused.
+     says which; an approved decision naming the FEAT may admit a REQ or row through a History line naming both
+     (sdd-check C17; accepted REQs count as Scope). Task row ids continue across blocks and are never reused.
      status: proposed while sdd-plan drafts it, planned after a clean full-scope sdd-check; in-progress is derived once a
      task row of the last block is doing or done (with a canonical issue, row states carry execution/merge evidence;
      legacy task issues and tracker: none TASK files retain derived states), and status --write records that move in History whichever row moved it, in the frontmatter and

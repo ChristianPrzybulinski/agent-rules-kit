@@ -45,7 +45,8 @@ and one process holds N FEATs (§ 15); greybox and polish are two version blocks
   steps cite, an ENB the FEAT's `enablers` omits); new command `versions [--feat FEAT-nnn]` lists the blocks, the FEATs
   of each process (one process, N use cases) and the sdd-check C17 findings it reads from git: a REQ that joined a
   block's Scope after the block's first committed `planned` version, a row added after the block's first committed
-  version with rows at `planned` or later, unless a History line names the row and a defect or a REQ of that Scope.
+  version with rows at `planned` or later, unless a History line names the row and a defect or a REQ of that Scope,
+  or names the REQ or row and an approved decision naming the FEAT (accepted REQs count as Scope for rows).
 - Review fixes (02378a1 review): one shared reader of a FEAT's task-table sections, `check_spec.task_sections(text)`
   (the `## Tasks` section, or each version block's `#### Tasks`, the last one the open block's), which
   `row_checks.py parse_rows` now uses: before it, rules a–k never ran on a FEAT made from the template, since
@@ -100,3 +101,4 @@ Choices:
   `test_cancelled_rows_count_toward_no_limit_and_no_chain`, `test_cancelled_rows_of_a_recut_block_do_not_count`.
 - 2026-11-22 amend (#433): a live row whose Depends on names a cancelled row warns (task-depends-cancelled); legacy superseded rows count as cancelled; a cancelled row's Task cell no longer warns.
 - 2026-11-22: status done (#338 closed by #362; #439).
+- 2026-11-23 amend (#461): C17 accepts a Scope REQ or row that a History line names together with an approved decision naming the FEAT, as C25 accepts a debt; a regrouping that joins moved work into an open block (Stratics FEAT-021, DPRO-026) no longer leaves permanent findings.
