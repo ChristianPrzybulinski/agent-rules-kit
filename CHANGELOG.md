@@ -16,6 +16,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Changed
 - KIT-096 amendment (#461): spec_trace.py versions (C17) accepts a REQ that joined a planned block's Scope, or a row added after its rows were planned, when a History line names it and an approved decision that names the FEAT; that decision's REQs count as Scope for the rows.
+- KIT-069 amendment (#453): closure validation preserves pipes inside backtick spans, requires the Shape check-table header, and blocks `outcome validated` when any check Result starts with `not run`; delivered and returned closures still pass.
 - KIT-117 amendment (#456): review_checks.py whys matches types case-insensitively, strips only closed comments outside code spans, accepts bold/bullet labels and N) numbering, and requires citation-like evidence after em/en dashes or spaced hyphens; review delivery fetches closed-issue labels, and CA-12 uses a repo-held proof.
 - #442: check_kit.py skips a duplicated paragraph shared only among the spec-index-<kind>.md template variants (KIT-089), which a project copies one of; any other copy still warns.
 - KIT-069 amendment (#435): spec_trace.py validate refuses a closure record without its outcome line (Main: <sha> · <date> · … · outcome …) or without a check row whose Result is measured; [FACT]-tagged and backticked sha forms pass.
