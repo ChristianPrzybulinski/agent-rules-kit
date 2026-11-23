@@ -12,7 +12,8 @@ profile that profile.py refuses.
 Rules (FAIL or WARN; the key each one reads, a rule whose key is null or empty is off):
   a FAIL  the kit columns (KIT-068) and their values; a malformed row skips the other rules
   b FAIL  every Files entry starts at a top-level path of the repository or a `components` name; a row stays in one
-          component (a contract row that owns `row_checks.protocol.folder` only warns)
+          component (Files entries that match the gates `companion_files` globs do not count)
+          (a contract row that owns `row_checks.protocol.folder` only warns)
   c       a Files entry that matches a `row_checks.tests` code glob needs a test path of that stack
   d WARN  a listed generated neighbour (gates `generated_neighbours`); an exact `row_checks.assets` path
   e       each proof clause runs allowlisted programs only (gates `proof_allowlist`; without it, the refused
@@ -115,6 +116,7 @@ class Config:
     runners: dict = field(default_factory=dict)
     evidence_only: bool = False
     neighbours: tuple = ()
+    companions: tuple = ()
     tests: list = field(default_factory=list)
     assets: dict | None = None
     protocol: dict | None = None
@@ -199,7 +201,7 @@ def checked_gates(gates, rel: str) -> dict:
     where = f"sdd.row_checks.gates {rel}"
     if not isinstance(gates, dict):
         raise UsageError(f"{where}: must be an object, not {type(gates).__name__}")
-    for key in ("proof_allowlist", "generated_neighbours"):
+    for key in ("proof_allowlist", "generated_neighbours", "companion_files"):
         if key in gates and not _strings(gates[key]):
             raise UsageError(f"{where}: {key} must be a list of strings")
     runners = gates.get("proof_script_runners", {})
@@ -240,6 +242,7 @@ def load_config(spec_dir) -> Config:
     cfg.runners = dict(gates.get("proof_script_runners") or {})
     cfg.evidence_only = rc.get("evidence_only") is True
     cfg.neighbours = tuple(gates.get("generated_neighbours") or ())
+    cfg.companions = tuple(gates.get("companion_files") or ())
     cfg.tests = [t for t in rc.get("tests") or [] if isinstance(t, dict) and t.get("code") and t.get("tests")]
     cfg.assets = rc.get("assets") or None
     cfg.protocol = rc.get("protocol") or None
@@ -338,9 +341,16 @@ def folder_of(component: str | None, cfg: Config) -> str:
     return cfg.components.get(component, ".") if component else "."
 
 
+def owned_files(row: Row, cfg: Config) -> list:
+    """Normalized Files without companions; keep all entries when every one is a companion."""
+    files = row.normalized_files
+    owned = [p for p in files if not any(path_matches(p, glob) for glob in cfg.companions)]
+    return owned or files
+
+
 def row_component(row: Row) -> str | None:
-    """The one component of a row whose Files stay in one, else None."""
-    owners = {component_of(p, row.cfg) for p in row.normalized_files}
+    """The one component of a row whose owned Files stay in one, else None."""
+    owners = {component_of(p, row.cfg) for p in owned_files(row, row.cfg)}
     return next(iter(owners)) if len(owners) == 1 else None
 
 
@@ -538,7 +548,7 @@ def rule_b(row: Row, cfg: Config | None = None) -> list:
                          + (f" or a component name ({names})" if names else "")))
     if out or not cfg.components:
         return out
-    owners = sorted({component_of(p, cfg) or "(no component)" for p in row.normalized_files})
+    owners = sorted({component_of(p, cfg) or "(no component)" for p in owned_files(row, cfg)})
     if len(owners) > 1:
         finding = f(f"spans {' and '.join(owners)}: split the row")
         if owns_protocol(row):
