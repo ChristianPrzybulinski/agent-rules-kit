@@ -967,7 +967,8 @@ def whys(args: argparse.Namespace) -> int:
     out = Findings("whys")
     body = Path(args.body).read_text(encoding="utf-8")
     # The optional template scaffold is hidden, so it is neither a chain nor an exemption.
-    body = re.sub(r"<!--.*?(?:-->|\Z)", "", body, flags=re.DOTALL)
+    body = re.sub(r"(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)|<!--.*?-->",
+                  lambda match: match.group(0) if match.group("ticks") else "", body, flags=re.DOTALL)
     reasons = ("typo", "test-only", "docs-only", "release", "records")
     exempt = re.search(r"^Five whys: exempt \(([^\n)]*)\)[ \t]*$", body, re.MULTILINE)
     if exempt:
@@ -978,7 +979,7 @@ def whys(args: argparse.Namespace) -> int:
             out.add(f"WARN unknown exemption {reason!r}; allowed reasons: {', '.join(reasons)}")
         return 0
     secs = pr_gates.sections(body)
-    if not (re.match(r"^(fix|perf)(\(.+\))?!?:", args.title)
+    if not (re.match(r"^(fix|perf)(\(.+\))?!?:", args.title, re.IGNORECASE)
             or "bug" in args.issue_labels or "Five whys" in secs):
         print("whys: SKIP (not a fix or improvement PR)")
         return 0
@@ -987,13 +988,16 @@ def whys(args: argparse.Namespace) -> int:
         return 0
     lines = pr_gates.body_lines(secs["Five whys"])
     for part in ("Symptom:", "Root cause:", "Fix:", "Wrong if:"):
-        if not any(line.startswith(part) for line in lines):
+        if not any(re.match(r"^(?:-\s+)?(?:\*\*)?" + re.escape(part), line) for line in lines):
             out.add(f"WARN missing `{part}` line")
-    numbered = [line for line in lines if re.match(r"^\d+\.\s", line)]
+    numbered = [line for line in lines if re.match(r"^\d+[.)]\s", line)]
     if not numbered:
         out.add("WARN missing numbered why line")
+    # Presence only: citations may be paths/lines, issues, links or quoted commands, not plain prose.
+    citation = r"https?://\S+|#\d+\b|`[^`]+`|\[[^\]]+\]\([^)]+\)|\b[\w./-]+:\d+\b"
     for line in numbered:
-        if not re.search(r"(?: — | - )\s*\S", line):
+        evidence = re.search(r"(?: — | – | - )(.*)", line)
+        if not evidence or not re.search(citation, evidence.group(1)):
             out.add(f"WARN why has no evidence: {line.strip()}")
     if len(numbered) > 5:
         out.add("WARN more than 5 numbered whys: the chain stops at the why the fix removes")

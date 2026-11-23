@@ -286,6 +286,58 @@ Wrong if: The same input still produces no rows.
                 self.assertEqual(code, 0, out)
                 self.assertEqual(out, "whys: WARN no `## Five whys` section\n")
 
+    def test_capitalized_types_without_section_warn(self) -> None:
+        for title in ("Fix: x", "FIX(a): b", "PERF(a): y"):
+            with self.subTest(title=title):
+                self.assertEqual(self.whys("## What changes\nExport rows.\n", title),
+                                 (0, "whys: WARN no `## Five whys` section\n"))
+
+    def test_literal_comment_markers_preserve_chain(self) -> None:
+        for prefix in ("A literal `<!--` appears here.\n", "An unclosed <!-- appears here.\n",
+                       "A literal `` `<!--` `` appears here.\n",
+                       "A literal `<!--` precedes a real <!-- hidden --> comment.\n",
+                       "A literal `<!-- inline -->` appears here.\n"):
+            with self.subTest(prefix=prefix):
+                self.assertEqual(self.whys(prefix + self.VALID), (0, "whys: OK\n"))
+
+    def test_en_dash_evidence_separator(self) -> None:
+        self.assertEqual(self.whys(self.VALID.replace(" — ", " – ")), (0, "whys: OK\n"))
+
+    def test_bold_and_bullet_part_labels(self) -> None:
+        for style in ("**{}**", "- {}", "- **{}**"):
+            with self.subTest(style=style):
+                body = self.VALID
+                for part in ("Symptom:", "Root cause:", "Fix:", "Wrong if:"):
+                    body = body.replace(part, style.format(part))
+                self.assertEqual(self.whys(body), (0, "whys: OK\n"))
+
+    def test_parenthesized_numbering_is_counted(self) -> None:
+        body = re.sub(r"^(\d+)\.", r"\1)", self.VALID, flags=re.MULTILINE)
+        self.assertEqual(self.whys(body), (0, "whys: OK\n"))
+        code, out = self.whys(body.replace("2) The producer dropped rows — producer.py:20.",
+                                           "2) The producer dropped rows"))
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out, "whys: WARN why has no evidence: 2) The producer dropped rows\n")
+        body += "4) Fourth — log:4.\n5) Fifth — log:5.\n6) Sixth — log:6.\n"
+        code, out = self.whys(body)
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN more than 5 numbered whys", out)
+
+    def test_prose_after_separator_is_not_evidence(self) -> None:
+        for separator in (" — ", " – ", " - "):
+            with self.subTest(separator=separator):
+                why = "1. a check" + separator + "which nobody ran"
+                body = self.VALID.replace("1. The input was empty — job.log:12.", why)
+                self.assertEqual(self.whys(body), (0, f"whys: WARN why has no evidence: {why}\n"))
+
+    def test_citation_tokens_after_separators(self) -> None:
+        for evidence in ("job.log:12", "#444", "https://example.com/proof",
+                         "[proof](docs/proof.md)", "`python3 check.py` exited 1"):
+            for separator in (" — ", " – ", " - "):
+                with self.subTest(evidence=evidence, separator=separator):
+                    body = self.VALID.replace(" — job.log:12.", separator + evidence)
+                    self.assertEqual(self.whys(body), (0, "whys: OK\n"))
+
     def test_each_missing_part_warns(self) -> None:
         for prefix, label in (("Symptom:", "Symptom:"), ("1.", "numbered why"),
                               ("Root cause:", "Root cause:"), ("Fix:", "Fix:"), ("Wrong if:", "Wrong if:")):
@@ -371,9 +423,9 @@ Symptom: Stratics spec PRs #5404, #5406 and #5435 failed link, scope and proof-d
 3. The architect wrote a spec PR directly, not from an issue — principal session, relayed in #444.
 4. The spec-PR checklist has no planning-issue step — principal session, relayed in #444.
 5. The sdd-plan skill assumes every PR starts from an issue — principal session, relayed in #444.
-Root cause: Why 5, the skill assumes every PR starts from an issue.
-Fix: Add a planning-issue step to the spec-PR checklist.
-Wrong if: A later spec PR still reaches the gates without a Closes line.
+- **Root cause:** Why 5, the skill assumes every PR starts from an issue.
+- **Fix:** Add a planning-issue step to the spec-PR checklist.
+- **Wrong if:** A later spec PR still reaches the gates without a Closes line.
 """
         code, out = self.whys(body)
         self.assertEqual((code, out), (0, "whys: OK\n"))
