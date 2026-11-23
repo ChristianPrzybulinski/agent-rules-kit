@@ -16,6 +16,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Changed
 - KIT-069 amendment (#453): closure validation preserves pipes inside backtick spans, requires the Shape check-table header, and blocks `outcome validated` when any check Result starts with `not run`; delivered and returned closures still pass.
+- KIT-117 amendment (#456): review_checks.py whys matches types case-insensitively, strips only closed comments outside code spans, accepts bold/bullet labels and N) numbering, and requires citation-like evidence after em/en dashes or spaced hyphens; review delivery fetches closed-issue labels, and CA-12 uses a repo-held proof.
 - #442: check_kit.py skips a duplicated paragraph shared only among the spec-index-<kind>.md template variants (KIT-089), which a project copies one of; any other copy still warns.
 - KIT-069 amendment (#435): spec_trace.py validate refuses a closure record without its outcome line (Main: <sha> · <date> · … · outcome …) or without a check row whose Result is measured; [FACT]-tagged and backticked sha forms pass.
 - #433, follow-ups of #431: check_spec.py warns when a live row's Depends on names a cancelled row (task-depends-cancelled), counts legacy superseded rows as cancelled, and no longer warns on a cancelled row's long Task cell.
