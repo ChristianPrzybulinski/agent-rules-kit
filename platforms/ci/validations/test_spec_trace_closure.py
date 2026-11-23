@@ -130,6 +130,50 @@ def write(root, rel, text):
     return path
 
 
+class ClosureShapeTest(unittest.TestCase):
+    LAYER = "unit"
+
+    def test_placeholder_after_a_code_span_pipe_is_not_measured(self) -> None:
+        for result in ("`a|b` TBD", "``a`|b`` TBD", r"`a\|b` TBD"):
+            with self.subTest(result=result):
+                gaps = trace.closure_shape_gaps("FEAT-001", CLOSURE.replace("0 findings", result))
+                self.assertEqual(gaps, ["FEAT-001 closure has no check row with a measured Result: "
+                                        "sdd-review writes it before validate"])
+
+    def test_only_the_check_table_can_supply_a_measured_row(self) -> None:
+        retro = "| Number | Counts | Command or source |\n|---|---|---|\n| Review rounds | 2 | PR history |\n"
+        outcome = CLOSURE.split("\n\n", 1)[0] + "\n\n"
+        empty_check = CLOSURE.replace("| Lint | `lint` | 0 findings |\n", "")
+        for body in (outcome + retro, empty_check + "\n" + retro,
+                     empty_check + "\n| Lint | `lint` | 0 findings |\n",
+                     CLOSURE.replace("Command or measurement", "Command")):
+            with self.subTest(body=body):
+                self.assertEqual(trace.closure_shape_gaps("FEAT-001", body), [
+                    "FEAT-001 closure has no check row with a measured Result: sdd-review writes it before validate"])
+
+    def test_any_not_run_result_blocks_only_validated(self) -> None:
+        not_run = "| Hml | smoke | not run: no hml |\n"
+        for outcome in ("validated", "delivered (release: merge)", "returned: hml check pending"):
+            for rows in (not_run, not_run + "| Lint | `lint` | 0 findings |\n",
+                         "| Lint | `lint` | 0 findings |\n" + not_run):
+                with self.subTest(outcome=outcome, rows=rows):
+                    body = CLOSURE.replace("validated", outcome).replace("| Lint | `lint` | 0 findings |\n", rows)
+                    expected = ["FEAT-001 closure: `not run` blocks validated (closure-record.md)"] if outcome == "validated" else []
+                    self.assertEqual(trace.closure_shape_gaps("FEAT-001", body), expected)
+
+    def test_check_header_is_case_insensitive_and_trimmed(self) -> None:
+        body = CLOSURE.replace("| Check | Command or measurement | Result |", "|  CHECK  | command or Measurement | result |")
+        self.assertEqual(trace.closure_shape_gaps("FEAT-001", body), [])
+
+    def test_pipes_in_check_cells_do_not_shift_the_result(self) -> None:
+        for command in ("`a|b`", "``a`|b``", r"a\|b"):
+            with self.subTest(command=command):
+                body = CLOSURE.replace("`lint`", command)
+                self.assertEqual(trace.closure_shape_gaps("FEAT-001", body), [])
+                self.assertEqual(trace.row_cells(f"| Lint | {command} | 0 findings |"),
+                                 ["Lint", command, "0 findings"])
+
+
 class ClosureCommandTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -177,6 +221,16 @@ class ClosureCommandTest(unittest.TestCase):
         self.assertIn('updated: "2026-11-14"', self.feat_text())
         self.assertIn("- 2026-11-14 sdd-review: validated at 1a2b3c4\n", self.feat_text())
         self.assertIn("status: refined\n", self.need_text())
+
+    def test_sync_index_preserves_code_span_and_escaped_pipes(self) -> None:
+        for title in ("`a|b`", "``a`|b``", r"a\|b"):
+            with self.subTest(title=title):
+                index = (SPEC_INDEX.format(sdd="") + "\n| Feature | Title | Status |\n|---|---|---|\n"
+                         f"| [FEAT-001](features/FEAT-001.md) | {title} | proposed |\n")
+                write(self.root, "docs/spec/spec.md", index)
+                self.assertTrue(trace.sync_index(trace.load(self.spec), "2026-11-14"))
+                self.assertEqual((self.spec / "spec.md").read_text(encoding="utf-8"),
+                                 index.replace("| proposed |", "| in-progress |"))
 
     def test_validate_under_release_merge_delivers_the_feat_and_its_need(self):
         code, out = self.validate()

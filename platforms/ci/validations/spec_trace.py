@@ -210,6 +210,8 @@ MANUAL = re.compile(r"manual:\s*(.+)$")
 SEPARATORS = re.compile(r"<br>|[\s,·;—]+")
 PR_REF = re.compile(r"^[\w.-]+#\d+$")
 UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
+CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)")
+ROW_TOKEN = re.compile(CODE_SPAN.pattern + r"|\\.|\|")
 STATUS_CLOSED = ("validated", "delivered")
 STATUS_FROZEN = STATUS_CLOSED + ("cancelled",)
 VALIDATE_FROM = ("clarified", "planned", "in-progress")
@@ -338,8 +340,18 @@ def task_rows(body):
     return rows
 
 
-def row_cells(line):
-    return [cell.strip() for cell in UNESCAPED_PIPE.split(line.strip())[1:-1]]
+def row_parts(line: str) -> list[str]:
+    """Split unescaped pipes outside code spans, keeping whitespace for table rewrites."""
+    parts, start = [], 0
+    for token in ROW_TOKEN.finditer(line):
+        if token.group() == "|":
+            parts.append(line[start:token.start()])
+            start = token.end()
+    return parts + [line[start:]]
+
+
+def row_cells(line: str) -> list[str]:
+    return [cell.strip() for cell in row_parts(line.strip())[1:-1]]
 
 
 def status_column(body):
@@ -1278,7 +1290,9 @@ def closure_paragraphs(lines: list[str]) -> list[str]:
 
 def measured_result(cell: str) -> bool:
     """A Result cell that records a measurement: not empty, a dash, a placeholder (plain or emphasized) or a target."""
-    result = cell.strip().strip("*_ ").lower()
+    # A code sample can qualify a placeholder (`a|b` TBD); code-only measurements remain valid.
+    prose = CODE_SPAN.sub("", cell).strip()
+    result = (prose or cell).strip().strip("*_ ").lower()
     return result not in UNMEASURED_RESULT and not result.startswith("planned:")
 
 
@@ -1286,27 +1300,29 @@ def closure_shape_gaps(label: str, body: str) -> list[str]:
     """Require an outcome and a check row with a recorded result, ignoring HTML comments."""
     lines = [line.strip() for line in re.sub(r"(?s)<!--.*?-->", "", body).splitlines()]
     outcome = re.compile(r"^(?:\[FACT\]\s*)?Main:\s*`?[0-9a-f]{7,40}`?\s*·\s*\d{4}-\d{2}-\d{2}\s*·"
-                         r"(?:.*·)?\s*outcome\s+(?:validated|delivered|returned:)")
+                         r"(?:.*·)?\s*outcome\s+(validated|delivered|returned:)")
     gaps = []
-    if not any(outcome.match(paragraph) for paragraph in closure_paragraphs(lines)):
+    outcomes = [match.group(1) for paragraph in closure_paragraphs(lines) if (match := outcome.match(paragraph))]
+    if not outcomes:
         gaps.append(f"{label} closure has no outcome line (Main: <sha> · <date> · … · outcome …): "
                     "sdd-review writes it before validate")
-    measured = False
+    measured, not_run, check_table = False, False, False
     for index, line in enumerate(lines):
         if not (line.startswith("|") and line.endswith("|")):
+            check_table = False
             continue
-        cells = [cell.strip() for cell in line[1:-1].split("|")]
-        if len(cells) < 2 or [cell.lower() for cell in cells] == ["check", "command or measurement", "result"]:
-            continue
+        cells = row_cells(line)
         if index + 1 < len(lines) and re.fullmatch(r"\|(?:\s*:?-+:?\s*\|)+", lines[index + 1]):
+            check_table = [cell.lower() for cell in cells] == ["check", "command or measurement", "result"]
             continue
-        if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
+        if not check_table or len(cells) != 3 or all(re.fullmatch(r":?-+:?", cell) for cell in cells):
             continue
-        if measured_result(cells[-1]):
-            measured = True
-            break
+        measured |= measured_result(cells[-1])
+        not_run |= cells[-1].strip("*_ ").lower().startswith("not run")
     if not measured:
         gaps.append(f"{label} closure has no check row with a measured Result: sdd-review writes it before validate")
+    if "validated" in outcomes and not_run:
+        gaps.append(f"{label} closure: `not run` blocks validated (closure-record.md)")
     return gaps
 
 
@@ -2415,7 +2431,7 @@ def mark_done(spec, fid, tid, pr, today):
     if feat["task_status"].get(tid) == "done":
         return f"{fid} {tid} is already done"
     old = feat["tasks"][tid]
-    pieces = UNESCAPED_PIPE.split(old)
+    pieces = row_parts(old)
     pieces[column + 1] = " done "
     feat["path"].write_text(text.replace(old, "|".join(pieces), 1), encoding="utf-8")
     append_history(feat["path"], f"- {today} done: {tid}" + (f" ({pr})" if pr else ""))
@@ -3015,7 +3031,7 @@ def apply_sync(spec, changed, today):
             line = feat["tasks"][tid]
             if len(row_cells(line)) != len(header):
                 raise SystemExit(f"{fid} {tid}: row has not the header's cell count; refusing to write")
-            pieces = UNESCAPED_PIPE.split(line)
+            pieces = row_parts(line)
             pieces[header.index("Status") + 1] = f" {new} "
             text = text.replace(line, "|".join(pieces), 1)
         new_status = feat.get("sync_status")
@@ -3092,7 +3108,7 @@ def sync_index(spec, today):
             continue
         status = spec.feats[m.group(1)]["status"]
         if cells[column] != status:
-            pieces = UNESCAPED_PIPE.split(line)
+            pieces = row_parts(line)
             pieces[column + 1] = f" {status} "
             lines[i] = "|".join(pieces)
     text = "\n".join(lines)
