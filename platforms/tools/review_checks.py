@@ -967,7 +967,7 @@ def whys(args: argparse.Namespace) -> int:
     out = Findings("whys")
     body = Path(args.body).read_text(encoding="utf-8")
     # The optional template scaffold is hidden, so it is neither a chain nor an exemption.
-    body = re.sub(r"(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)|<!--.*?-->",
+    body = re.sub(r"(?P<ticks>`+)(?!`)(?:(?!\n[ \t]*\n).)*?(?<!`)(?P=ticks)(?!`)|<!--.*?-->",
                   lambda match: match.group(0) if match.group("ticks") else "", body, flags=re.DOTALL)
     reasons = ("typo", "test-only", "docs-only", "release", "records")
     exempt = re.search(r"^Five whys: exempt \(([^\n)]*)\)[ \t]*$", body, re.MULTILINE)

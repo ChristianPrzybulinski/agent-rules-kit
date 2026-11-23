@@ -440,6 +440,16 @@ Symptom: Stratics spec PRs #5404, #5406 and #5435 failed link, scope and proof-d
                     code, out = self.whys(body, title)
                     self.assertEqual((code, out), (0, f"whys: {expected}\n"))
 
+    def test_stray_backtick_before_blank_line_does_not_expose_templates(self) -> None:
+        root = TOOL.parents[2]
+        for template in (".github/PULL_REQUEST_TEMPLATE.md", "platforms/kits/github/PULL_REQUEST_TEMPLATE.md"):
+            for blank in ("", " \t"):
+                for title, expected in (("feat: x", "SKIP (not a fix or improvement PR)"),
+                                        ("fix: x", "WARN no `## Five whys` section")):
+                    with self.subTest(template=template, blank=blank, title=title):
+                        body = f"Renamed the `foo flag.\n{blank}\n" + (root / template).read_text(encoding="utf-8")
+                        self.assertEqual(self.whys(body, title), (0, f"whys: {expected}\n"))
+
     def test_commented_exemption_does_not_exempt(self) -> None:
         code, out = self.whys("<!--\nFive whys: exempt (typo)\n-->\n")
         self.assertEqual((code, out), (0, "whys: WARN no `## Five whys` section\n"))
