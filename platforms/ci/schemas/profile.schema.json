@@ -427,7 +427,7 @@
           "additionalProperties": false,
           "properties": {
             "gates": {
-              "description": "Repository path of the PR gates JSON (pr_gates.py): proof_allowlist, proof_script_runners, generated_neighbours (rules d, e, g)",
+              "description": "Repository path of the PR gates JSON (pr_gates.py): proof_allowlist, proof_script_runners, generated_neighbours (rules d, e, g), companion_files (rule b)",
               "type": [
                 "string",
                 "null"

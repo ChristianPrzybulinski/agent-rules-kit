@@ -4,6 +4,7 @@ Ported from a consumer project's row linter suite with neutral names: the compon
 names `backend` and `frontend` to the `server/` and `client/` folders of one repository.
 """
 import contextlib
+import dataclasses
 import io
 import json
 import os
@@ -307,6 +308,54 @@ class Components(Base):
                 self.assertEqual([(f.rule, f.level) for f in got], [("b", "FAIL")])
                 self.assertIn("split the row", got[0].message)
 
+    def test_companion_files_do_not_make_a_row_span_components(self):
+        subject = self.row("server/src/main/**", "docs/spec/enablers/ENB-020.md")
+        got = rc.rule_b(subject, self.cfg)
+        self.assertEqual([(f.rule, f.level) for f in got], [("b", "FAIL")])
+        self.assertIn("split the row", got[0].message)
+        cfg = dataclasses.replace(self.cfg, companions=("docs/spec/enablers/*.md",))
+        self.assertEqual(rc.rule_b(subject, cfg), [])
+        got = rc.rule_b(self.row("server/src/main/**", "docs/spec/features/FEAT-001.md"), cfg)
+        self.assertEqual([(f.rule, f.level) for f in got], [("b", "FAIL")])
+        self.assertIn("split the row", got[0].message)
+
+    def test_companion_globs_match_normalized_component_paths(self):
+        self.cfg = dataclasses.replace(self.cfg, companions=("client/docs/*.md",))
+        for companion in ("frontend/docs/contract.md", "client/docs/contract.md"):
+            with self.subTest(companion=companion):
+                subject = self.row("server/src/main/**", companion)
+                self.assertEqual(rc.rule_b(subject, self.cfg), [])
+                self.assertEqual(rc.row_component(subject), "backend")
+
+    def test_companion_files_still_require_a_top_level_path(self):
+        cfg = dataclasses.replace(self.cfg, companions=("nowhere/*.md",))
+        got = rc.rule_b(self.row("server/src/main/**", "nowhere/x.md"), cfg)
+        self.assertEqual([(f.rule, f.level) for f in got], [("b", "FAIL")])
+        self.assertIn("does not start at a top-level path", got[0].message)
+
+    def test_companion_files_keep_the_owned_component_for_proofs(self):
+        self.cfg = dataclasses.replace(self.cfg, companions=("docs/spec/enablers/*.md",))
+        proof = "`./mvnw -q verify`; `test -f src/main/java/A.java`"
+        plain = self.row("server/src/main/**", proof=proof)
+        subject = self.row("server/src/main/**", "docs/spec/enablers/ENB-020.md", proof=proof)
+        self.assertEqual(rc.row_component(subject), "backend")
+        for rule in (rc.rule_e, rc.rule_g):
+            with self.subTest(rule=rule.__name__):
+                self.assertEqual(rule(plain, self.cfg), [])
+                self.assertEqual(rule(subject, self.cfg), [])
+
+    def test_companion_files_still_cover_proof_paths(self):
+        self.cfg = dataclasses.replace(self.cfg, companions=("docs/spec/enablers/*.md",))
+        subject = self.row("server/src/main/**", "docs/spec/enablers/ENB-020.md",
+                           proof="`test -f docs/spec/enablers/ENB-020.md`")
+        self.assertEqual(rc.rule_g(subject, self.cfg), [])
+
+    def test_all_companion_files_keep_their_component(self):
+        self.cfg = dataclasses.replace(self.cfg, companions=("client/docs/*.md",))
+        subject = self.row("frontend/docs/one.md", "client/docs/two.md")
+        self.assertEqual(rc.rule_b(subject, self.cfg), [])
+        self.assertEqual(rc.row_component(subject), "frontend")
+
     def test_component_proof_escapes_fail_with_the_sandbox_reason(self):
         cases = (("server/pom.xml", "python3 ../tools/check/check.py"),
                  ("backend/pom.xml", "python3 ../tools/check/check.py"),
@@ -509,10 +558,17 @@ class ConfigShapes(Base):
 
     def test_other_gate_keys_of_the_wrong_shape_are_usage_errors(self):
         for key, value in (("proof_allowlist", "python3"), ("proof_allowlist", [3]), ("generated_neighbours", ".uid"),
+                           ("companion_files", "docs/x.md"), ("companion_files", [3]),
                            ("proof_script_runners", ["godot"]), ("proof_script_runners", {"godot": "-s"})):
             with self.subTest(key=key, value=value):
                 self.write_json("tools/gates.json", dict(GATES, **{key: value}))
                 self.assert_usage_error(key)
+
+    def test_companion_files_load_from_the_gates_json(self):
+        self.write_json("tools/gates.json", dict(GATES, companion_files=["docs/spec/enablers/*.md"]))
+        cfg = rc.load_config(self.spec)
+        self.assertEqual(cfg.companions, ("docs/spec/enablers/*.md",))
+        self.assertEqual(rc.rule_b(self.row("server/src/main/**", "docs/spec/enablers/ENB-020.md"), cfg), [])
 
     def test_an_unexpected_error_exits_2_not_1(self):
         original = rc.lint

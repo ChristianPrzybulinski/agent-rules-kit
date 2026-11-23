@@ -39,7 +39,7 @@ Each row passes every check below before its table goes to the spec PR; a row th
 | Rule | Level | Checks | Reads |
 |---|---|---|---|
 | a | FAIL | the KIT-068 columns and their values; a malformed row skips the rest | — |
-| b | FAIL | each Files entry starts at a top-level path or a component name, and the row stays in one component (a contract row that owns the protocol folder only warns) | `components` |
+| b | FAIL | each Files entry starts at a top-level path or a component name, and the row stays in one component (Files entries that match the gates `companion_files` globs do not count) (a contract row that owns the protocol folder only warns) | `components`, gates `companion_files` |
 | c | FAIL (WARN for a stack with `level: warn`) | a code path needs a test path of its stack | `row_checks.tests` |
 | d | WARN | a listed generated neighbour; an exact asset path where a `**` glob of its folder belongs | gates `generated_neighbours`, `row_checks.assets` |
 | e | FAIL (WARN for a manual clause with no automated sibling, or no command at all) | each proof clause runs allowlisted programs only, under the component rules of § Proof (`pr_gates.py` `command_allowed`, the PR gate's own code); a Proof of `evidence:` clauses only fails unless `row_checks.evidence_only` is `true` | gates `proof_allowlist`; `components`; `row_checks.evidence_only` |
