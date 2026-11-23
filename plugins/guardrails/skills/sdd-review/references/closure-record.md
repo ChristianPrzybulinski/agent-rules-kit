@@ -5,7 +5,7 @@ kind: detail
 
 # Closure record
 
-`sdd-review` writes it into the FEAT under `## Closure`, or, in a FEAT with `## Versions`, under the open block's `#### Closure` (the `spec-feature.md` template carries the heading), then runs `spec_trace.py validate`, which refuses a closure without the outcome line or without a check row whose Result is measured (`not run: <why>` counts as a row).
+`sdd-review` writes it into the FEAT under `## Closure`, or, in a FEAT with `## Versions`, under the open block's `#### Closure` (the `spec-feature.md` template carries the heading), then runs `spec_trace.py validate`, which refuses a closure without the outcome line or without a measured Result in a table headed `Check | Command or measurement | Result` (case-insensitive, spaces trimmed). A Result starting with `not run` blocks `validated`; it stays legal with `delivered` or `returned:`.
 
 ## Shape
 

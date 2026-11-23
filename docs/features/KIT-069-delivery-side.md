@@ -240,3 +240,4 @@ against `0855809`'s tool and pass after. Results are in the PR body.
   informational `not run` line, not a finding. Tests: `test_a_retired_req_needs_no_proving_test_in_the_trace`,
   `test_maven_verify_narrowed_by_it_test_is_not_linted`.
 - 2026-11-22 amend (#435): validate requires the closure's outcome line and one check row with a measured Result; a placeholder closure (Stratics FEAT-147) no longer passes the start gate.
+- 2026-11-22 amend (#453): closure validation splits pipes outside backtick spans, counts only rows under the Shape check-table header, and refuses any `not run` Result with `outcome validated`; delivered and returned closures still allow it.
