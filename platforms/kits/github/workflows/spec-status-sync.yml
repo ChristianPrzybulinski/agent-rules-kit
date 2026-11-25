@@ -38,7 +38,7 @@ jobs:
           persist-credentials: false  # the last step pushes with PR_BOT_TOKEN
       # Python 3.12 with pyyaml, and AI_KIT_DIR: the kit at the pinned commit, whose spec_trace.py the next step runs
       - name: The kit's spec tools at the pinned commit (spec_trace.py)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@25a271e50af36ccff72ee8dd6c2923fe423cc99d  # v17.0.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@758a7fcf37046aa010f402c7043cdc71342e243a  # v18.2.0
         with:
           checks: none
       - name: Derive the status cells from GitHub (spec_trace.py sync-status --write)

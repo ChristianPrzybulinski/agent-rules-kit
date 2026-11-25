@@ -38,7 +38,7 @@ jobs:
       # Python 3.12 and AI_KIT_DIR, the kit at the pinned commit. changelog_fragments.py ships since 15.0.0: a pin older
       # than that fails the next step with "can't open file".
       - name: The kit at the pinned commit (changelog_fragments.py)
-        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@25a271e50af36ccff72ee8dd6c2923fe423cc99d  # v17.0.0
+        uses: ChristianPrzybulinski/agent-rules-kit/platforms/ci/actions/spec-tools@758a7fcf37046aa010f402c7043cdc71342e243a  # v18.2.0
         with:
           checks: none
       - name: Move the fragments into CHANGELOG.md (every malformed line named before any write)
