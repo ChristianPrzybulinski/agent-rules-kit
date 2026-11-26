@@ -5,7 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ## [Unreleased]
 
 ### Fixed
-- #450: `spec_trace.py enablers` (C18) no longer asks for an ENB that satisfies a REQ with `status: retired` that an open FEAT still lists, so an ENB's Rules can drop the retired id. The REQ that replaced it is judged where a FEAT lists it, and a process step's Rules are judged as before. Migration: none.
+- #450: `spec_trace.py enablers` (C18) no longer asks for an ENB that satisfies a REQ with `status: retired` that an open FEAT still lists, so an ENB's Rules can drop the retired id. The REQ that replaced it is judged only where an open FEAT, or the one `--feat` names, lists it, and a process step's Rules are judged as before. Migration: none.
 - #463: row_checks.py rule b honours the gates companion_files key: Files entries that match its globs (Stratics: docs/spec/enablers/*.md) no longer make a row span two components, and rules e and g take the proof folder from the other entries; the key is checked as a list of strings. Without the key nothing changes. Migration: none; a project that lets any component's row carry a file lists its glob in companion_files of the gates JSON that sdd.row_checks.gates names.
 - #451: spec_trace.py sync-status writes the spec.md Status cell of a FEAT whose id uses sdd.id_prefix.feature (KIT-nnn in the kit), and impact and lint accept such ids.
 

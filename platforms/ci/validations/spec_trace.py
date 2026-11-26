@@ -1157,7 +1157,7 @@ def enabler_findings(spec, fid=None, patterns=()):
     """C18 and C19 (KIT-095) over the open FEATs, or the one `fid` names; each finding is `C<n> <severity>: text`."""
     scope = [fid] if fid else [f for f, feat in spec.feats.items() if feat["status"] not in STATUS_FROZEN]
     satisfied = {rid for enabler in spec.enablers.values() for rid in enabler["satisfies"]}
-    # A retired REQ stays listed beside the REQ that replaced it and has no rule left to satisfy (#450)
+    # A retired REQ a FEAT still lists has no rule left to satisfy (#450)
     retired = {rid for rid, req in spec.reqs.items() if req["status"] == "retired"}
     findings = []
     for f in scope:

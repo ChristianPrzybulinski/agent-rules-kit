@@ -1,6 +1,6 @@
 """spec_trace.py and enablers (KIT-095): ENB-nnn tables (frontmatter ids equal the contract tables, kinds, REQ cells),
-the Enablers and Contracts views of the matrix, and the `enablers` command's C18 (a REQ or process step no ENB
-satisfies) and C19 (a contract the catalog lacks, a contract with no consumer, a schema or migration file no row
+the Enablers and Contracts views of the matrix, and the `enablers` command's C18 (a REQ not retired, or a process
+step, no ENB satisfies) and C19 (a contract the catalog lacks, a contract with no consumer, a schema or migration file no row
 covers). A spec without enablers/ is unaffected: the command is off and the matrix renders as before."""
 import contextlib
 import io
@@ -341,20 +341,29 @@ class EnablerCommandTest(EnablerCase):
         self.assertEqual(code, 0, out)
 
     def test_c18_skips_a_retired_req_and_reports_its_unsatisfied_keeper(self):
-        """#450: a retired REQ stays listed beside its keeper; only the keeper still needs an ENB."""
+        """#450: C18 asks no ENB for a retired REQ a FEAT lists; the other REQs listed with it still need one."""
         self.req("REQ-F-003", "FEAT-001")
         retired = self.spec / "requirements/functional/REQ-F-003.md"
         retired.write_text(retired.read_text(encoding="utf-8").replace("---\n", "---\nstatus: retired\n", 1),
                            encoding="utf-8")
         self.feat("FEAT-001", "REQ-F-001, REQ-NF-001, REQ-F-003", "ENB-001", "- `ENB-001:battle-wire`.")
+        for scope in ((), ("--feat", "FEAT-001")):
+            with self.subTest(scope=scope):
+                code, out, _ = self.enablers(*scope)
+                self.assertEqual(code, 0, out)
+                self.assertNotIn("C18", out)
+        # the keeper REQ-F-001 loses its ENB (the cell cites another REQ), and no ENB cites the retired REQ-F-003
+        self.enabler(old="| one move per side per turn | REQ-F-001 |", new="| one move per side per turn | REQ-F-002 |")
+        for scope in ((), ("--feat", "FEAT-001")):
+            with self.subTest(scope=scope):
+                code, out, _ = self.enablers(*scope)
+                self.assertEqual(code, 1, out)
+                self.assertIn("C18 high: REQ-F-001 (FEAT-001) has no ENB that satisfies it in Aggregates or Qualities",
+                              out)
+                self.assertNotIn("C18 high: REQ-F-003", out)
+        write(self.root, "docs/spec/processes/PROC-001-turn.md", PROCESS)  # the step pass reads no REQ status
         code, out, _ = self.enablers()
-        self.assertEqual(code, 0, out)
-        self.assertNotIn("C18", out)
-        self.enabler(old="| one move per side per turn | REQ-F-001 |", new="| one move per side per turn | REQ-F-003 |")
-        code, out, _ = self.enablers()
-        self.assertEqual(code, 1, out)
-        self.assertIn("C18 high: REQ-F-001 (FEAT-001) has no ENB that satisfies it in Aggregates or Qualities", out)
-        self.assertNotIn("C18 high: REQ-F-003", out)
+        self.assertIn("C18 high: PROC-001 S2 cites REQ-F-003, which no ENB satisfies", out)
 
     def test_c18_process_step_no_enabler_satisfies(self):
         write(self.root, "docs/spec/processes/PROC-001-turn.md", PROCESS)

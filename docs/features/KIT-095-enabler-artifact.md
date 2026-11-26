@@ -87,6 +87,6 @@ Part 2 is text only: `check.sh`, `check.sh --links` and the unit, contract and c
 - 2026-11-17: part 1 implemented on `feat/kit-095-enabler-artifact`; PR #355 merged.
 - 2026-11-17: part 2 implemented on `feat/kit-095-part2-enabler-skills`; PR pending; done. The migration-folder
   profile key moved to KIT-087 P2b.
-- 2026-11-26 amend (#450): C18 skips a `retired` REQ a FEAT still lists, as C20, C22 and `lint` already skip retired
-  rules, so an ENB's Rules need not cite it. A process step's Rules are judged as before. Following the retired REQ to
+- 2026-11-26 amend (#450): C18 skips a `retired` REQ a FEAT still lists, as C20 and `lint` already skip retired
+  REQs and C22 retired processes, so an ENB's Rules need not cite it. A process step's Rules are judged as before. Following the retired REQ to
   its keeper was rejected: the REQ schema has no field for the keeper, which only a History line names.
