@@ -82,7 +82,7 @@ Generated: `traceability.md` § Enablers lists the FEATs whose `enablers` names 
     protocol schema (sdd.row_checks.protocol.schemas) or a `--catalog` file no row covers.
   - Consumers names ENB ids, a client, or `public`; a contract with none is a C19 finding.
   - Aggregates `Rules` cites REQ-F ids and Qualities `Rules` REQ-NF ids, never their text: these rows are how an ENB
-    satisfies a REQ, and a REQ or process step no ENB satisfies is a C18 finding.
+    satisfies a REQ, and a REQ (not `retired`) or process step no ENB satisfies is a C18 finding.
   - Decisions and History are generated, never written here: a FEAT, decision or debt names the ENB in its own
     `enablers` field.
 -->

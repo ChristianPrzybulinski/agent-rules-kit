@@ -93,7 +93,7 @@ ids). `providesApis` and `consumesApis` hold exactly the ids of the two contract
 Aggregates and Qualities rows cite. With enablers, traceability.md adds the Enablers view (each ENB's contracts, the
 REQs it satisfies, and the FEATs, decisions and debts whose `enablers` names it: its generated History and Decisions)
 and the Contracts view, and is required. `enablers` reports, over the open FEATs or the one --feat names:
-  C18 high    a REQ of the FEAT, or a process step whose Rules cite REQs, that no ENB satisfies;
+  C18 high    a REQ of the FEAT not `retired`, or a process step whose Rules cite REQs, that no ENB satisfies;
   C19 high    a Plan § Contract reference `ENB-nnn:<contract>` the catalog lacks, or to an ENB the FEAT's `enablers`
               does not list; a file under sdd.row_checks.protocol.schemas or an sdd.migrations folder of the
               profile, or matching a --catalog glob, that no `Schema or file` cell covers. All are rooted at the
@@ -1157,10 +1157,12 @@ def enabler_findings(spec, fid=None, patterns=()):
     """C18 and C19 (KIT-095) over the open FEATs, or the one `fid` names; each finding is `C<n> <severity>: text`."""
     scope = [fid] if fid else [f for f, feat in spec.feats.items() if feat["status"] not in STATUS_FROZEN]
     satisfied = {rid for enabler in spec.enablers.values() for rid in enabler["satisfies"]}
+    # A retired REQ a FEAT still lists has no rule left to satisfy (#450)
+    retired = {rid for rid, req in spec.reqs.items() if req["status"] == "retired"}
     findings = []
     for f in scope:
         for rid in spec.feats[f]["requirements"]:
-            if rid not in satisfied:
+            if rid not in satisfied and rid not in retired:
                 findings.append(f"C18 high: {rid} ({f}) has no ENB that satisfies it in Aggregates or Qualities")
     in_scope = {r for f in scope for r in spec.feats[f]["requirements"]}
     for step in spec.process_steps:
