@@ -23,6 +23,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import spec_trace as trace  # noqa: E402
 from test_profile import write_spec  # noqa: E402
+from test_spec_trace_enabler import ENB_1  # noqa: E402
 
 FEAT11 = """\
 ---
@@ -405,6 +406,25 @@ class SyncStatusTest(unittest.TestCase):
         self.assertNotIn("todo -> done", out)
         self.assertEqual({p: self.text(p) for p in once}, once)
         self.assertEqual(self.text(self.path1).count("sync: status derived from GitHub"), 1)
+
+    def test_matrix_reflects_synced_enabler_linked_feat_status(self) -> None:
+        write(self.root, "docs/spec/enablers/ENB-001.md", ENB_1)
+        self.path1.write_text(self.text(self.path1).replace(
+            "requirements: []\n", "requirements: []\nenablers: [ENB-001]\n"), encoding="utf-8")
+        matrix = self.spec / trace.MATRIX
+        matrix.write_text(trace.render_matrix(trace.load(self.spec)), encoding="utf-8")
+        self.assertIn("FEAT-001 (planned)", self.text(matrix))
+
+        gh = self.routes([issue(10, "[FEAT-001 T1] First", "closed")],
+                         {(REPO, 20): pull(body=f"Closes {REPO}#10")})
+        code, out = self.run_sync(gh)
+
+        self.assertEqual(code, 0, out)
+        fresh = trace.load(self.spec)
+        self.assertEqual(fresh.feats["FEAT-001"]["status"], "in-progress")
+        self.assertEqual(self.text(matrix), trace.render_matrix(fresh),
+                         "traceability.md is stale after sync-status --write")
+        self.assertIn("FEAT-001 (in-progress)", self.text(matrix))
 
     def test_spec_index_status_cell_and_marker_block(self):
         gh = self.routes([issue(11, "[FEAT-001 T1] a", "closed")], {(CLIENT, 90): pull(body=f"Closes {REPO}#11")})

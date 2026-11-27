@@ -3070,7 +3070,8 @@ def apply_sync(spec, changed, today):
         written += 1
     matrix = spec.spec_dir / MATRIX
     if spec.journeys or spec.processes or matrix.exists():
-        rendered = render_matrix(spec)
+        # Load-time copies such as enabler_links are stale after the writes.
+        rendered = render_matrix(load(spec.spec_dir))
         if not matrix.exists() or matrix.read_text(encoding="utf-8") != rendered:
             matrix.write_text(rendered, encoding="utf-8")
             written += 1

@@ -85,3 +85,4 @@ pr: "#262"
   and parameter operators no spelling list holds): the sandbox now accepts only expansions it can predict. Also
   fixed: a closed issue's labels reached the open one; a crash's traceback was lost.
 - 2026-11-23 amend (#463): rule b and the proof folder of rules e and g leave out Files entries that match the gates companion_files globs (the review loop's key), so a server row that carries its ENB file, as rule n asks, is one component; found on Stratics FEAT-166 T3 and T6 (stratics#5682).
+- 2026-11-27 amend (#471): sync-status --write renders traceability.md from a fresh load of the tree it wrote; the status load_enablers copies (KIT-095) was stale in memory, so an enabler-linked FEAT that moved left the matrix unchanged and check red (stratics#5646).
